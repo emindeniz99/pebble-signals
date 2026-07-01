@@ -17,7 +17,9 @@ export function Show(props) {
 		const on = !!props.when();
 		untrack(() => {
 			if (dispose) { dispose(); dispose = null; }
-			host.empty();
+			// remove one-by-one instead of empty(): see For note below
+			while (host.first)
+				host.remove(host.first);
 			const build = on ? props.children : props.fallback;
 			if (!build) return;
 			const [tree, d] = createRoot(() => asNode(build));
@@ -31,9 +33,11 @@ export function Show(props) {
 
 // For({ each, key, children }) — keyed reconcile. `each` is a thunk
 // returning an array; `key` maps item -> unique key (default: identity);
-// `children` is (item, index) -> node. v1 policy: rows whose keys survive
-// are kept (moved as needed); new keys mount in their own root; removed
-// keys dispose. Row nodes are remembered per key in a Map.
+// `children` is (item, index) -> node. Rows whose keys survive are kept;
+// new keys mount in their own root; removed keys dispose. Reconcile does
+// MINIMAL piu ops (remove departed, insert/move only misplaced nodes) —
+// a full empty()+re-add per update destabilizes the piu Pebble port and
+// costs native churn per row (measured: app death after ~15-25 cycles).
 export function For(props) {
 	const host = makeHost(props, Column);
 	const keyOf = props.key || (item => item);
@@ -42,7 +46,6 @@ export function For(props) {
 		const items = props.each();
 		untrack(() => {
 			const next = new Map();
-			const order = [];
 			for (let i = 0; i < items.length; i++) {
 				const item = items[i], k = keyOf(item, i);
 				let row = rows.get(k);
@@ -53,15 +56,28 @@ export function For(props) {
 					row = { node, dispose };
 				}
 				next.set(k, row);
-				order.push(row.node);
 			}
-			for (const row of rows.values())	// keys gone from the data
+			for (const row of rows.values()) {	// keys gone from the data
+				host.remove(row.node);
 				row.dispose();
+			}
 			rows = next;
-			// Rebuild host order: cheap and correct for watch-sized lists.
-			host.empty();
-			for (const node of order)
-				host.add(node);
+			// Position pass: walk expected order with a cursor over the
+			// host's real children; move/insert only mismatched nodes.
+			let cursor = host.first;
+			for (const row of next.values()) {
+				const node = row.node;
+				if (node === cursor) {
+					cursor = cursor.next;
+					continue;
+				}
+				if (node.container)
+					host.remove(node);
+				if (cursor)
+					host.insert(node, cursor);
+				else
+					host.add(node);
+			}
 		});
 	}));
 	track(() => {

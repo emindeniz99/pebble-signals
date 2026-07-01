@@ -26,13 +26,29 @@ export function jsx(type, props) {
 
 export const jsxs = jsx;
 
+// Event props -> piu Behavior methods. onTap needs active:true; the
+// onPress*/onRelease* button events reach the behavior of the focused
+// content (or an ancestor), so pair them with the `focus` prop.
+const BUTTON_EVENTS = [
+	"onPressSelect", "onReleaseSelect", "onPressUp", "onReleaseUp",
+	"onPressDown", "onReleaseDown", "onPressBack", "onReleaseBack",
+];
+
+let pendingFocus = null;
+
 function createHost(type, props) {
 	const dict = {};
-	let bindings = null, handler = null, children;
+	let bindings = null, tap = null, buttons = null, children, focus = false;
 	for (const k in props) {
 		const v = props[k];
 		if (k === "children") { children = v; continue; }
-		if (k === "onTap") { handler = v; continue; }
+		if (k === "focus") { focus = !!v; continue; }
+		if (k === "onTap") { tap = v; continue; }
+		if (BUTTON_EVENTS.indexOf(k) >= 0) {
+			if (buttons === null) buttons = {};
+			buttons[k] = v;
+			continue;
+		}
 		if (typeof v === "function") {	// reactive prop: thunk -> live binding
 			if (bindings === null) bindings = [];
 			bindings.push(k, v);
@@ -40,13 +56,27 @@ function createHost(type, props) {
 		}
 		dict[k] = v;
 	}
-	if (handler) {
-		dict.active = true;
-		dict.Behavior = class extends Behavior {
-			onTouchEnded(content) { handler(content); }
-		};
+	if (tap || buttons) {
+		const proto = {};
+		if (tap) {
+			dict.active = true;
+			proto.onTouchEnded = function(content, id, x, y) { tap(content, x, y); };
+		}
+		if (buttons) {
+			for (const name in buttons) {
+				const handler = buttons[name];
+				// piu stops bubbling when the method returns truthy;
+				// consume by default, return false from the handler to pass.
+				proto[name] = function(content) { return handler(content) !== false; };
+			}
+		}
+		class HostBehavior extends Behavior {}
+		Object.assign(HostBehavior.prototype, proto);
+		dict.Behavior = HostBehavior;
 	}
 	const node = new type(null, dict);
+	if (focus)
+		pendingFocus = node;	// applied after mount; focus() needs a bound node
 	if (bindings) {
 		for (let i = 0; i < bindings.length; i += 2) {
 			const key = bindings[i], thunk = bindings[i + 1];
@@ -97,5 +127,9 @@ export function render(build, dict) {
 	const app = new Application(null, dict || {});
 	const [tree] = createRoot(build);
 	appendChild(app, tree);
+	if (pendingFocus) {
+		pendingFocus.focus();
+		pendingFocus = null;
+	}
 	return app;
 }
