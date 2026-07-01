@@ -1,16 +1,18 @@
-// M2 — static JSX path: a Column of Labels rendered through jsx-runtime.
+// M3 — reactive binding: a signal ticks on a timer and one Label updates.
+// The tree is built once; each tick is a single Piu property assignment.
 import { render } from "runtime/jsx-runtime";
+import { signal } from "runtime/signals";
 
 const bg = new Skin({ fill: "black" });
 const base = new Style({ font: "24px Gothic", color: "white" });
-const small = new Style({ font: "18px Gothic", color: "silver" });
+const big = new Style({ font: "36px Gothic", color: "white" });
 
-// Round-display note (gabbro): an unconstrained Column measures its
-// children and centers in the Application, keeping text in the safe area.
+const ticks = signal(0);
+setInterval(() => { ticks.value += 1; }, 1000);
+
 render(() => (
 	<Column>
-		<Label string="signal-piu M2" />
-		<Label string="JSX -> real Piu nodes" style={small} />
-		<Label string="no virtual DOM" style={small} />
+		<Label string="signal-piu M3" />
+		<Label style={big} string={() => "ticks: " + ticks.value} />
 	</Column>
 ), { skin: bg, style: base });
