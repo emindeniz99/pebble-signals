@@ -1,2 +1,3 @@
 .lock-waf_*
 build/
+src/embeddedjs/app/
