@@ -1,6 +1,6 @@
 // Reactive core suite — mirrors the assertions verified on XS in M1
 // (on-device the verdict renders as a Piu label; here it exits nonzero).
-import { signal, effect, computed, untrack, createRoot, onCleanup, track, useEffect, dispose }
+import { signal, effect, computed, untrack, createRoot, onCleanup, track, useEffect, dispose, useState, useMemo }
 	from "../src/embeddedjs/runtime/signals.js";
 import { makeChecker } from "./load-runtime.mjs";
 
@@ -62,7 +62,6 @@ u.value = 2;
 check("untrack does not subscribe", uRuns === 1);
 
 // 8. hooks layer
-const { useState, useMemo } = await import("../src/embeddedjs/runtime/signals.js");
 const [count, setCount] = useState(0);
 const dbl = useMemo(() => count() * 2);
 setCount(v => v + 2);

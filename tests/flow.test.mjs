@@ -85,10 +85,16 @@ const fallbackWrapper = kaHost.contents[0];
 on2.value = true;
 check("keepAlive swap to children", inner(kaHost).string === "m=0");
 m.value = 3;
-check("keepAlive hidden side effects stay live", true);	// no dispose in keepAlive
 check("keepAlive children binding live", inner(kaHost).string === "m=3");
 on2.value = false;
 check("keepAlive swap back reuses SAME wrapper", kaHost.contents[0] === fallbackWrapper);
+// hidden-side effects STAY LIVE: write m while the children side is OFF
+// screen, then swap back and observe the binding already applied it
+const childrenWrapper = kaHost.contents[0] === fallbackWrapper ? null : kaHost.contents[0];
+m.value = 7;
+on2.value = true;
+check("keepAlive hidden side effects stay live", inner(kaHost).string === "m=7");
+on2.value = false;
 on2.value = true;
 on2.value = false;
 check("keepAlive survives repeated toggles", inner(kaHost).string === "ka-off");

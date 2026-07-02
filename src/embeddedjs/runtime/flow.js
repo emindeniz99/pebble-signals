@@ -98,7 +98,7 @@ export function For(props) {
 	// it keeps instead of rebuilding a key map (a fresh Map per pass was
 	// pure transient allocation at exactly the moment the arena is fullest
 	// — adding a row is when "fxAbort memory full" hits).
-	const rows = new Map();		// key -> { node, dispose, stamp }
+	const rows = new Map();		// key -> { n: node, d: dispose, s: stamp }
 	let stamp = 0;
 	track(effect(() => {
 		const items = props.each();
@@ -109,24 +109,27 @@ export function For(props) {
 				const item = items[i], k = keyOf(item, i);
 				let row = rows.get(k);
 				if (row) {
-					if (row.stamp === pass)	// duplicate key: first occurrence wins
+					if (row.s === pass)	// duplicate key: first occurrence wins
 						continue;
 				}
 				else {
 					const [node, dispose] = createRoot(() => asNode(() => props.children(item, i)));
-					row = { node, dispose, stamp: 0 };
+					row = { n: node, d: dispose, s: 0 };
 					rows.set(k, row);
 				}
-				row.stamp = pass;
-				order.push(row.node);
+				row.s = pass;
+				order.push(row.n);
 			}
-			for (const [k, row] of rows) {	// keys gone from the data
-				if (row.stamp !== pass) {
-					host.remove(row.node);
-					row.dispose();
+			// forEach, not entries(): the entries iterator allocates a fresh
+			// [key, value] array per row on EVERY pass — garbage at exactly
+			// the moment the arena is fullest (spec allows delete-in-forEach)
+			rows.forEach((row, k) => {
+				if (row.s !== pass) {	// key gone from the data
+					host.remove(row.n);
+					row.d();
 					rows.delete(k);
 				}
-			}
+			});
 			// Position pass: walk expected order with a cursor over the
 			// host's real children; move/insert only mismatched nodes.
 			let cursor = host.first;
@@ -145,8 +148,7 @@ export function For(props) {
 		});
 	}));
 	track(() => {
-		for (const row of rows.values())
-			row.dispose();
+		rows.forEach(row => row.d());
 		rows.clear();
 	});
 	return host;

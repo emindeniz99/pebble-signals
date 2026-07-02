@@ -25,7 +25,10 @@ class Signal {
 		this.s = null;
 	}
 	get value() {
-		if (current) {
+		// current.f check: an effect disposed WHILE RUNNING (its subtree torn
+		// down by an outer effect it triggered) must not re-subscribe as a
+		// permanent zombie — run() would no-op forever but never unsubscribe.
+		if (current && current.f) {
 			const s = this.s;
 			if (s === null)
 				this.s = current;
@@ -37,7 +40,7 @@ class Signal {
 				else
 					this.s = [s, current];
 			}
-			current.deps.push(this);
+			current.d.push(this);
 		}
 		return this.v;
 	}
@@ -81,18 +84,18 @@ class Effect {
 	// flag; the optional useEffect cleanup is only materialized on the
 	// instances that actually use it (current.cleanup = ...).
 	constructor(fn) {
-		this.fn = fn;
-		this.deps = [];
-		this.cleanup = null;	// optional user cleanup (useEffect)
+		this.f = fn;		// null doubles as the disposed flag
+		this.d = [];		// subscribed signals
+		this.c = null;		// optional user cleanup (useEffect)
 	}
 	run() {
-		if (!this.fn)		// disposed mid-notification — do not resurrect
+		if (!this.f)		// disposed mid-notification — do not resurrect
 			return;
 		unsubscribe(this);
 		const prev = current;
 		current = this;
 		try {
-			this.fn();
+			this.f();
 		} finally {
 			current = prev;
 		}
@@ -103,25 +106,28 @@ class Effect {
 // before every re-run and on disposal, giving useEffect the React contract:
 // cleanup fires before the next run and once more at dispose.
 function unsubscribe(e) {
-	if (e.cleanup) {
-		const c = e.cleanup;
-		e.cleanup = null;
+	if (e.c) {
+		const c = e.c;
+		e.c = null;
 		c();
 	}
-	for (const sig of e.deps) {
-		const s = sig.s;
+	// indexed loop: for-of allocates an iterator and this runs before EVERY
+	// effect re-run — the hottest path in the runtime
+	const d = e.d;
+	for (let i = 0; i < d.length; i++) {
+		const sig = d[i], s = sig.s;
 		if (s === e)
 			sig.s = null;
 		else if (Array.isArray(s)) {
-			const i = s.indexOf(e);
-			if (i >= 0) {
-				s.splice(i, 1);
+			const j = s.indexOf(e);
+			if (j >= 0) {
+				s.splice(j, 1);
 				if (s.length === 1)	// collapse back to the inline form
 					sig.s = s[0];
 			}
 		}
 	}
-	e.deps.length = 0;
+	d.length = 0;
 }
 
 export function signal(value) {
@@ -145,7 +151,7 @@ export function dispose(d) {
 		d();
 		return;
 	}
-	d.fn = null;		// run() becomes a no-op — no resurrection
+	d.f = null;		// run() becomes a no-op — no resurrection
 	unsubscribe(d);
 }
 
@@ -155,9 +161,7 @@ export function dispose(d) {
 export function computed(fn) {
 	const s = new Signal(undefined);
 	track(effect(() => { s.value = fn(); }));
-	return {
-		get value() { return s.value; },
-	};
+	return s;	// its .value getter tracks; writing .value is caller error
 }
 
 // Read a value without creating a dependency.
@@ -228,7 +232,7 @@ export function useEffect(fn) {
 	track(effect(() => {
 		const out = fn();
 		if (typeof out === "function")
-			current.cleanup = out;
+			current.c = out;
 	}));
 }
 
@@ -237,7 +241,6 @@ export function useMemo(fn) {
 	return () => c.value;
 }
 
-export const useRef = current_ => ({ current: current_ });
 
 // ---- typed byte-record store ---------------------------------------------
 // Collections kept as plain JS objects cost ~450B of slots per row and kill
@@ -310,7 +313,9 @@ const Store = class {
 		}
 		else if (v === true) { tag = T_TRUE; len = 0; }
 		else if (v === false) { tag = T_FALSE; len = 0; }
-		else { tag = T_NULL; len = 0; }
+		else if (v === null || v === undefined) { tag = T_NULL; len = 0; }
+		else
+			return -1;	// objects need a registered codec + explicit tag
 		if (len < 0 || len > 255 || len > max)
 			return -1;
 		b[this.t] = tag;
@@ -331,12 +336,10 @@ const Store = class {
 				for (let j = 0; j < 8; j++)
 					this.fb[j] = b[off + j];
 				return this.f[0];
-			case T_STR: {
-				let s = "";
-				for (let j = 0; j < len; j++)
-					s += String.fromCharCode(b[off + j]);
-				return s;
-			}
+			case T_STR:
+				// apply over a subarray view: 1 allocation instead of one
+				// intermediate string per character
+				return len ? String.fromCharCode.apply(String, b.subarray(off, off + len)) : "";
 			case T_TRUE: return true;
 			case T_FALSE: return false;
 			case T_NULL: return null;

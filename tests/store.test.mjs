@@ -65,6 +65,24 @@ check("rejects when full", s3.push(2) === -1);
 check("count intact after reject", s3.count() === 1 && s3.get(0) === 1);
 check("boolean fits in 2 spare bytes", s3.push(true) === 2);
 
+// remove at head and at tail (the demo's exact calls + the no-copy edge)
+const s5 = createStore(64);
+s5.push(1); s5.push(2); s5.push(3);
+check("remove head", s5.remove(0) === 2 && s5.get(0) === 2);
+check("remove tail", s5.remove(1) === 1 && s5.get(0) === 2 && s5.get(1) === undefined);
+
+// float specials round-trip through the f64 path
+const s6 = createStore(64);
+s6.push(Infinity); s6.push(-Infinity); s6.push(NaN); s6.push(1e300);
+check("Infinity", s6.get(0) === Infinity);
+check("-Infinity", s6.get(1) === -Infinity);
+check("NaN", Number.isNaN(s6.get(2)));
+check("f64 magnitude", s6.get(3) === 1e300);
+
+// objects without a registered codec are REJECTED, not silently nulled
+check("object rejected", s6.push({ a: 1 }) === -1);
+check("undefined stores as null", (s6.push(undefined), s6.get(4) === null));
+
 // oversize string rejected
 const s4 = createStore(512);
 check("string >255 rejected", s4.push("x".repeat(256)) === -1);

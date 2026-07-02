@@ -50,26 +50,23 @@ let pendingFocus = null;
 // prototype + 9 methods inside the 32KB arena at runtime.
 class HandlerBehavior {
 	constructor(tap, buttons) {
-		this.tap = tap;
-		this.buttons = buttons;
+		this.t = tap;
+		this.b = buttons;
 	}
 	onTouchEnded(content, id, x, y) {
-		if (this.tap)
-			this.tap(content, x, y);
+		if (this.t)
+			this.t(content, x, y);
 	}
-	button(name, content) {
-		const h = this.buttons && this.buttons[name];
-		return h ? h(content) !== false : false;
-	}
-	onPressSelect(content) { return this.button("onPressSelect", content); }
-	onReleaseSelect(content) { return this.button("onReleaseSelect", content); }
-	onPressUp(content) { return this.button("onPressUp", content); }
-	onReleaseUp(content) { return this.button("onReleaseUp", content); }
-	onPressDown(content) { return this.button("onPressDown", content); }
-	onReleaseDown(content) { return this.button("onReleaseDown", content); }
-	onPressBack(content) { return this.button("onPressBack", content); }
-	onReleaseBack(content) { return this.button("onReleaseBack", content); }
 }
+// The eight identical one-line button delegates are GENERATED here instead
+// of copy-pasted: this module-scope loop runs at preload (build) time, so
+// the closures land in flash and the prototype is written before it
+// freezes. ~300B of archive saved over the literal methods.
+for (const n of BUTTON_EVENTS)
+	HandlerBehavior.prototype[n] = function(content) {
+		const h = this.b && this.b[n];
+		return h ? h(content) !== false : false;
+	};
 
 function createHost(type, props) {
 	const dict = {};
@@ -116,18 +113,15 @@ function createHost(type, props) {
 // crashes the piu Pebble firmware (measured); use Show for conditional UI.
 // Of the rest, `string` is battle-tested on-device; state/variant/skin/
 // style/active pass through and follow the same setter path.
+const REACTIVE_PROPS = ["string", "state", "variant", "skin", "style", "active"];
+
 function setProp(node, key, value) {
-	switch (key) {
-		case "string": node.string = value; break;
-		case "state": node.state = value; break;
-		case "variant": node.variant = value; break;
-		case "skin": node.skin = value; break;
-		case "style": node.style = value; break;
-		case "active": node.active = value; break;
-		case "visible":
-			throw new Error("reactive `visible` crashes the piu Pebble port; use Show");
-		default: throw new Error("unsupported reactive prop: " + key);
-	}
+	if (REACTIVE_PROPS.indexOf(key) >= 0)
+		node[key] = value;
+	else if (key === "visible")
+		throw new Error("reactive `visible` crashes the piu Pebble port; use Show");
+	else
+		throw new Error("unsupported reactive prop: " + key);
 }
 
 export function appendChild(parent, child) {
