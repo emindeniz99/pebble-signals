@@ -3,3 +3,4 @@ build/
 src/embeddedjs/app/
 src/embeddedjs/runtime-min/
 src/tsx/main.tsx
+src/embeddedjs/manifest.json

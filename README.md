@@ -71,6 +71,7 @@ square screenshots below come from identical `.tsx`.
 | `scroll` | **virtualized infinite scroll** via `VirtualList` | windowing + cell recycling + scroll offset | ✅ `scroll-gabbro-*.png` | ✅ `scroll-emery-*.png` |
 | `richlist` | **rich recycled rows** (`renderRow`): 2-column row, 1 visible, scrollable | multi-element rows, not just text | ✅ `richlist-gabbro-*.png` | ✅ `richlist-emery-*.png` |
 | `slothface` | **animated sloth watchface** 🦥 (text-frame animation + clock) | timer-driven frame animation via signals | ✅ `slothface-*.png` (awake/blink/sleepy) | — |
+| `imgwatch` | **animated COLOR bitmap watchface** + HH:MM:SS | bundled bitmaps (png2bmp), `Texture`, frame-swap animation | ✅ `imgwatch-red.png` / `imgwatch-blue.png` | — |
 | `multiscreen` | 4 screens in one mod | does NOT boot — kept as the arena-OOM artifact | ❌ by design | ❌ |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
@@ -338,6 +339,33 @@ module's function that writes the CALLEE's aliased state is fine (the
 fatal case was preloaded->preloaded). For this demo the trade measured
 -52B RAM for +175B archive — reverted; the pattern earns its keep only
 when an app carries a LOT of logic code.
+
+## Bitmaps / images (color, animated) — measured
+
+Real bundled bitmaps work, in color, and animate. Pipeline:
+1. Put PNGs in `assets/` and list them in the mod manifest:
+   `"resources": { "*": ["../../assets/ball0", "../../assets/ball1"] }`.
+   The build's `png2bmp` converts each to `<name>-color.bm4` +
+   `<name>-alpha.bm4` and bundles them.
+2. Load with **`new Texture("ball0.png")`** — the `.png` suffix is
+   REQUIRED (the Pebble Texture constructor only looks up the `.bm4`
+   files when the path ends in `.png`; `new Texture("ball0")` throws
+   `Texture ball0 not found!` — measured). Then a texture `Skin`
+   (`{ texture, x, y, width, height }`) on a `Content`.
+3. ANIMATE by swapping the Content's `skin` on a timer — `skin` is a
+   reactive prop, so `<Content skin={() => frame()%2 ? skinB : skinA} />`
+   flips frames every tick (the `imgwatch` example: red ball ↔ blue ball
+   at 450ms, over a live HH:MM:SS clock, verified on Round 2 in color).
+   Piu also has a native multi-frame `Image` class (`duration` + start())
+   for GIF-style animation.
+Costs: bitmap PIXELS live in the native app heap (not the 32KB arena),
+but the `.bm4` bytes bundle into the mod ARCHIVE — two 64×64 balls took
+mc.xsa 14,140 → 24,656B. So `build.sh` adds the `resources` block ONLY
+for apps that use `Texture` (grep), keeping non-image apps small; the
+manifest is generated from `manifest.base.json` (gitignored, like
+main.tsx). Resources bundle into the archive but do NOT count against
+the ~15.9KB boot ceiling (imgwatch's 24.6KB archive boots fine —
+resources aren't preloaded/executed).
 
 ## XS / Piu gotchas actually hit
 

@@ -13,6 +13,18 @@ cd "$(dirname "$0")"
 # reactive screens in ONE mod exceed the 32KB arena at boot (README, M11).
 APP="${APP:-list}"
 cp "src/tsx/examples/$APP.tsx" src/tsx/main.tsx
+# Generate the mod manifest from the base; add image resources ONLY when the
+# app uses bitmaps (Texture) — otherwise every app's archive would carry the
+# ~10KB of .bm4 assets. manifest.json is build-generated (gitignored).
+cp src/embeddedjs/manifest.base.json src/embeddedjs/manifest.json
+if grep -q "Texture" "src/tsx/examples/$APP.tsx"; then
+	python3 - <<'PY'
+import json
+p = "src/embeddedjs/manifest.json"; m = json.loads(open(p).read())
+m["resources"] = {"*": ["../../assets/ball0", "../../assets/ball1"]}
+open(p, "w").write(json.dumps(m, indent="\t") + "\n")
+PY
+fi
 rm -rf src/embeddedjs/app src/embeddedjs/runtime-min
 mkdir -p src/embeddedjs/runtime-min
 for f in src/embeddedjs/runtime/*.js; do
