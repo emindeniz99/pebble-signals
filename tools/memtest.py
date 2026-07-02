@@ -93,6 +93,10 @@ MONITOR = info["qemu"]["monitor"]
 PPM = "/tmp/signal-piu-memtest.ppm"
 
 def screen_is_app():
+    try:
+        os.remove(PPM)                 # never parse a STALE dump
+    except OSError:
+        pass
     m = socket.socket(); m.settimeout(5)
     m.connect(("localhost", MONITOR)); time.sleep(0.15)
     try: m.recv(4096)
@@ -101,6 +105,9 @@ def screen_is_app():
     try: m.recv(8192)
     except Exception: pass
     m.close()
+    if not os.path.exists(PPM):
+        print("[memtest] warn: screendump failed; assuming launcher", flush=True)
+        return False
     with open(PPM, "rb") as fh:            # P6 header: magic, WxH, maxval
         assert fh.readline().strip() == b"P6"
         w, h = map(int, fh.readline().split())
@@ -130,7 +137,7 @@ if RAMP:
               "top item in the launcher menu, and was pypkjs killed?", flush=True)
         sys.exit(2)
     prev = samples[-1]
-    items = 1                           # the demo seeds one todo row
+    items = 0                           # the M9+ demo starts with an EMPTY store
     def used(s):
         return s["slotUsed"] + s["chunkUsed"]
     print(f"[memtest] ramp: adding one todo per step until the arena dies "
@@ -151,6 +158,13 @@ if RAMP:
         t0 = time.time()
         while len(samples) == n0 and time.time() - t0 < 6:
             time.sleep(0.3)
+        if death["seen"]:
+            died = True
+            break
+        # grace: instrumentation streams ~1/sec independently of button
+        # processing, so the sample that unblocked us may PREDATE the press;
+        # give a lethal press time to surface its abort before crediting
+        time.sleep(1.2)
         if death["seen"]:
             died = True
             break
@@ -231,8 +245,10 @@ print(f"  GCs during load: {sum(r['gc'] for r in active)}", flush=True)
 # What is not yet claimed by either heap is the remaining growth room.
 grow_room = ARENA - STACK - pa["slotAvail"] - pa["chunkAvail"]
 budget = ARENA - STACK
-peak_usage = pa["slotUsed"] + pa["chunkUsed"]
-floor_usage = fa["slotUsed"] + fa["chunkUsed"]
+# min/max over per-sample SUMS: independent per-field minima can understate
+# the true floor (min(a)+min(b) <= min(a+b)) and falsely PASS the red line
+peak_usage = max(r["slotUsed"] + r["chunkUsed"] for r in active)
+floor_usage = min(r["slotUsed"] + r["chunkUsed"] for r in active)
 peak_share = peak_usage / budget
 floor_share = floor_usage / budget
 print(f"[memtest] arena math: {ARENA}B arena - {STACK}B stack = {budget}B for heaps", flush=True)

@@ -49,6 +49,12 @@ BUTTONS = {"back": 1, "up": 2, "select": 4, "down": 8}
 import socket as _socket
 _moninfo = info["qemu"]["monitor"]
 def dump(name):
+    os.makedirs("/tmp/signal-piu-drive", exist_ok=True)
+    path = f"/tmp/signal-piu-drive/{name}.ppm"
+    try:
+        os.remove(path)                 # never leave a stale dump behind
+    except OSError:
+        pass
     m = _socket.socket(); m.settimeout(5)
     m.connect(("localhost", _moninfo)); time.sleep(0.15)
     try: m.recv(4096)
@@ -58,7 +64,10 @@ def dump(name):
     try: m.recv(8192)
     except Exception: pass
     m.close()
-    print(f"DUMP {name}", flush=True)
+    if os.path.exists(path):
+        print(f"DUMP {name}", flush=True)
+    else:
+        print(f"DUMP-FAILED {name}", flush=True)
 
 def send_qemu(payload):
     pebble.transport.send_packet(payload, target=MessageTargetQemu())
