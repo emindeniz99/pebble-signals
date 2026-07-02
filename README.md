@@ -326,10 +326,12 @@ when an app carries a LOT of logic code.
    Bitham-Black 30, Bitham-Bold 42, Bitham-Light 18/34/42, Bitham-Medium
    34/42 (numbers-only subsets exist), Roboto-Condensed 21, Roboto-Bold
    49, DroidSerif-Bold 28, Leco-Bold 20/26/32/36/38, Leco-Regular 42.
-   Plain "24px Gothic" resolves; but `42px Bitham-Bold` THREW on device
-   (clock example went blank until switched to Gothic) — a failed lookup
-   throws inside render and leaves a black Application with no content,
-   so a blank-but-black screen usually means a font error.
+   The working syntax is CSS-like: `"[weight] <size>px <ShortFamily>"` —
+   `"24px Gothic"`, `"bold 42px Bitham"` (device-proven in the clock
+   example). Writing the table's family name directly (`"42px
+   Bitham-Bold"`) THROWS inside render and leaves a black Application
+   with no content — a blank-but-black screen usually means a font
+   error.
 8. `console.log` from the mod does not reach `pebble logs` on release
    builds; only XS instrumentation traces do. Render test verdicts on
    screen (our M1 suite does exactly that).
@@ -428,6 +430,16 @@ when an app carries a LOT of logic code.
 Honest summary: compile-time resolution buys react-pebble immunity from the
 32KB arena; runtime signals buy signal-piu live dynamic structure. On today's
 firmware (fixed arena) both are legitimate points on the trade-off curve.
+
+MEASURED head-to-head (see `../react-pebble-bench`, same emulator and
+tooling): react-pebble watchface 3,206B archive / 41% arena floor;
+counter 1,885B / 46% floor with 144B transient per 8 presses — genuinely
+lighter, as expected with no runtime aboard. But its combined
+clock+counter+toggle multiview was SILENTLY reduced to one screen by the
+perturbation compiler and the generated app reboots the firmware at
+launch. Neither framework ships a working multi-screen app on this
+firmware: react-pebble loses the screens at compile time, signal-piu
+hits boot-time arena OOM.
 
 ## Milestones & screenshots
 

@@ -4,7 +4,7 @@ import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";
 
 const bg = new Skin({ fill: "black" });
-const big = new Style({ font: "28px Gothic", color: "white" });
+const big = new Style({ font: "bold 42px Bitham", color: "white" });
 const small = new Style({ font: "18px Gothic", color: "white" });
 
 const [time, setTime] = useState("");
