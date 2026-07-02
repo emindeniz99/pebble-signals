@@ -269,6 +269,14 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
    into the archive. Dropping that include (it only feeds editor
    typings; `npm test` and the on-device suite are unaffected) took the
    demo from 15,806B to 13,081B — ~2.8KB of headroom below the cliff.
+   Minifying the runtime (build.sh runs esbuild into
+   `src/embeddedjs/runtime-min/`, which is what the manifest ships) buys
+   another 367B → 12,714B. Note what does and doesn't help: comments and
+   whitespace NEVER reach the archive (stripping them saved 40B, all
+   from syntax tweaks) — the archive stores bytecode plus a symbol
+   table, so the real savings come from mangling module-scope
+   identifiers. Property and export names are part of the API and
+   survive minification untouched.
 16. **A reactive prop binding inside a `For` row kills the app at
    startup.** Isolated by a single-line delta on a booting build: turning
    the M7 row's `string={"t" + id}` into `string={() => "t" + id}` is
