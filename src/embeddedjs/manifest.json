@@ -4,8 +4,9 @@
 	],
 	"modules": {
 		"main": "./app/main",
-		"app/*": "./app/*",
-		"runtime/*": "./runtime-min/*"
+		"runtime/signals": "./runtime-min/signals",
+		"runtime/jsx-runtime": "./runtime-min/jsx-runtime",
+		"runtime/flow": "./runtime-min/flow"
 	},
 	"preload": [
 		"runtime/signals",

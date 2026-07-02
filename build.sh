@@ -16,4 +16,8 @@ for f in src/embeddedjs/runtime/*.js; do
 		--log-level=error 2>/dev/null || cp "$f" "$out"
 done
 tsc -p tsconfig.json
+for f in src/embeddedjs/app/*.js; do
+	npx -y esbuild@0.25 "$f" --minify --format=esm --outfile="$f" \
+		--allow-overwrite --log-level=error 2>/dev/null || true
+done
 pebble build

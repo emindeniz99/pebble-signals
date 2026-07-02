@@ -35,9 +35,10 @@ Demo controls (buttons, because of an emulator touch bug — see gotcha 2):
 list in a byte pool with a 3-row window — 40+ records with a flat arena.
 
 ```sh
-npm test          # 47 assertions: reactive core + flow, run against piu stubs
+npm test          # reactive core + store (real modules) + flow (piu stubs)
 npm run test:mem    # on-device memory audit (needs the app installed on the
-                    # gabbro emulator and pypkjs killed: pkill -9 -f pypkjs)
+                    # gabbro emulator and pypkjs killed: pkill -9 -f '[p]ypkjs' —
+                    # the [p] stops -f matching YOUR OWN shell's command line)
 npm run test:limit  # limit finder / regression canary: adds todo rows until
                     # the arena dies and reports the exact item count
 python3 tools/drive.py gabbro b:select s:1 d:shot   # deterministic emu driver
@@ -98,7 +99,7 @@ build.sh                 tsc + pebble build
 
 - **`signals.js`** — `signal/effect/computed/untrack` (auto-tracked,
   class-based so per-instance cost is fields only), `createRoot/onCleanup/
-  track` ownership, and the `useState/useEffect/useMemo/useRef` hooks layer.
+  track` ownership, and the `useState/useEffect/useMemo` hooks layer.
   Three logical units share one file deliberately: each XS module costs
   arena RAM, and two extra module records were the difference between the
   combined demo booting or dying (the ≤5-module budget holds at 3).
@@ -237,6 +238,22 @@ gabbro with the same 40-record ramp. See `examples/main-port.tsx`.
   for little gain over Port; native C UI driven from JS is blocked by
   the FFI arena reconfiguration (gotcha 17).
 
+## Multi-screen experiment (M11): the arena, not the archive, caps screens
+
+Can one mod hold several of react-pebble's example UIs (list, clock,
+counter, toggle) switched at runtime? Archive-wise YES — all four screens
+compiled to 13.2KB, under the ceiling. RAM-wise NO for the naive shape:
+four PREBUILT reactive screens push the boot floor past the 32KB arena
+and the app dies at startup with the silent OOM signature (bisected:
++3 useState alone moved a booting build from 91% to dead). Even two
+prebuilt screens with a replace()-switcher died. Working patterns:
+build screens lazily (dispose + rebuild on switch — but see gotcha 16
+about bindings outside the initial tree), keep helper screens
+IMPERATIVE (module-held Label refs, direct .string writes — the tested
+variant lives in `examples/main-multiscreen.tsx`), or spend the
+firmware-upstream effort. Startup arena OOM is SILENT (the log channel
+is not up yet), which is why it masquerades as the other silent kills.
+
 ## XS / Piu gotchas actually hit
 
 1. **Every fatal error looks identical**: `fxAbort` (memory full, unhandled
@@ -288,7 +305,11 @@ gabbro with the same 40-record ramp. See `examples/main-port.tsx`.
    button presses — a lost launch keypress looks exactly like a startup
    crash. `tools/drive.py` opens one direct QemuTransport connection for
    buttons + logs + qemu-monitor screendumps and is immune; use it for all
-   emulator verification (kill pypkjs first).
+   emulator verification (kill pypkjs first — as `pkill -9 -f '[p]ypkjs'`,
+   the [p] stops -f matching the invoking shell itself). After an fxAbort
+   storm the emulator's persistent flash can corrupt and every install
+   fails; delete `~/.local/share/pebble-sdk/4.17/<platform>/qemu_spi_flash.bin`
+   to factory-reset it.
 13. **The machine's alias budget is nearly exhausted — do not add top-level
    `function`/`class` declarations (writable bindings) to preloaded
    modules.** Adding two never-called `export function`s to signals.js
