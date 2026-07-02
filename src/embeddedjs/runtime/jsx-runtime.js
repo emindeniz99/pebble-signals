@@ -26,7 +26,7 @@ export function jsx(type, props) {
 		return createHost(type, props);
 	if (typeof type === "function")
 		return type(props || {});
-	throw new Error("jsx: unknown element type");
+	throw new Error("jsx:type");
 }
 
 export const jsxs = jsx;
@@ -34,10 +34,10 @@ export const jsxs = jsx;
 // Event props -> piu Behavior methods. onTap needs active:true; the
 // onPress*/onRelease* button events reach the behavior of the focused
 // content (or an ancestor), so pair them with the `focus` prop.
-const BUTTON_EVENTS = [
+const BUTTON_EVENTS = Object.freeze([
 	"onPressSelect", "onReleaseSelect", "onPressUp", "onReleaseUp",
 	"onPressDown", "onReleaseDown", "onPressBack", "onReleaseBack",
-];
+]);
 
 let pendingFocus = null;
 
@@ -113,15 +113,15 @@ function createHost(type, props) {
 // crashes the piu Pebble firmware (measured); use Show for conditional UI.
 // Of the rest, `string` is battle-tested on-device; state/variant/skin/
 // style/active pass through and follow the same setter path.
-const REACTIVE_PROPS = ["string", "state", "variant", "skin", "style", "active"];
+const REACTIVE_PROPS = Object.freeze(["string", "state", "variant", "skin", "style", "active"]);
 
 function setProp(node, key, value) {
 	if (REACTIVE_PROPS.indexOf(key) >= 0)
 		node[key] = value;
 	else if (key === "visible")
-		throw new Error("reactive `visible` crashes the piu Pebble port; use Show");
+		throw new Error("jsx:visible");	// crashes the port; use Show
 	else
-		throw new Error("unsupported reactive prop: " + key);
+		throw new Error("jsx:prop " + key);
 }
 
 export function appendChild(parent, child) {
@@ -138,7 +138,7 @@ export function appendChild(parent, child) {
 		return;
 	}
 	if (t === "function")
-		throw new Error("function child: use Show/For, or a thunk on a string prop");
+		throw new Error("jsx:fn-child");	// use Show/For or a string-prop thunk
 	parent.add(child);
 }
 

@@ -254,6 +254,19 @@ variant lives in `examples/main-multiscreen.tsx`), or spend the
 firmware-upstream effort. Startup arena OOM is SILENT (the log channel
 is not up yet), which is why it masquerades as the other silent kills.
 
+## Preloading app logic (measured: works, rarely worth it here)
+
+Moddable's deferred-main pattern was tested end-to-end: a PRELOADED
+`app/logic` module whose function objects live in flash, with runtime
+state created by an `init()` into aliased module `let`s (objects created
+at preload freeze into ROM and become unwritable — state must be born at
+runtime). It boots and runs the full 40-record ramp, which also proves a
+refinement of gotcha 11: a non-preloaded module calling a preloaded
+module's function that writes the CALLEE's aliased state is fine (the
+fatal case was preloaded->preloaded). For this demo the trade measured
+-52B RAM for +175B archive — reverted; the pattern earns its keep only
+when an app carries a LOT of logic code.
+
 ## XS / Piu gotchas actually hit
 
 1. **Every fatal error looks identical**: `fxAbort` (memory full, unhandled
