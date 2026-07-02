@@ -67,6 +67,7 @@ square screenshots below come from identical `.tsx`.
 | `clock` | ticking HH:MM:SS watchface + date | `Date`, `setInterval`, Bitham + Gothic styles | ✅ `ex-clock.png` | ✅ `em-clock.png` |
 | `counter` | classic up/down counter | `useState` + button handlers | ✅ `ex-counter.png` | ✅ `em-counter.png` |
 | `toggle` | ON/OFF with live skin+style flip | reactive `skin`/`style` setProp path | ✅ `ex-toggle-on.png` | ✅ `em-toggle-on.png` |
+| `forbind` | 3 reactive `For` rows (gotcha-16 testbed) | reactive bindings INSIDE For rows | ✅ `ex-forbind-boot.png` / `ex-forbind-updated.png` | — |
 | `multiscreen` | 4 screens in one mod | does NOT boot — kept as the arena-OOM artifact | ❌ by design | ❌ |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
@@ -411,13 +412,21 @@ when an app carries a LOT of logic code.
    table, so the real savings come from mangling module-scope
    identifiers. Property and export names are part of the API and
    survive minification untouched.
-16. **A reactive prop binding inside a `For` row kills the app at
-   startup.** Isolated by a single-line delta on a booting build: turning
-   the M7 row's `string={"t" + id}` into `string={() => "t" + id}` is
-   fatal (silent, before first instrumentation). Bindings in the
-   top-level render() tree are fine (battle-tested since M3) — so build
-   windowed lists as FIXED bound labels (the M9 pattern), which is what a
-   32KB arena wants anyway.
+16. **Reactive bindings inside `For` rows WORK — but they are expensive,
+   and that expense was originally mis-diagnosed as a fatal rule.** The
+   M11-era claim ("a binding inside a For row kills startup") was WRONG:
+   re-tested with a clean minimal repro (`examples/forbind.tsx`), three
+   `<For>` rows each with `string={() => ...}` boot AND update reactively
+   on both the current and the pre-review runtime (screenshots
+   `ex-forbind-*.png`). What the single-line delta really hit was arena
+   pressure: each For row carries its OWN effect + createRoot owner, so
+   the reactive rows ride high — measured 3 rows peak at **94%** of the
+   heap budget at boot, and 5 rows crash the firmware ("Install an app to
+   continue"). So: use reactive For rows for SMALL bounded lists; use the
+   fixed-label windowed store pattern (M9) for large/unbounded lists,
+   where per-row effects would tip the boot ceiling. The original gotcha
+   was a member of the boot-OOM family (same as "+3 useState killed it"),
+   not a distinct firmware rule.
 17. **Enabling FFI reconfigures the machine to a memory layout the
    runtime cannot live in.** Passing a non-NULL `fxBuildFFI` makes
    `__moddable_createMachine` re-carve the arena as
