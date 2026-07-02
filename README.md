@@ -186,6 +186,32 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
   (they don't exist at build time) — access them lazily. Writable module
   state still works via XS aliasing.
 
+## Hybrid-compile assessment (measured, not enabled)
+
+Could a Solid-style compiler (JSX -> direct Piu calls + binding
+registrations at build time, shipping only the signal core) beat the
+runtime interpreter on archive size? Measured with synthetic apps (cells
+of Row + reactively-bound Label + static Content) at N=4 and N=16:
+
+|                      | per element | fixed base (N=0) |
+|----------------------|-------------|-------------------|
+| interpreted (this runtime) | 203B  | ~12.0KB           |
+| hybrid compiled (signals-only) | 228B | ~5.0KB        |
+
+- Compiled output IS ~12% more expensive per element (explicit
+  construction statements vs one generic jsx() call) — but the ~7KB
+  fixed win (jsx-runtime + flow leave the archive) dominates: crossover
+  at N≈280 elements, ~6x beyond what the 32KB arena can hold anyway.
+- Practical ceilings under the ~15.9KB archive limit: interpreted ~19
+  bound elements, hybrid ~47.
+- "All component types included" is NOT a hybrid worst case: Piu classes
+  are host globals (zero archive cost); the interpreter carries its
+  dispatch/registry in the fixed cost regardless of use.
+- Hybrid's real worst case is many Show/For SITES — inline-emitted
+  control flow repeats per site while the runtime version amortizes.
+- Conclusion: worth building only when apps outgrow the current budget;
+  not enabled — kept here as the measured escalation path.
+
 ## XS / Piu gotchas actually hit
 
 1. **Every fatal error looks identical**: `fxAbort` (memory full, unhandled
