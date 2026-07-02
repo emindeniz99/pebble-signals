@@ -262,6 +262,13 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
    is purely the archive size. Check `ls build/mods/gabbro/mc.xsa` after
    every feature; this budget, not the 32KB arena, is what forced the M9
    demo to drop the M7 Show block.
+   Archive anatomy (measured by differential builds): moddable base
+   ~0.2KB · runtime (signals+jsx+flow, preloaded) ~10.9KB · M9 demo
+   ~2.0KB — and **the `manifest_typings.json` include was embedding
+   2,734B of pure build-time junk** (tsconfig doc strings, module maps)
+   into the archive. Dropping that include (it only feeds editor
+   typings; `npm test` and the on-device suite are unaffected) took the
+   demo from 15,806B to 13,081B — ~2.8KB of headroom below the cliff.
 16. **A reactive prop binding inside a `For` row kills the app at
    startup.** Isolated by a single-line delta on a booting build: turning
    the M7 row's `string={"t" + id}` into `string={() => "t" + id}` is
