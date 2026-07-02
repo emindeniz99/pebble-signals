@@ -387,6 +387,37 @@ main.tsx). Resources bundle into the archive but do NOT count against
 the ~15.9KB boot ceiling (imgwatch's 24.6KB archive boots fine —
 resources aren't preloaded/executed).
 
+## Vector images (SVGImage / PDC) — investigated, currently blocked
+
+The Pebble Piu port ships a native **`SVGImage`** class backed by **PDC**
+(Pebble Draw Commands — a compact vector format; PDCS is the animated
+sequence variant). Vector is the proper way to make an icon *bigger* without
+the raster native-heap cost: `scale()`/`rotate()`/`translate()` are runtime
+transforms on the draw-command coordinates, no per-scale pixels.
+
+Tooling exists and is ready: the official **`svg2pdc.py`** (pebble-examples/
+cards-example; Python 2, needs `svg.path` + `pebble_image_routines.py`) and
+the Rust **`pdc_tool`** (HBehrens). `tools/gen_pdc.py` here emits PDCI bytes
+directly (layout verified against `svg2pdc.serialize`), and `build.sh` now
+bundles any referenced `*.pdc` as a Moddable **`data`** resource (read on the
+watch via `new Resource("x.pdc")`, the `SVGImage` `path` route).
+
+What works: the `.pdc` bundles (archive shows it in the `%DATA` partition,
+`Resource` finds it) and `SVGImage` constructs + boots with no crash. Two
+real quirks found in `piuSVGImage.c`: (1) it only draws after a transform is
+set at least once — `DrawAux` renders `dcl`, which is built lazily *inside*
+the `if (transforming)` branch, so `scale(1,1)` is mandatory even at native
+size; (2) svg2pdc uses top-left coordinates (`translate = -viewbox origin`).
+
+BLOCKED: even with byte-correct PDC + `scale(1,1)` + geometry tried both
+ways, the image never renders — `gdraw_command_image_validate` appears to
+reject `dci` via the Moddable `Resource` route (a `PDCI_DATA_OFFSET` /
+data-partition detail that isn't inspectable — firmware headers aren't
+shipped and the release build's `trace()` doesn't reach the app log). The
+spike lives in `examples/slothvec.tsx` (a WIP artifact, like `multiscreen`).
+Next: convert with the real `svg2pdc.py` to isolate bytes-vs-bundling, or try
+the native Pebble resource `id` route instead of the Moddable `path` route.
+
 ## XS / Piu gotchas actually hit
 
 1. **Every fatal error looks identical**: `fxAbort` (memory full, unhandled

@@ -21,15 +21,27 @@ cp "src/tsx/examples/$APP.tsx" src/tsx/main.tsx
 cp src/embeddedjs/manifest.base.json src/embeddedjs/manifest.json
 APP_SRC="src/tsx/examples/$APP.tsx" python3 - <<'PY'
 import json, os, re
-names = re.findall(r'new\s+Texture\(\s*["\']([^"\']+?)(?:\.png)?["\']',
-                   open(os.environ["APP_SRC"]).read())
-if names:
+src = open(os.environ["APP_SRC"]).read()
+p = "src/embeddedjs/manifest.json"; m = json.loads(open(p).read())
+changed = False
+# bitmaps: derive resources from `new Texture("x.png")` (png2bmp pipeline)
+tex = re.findall(r'new\s+Texture\(\s*["\']([^"\']+?)(?:\.png)?["\']', src)
+if tex:
 	seen, res = set(), []
-	for n in names:
+	for n in tex:
 		if n not in seen:
 			seen.add(n); res.append("../../assets/" + n)
-	p = "src/embeddedjs/manifest.json"; m = json.loads(open(p).read())
-	m["resources"] = {"*": res}
+	m["resources"] = {"*": res}; changed = True
+# vector: bundle any referenced `*.pdc` file verbatim as `data`, read on the
+# watch via `new Resource("x.pdc")` (SVGImage path route).
+pdc = re.findall(r'["\']([^"\']+?\.pdc)["\']', src)
+if pdc:
+	seen, data = set(), []
+	for n in pdc:
+		if n not in seen:
+			seen.add(n); data.append("../../assets/" + n)
+	m["data"] = {"*": data}; changed = True
+if changed:
 	open(p, "w").write(json.dumps(m, indent="\t") + "\n")
 PY
 rm -rf src/embeddedjs/app src/embeddedjs/runtime-min
