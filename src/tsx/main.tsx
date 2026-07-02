@@ -19,7 +19,9 @@ const base = new Style({ font: "24px Gothic", color: "white" });
 const [count, setCount] = useState(0);
 const [todos, setTodos] = useState([1]);
 let nextId = 2;
-function addTodo() { if (todos().length < 2) setTodos([...todos(), nextId++]); }
+// Soft cap 99: high enough that tools/memtest.py --ramp can add rows until
+// the arena actually dies (the measured limit is what the ramp reports).
+function addTodo() { if (todos().length < 99) setTodos([...todos(), nextId++]); }
 function removeTodo() { setTodos(todos().slice(1)); }
 
 render(() => (

@@ -35,8 +35,10 @@ Demo controls (buttons, because of an emulator touch bug — see gotcha 2):
 
 ```sh
 npm test          # 47 assertions: reactive core + flow, run against piu stubs
-npm run test:mem  # on-device memory audit (needs the app installed on the
-                  # gabbro emulator and pypkjs killed: pkill -9 -f pypkjs)
+npm run test:mem    # on-device memory audit (needs the app installed on the
+                    # gabbro emulator and pypkjs killed: pkill -9 -f pypkjs)
+npm run test:limit  # limit finder / regression canary: adds todo rows until
+                    # the arena dies and reports the exact item count
 python3 tools/drive.py gabbro b:select s:1 d:shot   # deterministic emu driver
 ```
 
@@ -167,6 +169,14 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
 - `For` stress (1 row/s ramp): **"fxAbort memory full" at ~10–12 bare-Label
   rows** (~450B slots per row) or ~6–8 skinned Container+Label rows, from a
   baseline app. That is the realistic list ceiling on this firmware.
+- **Limit finder** (`npm run test:limit` = `memtest.py --ramp`): from the
+  full combined demo (counter + keepAlive Show + For), adding todo rows one
+  per button press dies **adding the 4th row** — 3 rows survive, baseline
+  (1 row) already sits at 24056B = 90% of budget, and the sample before
+  death reads 24588B with the slot heap grown to 20464B. Byte-identical
+  across fresh-chain reruns. `--min 3` makes it a regression gate: rerun
+  after adding any runtime feature and the reported limit shows exactly how
+  far the ceiling moved.
 - **Preload the runtime.** `"preload"` in the mod manifest moves module
   bodies to flash; before preloading, hooks + Show + For could not coexist
   at all. Preloaded modules must not touch Piu globals at module scope

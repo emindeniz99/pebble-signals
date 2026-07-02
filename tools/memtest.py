@@ -13,6 +13,16 @@ firmware-fixed 32KB arena, and exits nonzero if the app dies or usage
 crosses the red line. Wire into CI as: npm run test:mem
 
 Usage: memtest.py [platform] [--idle SEC] [--presses N]
+       memtest.py [platform] --ramp [--max N] [--min N]
+
+--ramp is the limit finder: it presses `up` once per step (each press adds
+one todo row in the demo) and logs slot/chunk after every item until the
+machine dies (fxAbort reboots the firmware — instrumentation stops and the
+screen leaves the app). The output is the exact item count at the cliff,
+so after adding a runtime feature you rerun this and immediately see how
+far the ceiling moved. --min N fails the run (exit 6) if the app dies
+before reaching N items — set it to the last measured limit minus margin
+to use the ramp as a regression canary.
 """
 import glob, json, os, re, socket, struct, sys, threading, time
 
@@ -35,6 +45,7 @@ def arg(name, default):
     return int(sys.argv[sys.argv.index(name) + 1]) if name in sys.argv else default
 idle_sec = arg("--idle", 12)
 presses = arg("--presses", 8)
+RAMP = "--ramp" in sys.argv
 
 info = json.load(open("/tmp/pb-emulator.json"))[platform]["4.17"]
 pebble = PebbleConnection(QemuTransport("localhost", info["qemu"]["port"]))
@@ -107,6 +118,77 @@ click("select", settle=2.0)               # menu -> app (stats stream)
 if not screen_is_app():                    # menu may have timed out mid-way
     click("select", settle=1.5)
     click("select", settle=2.0)
+
+# ---- ramp mode: add items until the machine dies -------------------------
+if RAMP:
+    max_items = arg("--max", 40)
+    min_items = arg("--min", 0)
+    budget = ARENA - STACK
+    time.sleep(4)                       # settle; collect a baseline sample
+    if not samples:
+        print("[memtest] FAIL: no instrumentation received — is the app the "
+              "top item in the launcher menu, and was pypkjs killed?", flush=True)
+        sys.exit(2)
+    prev = samples[-1]
+    items = 1                           # the demo seeds one todo row
+    def used(s):
+        return s["slotUsed"] + s["chunkUsed"]
+    print(f"[memtest] ramp: adding one todo per step until the arena dies "
+          f"(budget {budget} B)", flush=True)
+    print(f"  item {items:3d}: slot {prev['slotUsed']:5d} + chunk {prev['chunkUsed']:5d}"
+          f" = {used(prev):5d} B ({used(prev)/budget:4.0%})  [baseline]", flush=True)
+    died = False
+    while items < max_items:
+        n0 = len(samples)
+        try:
+            click("up", settle=0.4)     # adds one todo row
+        except Exception as e:
+            print(f"  !! button send failed ({e}) — firmware gone", flush=True)
+            died = True
+            break
+        # instrumentation streams ~1 sample/sec while the machine is alive;
+        # silence after a press means fxAbort rebooted the firmware
+        t0 = time.time()
+        while len(samples) == n0 and time.time() - t0 < 6:
+            time.sleep(0.3)
+        if death["seen"]:
+            died = True
+            break
+        if len(samples) == n0:
+            time.sleep(2)               # let a reboot settle; monitor survives it
+            alive = False
+            try:
+                alive = screen_is_app()
+            except Exception:
+                pass
+            if not alive:
+                died = True
+                break
+            print("[memtest] FAIL: screen still on app but instrumentation "
+                  "stalled — tooling channel broke, rerun on a fresh chain", flush=True)
+            sys.exit(3)
+        items += 1
+        s = samples[-1]
+        delta = used(s) - used(prev)
+        print(f"  item {items:3d}: slot {s['slotUsed']:5d} + chunk {s['chunkUsed']:5d}"
+              f" = {used(s):5d} B ({used(s)/budget:4.0%})  [{delta:+d} B]", flush=True)
+        prev = s
+    if died:
+        print(f"[memtest] DIED adding item {items + 1} "
+              f"(last alive: {items} items)", flush=True)
+        print(f"  last sample before death: slot {prev['slotUsed']} + chunk "
+              f"{prev['chunkUsed']} = {used(prev)} B ({used(prev)/budget:.0%} of "
+              f"budget), heap grown to slot {prev['slotAvail']} + chunk "
+              f"{prev['chunkAvail']} B", flush=True)
+        if items < min_items:
+            print(f"[memtest] FAIL: died below the --min {min_items} regression "
+                  f"floor", flush=True)
+            sys.exit(6)
+        print(f"[memtest] LIMIT = {items} items survive on this build", flush=True)
+        sys.exit(0)
+    print(f"[memtest] survived all {items} items without dying — raise --max "
+          f"to find the cliff", flush=True)
+    sys.exit(0)
 
 t0 = time.time()
 while time.time() - t0 < idle_sec:
