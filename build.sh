@@ -8,6 +8,11 @@
 # unminified — correctness is identical either way.
 set -e
 cd "$(dirname "$0")"
+# APP=<name> builds src/tsx/examples/<name>.tsx as the app (default: list,
+# the shipping demo). One example = one standalone app — several prebuilt
+# reactive screens in ONE mod exceed the 32KB arena at boot (README, M11).
+APP="${APP:-list}"
+cp "src/tsx/examples/$APP.tsx" src/tsx/main.tsx
 rm -rf src/embeddedjs/app src/embeddedjs/runtime-min
 mkdir -p src/embeddedjs/runtime-min
 for f in src/embeddedjs/runtime/*.js; do
