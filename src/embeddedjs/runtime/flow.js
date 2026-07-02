@@ -2,16 +2,48 @@
 // by these components. Children are THUNKS returning nodes (there is no
 // compiler making them lazy), each subtree runs under its own root so
 // removal disposes every effect created inside it.
-import { effect, untrack } from "runtime/signals";
-import { track, createRoot } from "runtime/owner";
+import { effect, untrack, track, createRoot } from "runtime/signals";
 import { appendChild } from "runtime/jsx-runtime";
 
-// Show({ when, children, fallback }) — `when` is a thunk; children/fallback
-// are thunks returning nodes. The host Container is sized by the caller via
-// coordinate props (an unconstrained Piu container measures at zero when
-// empty, so pass width/height or left/right/top/bottom for stable layout).
+// Show({ when, children, fallback, keepAlive }) — `when` is a thunk;
+// children/fallback are thunks returning nodes. The host Container is sized
+// by the caller via coordinate props (an unconstrained Piu container
+// measures at zero when empty, so pass width/height or left/right/top/
+// bottom for stable layout).
+//
+// Two modes:
+//  - default: Solid semantics — swap subtrees, disposing the outgoing root
+//    (heap returns to its floor; verified in M5). The swap allocates the
+//    incoming subtree, which on the firmware-fixed 32KB arena can be the
+//    difference between running and "fxAbort memory full".
+//  - keepAlive: build children AND fallback once at mount and toggle
+//    `visible` — zero allocation per toggle. Both subtrees stay live (their
+//    effects keep running while hidden). The right default when memory is
+//    tighter than update cost.
 export function Show(props) {
-	const host = makeHost(props);
+	const host = makeHost(props, Column);
+	if (props.keepAlive) {
+		// Swap pre-built nodes with the atomic replace(). Two piu-Pebble
+		// pitfalls measured here: setting `visible` on bound content
+		// crashes the port, and remove-now/re-add-on-a-later-turn crashes
+		// on the re-add; replace() sidesteps both.
+		const a = props.children ? asNode(props.children) : null;
+		const b = props.fallback ? asNode(props.fallback) : null;
+		let mounted = null;
+		track(effect(() => {
+			const next = props.when() ? a : b;
+			if (next === mounted)
+				return;
+			if (mounted && next)
+				host.replace(mounted, next);
+			else if (mounted)
+				host.remove(mounted);
+			else if (next)
+				host.add(next);
+			mounted = next;
+		}));
+		return host;
+	}
 	let dispose = null;
 	track(effect(() => {
 		const on = !!props.when();

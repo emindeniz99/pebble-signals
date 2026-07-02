@@ -1,46 +1,50 @@
-// M6 — For: keyed add/remove/reorder. Watch buttons drive the list
-// (up=add, select=reverse, down=remove first); rows also expose onTap.
-// The QEMU touch peripheral crashes the firmware on real-coordinate
-// touches (see README), so emulator verification uses buttons.
+// M7 — combined demo: useState counter, Show keyed on the counter, keyed
+// For todo list with add/remove. Buttons drive it (the QEMU touch
+// peripheral crashes the firmware on real touches — see README; onTap is
+// proven in M4/M5): select = count+1 (toggles Show), up = add todo,
+// down = remove first todo. The For children function is the per-row
+// component (components run once).
+//
+// Two measured piu-Pebble constraints shape this file (see README):
+//  - the firmware-fixed 32KB JS arena: closures/signals/effects are the
+//    scarce resource, so one skin, one style, short strings; and
+//  - Show children/fallback must be Container-wrapped — swapping a bare
+//    Label as the host's direct child crashes the port, while the
+//    Container-wrapped shape survives arbitrary toggles.
 import { render } from "runtime/jsx-runtime";
-import { For } from "runtime/flow";
-import { signal } from "runtime/signals";
+import { useState } from "runtime/signals";
+import { Show, For } from "runtime/flow";
 
 const bg = new Skin({ fill: "black" });
-const rowSkin = new Skin({ fill: "#246" });
-const base = new Style({ font: "18px Gothic", color: "white" });
-const hint = new Style({ font: "14px Gothic", color: "silver" });
+const base = new Style({ font: "24px Gothic", color: "white" });
 
-let nextId = 1;
-const items = signal([] as { id: number, label: string }[]);
-
-function add() {
-	const id = nextId++;
-	items.value = [...items.value, { id, label: "item #" + id }];
-}
-function removeFirst() {
-	items.value = items.value.slice(1);
-}
-function reverse() {
-	items.value = [...items.value].reverse();
-}
-
-add(); add(); add();
+const [count, setCount] = useState(0);
+const [todos, setTodos] = useState([1, 2]);
+let nextId = 3;
+function addTodo() { if (todos().length < 3) setTodos([...todos(), nextId++]); }
+function removeTodo() { setTodos(todos().slice(1)); }
 
 render(() => (
 	<Container left={0} right={0} top={0} bottom={0} focus={true}
-		onPressUp={add} onPressSelect={reverse} onPressDown={removeFirst}>
-		<Column top={26}>
-			<Label string={() => "M6 rows: " + items.value.length} />
-			<For each={() => items.value} key={(it: any) => it.id} width={190}>
-				{(it: any) => (
-					<Container width={190} height={22} skin={rowSkin}
-						onTap={() => removeFirst()}>
-						<Label string={it.label} />
+		onPressSelect={() => setCount((c: number) => c + 1)}
+		onPressUp={addTodo} onPressDown={removeTodo}>
+		<Column>
+			<Label string={() => "c" + count()} />
+			<Show keepAlive={true} when={() => count() % 2 === 1} width={120} height={30}
+				fallback={() => (
+					<Container width={120} height={30}>
+						<Label string="even" />
+					</Container>
+				)}>
+				{() => (
+					<Container width={120} height={30}>
+						<Label string="odd!" />
 					</Container>
 				)}
+			</Show>
+			<For each={() => todos()} key={(id: number) => id} width={120}>
+				{(id: number) => <Label string={"t" + id} />}
 			</For>
-			<Label style={hint} string="up:add sel:rev down:del" />
 		</Column>
 	</Container>
 ), { skin: bg, style: base });

@@ -1,23 +1,30 @@
 // JSX factory — Solid model, no virtual DOM. Components run ONCE; host
 // elements become real Piu nodes created once; function-valued props become
 // live effect bindings that assign single Piu properties on change.
-import { effect } from "runtime/signals";
-import { track, createRoot } from "runtime/owner";
+import { effect, track, createRoot } from "runtime/signals";
 
 // Piu content classes are compartment globals provided by the Alloy host.
 // Hardened JS freezes primordials and can make instanceof unreliable, so
-// host elements are recognized by identity in this registry.
-const PIU = new Set(
-	[Label, Text, Content, Container, Column, Row, Scroller, Port, Layout]
-		.filter(t => t !== undefined)
-);
+// host elements are recognized by identity in this registry. Built lazily:
+// this module is PRELOADED (instantiated at build time, stored in flash)
+// and the Piu globals only exist at runtime.
+let PIU = null;
+
+function piuSet() {
+	if (PIU === null)
+		PIU = new Set(
+			[Label, Text, Content, Container, Column, Row, Scroller, Port, Layout]
+				.filter(t => t !== undefined)
+		);
+	return PIU;
+}
 
 export function Fragment(props) {
 	return props.children;
 }
 
 export function jsx(type, props) {
-	if (PIU.has(type))
+	if (piuSet().has(type))
 		return createHost(type, props);
 	if (typeof type === "function")
 		return type(props || {});
@@ -35,6 +42,41 @@ const BUTTON_EVENTS = [
 ];
 
 let pendingFocus = null;
+
+// One shared behavior class; handlers live in instance fields. piu stops
+// button bubbling when the method returns truthy — consume by default,
+// return false from a handler to pass the event up the chain. Defined
+// lazily because the Behavior global doesn't exist at preload time.
+let HandlerBehavior = null;
+
+function handlerBehaviorClass() {
+	if (HandlerBehavior === null) {
+		HandlerBehavior = class extends Behavior {
+			constructor(tap, buttons) {
+				super();
+				this.tap = tap;
+				this.buttons = buttons;
+			}
+			onTouchEnded(content, id, x, y) {
+				if (this.tap)
+					this.tap(content, x, y);
+			}
+			button(name, content) {
+				const h = this.buttons && this.buttons[name];
+				return h ? h(content) !== false : false;
+			}
+			onPressSelect(content) { return this.button("onPressSelect", content); }
+			onReleaseSelect(content) { return this.button("onReleaseSelect", content); }
+			onPressUp(content) { return this.button("onPressUp", content); }
+			onReleaseUp(content) { return this.button("onReleaseUp", content); }
+			onPressDown(content) { return this.button("onPressDown", content); }
+			onReleaseDown(content) { return this.button("onReleaseDown", content); }
+			onPressBack(content) { return this.button("onPressBack", content); }
+			onReleaseBack(content) { return this.button("onReleaseBack", content); }
+		};
+	}
+	return HandlerBehavior;
+}
 
 function createHost(type, props) {
 	const dict = {};
@@ -57,22 +99,9 @@ function createHost(type, props) {
 		dict[k] = v;
 	}
 	if (tap || buttons) {
-		const proto = {};
-		if (tap) {
+		if (tap)
 			dict.active = true;
-			proto.onTouchEnded = function(content, id, x, y) { tap(content, x, y); };
-		}
-		if (buttons) {
-			for (const name in buttons) {
-				const handler = buttons[name];
-				// piu stops bubbling when the method returns truthy;
-				// consume by default, return false from the handler to pass.
-				proto[name] = function(content) { return handler(content) !== false; };
-			}
-		}
-		class HostBehavior extends Behavior {}
-		Object.assign(HostBehavior.prototype, proto);
-		dict.Behavior = HostBehavior;
+		dict.behavior = new (handlerBehaviorClass())(tap, buttons);
 	}
 	const node = new type(null, dict);
 	if (focus)

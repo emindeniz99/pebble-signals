@@ -7,5 +7,10 @@
 		"main": "./app/main",
 		"app/*": "./app/*",
 		"runtime/*": "./runtime/*"
-	}
+	},
+	"preload": [
+		"runtime/signals",
+		"runtime/jsx-runtime",
+		"runtime/flow"
+	]
 }
