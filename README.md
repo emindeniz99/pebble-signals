@@ -31,6 +31,11 @@ Demo controls (buttons, because of an emulator touch bug — see gotcha 2):
 **select** = counter +1 (toggles the `Show` block) · **up** = add todo ·
 **down** = remove first todo.
 
+```sh
+npm test          # 47 assertions: reactive core + flow, run against piu stubs
+python3 tools/drive.py gabbro b:select s:1 d:shot   # deterministic emu driver
+```
+
 ## What a component looks like
 
 ```tsx
@@ -48,8 +53,8 @@ render(() => (
       <Label string={() => "c" + count()} />           {/* live binding */}
       <Show keepAlive={true} when={() => count() % 2 === 1}
         width={120} height={30}
-        fallback={() => <Container width={120} height={30}><Label string="even" /></Container>}>
-        {() => <Container width={120} height={30}><Label string="odd!" /></Container>}
+        fallback={() => <Label string="even" />}>   {/* sides auto-wrapped */}
+        {() => <Label string="odd!" />}
       </Show>
       <For each={() => todos()} key={id => id} width={120}>
         {id => <Label string={"t" + id} />}            {/* per-row component */}
@@ -95,21 +100,28 @@ build.sh                 tsc + pebble build
   Piu globals (Hardened JS makes `instanceof` unreliable; laziness is
   required because preloaded module bodies run at build time, before Piu
   globals exist). Static props go into the construction dictionary; function
-  props become tracked effects through a `setProp` switch (`string`,
-  `visible`, `state`, `variant`, `skin`, `style`, `active`); `onTap` maps to
+  props become tracked effects through a `setProp` switch (`string` is
+  battle-tested; `state`/`variant`/`skin`/`style`/`active` pass through;
+  `visible` is deliberately REJECTED — see gotcha 4); `onTap` maps to
   `active:true` + a shared `HandlerBehavior` whose `onTouchEnded` calls the
   handler with `(content, x, y)`; `onPressSelect/Up/Down/Back` (+`onRelease*`)
   map to Piu button-behavior methods (pair with the `focus` prop — the
-  Application self-focuses, so an unfocused container never hears buttons).
-  Coordinates are static-only in v1.
+  Application self-focuses, so an unfocused container never hears buttons;
+  `focus` only takes effect in the initial render() tree, see gotcha 11).
+  Coordinates are static-only in v1. `effect()` returns the Effect object
+  itself (dispose with `dispose(e)`), not a disposer closure — one closure
+  per effect was measurable arena money.
 - **`flow.js`** — `Show` and keyed `For`. Both host a `Column` sized by
   caller props. `For` reconciles with **minimal Piu ops** (remove departed,
   cursor-walk and insert/move only misplaced nodes); each row lives in its
   own root and is disposed on removal. `Show` has two modes: the default
   rebuilds the active side per toggle (Solid semantics, heap returns to the
   floor — verified), and `keepAlive` builds both sides once and swaps them
-  by reference with **zero per-toggle allocation** (both stay live; the
-  right default on this platform).
+  by reference via the atomic `replace()` with **zero per-toggle
+  allocation** (both stay live; a missing side becomes an empty placeholder
+  so every transition still uses replace(); the right default on this
+  platform). Both modes wrap each side in a host-sized Container
+  automatically — users cannot hit the bare-Label port crash (gotcha 3).
 
 JSX wiring: the Moddable/Alloy build only recognizes `.ts` sources, so the
 SDK's own TypeScript integration can't transform `.tsx`. `build.sh` runs
@@ -168,7 +180,8 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
 3. **Piu-Pebble port: swapping a bare `Label` as a container host's direct
    child crashes the firmware** — rebuilt-fresh on the first swap, or
    re-bound prebuilt on the second. **Container-wrapped subtrees swap and
-   re-bind indefinitely.** Wrap both sides of a `Show`.
+   re-bind indefinitely.** signal-piu's `Show` wraps both sides
+   automatically, so app code never sees this.
 4. **Setting `visible` on bound content crashes the port** (first write).
    signal-piu's `Show keepAlive` therefore swaps by add/remove-by-reference
    instead of visibility.
@@ -186,6 +199,22 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
 9. The strip list is real: no `Proxy/Reflect/WeakMap/WeakSet/Atomics/
    BigInt/eval/Function/Generator` anywhere, including dependencies — which
    is why the reactive core is hand-rolled closures + `Set`.
+10. **Preloaded classes must initialize every field in the constructor.**
+   Adding/reading a field that the constructor never set (our `Effect.cleanup`
+   before the fix) kills the app at startup — silently, no fxAbort log, no
+   reboot; the app just exits to the launcher. Found by on-device bisection.
+11. **A preloaded module must not call another preloaded module's function
+   when that function writes the callee module's aliased state.** flow.js
+   importing jsx-runtime's `consumePendingFocus` (which writes jsx-runtime's
+   module-level `pendingFocus`) killed the firmware at startup; importing
+   `appendChild` (which touches no module state) is fine. Consequence: the
+   `focus` prop only works in the initial render() tree.
+12. The pebble tool's channel (install auto-launch, `emu-button`,
+   `pebble logs`) silently degrades after any firmware reboot and DROPS
+   button presses — a lost launch keypress looks exactly like a startup
+   crash. `tools/drive.py` opens one direct QemuTransport connection for
+   buttons + logs + qemu-monitor screendumps and is immune; use it for all
+   emulator verification (kill pypkjs first).
 
 ## vs react-pebble
 

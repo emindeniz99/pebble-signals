@@ -24,6 +24,10 @@ class Signal {
 		if (value === this.v)
 			return;
 		this.v = value;
+		// Snapshot: subscribers may mutate subs while we notify. run() is a
+		// no-op for effects disposed mid-notification (fn === null) —
+		// without that guard a disposed effect would resurrect itself by
+		// re-subscribing during its final run.
 		for (const e of [...this.subs]) {
 			// diagnostic hook: surface subscriber exceptions instead of
 			// letting them abort the machine (XS kills the app otherwise)
@@ -40,12 +44,19 @@ class Signal {
 }
 
 class Effect {
+	// Fields stay minimal — every slot is arena RAM and effects are the
+	// most numerous runtime object. `fn === null` doubles as the disposed
+	// flag; the optional useEffect cleanup is only materialized on the
+	// instances that actually use it (current.cleanup = ...).
 	constructor(fn) {
 		this.fn = fn;
 		this.deps = [];
+		this.cleanup = null;	// optional user cleanup (useEffect)
 	}
 	run() {
-		cleanup(this);
+		if (!this.fn)		// disposed mid-notification — do not resurrect
+			return;
+		unsubscribe(this);
 		const prev = current;
 		current = this;
 		try {
@@ -56,7 +67,15 @@ class Effect {
 	}
 }
 
-function cleanup(e) {
+// Runs the user cleanup (if any) and drops all subscriptions. Called both
+// before every re-run and on disposal, giving useEffect the React contract:
+// cleanup fires before the next run and once more at dispose.
+function unsubscribe(e) {
+	if (e.cleanup) {
+		const c = e.cleanup;
+		e.cleanup = null;
+		c();
+	}
 	for (const s of e.deps)
 		s.delete(e);
 	e.deps.length = 0;
@@ -66,15 +85,33 @@ export function signal(value) {
 	return new Signal(value);
 }
 
+// Returns the Effect itself, NOT a disposer closure: a closure per effect
+// costs 3-4 arena slots and effects are the most numerous runtime object.
+// Dispose with dispose(e) (or register with track(), whose owner knows how
+// to terminate both closures and Effect instances).
 export function effect(fn) {
 	const e = new Effect(fn);
 	e.run();
-	return () => cleanup(e);	// disposer
+	return e;
 }
 
+// Terminal disposal for anything an owner can hold: a plain closure (root
+// disposers, onCleanup callbacks) or an Effect instance.
+export function dispose(d) {
+	if (typeof d === "function") {
+		d();
+		return;
+	}
+	d.fn = null;		// run() becomes a no-op — no resurrection
+	unsubscribe(d);
+}
+
+// Eager computed. The internal effect is registered with the current owner
+// so disposing the subtree that created the computed also stops it —
+// otherwise it would keep firing (and leaking) after its UI is gone.
 export function computed(fn) {
 	const s = new Signal(undefined);
-	effect(() => { s.value = fn(); });
+	track(effect(() => { s.value = fn(); }));
 	return {
 		get value() { return s.value; },
 	};
@@ -105,7 +142,7 @@ export function createRoot(fn) {
 	try {
 		return [fn(), () => {
 			for (let i = o.d.length - 1; i >= 0; i--)
-				o.d[i]();
+				dispose(o.d[i]);
 			o.d.length = 0;
 		}];
 	} finally {
@@ -118,10 +155,12 @@ export function onCleanup(fn) {
 		owner.d.push(fn);
 }
 
-export function track(disposer) {
+// Register a disposable (Effect instance or closure) with the current
+// owner so tearing down the subtree tears it down too.
+export function track(disposable) {
 	if (owner)
-		owner.d.push(disposer);
-	return disposer;
+		owner.d.push(disposable);
+	return disposable;
 }
 
 // ---- hooks — React-flavored comfort layer --------------------------------
@@ -137,12 +176,15 @@ export function useState(init) {
 }
 
 // No dependency array — tracking is automatic. An optional returned
-// function becomes the cleanup, run when the owning subtree is disposed.
+// function becomes the cleanup: it runs before every re-run of the effect
+// and once more when the owning subtree is disposed (stored on the Effect
+// itself — registering with the owner would only capture the FIRST run's
+// cleanup, since re-runs happen outside any owner context).
 export function useEffect(fn) {
 	track(effect(() => {
 		const out = fn();
 		if (typeof out === "function")
-			onCleanup(out);
+			current.cleanup = out;
 	}));
 }
 

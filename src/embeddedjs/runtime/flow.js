@@ -4,41 +4,50 @@
 // removal disposes every effect created inside it.
 import { effect, untrack, track, createRoot } from "runtime/signals";
 import { appendChild } from "runtime/jsx-runtime";
+// NOTE: flow deliberately does NOT import consumePendingFocus — calling a
+// preloaded module's function that WRITES another preloaded module's
+// aliased variable kills the firmware at startup (measured by bisection;
+// appendChild is safe because it never touches jsx-runtime module state).
+// Consequence: the `focus` prop only works in the initial render() tree.
 
 // Show({ when, children, fallback, keepAlive }) — `when` is a thunk;
-// children/fallback are thunks returning nodes. The host Container is sized
-// by the caller via coordinate props (an unconstrained Piu container
-// measures at zero when empty, so pass width/height or left/right/top/
-// bottom for stable layout).
+// children/fallback are thunks returning nodes. The host is sized by the
+// caller via coordinate props (an unconstrained Piu container measures at
+// zero when empty, so pass width/height or left/right/top/bottom for
+// stable layout).
+//
+// Each side is automatically wrapped in a Container sized like the host
+// before it is swapped in: the piu Pebble port crashes the firmware when a
+// bare Label is swapped as a container's direct child (measured — both
+// fresh rebuilds and prebuilt re-binds die), while Container-wrapped
+// subtrees swap and re-bind indefinitely.
 //
 // Two modes:
 //  - default: Solid semantics — swap subtrees, disposing the outgoing root
 //    (heap returns to its floor; verified in M5). The swap allocates the
 //    incoming subtree, which on the firmware-fixed 32KB arena can be the
 //    difference between running and "fxAbort memory full".
-//  - keepAlive: build children AND fallback once at mount and toggle
-//    `visible` — zero allocation per toggle. Both subtrees stay live (their
-//    effects keep running while hidden). The right default when memory is
-//    tighter than update cost.
+//  - keepAlive: build children AND fallback once at mount and swap them by
+//    reference with the atomic replace() — zero allocation per toggle.
+//    (Not `visible`: setting visible on bound content crashes the port;
+//    not remove-now/re-add-later either: the re-add crashes.) A missing
+//    side becomes an empty placeholder wrapper so every transition still
+//    goes through replace(). Both subtrees stay live — their effects keep
+//    running while off-screen. The right default when memory is tighter
+//    than update cost.
 export function Show(props) {
 	const host = makeHost(props, Column);
 	if (props.keepAlive) {
-		// Swap pre-built nodes with the atomic replace(). Two piu-Pebble
-		// pitfalls measured here: setting `visible` on bound content
-		// crashes the port, and remove-now/re-add-on-a-later-turn crashes
-		// on the re-add; replace() sidesteps both.
-		const a = props.children ? asNode(props.children) : null;
-		const b = props.fallback ? asNode(props.fallback) : null;
+		const a = wrapSide(props, props.children);
+		const b = wrapSide(props, props.fallback);
 		let mounted = null;
 		track(effect(() => {
 			const next = props.when() ? a : b;
 			if (next === mounted)
 				return;
-			if (mounted && next)
+			if (mounted)
 				host.replace(mounted, next);
-			else if (mounted)
-				host.remove(mounted);
-			else if (next)
+			else
 				host.add(next);
 			mounted = next;
 		}));
@@ -53,23 +62,35 @@ export function Show(props) {
 			while (host.first)
 				host.remove(host.first);
 			const build = on ? props.children : props.fallback;
-			if (!build) return;
-			const [tree, d] = createRoot(() => asNode(build));
+			const [tree, d] = createRoot(() => wrapSide(props, build));
 			dispose = d;
-			appendChild(host, tree);
+			host.add(tree);
 		});
 	}));
 	track(() => { if (dispose) { dispose(); dispose = null; } });
 	return host;
 }
 
+// Build one side of a Show and wrap it in a Container sized like the host
+// (see the bare-Label port bug above; width/height-sized wrappers are the
+// on-device-proven shape). A missing side yields an EMPTY wrapper — never
+// null — so keepAlive swaps always use replace().
+function wrapSide(props, build) {
+	const wrapper = new Container(null, { width: props.width, height: props.height });
+	if (build)
+		appendChild(wrapper, asNode(build));
+	return wrapper;
+}
+
 // For({ each, key, children }) — keyed reconcile. `each` is a thunk
 // returning an array; `key` maps item -> unique key (default: identity);
 // `children` is (item, index) -> node. Rows whose keys survive are kept;
-// new keys mount in their own root; removed keys dispose. Reconcile does
-// MINIMAL piu ops (remove departed, insert/move only misplaced nodes) —
-// a full empty()+re-add per update destabilizes the piu Pebble port and
-// costs native churn per row (measured: app death after ~15-25 cycles).
+// new keys mount in their own root; removed keys dispose; a DUPLICATE key
+// keeps its first occurrence and the later items are skipped. Reconcile
+// does MINIMAL piu ops (remove departed, insert/move only misplaced
+// nodes) — a full empty()+re-add per update destabilizes the piu Pebble
+// port and costs native churn per row (measured: app death after ~15-25
+// cycles).
 export function For(props) {
 	const host = makeHost(props, Column);
 	const keyOf = props.key || (item => item);
@@ -80,6 +101,8 @@ export function For(props) {
 			const next = new Map();
 			for (let i = 0; i < items.length; i++) {
 				const item = items[i], k = keyOf(item, i);
+				if (next.has(k))	// duplicate key: first occurrence wins
+					continue;
 				let row = rows.get(k);
 				if (row)
 					rows.delete(k);

@@ -119,15 +119,20 @@ function createHost(type, props) {
 
 // Reactive property writes. Position/size are static-only in v1: Piu
 // coordinates are construction-dict state, not plain property writes.
+// `visible` is deliberately rejected — writing .visible on bound content
+// crashes the piu Pebble firmware (measured); use Show for conditional UI.
+// Of the rest, `string` is battle-tested on-device; state/variant/skin/
+// style/active pass through and follow the same setter path.
 function setProp(node, key, value) {
 	switch (key) {
 		case "string": node.string = value; break;
-		case "visible": node.visible = value; break;
 		case "state": node.state = value; break;
 		case "variant": node.variant = value; break;
 		case "skin": node.skin = value; break;
 		case "style": node.style = value; break;
 		case "active": node.active = value; break;
+		case "visible":
+			throw new Error("reactive `visible` crashes the piu Pebble port; use Show");
 		default: throw new Error("unsupported reactive prop: " + key);
 	}
 }
@@ -150,15 +155,25 @@ export function appendChild(parent, child) {
 	parent.add(child);
 }
 
+// Apply a pending `focus` request now that its node is mounted (focus()
+// is a no-op on unbound content). Only render() may call this: exporting
+// it to flow.js killed the firmware at startup — a preloaded module
+// calling another preloaded module's function that writes its aliased
+// state is fatal on this XS build (measured). So the `focus` prop only
+// takes effect in the initial render() tree.
+function consumePendingFocus() {
+	if (pendingFocus) {
+		pendingFocus.focus();
+		pendingFocus = null;
+	}
+}
+
 // Mount a JSX tree as the Piu application. `build` runs under a root owner;
 // the returned disposer is kept alive for the app's lifetime.
 export function render(build, dict) {
 	const app = new Application(null, dict || {});
 	const [tree] = createRoot(build);
 	appendChild(app, tree);
-	if (pendingFocus) {
-		pendingFocus.focus();
-		pendingFocus = null;
-	}
+	consumePendingFocus();
 	return app;
 }

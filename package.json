@@ -2,7 +2,9 @@
   "name": "signal-piu",
   "author": "MakeAwesomeHappen",
   "version": "1.0.0",
-  "keywords": ["pebble-app"],
+  "keywords": [
+    "pebble-app"
+  ],
   "private": true,
   "dependencies": {},
   "pebble": {
@@ -24,5 +26,9 @@
     "resources": {
       "media": []
     }
+  },
+  "scripts": {
+    "test": "node tests/signals.test.mjs && node --experimental-vm-modules tests/flow.test.mjs",
+    "build": "./build.sh"
   }
 }
