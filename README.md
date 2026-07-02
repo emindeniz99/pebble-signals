@@ -212,6 +212,31 @@ of Row + reactively-bound Label + static Content) at N=4 and N=16:
 - Conclusion: worth building only when apps outgrow the current budget;
   not enabled — kept here as the measured escalation path.
 
+## Rendering tiers: Piu retained vs Port immediate (measured)
+
+The host exposes more than retained Piu: `Port` (Piu's immediate-mode
+canvas) and even the raw `screen`/Poco layer. The same M9 demo was
+rebuilt with its header + 3 window rows drawn by ONE `Port` behavior
+(`port.drawString` in `onDraw`, one `useEffect` calling
+`port.invalidate()` on change) — pixel-identical output, verified on
+gabbro with the same 40-record ramp. See `examples/main-port.tsx`.
+
+|                    | retained Labels (shipping) | one Port (immediate) |
+|--------------------|---------------------------|----------------------|
+| archive            | 12,714B                   | 12,725B (+11B)       |
+| arena at 1 record  | 24,008B = 90%             | **21,548B = 81%**    |
+| per-press growth   | GC sawtooth, flat         | flat                 |
+
+- **Port wins ~2.5KB of arena** by replacing per-visible-row Piu wrappers
+  and binding effects with draw calls — the win scales with visible-row
+  count, so it is THE escape hatch for dense text screens.
+- Costs: manual coordinates (no Piu layout), coarse invalidation (whole
+  Port redraws), and it bypasses the runtime's binding path — buttons,
+  behaviors and signals still work unchanged.
+- Raw `screen`/Poco is also reachable but abandons Piu input/lifecycle
+  for little gain over Port; native C UI driven from JS is blocked by
+  the FFI arena reconfiguration (gotcha 17).
+
 ## XS / Piu gotchas actually hit
 
 1. **Every fatal error looks identical**: `fxAbort` (memory full, unhandled
