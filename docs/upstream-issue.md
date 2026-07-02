@@ -100,6 +100,19 @@ full days bisecting these apart.
 - Any real-coordinate QEMU touch event reboots the firmware, even on
   static apps (emulator-side).
 
+## 6b. `fetch` is unusable from a normal-sized mod (arena) and untestable (emulator)
+
+Alloy's native `fetch` allocates enough (Response, Headers, URL,
+promise chains, socket buffers) that calling it from a mod already
+using a modest JS runtime (~85% arena) aborts with "fxAbort memory
+full" before reaching the network. A bare app leaves room, but then the
+QEMU emulator has no network device at all (`-machine pebble-*`, no
+`-netdev`), so fetch hangs forever with no timeout. Net effect: network
+apps can't be developed or tested without real hardware, and even then
+must be extremely lean. A larger arena (see #1) would make `fetch`
+usable alongside a real UI; an emulator network bridge would make it
+testable.
+
 ## 7. Font lookup contradicts the font table
 
 The firmware's font table lists families like `Bitham-Bold`, but

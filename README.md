@@ -468,6 +468,20 @@ when an app carries a LOT of logic code.
    name becomes a fresh runtime symbol via `XS->id()`. FFI is therefore
    only usable by mods whose slot needs fit ~13KB — the M9 byte-pool
    store is the in-arena substitute (1 byte costs 1 byte in chunk).
+18. **`fetch` exists but cannot be tested in the emulator, and is heavy
+   for the arena.** Alloy exposes a real ECMA-419 `fetch` (native, over
+   `embedded:network/http` / TCP — NOT the phone's XMLHttpRequest). But
+   (a) the QEMU emulator has NO network device (`-machine pebble-*`, zero
+   `-netdev`), so on hardware fetch routes over Bluetooth-PPP to the phone
+   but in the emulator it just **hangs at "fetching…" forever** — no
+   route, no DNS, no timeout observed after 38s (`fetch-hangs.png`, the
+   `fetchtest` example). (b) Called from a normal app (runtime already at
+   ~85% arena) fetch's own allocations — Response/Headers/URL/promises/
+   socket buffers — tip the 32KB arena straight into `fxAbort memory
+   full`; only a BARE app (no signal runtime) has room for fetch to even
+   reach the network layer. So real network testing needs actual hardware
+   + a phone, and a fetch-using mod must stay very lean. Another
+   arena-size motivator for the upstream issue.
 
 ## vs react-pebble
 
