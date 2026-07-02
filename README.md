@@ -72,7 +72,7 @@ square screenshots below come from identical `.tsx`.
 | `richlist` | **rich recycled rows** (`renderRow`): 2-column row, 1 visible, scrollable | multi-element rows, not just text | ✅ `richlist-gabbro-*.png` | ✅ `richlist-emery-*.png` |
 | `slothface` | **animated sloth watchface** 🦥 (text-frame animation + clock) | timer-driven frame animation via signals | ✅ `slothface-*.png` (awake/blink/sleepy) | — |
 | `imgwatch` | **animated COLOR bitmap watchface** + HH:MM:SS | bundled bitmaps (png2bmp), `Texture`, frame-swap animation | ✅ `imgwatch-red.png` / `imgwatch-blue.png` | — |
-| `sloth` | **polished animated sloth watchface** 🦥 (soft-shaded emoji, sprite-sheet blink, one-line HH:MM:SS + date) | one `Texture` sheet, reactive `variant` sprite animation | ✅ `sloth-gabbro-open.png` / `sloth-gabbro-blink.png` | ✅ `sloth-emery-open.png` / `sloth-emery-blink.png` |
+| `sloth` | **polished animated sloth watchface** 🦥 (soft-shaded 140px emoji, sprite-sheet blink, big one-line HH:MM:SS + date) | one `Texture` sheet, reactive `variant` sprite animation | ✅ `sloth-gabbro-open.png` / `sloth-gabbro-blink.png` | ✅ `sloth-emery-open.png` / `sloth-emery-blink.png` |
 | `multiscreen` | 4 screens in one mod | does NOT boot — kept as the arena-OOM artifact | ❌ by design | ❌ |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
@@ -361,11 +361,21 @@ Real bundled bitmaps work, in color, and animate. Pipeline:
      frames side by side; a texture `Skin` with `variants: <frameWidth>`
      slices it, and the reactive `variant` prop picks the slice —
      `<Content skin={sheet} variant={() => BLINK[step()]} />`. One decode,
-     no skin churn. The `sloth` watchface is a 3-frame (eyes open / half /
-     closed) 104px blink sheet over a live HH:MM clock, verified animating
-     on **both** Round 2 and Time 2 in color.
+     no skin churn. The `sloth` watchface is a 2-frame (eyes open / closed)
+     140px blink sheet over a live one-line HH:MM:SS clock, verified
+     animating on **both** Round 2 and Time 2 in color.
    Piu also has a native multi-frame `Image` class (`duration` + start())
    for GIF-style animation.
+SCALING a raster is not free: Poco blits a `Texture` 1:1 (no runtime
+scale), so a bigger sloth means a bigger sheet and MORE decoded pixels in
+the native app heap. Measured ceiling here: 140px frames (2 of them, the
+`sloth` size) boot comfortably; much past that the decode risks native
+OOM. For a truly resolution-INDEPENDENT icon that scales for free, the
+Pebble Piu port also ships **`SVGImage`** — Pebble Draw Commands (PDC/PDCS
+vector), with runtime `scale()`/`rotate()`/`opacity()` and no per-scale
+pixel cost. Trade-off: PDC is flat vector shapes (no soft gradient
+shading), so it suits crisp icons more than a soft-shaded emoji. (Vector
+sloth tracked as future work.)
 Costs: bitmap PIXELS live in the native app heap (not the 32KB arena),
 but the `.bm4` bytes bundle into the mod ARCHIVE — two 64×64 balls took
 mc.xsa 14,140 → 24,656B; the 312×104 sloth sheet is 59,420B of the 256KB

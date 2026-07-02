@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Generate assets/sloth.png — a 3-frame blink sprite sheet for the sloth
-watchface (examples/sloth.tsx). Sheet = 3 frames wide (eyes open / half /
-closed); the runtime shows one FRAME-wide slice at a time via the reactive
-`variant` prop.
+"""Generate assets/sloth.png — a blink sprite sheet for the sloth watchface
+(examples/sloth.tsx). The shipped sheet is 2 frames (eyes open / closed) at
+140px; the runtime shows one FRAME-wide slice at a time via the reactive
+`variant` prop. Frame size and the frame list are overridable via the
+SLOTH_FRAME / SLOTH_MODES env vars — bigger frames mean more decoded pixels
+in the native app heap (NOT the XS heap), so 140px is the tested ceiling
+that still leaves the watchface booting comfortably.
 
 Design (Apple-emoji / Jony-Ive intent, within Pebble's 6-bit 64-color
 display): a warm, rounded sloth hanging from a leafy branch. Volume comes
@@ -16,10 +19,14 @@ Run: python3 tools/gen_sloth.py   (writes assets/sloth.png)
 import os
 from PIL import Image, ImageDraw, ImageFilter
 
-FRAME = 104
-FRAMES = 3
+# FRAME size + which eye frames, overridable from the CLI to probe the
+# native-heap ceiling (bigger frame = more decoded pixels in native RAM).
+FRAME = int(os.environ.get("SLOTH_FRAME", "140"))
+MODES = os.environ.get("SLOTH_MODES", "open,closed").split(",")
+FRAMES = len(MODES)
 S = 4                      # supersample factor
 N = FRAME * S              # hi-res frame edge
+K = N / 104.0              # design(104-space) -> hi-res pixels
 
 # palette (authored smooth; the device quantizes to nearest of 64)
 FUR_L   = (222, 158, 104)
@@ -57,22 +64,22 @@ def blob(d, cx, cy, rx, ry, c_out, c_in, lx=0.0, ly=0.0, steps=26, shrink=0.9):
 
 
 def s(*vals):               # scale 104-space coords to hi-res
-    return tuple(int(v * S) for v in vals)
+    return tuple(int(v * K) for v in vals)
 
 
 def draw_eye(d, cx, cy, mode):
-    cx, cy = cx * S, cy * S
-    rx, ry = 7 * S, 8 * S
+    cx, cy = cx * K, cy * K
+    rx, ry = 7 * K, 8 * K
     if mode == "closed":
-        d.arc([cx - 7 * S, cy - 3 * S, cx + 7 * S, cy + 7 * S],
-              200, 340, fill=EYE, width=2 * S)
+        d.arc([cx - 7 * K, cy - 3 * K, cx + 7 * K, cy + 7 * K],
+              200, 340, fill=EYE, width=int(2 * K))
         return
     # glossy dark eye with two catch-lights
     blob(d, cx, cy, rx, ry, (10, 8, 6), EYE, -0.3, -0.3, steps=14, shrink=0.7)
-    d.ellipse([cx - 3 * S, cy - 4 * S, cx + S, cy], fill=WHITE)       # main gloss
-    d.ellipse([cx + 2 * S, cy + 2 * S, cx + 4 * S, cy + 4 * S], fill=(220, 220, 220))
+    d.ellipse([cx - 3 * K, cy - 4 * K, cx + K, cy], fill=WHITE)       # main gloss
+    d.ellipse([cx + 2 * K, cy + 2 * K, cx + 4 * K, cy + 4 * K], fill=(220, 220, 220))
     if mode == "half":                                                # sleepy lid
-        d.rectangle([cx - 9 * S, cy - 10 * S, cx + 9 * S, cy - S], fill=PATCH)
+        d.rectangle([cx - 9 * K, cy - 10 * K, cx + 9 * K, cy - K], fill=PATCH)
 
 
 def draw_frame(mode):
@@ -81,38 +88,38 @@ def draw_frame(mode):
     cx = FRAME // 2
 
     # --- branch across the top (shaded bough) + leaf clusters ---
-    blob(d, cx * S, 11 * S, 52 * S, 6 * S, BR_D, BR_L, 0, -0.4, steps=10, shrink=0.55)
+    blob(d, cx * K, 11 * K, 52 * K, 6 * K, BR_D, BR_L, 0, -0.4, steps=10, shrink=0.55)
     for lx, ly, r in ((20, 8, 10), (34, 5, 7), (84, 8, 10), (70, 5, 7)):
-        blob(d, lx * S, ly * S, r * S, (r - 2) * S, LEAF_D, LEAF_L, -0.3, -0.4,
+        blob(d, lx * K, ly * K, r * K, (r - 2) * K, LEAF_D, LEAF_L, -0.3, -0.4,
              steps=10, shrink=0.8)
 
     # --- arms up to the branch with little clawed paws ---
     for sgn in (-1, 1):
         sx = cx + sgn * 22
-        d.line([s(sx, 40), s(cx + sgn * 16, 16)], fill=FUR_M, width=9 * S)
-        blob(d, (cx + sgn * 16) * S, 15 * S, 8 * S, 7 * S, FUR_D, FUR_L,
+        d.line([s(sx, 40), s(cx + sgn * 16, 16)], fill=FUR_M, width=int(9 * K))
+        blob(d, (cx + sgn * 16) * K, 15 * K, 8 * K, 7 * K, FUR_D, FUR_L,
              -0.3, -0.3, steps=12, shrink=0.75)
         for k in (-4, 0, 4):                                          # claws
             d.line([s(cx + sgn * 16 + k, 11), s(cx + sgn * 16 + k, 20)],
-                   fill=FACE_L, width=2 * S)
+                   fill=FACE_L, width=int(2 * K))
 
     # --- ears (small fur bumps) ---
     for sgn in (-1, 1):
-        blob(d, (cx + sgn * 26) * S, 34 * S, 12 * S, 12 * S, FUR_D, FUR_L,
+        blob(d, (cx + sgn * 26) * K, 34 * K, 12 * K, 12 * K, FUR_D, FUR_L,
              -0.3 * sgn, -0.3, steps=14, shrink=0.8)
 
     # --- head (big rounded fur mass, light from up-left) ---
-    blob(d, cx * S, 58 * S, 35 * S, 34 * S, FUR_D, FUR_L, -0.32, -0.34,
+    blob(d, cx * K, 58 * K, 35 * K, 34 * K, FUR_D, FUR_L, -0.32, -0.34,
          steps=30, shrink=0.92)
 
     # --- face mask (cream, its own soft volume) ---
-    blob(d, cx * S, 63 * S, 27 * S, 26 * S, FACE_D, FACE_L, -0.28, -0.3,
+    blob(d, cx * K, 63 * K, 27 * K, 26 * K, FACE_D, FACE_L, -0.28, -0.3,
          steps=26, shrink=0.9)
 
     # --- eye patches: soft teardrops framing the eyes ---
     for sgn in (-1, 1):
         ex = cx + sgn * 12
-        blob(d, ex * S, 58 * S, 11 * S, 15 * S, PATCH, PATCH_D, 0.1 * sgn, -0.2,
+        blob(d, ex * K, 58 * K, 11 * K, 15 * K, PATCH, PATCH_D, 0.1 * sgn, -0.2,
              steps=16, shrink=0.85)
 
     # --- cheeks: blurred pink blush on its own layer ---
@@ -121,7 +128,7 @@ def draw_frame(mode):
     for sgn in (-1, 1):
         bd.ellipse([s(cx + sgn * 20 - 8, 68), s(cx + sgn * 20 + 8, 80)],
                    fill=CHEEK + (150,))
-    blush = blush.filter(ImageFilter.GaussianBlur(5 * S // 2))
+    blush = blush.filter(ImageFilter.GaussianBlur(int(5 * K / 2)))
     im = Image.alpha_composite(im.convert("RGBA"), blush).convert("RGB")
     d = ImageDraw.Draw(im)
 
@@ -130,17 +137,17 @@ def draw_frame(mode):
     draw_eye(d, cx + 12, 60, mode)
 
     # --- nose + gentle smile ---
-    blob(d, cx * S, 69 * S, 4 * S, 3 * S, NOSE, (110, 74, 58), -0.2, -0.3,
+    blob(d, cx * K, 69 * K, 4 * K, 3 * K, NOSE, (110, 74, 58), -0.2, -0.3,
          steps=8, shrink=0.7)
-    d.arc([s(cx - 9, 70), s(cx, 80)], 20, 150, fill=MOUTH, width=2 * S)
-    d.arc([s(cx, 70), s(cx + 9, 80)], 30, 160, fill=MOUTH, width=2 * S)
+    d.arc([s(cx - 9, 70), s(cx, 80)], 20, 150, fill=MOUTH, width=int(2 * K))
+    d.arc([s(cx, 70), s(cx + 9, 80)], 30, 160, fill=MOUTH, width=int(2 * K))
 
     return im.resize((FRAME, FRAME), Image.LANCZOS)
 
 
 def main():
     sheet = Image.new("RGB", (FRAME * FRAMES, FRAME), (0, 0, 0))
-    for i, mode in enumerate(("open", "half", "closed")):
+    for i, mode in enumerate(MODES):
         sheet.paste(draw_frame(mode), (i * FRAME, 0))
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     out = os.path.join(here, "assets", "sloth.png")

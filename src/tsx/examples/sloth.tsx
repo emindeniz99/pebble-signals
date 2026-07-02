@@ -13,15 +13,15 @@ import { useState } from "runtime/signals";
 declare const Texture: any;
 
 const bg = new Skin({ fill: "black" });
-const hms = new Style({ font: "bold 28px Gothic", color: "white" });
+const hms = new Style({ font: "bold 42px Bitham", color: "white" });
 // date carries the one restrained accent, drawn from the sloth's fur palette
-const date = new Style({ font: "18px Gothic", color: "#FFAA55" });
+const date = new Style({ font: "bold 24px Gothic", color: "#FFAA55" });
 
-// one sheet, 104px frames, variant N = the Nth 104px slice
-const sheet = new Skin({ texture: new Texture("sloth.png"), x: 0, y: 0, width: 104, height: 104, variants: 104 });
+// one sheet, 140px frames, variant N = the Nth 140px slice (0 open, 1 closed)
+const sheet = new Skin({ texture: new Texture("sloth.png"), x: 0, y: 0, width: 140, height: 140, variants: 140 });
 
-// slow, mostly-open blink: hold open, then a quick down/up flutter
-const BLINK = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1];
+// slow, mostly-open blink: hold open (0), brief blink closed (1)
+const BLINK = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1];
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const two = (n: number) => (n < 10 ? "0" : "") + n;
 const [hm, setHm] = useState("");
@@ -39,7 +39,7 @@ setInterval(() => setStep((s: number) => (s + 1) % BLINK.length), 220);
 render(() => (
 	<Container left={0} right={0} top={0} bottom={0}>
 		<Column>
-			<Content width={104} height={104} skin={sheet} variant={() => BLINK[step()]} />
+			<Content width={140} height={140} skin={sheet} variant={() => BLINK[step()]} />
 			<Label style={hms} string={() => hm()} />
 			<Label style={date} string={() => day()} />
 		</Column>
