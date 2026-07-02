@@ -153,4 +153,19 @@ check("VL default format is String()", (() => {
 	return d.contents[0].string === "7";
 })());
 
+// VirtualList renderRow: rich recycled rows via a row template
+const rrBuilt = [];
+const [rl] = createRoot(() => VirtualList({
+	data: { count: () => 5, get: i => "v" + i }, rows: 2, at: () => 0,
+	renderRow: (idxThunk, dataArg) => {
+		rrBuilt.push(idxThunk);
+		const c = new StubContent(null, {});
+		c.string = dataArg.get(idxThunk());
+		return c;
+	},
+}));
+check("renderRow builds `rows` rows", rl.contents.length === 2);
+check("renderRow slot index thunks", rrBuilt[0]() === 0 && rrBuilt[1]() === 1);
+check("renderRow row content", rl.contents[0].string === "v0" && rl.contents[1].string === "v1");
+
 done();

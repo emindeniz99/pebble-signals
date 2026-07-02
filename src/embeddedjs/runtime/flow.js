@@ -172,8 +172,24 @@ export function For(props) {
 export const VirtualList = (props) => {
 	const host = makeHost(props, Column);
 	const rows = props.rows || 3;
-	const fmt = props.format || (v => String(v));
 	const data = props.data;
+	// RICH rows: `renderRow(indexThunk, data)` builds a recycled subtree ONCE
+	// per visible slot (a Row of Labels, an icon skin, etc). indexThunk()
+	// returns the CURRENT record index for that slot — read a signal inside
+	// it (via props.at) so the row's own bindings re-run on scroll. Still
+	// recycling: the subtree is created once and never destroyed, unlike a
+	// create/destroy FlatList (which on 32KB rides the ceiling and crashes
+	// under scroll — measured). Each extra node per row costs arena, so
+	// keep rows small; see the `richlist` example's measured budget.
+	if (props.renderRow) {
+		for (let slot = 0; slot < rows; slot++) {
+			const at = props.at;
+			host.add(props.renderRow(() => (at ? at() : 0) + slot, data));
+		}
+		return host;
+	}
+	// simple rows: one recycled Label per slot, string via `format`
+	const fmt = props.format || (v => String(v));
 	for (let slot = 0; slot < rows; slot++) {
 		const label = new Label(null, {});
 		track(effect(() => {

@@ -69,6 +69,7 @@ square screenshots below come from identical `.tsx`.
 | `toggle` | ON/OFF with live skin+style flip | reactive `skin`/`style` setProp path | ✅ `ex-toggle-on.png` | ✅ `em-toggle-on.png` |
 | `forbind` | 3 reactive `For` rows (gotcha-16 testbed) | reactive bindings INSIDE For rows | ✅ `ex-forbind-boot.png` / `ex-forbind-updated.png` | ✅ `em-forbind.png` |
 | `scroll` | **virtualized infinite scroll** via `VirtualList` | windowing + cell recycling + scroll offset | ✅ `scroll-gabbro-*.png` | ✅ `scroll-emery-*.png` |
+| `richlist` | **rich recycled rows** (`renderRow`): 2-column row, 1 visible, scrollable | multi-element rows, not just text | ✅ `richlist-gabbro-*.png` | ✅ `richlist-emery-*.png` |
 | `multiscreen` | 4 screens in one mod | does NOT boot — kept as the arena-OOM artifact | ❌ by design | ❌ |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
@@ -181,7 +182,17 @@ build.sh                 tsc + pebble build
   Overscan is deliberately omitted — this port redraws text instantly with
   no pixel/momentum scroll, so pre-mounting off-screen rows buys nothing.
   We went further than RN's data virtualization (RN keeps every item as a
-  JS object; we keep records as bytes). See the `scroll` example: 8+
+  JS object; we keep records as bytes). For RICHER rows than a plain
+  string, pass `renderRow(indexThunk, data)` instead of `format` — it
+  builds a recycled subtree once per slot (a Row of Labels, an icon skin).
+  But each extra node per row costs arena, and the measured ceiling is
+  brutal: a 2-column rich row (Row + 2 Labels) at **3 rows crashes at
+  boot, 2 rows boots but crashes on SCROLL (97% + transients), 1 row
+  boots AND scrolls** (the `richlist` example). So on this 32KB firmware
+  you get rich rows OR many rows, not both — plain text for scrollable
+  multi-row lists (`scroll`), `renderRow` for a small/single rich row.
+  Another entry for the upstream issue: a bigger arena unlocks rich
+  scrollable lists. See the `scroll` example: 8+
   records, a 3-row window, up/down scroll — the window slides while memory
   stays O(3). NB the demo drops a reactive header on purpose: a 4th bound
   label pushed boot to 97% and scroll transients then crashed it (gotcha
