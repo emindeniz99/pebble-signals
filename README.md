@@ -72,7 +72,7 @@ square screenshots below come from identical `.tsx`.
 | `richlist` | **rich recycled rows** (`renderRow`): 2-column row, 1 visible, scrollable | multi-element rows, not just text | ✅ `richlist-gabbro-*.png` | ✅ `richlist-emery-*.png` |
 | `slothface` | **animated sloth watchface** 🦥 (text-frame animation + clock) | timer-driven frame animation via signals | ✅ `slothface-*.png` (awake/blink/sleepy) | — |
 | `imgwatch` | **animated COLOR bitmap watchface** + HH:MM:SS | bundled bitmaps (png2bmp), `Texture`, frame-swap animation | ✅ `imgwatch-red.png` / `imgwatch-blue.png` | — |
-| `sloth` | **colorful animated sloth watchface** 🦥 (sprite-sheet blink + clock) | one `Texture` sheet, reactive `variant` sprite animation | ✅ `sloth-gabbro-open.png` / `sloth-gabbro-blink.png` | ✅ `sloth-emery-open.png` / `sloth-emery-blink.png` |
+| `sloth` | **polished animated sloth watchface** 🦥 (soft-shaded emoji, sprite-sheet blink, one-line HH:MM:SS + date) | one `Texture` sheet, reactive `variant` sprite animation | ✅ `sloth-gabbro-open.png` / `sloth-gabbro-blink.png` | ✅ `sloth-emery-open.png` / `sloth-emery-blink.png` |
 | `multiscreen` | 4 screens in one mod | does NOT boot — kept as the arena-OOM artifact | ❌ by design | ❌ |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
@@ -535,6 +535,25 @@ resources aren't preloaded/executed).
    pypkjs is unverified. The mechanism is correct and emulator-supported
    by design; confirming the byte-level round-trip wants a steadier
    emulator or real hardware.
+19. **`Texture` names need the `.png` suffix** (`new Texture("sloth.png")`,
+   not `"sloth"`) — the constructor only finds the `.bm4` pair when the
+   path ends in `.png`; otherwise it throws `Texture … not found!`.
+20. **Font strings must name a font that actually exists on the watch, at
+   that exact size AND weight — an invalid one renders NOTHING (blank, no
+   error).** `"bold 34px Bitham"` silently produces no glyphs: Bitham is
+   only *bold* at 42px (`FONT_KEY_BITHAM_42_BOLD`); its 34px cuts are
+   medium-numbers / light-subset. The failure is nasty because it does
+   NOT abort — the app boots to a black screen with the sloth but no
+   text, so a center-pixel "is it black? → booted" check is a false pass.
+   Safe, verified strings: `"bold 42px Bitham"`, `"bold 28px Gothic"`,
+   `"bold 24px Gothic"`, `"18px Gothic"`. The `sloth` watchface uses
+   `"bold 28px Gothic"` for its one-line HH:MM:SS.
+21. **On the arena-tight watchfaces, wrapping the time in a `Row` (to
+   two-tone the seconds) tips the boot over the ceiling → `fxAbort`.**
+   Same family as the M11/arena-pressure findings: the extra container +
+   label + signal is enough. The fix that kept the design intent was to
+   drop the `Row`, keep HH:MM:SS as ONE white `Label`, and spend the one
+   restrained accent colour on the existing date line instead.
 
 ## vs react-pebble
 
