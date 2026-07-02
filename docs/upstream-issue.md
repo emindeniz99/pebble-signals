@@ -100,18 +100,16 @@ full days bisecting these apart.
 - Any real-coordinate QEMU touch event reboots the firmware, even on
   static apps (emulator-side).
 
-## 6b. `fetch` is unusable from a normal-sized mod (arena) and untestable (emulator)
+## 6b. `fetch` is unusable from a normal-sized mod (arena)
 
-Alloy's native `fetch` allocates enough (Response, Headers, URL,
-promise chains, socket buffers) that calling it from a mod already
-using a modest JS runtime (~85% arena) aborts with "fxAbort memory
-full" before reaching the network. A bare app leaves room, but then the
-QEMU emulator has no network device at all (`-machine pebble-*`, no
-`-netdev`), so fetch hangs forever with no timeout. Net effect: network
-apps can't be developed or tested without real hardware, and even then
-must be extremely lean. A larger arena (see #1) would make `fetch`
-usable alongside a real UI; an emulator network bridge would make it
-testable.
+Alloy's `fetch` proxies through PKJS on the phone
+(`@moddable/pebbleproxy`), which is the correct and emulator-supported
+design. The problem is the WATCH side: fetch's own allocations
+(Response, Headers, URL, promise chains) abort with "fxAbort memory
+full" when called from a mod already running a modest JS runtime (~85%
+arena) — only a bare app (no runtime) leaves room. So a network app
+cannot also have a real reactive UI in 32KB. A larger arena (see #1)
+would make `fetch` usable alongside a UI.
 
 ## 7. Font lookup contradicts the font table
 

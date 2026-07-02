@@ -468,20 +468,34 @@ when an app carries a LOT of logic code.
    name becomes a fresh runtime symbol via `XS->id()`. FFI is therefore
    only usable by mods whose slot needs fit ~13KB — the M9 byte-pool
    store is the in-arena substitute (1 byte costs 1 byte in chunk).
-18. **`fetch` exists but cannot be tested in the emulator, and is heavy
-   for the arena.** Alloy exposes a real ECMA-419 `fetch` (native, over
-   `embedded:network/http` / TCP — NOT the phone's XMLHttpRequest). But
-   (a) the QEMU emulator has NO network device (`-machine pebble-*`, zero
-   `-netdev`), so on hardware fetch routes over Bluetooth-PPP to the phone
-   but in the emulator it just **hangs at "fetching…" forever** — no
-   route, no DNS, no timeout observed after 38s (`fetch-hangs.png`, the
-   `fetchtest` example). (b) Called from a normal app (runtime already at
-   ~85% arena) fetch's own allocations — Response/Headers/URL/promises/
-   socket buffers — tip the 32KB arena straight into `fxAbort memory
-   full`; only a BARE app (no signal runtime) has room for fetch to even
-   reach the network layer. So real network testing needs actual hardware
-   + a phone, and a fetch-using mod must stay very lean. Another
-   arena-size motivator for the upstream issue.
+18. **`fetch` works through a PHONE PROXY, not direct TCP — set up
+   `@moddable/pebbleproxy` in `src/pkjs/index.js`.** (Correction of an
+   earlier wrong note that claimed native TCP / "no emulator network".)
+   The real mechanism, from the rePebble networking guide and the
+   package README: the watch's `fetch()` proxies its request to PKJS
+   running on the phone (`@moddable/pebbleproxy`), which performs the
+   actual HTTP and relays the response back over AppMessage. PKJS is
+   pypkjs in the QEMU emulator, so the package explicitly supports the
+   emulator — network IS testable there in principle. Setup:
+   `pebble package install @moddable/pebbleproxy`, then
+   ```js
+   var proxy = require("@moddable/pebbleproxy");
+   Pebble.addEventListener("ready", proxy.readyReceived);
+   Pebble.addEventListener("appmessage", proxy.appMessageReceived);
+   ```
+   and on the watch `await fetch(url)` after the proxy signals ready.
+   The `fetchtest` example is wired this way. NOTE: this repo's mod XS
+   runtime still has ZERO npm deps — pebbleproxy is PHONE-SIDE (pkjs)
+   only. Two caveats measured here: (a) fetch from a normal app aborts
+   with `fxAbort memory full` — its Response/Headers/URL/promise
+   allocations don't fit alongside the runtime in 32KB, so a fetch-using
+   mod must stay lean (bare app). (b) A live round-trip could NOT be
+   completed in THIS sandbox: the local emulator/pypkjs stack is too
+   unstable (pypkjs dies/duplicates on restart, the button+log channel
+   is unreliable with pypkjs alive — gotcha 12) and host egress for
+   pypkjs is unverified. The mechanism is correct and emulator-supported
+   by design; confirming the byte-level round-trip wants a steadier
+   emulator or real hardware.
 
 ## vs react-pebble
 

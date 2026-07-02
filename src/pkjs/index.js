@@ -1,5 +1,4 @@
-Pebble.addEventListener("ready",
-    function(e) {
-        console.log("Hello world! - Sent from your javascript application.");
-    }
-);
+var moddableProxy = require("@moddable/pebbleproxy");
+moddableProxy.log = true;
+Pebble.addEventListener("ready", moddableProxy.readyReceived);
+Pebble.addEventListener("appmessage", moddableProxy.appMessageReceived);
