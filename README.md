@@ -72,6 +72,7 @@ square screenshots below come from identical `.tsx`.
 | `richlist` | **rich recycled rows** (`renderRow`): 2-column row, 1 visible, scrollable | multi-element rows, not just text | ✅ `richlist-gabbro-*.png` | ✅ `richlist-emery-*.png` |
 | `slothface` | **animated sloth watchface** 🦥 (text-frame animation + clock) | timer-driven frame animation via signals | ✅ `slothface-*.png` (awake/blink/sleepy) | — |
 | `imgwatch` | **animated COLOR bitmap watchface** + HH:MM:SS | bundled bitmaps (png2bmp), `Texture`, frame-swap animation | ✅ `imgwatch-red.png` / `imgwatch-blue.png` | — |
+| `sloth` | **colorful animated sloth watchface** 🦥 (sprite-sheet blink + clock) | one `Texture` sheet, reactive `variant` sprite animation | ✅ `sloth-gabbro-open.png` / `sloth-gabbro-blink.png` | ✅ `sloth-emery-open.png` / `sloth-emery-blink.png` |
 | `multiscreen` | 4 screens in one mod | does NOT boot — kept as the arena-OOM artifact | ❌ by design | ❌ |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
@@ -352,17 +353,26 @@ Real bundled bitmaps work, in color, and animate. Pipeline:
    files when the path ends in `.png`; `new Texture("ball0")` throws
    `Texture ball0 not found!` — measured). Then a texture `Skin`
    (`{ texture, x, y, width, height }`) on a `Content`.
-3. ANIMATE by swapping the Content's `skin` on a timer — `skin` is a
-   reactive prop, so `<Content skin={() => frame()%2 ? skinB : skinA} />`
-   flips frames every tick (the `imgwatch` example: red ball ↔ blue ball
-   at 450ms, over a live HH:MM:SS clock, verified on Round 2 in color).
+3. ANIMATE, two ways — both reactive props, no per-frame allocation:
+   - **skin-swap** (`imgwatch`): keep one texture per frame and swap the
+     Content's `skin` on a timer — `<Content skin={() => frame()%2 ?
+     skinB : skinA} />` flips red ball ↔ blue ball at 450ms.
+   - **sprite-sheet + `variant`** (`sloth`): ONE wide texture holding N
+     frames side by side; a texture `Skin` with `variants: <frameWidth>`
+     slices it, and the reactive `variant` prop picks the slice —
+     `<Content skin={sheet} variant={() => BLINK[step()]} />`. One decode,
+     no skin churn. The `sloth` watchface is a 3-frame (eyes open / half /
+     closed) 104px blink sheet over a live HH:MM clock, verified animating
+     on **both** Round 2 and Time 2 in color.
    Piu also has a native multi-frame `Image` class (`duration` + start())
    for GIF-style animation.
 Costs: bitmap PIXELS live in the native app heap (not the 32KB arena),
 but the `.bm4` bytes bundle into the mod ARCHIVE — two 64×64 balls took
-mc.xsa 14,140 → 24,656B. So `build.sh` adds the `resources` block ONLY
-for apps that use `Texture` (grep), keeping non-image apps small; the
-manifest is generated from `manifest.base.json` (gitignored, like
+mc.xsa 14,140 → 24,656B; the 312×104 sloth sheet is 59,420B of the 256KB
+resource area. `build.sh` DERIVES the `resources` list from the app's own
+`new Texture("x.png")` references (each mapped to `assets/x`), so every
+app bundles exactly the bitmaps it names and image-free apps stay small;
+the manifest is generated from `manifest.base.json` (gitignored, like
 main.tsx). Resources bundle into the archive but do NOT count against
 the ~15.9KB boot ceiling (imgwatch's 24.6KB archive boots fine —
 resources aren't preloaded/executed).
