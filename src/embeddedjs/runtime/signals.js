@@ -4,19 +4,40 @@
 // the firmware-fixed 32KB arena is tight enough that two extra module
 // records were the difference between the combined demo booting or dying
 // with "fxAbort memory full" (measured on SDK 4.17 / gabbro).
-// XS-safe: closures, Set, accessors only. No Proxy/Reflect/WeakMap.
+// XS-safe: closures, arrays, accessors only. No Proxy/Reflect/WeakMap.
+//
+// WARNING (measured, README gotcha 13): the firmware's alias budget has
+// almost zero headroom. Adding top-level `function`/`class` declarations
+// to any preloaded module — even never-called ones — kills the app at
+// startup. New module-level helpers must be `const` bindings, and every
+// export costs runtime RAM: make it earn its keep.
 
 let current = null;
 
+// Subscribers are stored INLINE: `s` is null (none), the single subscribing
+// Effect, or an array of Effects. The obvious `new Set()` per signal costs
+// ~10 slots + a hash-table chunk, and nearly every signal here has 0-2
+// subscribers — on the 32KB arena that Set was the single biggest per-signal
+// expense (see README for the measured before/after row limit).
 class Signal {
 	constructor(value) {
 		this.v = value;
-		this.subs = new Set();
+		this.s = null;
 	}
 	get value() {
 		if (current) {
-			this.subs.add(current);
-			current.deps.push(this.subs);
+			const s = this.s;
+			if (s === null)
+				this.s = current;
+			else if (s !== current) {
+				if (Array.isArray(s)) {
+					if (s.indexOf(current) < 0)
+						s.push(current);
+				}
+				else
+					this.s = [s, current];
+			}
+			current.deps.push(this);
 		}
 		return this.v;
 	}
@@ -24,22 +45,33 @@ class Signal {
 		if (value === this.v)
 			return;
 		this.v = value;
-		// Snapshot: subscribers may mutate subs while we notify. run() is a
-		// no-op for effects disposed mid-notification (fn === null) —
+		const s = this.s;
+		if (s === null)
+			return;
+		// Snapshot arrays: subscribers may mutate `s` while we notify. run()
+		// is a no-op for effects disposed mid-notification (fn === null) —
 		// without that guard a disposed effect would resurrect itself by
-		// re-subscribing during its final run.
-		for (const e of [...this.subs]) {
-			// diagnostic hook: surface subscriber exceptions instead of
-			// letting them abort the machine (XS kills the app otherwise)
-			try {
-				e.run();
-			} catch (err) {
-				if (globalThis.__spError)
-					globalThis.__spError(err);
-				else
-					throw err;
-			}
+		// re-subscribing during its final run. The single-subscriber path
+		// (the common one) allocates nothing.
+		if (Array.isArray(s)) {
+			for (const e of [...s])
+				notify(e);
 		}
+		else
+			notify(s);
+	}
+}
+
+// diagnostic hook: surface subscriber exceptions instead of letting them
+// abort the machine (XS kills the app otherwise)
+function notify(e) {
+	try {
+		e.run();
+	} catch (err) {
+		if (globalThis.__spError)
+			globalThis.__spError(err);
+		else
+			throw err;
 	}
 }
 
@@ -76,8 +108,19 @@ function unsubscribe(e) {
 		e.cleanup = null;
 		c();
 	}
-	for (const s of e.deps)
-		s.delete(e);
+	for (const sig of e.deps) {
+		const s = sig.s;
+		if (s === e)
+			sig.s = null;
+		else if (Array.isArray(s)) {
+			const i = s.indexOf(e);
+			if (i >= 0) {
+				s.splice(i, 1);
+				if (s.length === 1)	// collapse back to the inline form
+					sig.s = s[0];
+			}
+		}
+	}
 	e.deps.length = 0;
 }
 
@@ -150,6 +193,7 @@ export function createRoot(fn) {
 	}
 }
 
+
 export function onCleanup(fn) {
 	if (owner)
 		owner.d.push(fn);
@@ -194,3 +238,4 @@ export function useMemo(fn) {
 }
 
 export const useRef = current_ => ({ current: current_ });
+

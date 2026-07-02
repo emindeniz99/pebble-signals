@@ -154,11 +154,11 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
   the 122KB native app heap); closures, signals, effects, behavior handlers
   and module records are what exhaust the 32KB. Budget accordingly.
 - **Live audit** (`npm run test:mem`, combined demo on gabbro): idle floor
-  ~17.5KB slot + ~5.7KB chunk; under button load the pre-GC peak hits
-  **25940B = 97% of the 26.6KB heap budget** (post-GC floor 23208B = 87%,
-  ~2.7KB transient reclaimed per GC, 472B of arena unclaimed, stack peak
-  5072/6144B). The demo lives ~700B from the wall at its worst instant —
-  the test fails the build if the post-GC floor crosses 90%.
+  ~17.5KB slot + ~6.0KB chunk; under button load the pre-GC peak hits
+  **25788B = 97% of the 26.6KB heap budget** (post-GC floor 23476B = 88%,
+  ~2.3KB transient reclaimed per GC, stack peak 5072/6144B). The demo
+  lives ~800B from the wall at its worst instant — the test fails the
+  build if the post-GC floor crosses 90%.
 - Baselines (slot used, post-GC): empty Piu app ~7.0KB · M3 reactive label
   ~10.9KB · M5 Show demo ~15.3KB · combined M7 demo sits within ~a few
   hundred bytes of the ceiling and only fits with the runtime preloaded.
@@ -171,12 +171,14 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
   baseline app. That is the realistic list ceiling on this firmware.
 - **Limit finder** (`npm run test:limit` = `memtest.py --ramp`): from the
   full combined demo (counter + keepAlive Show + For), adding todo rows one
-  per button press dies **adding the 4th row** — 3 rows survive, baseline
-  (1 row) already sits at 24056B = 90% of budget, and the sample before
-  death reads 24588B with the slot heap grown to 20464B. Byte-identical
-  across fresh-chain reruns. `--min 3` makes it a regression gate: rerun
-  after adding any runtime feature and the reported limit shows exactly how
-  far the ceiling moved.
+  per button press dies **adding the 5th row** — 4 rows survive, baseline
+  (1 row) at 23620B = 89% of budget, sample before death 25620B = 96%.
+  Byte-identical across fresh-chain reruns, same numbers on emery.
+  `--min 4` makes it a regression gate: rerun after adding any runtime
+  feature and the reported limit shows exactly how far the ceiling moved.
+  (Before the v1.1 slimming — inline signal subscribers, flash-preloaded
+  behavior class, stamp-based `For` reconcile — the limit was 3 rows and
+  the baseline 24056B; every optimization above was verified by this test.)
 - **Preload the runtime.** `"preload"` in the mod manifest moves module
   bodies to flash; before preloading, hooks + Show + For could not coexist
   at all. Preloaded modules must not touch Piu globals at module scope
@@ -218,7 +220,7 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
    screen (our M1 suite does exactly that).
 9. The strip list is real: no `Proxy/Reflect/WeakMap/WeakSet/Atomics/
    BigInt/eval/Function/Generator` anywhere, including dependencies — which
-   is why the reactive core is hand-rolled closures + `Set`.
+   is why the reactive core is hand-rolled closures, plain arrays and `Map`.
 10. **Preloaded classes must initialize every field in the constructor.**
    Adding/reading a field that the constructor never set (our `Effect.cleanup`
    before the fix) kills the app at startup — silently, no fxAbort log, no
@@ -235,6 +237,23 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
    crash. `tools/drive.py` opens one direct QemuTransport connection for
    buttons + logs + qemu-monitor screendumps and is immune; use it for all
    emulator verification (kill pypkjs first).
+13. **The machine's alias budget is nearly exhausted — do not add top-level
+   `function`/`class` declarations (writable bindings) to preloaded
+   modules.** Adding two never-called `export function`s to signals.js
+   killed the app at startup (same silent signature as gotcha 10); the SAME
+   code as `export const` arrow functions boots fine, and a 15859B archive
+   boots while a 15777B one dies — so it is the count of aliasable
+   bindings, not bytes. Each preloaded writable binding costs an XS alias
+   slot from a firmware-fixed budget with almost zero headroom (the
+   `ModdableCreationRecord` has no alias field to raise it). This likely
+   also explains gotcha 11 — exporting `consumePendingFocus` added an
+   alias — but that retest hasn't been done. Also measured: two extra
+   const-arrow exports still cost ~290B of runtime slot RAM, so exports
+   must EARN their keep.
+14. **Piu accepts a plain object as `behavior`** — no `Behavior` subclass
+   needed (verified on-device: all button/tap dispatch works). That lets
+   the shared handler class live at module scope and preload to flash
+   instead of being rebuilt (prototype + 9 methods) inside the arena.
 
 ## vs react-pebble
 

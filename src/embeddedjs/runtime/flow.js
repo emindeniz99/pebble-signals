@@ -94,34 +94,43 @@ function wrapSide(props, build) {
 export function For(props) {
 	const host = makeHost(props, Column);
 	const keyOf = props.key || (item => item);
-	let rows = new Map();		// key -> { node, dispose }
+	// Rows live in ONE persistent Map; each reconcile pass stamps the rows
+	// it keeps instead of rebuilding a key map (a fresh Map per pass was
+	// pure transient allocation at exactly the moment the arena is fullest
+	// — adding a row is when "fxAbort memory full" hits).
+	const rows = new Map();		// key -> { node, dispose, stamp }
+	let stamp = 0;
 	track(effect(() => {
 		const items = props.each();
 		untrack(() => {
-			const next = new Map();
+			const pass = ++stamp;
+			const order = [];	// nodes in expected order this pass
 			for (let i = 0; i < items.length; i++) {
 				const item = items[i], k = keyOf(item, i);
-				if (next.has(k))	// duplicate key: first occurrence wins
-					continue;
 				let row = rows.get(k);
-				if (row)
-					rows.delete(k);
+				if (row) {
+					if (row.stamp === pass)	// duplicate key: first occurrence wins
+						continue;
+				}
 				else {
 					const [node, dispose] = createRoot(() => asNode(() => props.children(item, i)));
-					row = { node, dispose };
+					row = { node, dispose, stamp: 0 };
+					rows.set(k, row);
 				}
-				next.set(k, row);
+				row.stamp = pass;
+				order.push(row.node);
 			}
-			for (const row of rows.values()) {	// keys gone from the data
-				host.remove(row.node);
-				row.dispose();
+			for (const [k, row] of rows) {	// keys gone from the data
+				if (row.stamp !== pass) {
+					host.remove(row.node);
+					row.dispose();
+					rows.delete(k);
+				}
 			}
-			rows = next;
 			// Position pass: walk expected order with a cursor over the
 			// host's real children; move/insert only mismatched nodes.
 			let cursor = host.first;
-			for (const row of next.values()) {
-				const node = row.node;
+			for (const node of order) {
 				if (node === cursor) {
 					cursor = cursor.next;
 					continue;

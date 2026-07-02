@@ -10,13 +10,11 @@ import { effect, track, createRoot } from "runtime/signals";
 // and the Piu globals only exist at runtime.
 let PIU = null;
 
-function piuSet() {
-	if (PIU === null)
-		PIU = new Set(
-			[Label, Text, Content, Container, Column, Row, Scroller, Port, Layout]
-				.filter(t => t !== undefined)
-		);
-	return PIU;
+function isPiu(type) {
+	if (PIU === null)		// a 9-entry array beats a Set on the 32KB arena
+		PIU = [Label, Text, Content, Container, Column, Row, Scroller, Port, Layout]
+			.filter(t => t !== undefined);
+	return PIU.indexOf(type) >= 0;
 }
 
 export function Fragment(props) {
@@ -24,7 +22,7 @@ export function Fragment(props) {
 }
 
 export function jsx(type, props) {
-	if (piuSet().has(type))
+	if (isPiu(type))
 		return createHost(type, props);
 	if (typeof type === "function")
 		return type(props || {});
@@ -45,37 +43,32 @@ let pendingFocus = null;
 
 // One shared behavior class; handlers live in instance fields. piu stops
 // button bubbling when the method returns truthy — consume by default,
-// return false from a handler to pass the event up the chain. Defined
-// lazily because the Behavior global doesn't exist at preload time.
-let HandlerBehavior = null;
-
-function handlerBehaviorClass() {
-	if (HandlerBehavior === null) {
-		HandlerBehavior = class extends Behavior {
-			constructor(tap, buttons) {
-				super();
-				this.tap = tap;
-				this.buttons = buttons;
-			}
-			onTouchEnded(content, id, x, y) {
-				if (this.tap)
-					this.tap(content, x, y);
-			}
-			button(name, content) {
-				const h = this.buttons && this.buttons[name];
-				return h ? h(content) !== false : false;
-			}
-			onPressSelect(content) { return this.button("onPressSelect", content); }
-			onReleaseSelect(content) { return this.button("onReleaseSelect", content); }
-			onPressUp(content) { return this.button("onPressUp", content); }
-			onReleaseUp(content) { return this.button("onReleaseUp", content); }
-			onPressDown(content) { return this.button("onPressDown", content); }
-			onReleaseDown(content) { return this.button("onReleaseDown", content); }
-			onPressBack(content) { return this.button("onPressBack", content); }
-			onReleaseBack(content) { return this.button("onReleaseBack", content); }
-		};
+// return false from a handler to pass the event up the chain. piu accepts
+// ANY object as a behavior (methods are looked up by name — no Behavior
+// inheritance required), so the class lives at module scope and preloads
+// to flash; the previous lazy `class extends Behavior` rebuilt its
+// prototype + 9 methods inside the 32KB arena at runtime.
+class HandlerBehavior {
+	constructor(tap, buttons) {
+		this.tap = tap;
+		this.buttons = buttons;
 	}
-	return HandlerBehavior;
+	onTouchEnded(content, id, x, y) {
+		if (this.tap)
+			this.tap(content, x, y);
+	}
+	button(name, content) {
+		const h = this.buttons && this.buttons[name];
+		return h ? h(content) !== false : false;
+	}
+	onPressSelect(content) { return this.button("onPressSelect", content); }
+	onReleaseSelect(content) { return this.button("onReleaseSelect", content); }
+	onPressUp(content) { return this.button("onPressUp", content); }
+	onReleaseUp(content) { return this.button("onReleaseUp", content); }
+	onPressDown(content) { return this.button("onPressDown", content); }
+	onReleaseDown(content) { return this.button("onReleaseDown", content); }
+	onPressBack(content) { return this.button("onPressBack", content); }
+	onReleaseBack(content) { return this.button("onReleaseBack", content); }
 }
 
 function createHost(type, props) {
@@ -101,7 +94,7 @@ function createHost(type, props) {
 	if (tap || buttons) {
 		if (tap)
 			dict.active = true;
-		dict.behavior = new (handlerBehaviorClass())(tap, buttons);
+		dict.behavior = new HandlerBehavior(tap, buttons);
 	}
 	const node = new type(null, dict);
 	if (focus)
