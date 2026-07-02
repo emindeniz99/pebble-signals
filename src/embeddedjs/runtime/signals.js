@@ -239,3 +239,139 @@ export function useMemo(fn) {
 
 export const useRef = current_ => ({ current: current_ });
 
+// ---- typed byte-record store ---------------------------------------------
+// Collections kept as plain JS objects cost ~450B of slots per row and kill
+// the arena at 4-5 rows (measured; README). A Store keeps records as BYTES
+// in one Uint8Array — [tag][len][payload] — so a record costs its payload
+// bytes, not slots. Primitives encode automatically (int32, float64, string
+// of ≤255 Latin-1 bytes, boolean, null); custom types register a codec with
+// def() and pass their tag to push(). Value semantics: data moves in and
+// out BY COPY — this is a serialization store, not an object heap (no live
+// references, functions, or Piu nodes).
+// Platform rules honored: every binding below is a `const` (gotcha 13 —
+// new function/class declarations in a preloaded module kill the machine),
+// fields are constructor-initialized (gotcha 10), and the float scratch is
+// allocated LAZILY at runtime — a buffer created at preload time would be
+// frozen into ROM and unwritable.
+
+const T_I32 = 0, T_F64 = 1, T_STR = 2, T_TRUE = 3, T_FALSE = 4, T_NULL = 5;
+
+const Store = class {
+	constructor(size) {
+		this.b = new Uint8Array(size);
+		this.t = 0;		// bytes used (records are always compact)
+		this.n = 0;		// record count
+		this.c = null;		// custom codecs: tag -> [encode, decode]
+		this.f = null;		// lazy float64 scratch
+		this.fb = null;		// byte view over this.f
+	}
+	count() {
+		return this.n;
+	}
+	// Register a custom codec under tag 8..255. encode(value, bytes, offset,
+	// max) writes the payload and returns its length, or -1 if it needs more
+	// than max; decode(bytes, offset, length) returns the value.
+	def(tag, encode, decode) {
+		if (this.c === null)
+			this.c = {};
+		this.c[tag] = [encode, decode];
+	}
+	// Append a value; pass `tag` only for custom types. Returns the new
+	// count, or -1 when the value does not fit (store full or payload >255B).
+	push(v, tag) {
+		const b = this.b, off = this.t + 2;
+		const max = b.length - off;	// may be negative when nearly full
+		let len;
+		if (tag !== undefined)
+			len = this.c[tag][0](v, b, off, max < 0 ? 0 : max);
+		else if (typeof v === "number") {
+			if (Number.isInteger(v) && v >= -0x80000000 && v <= 0x7fffffff) {
+				tag = T_I32; len = 4;
+				if (len <= max) {
+					b[off] = v & 255; b[off + 1] = (v >> 8) & 255;
+					b[off + 2] = (v >> 16) & 255; b[off + 3] = (v >> 24) & 255;
+				}
+			}
+			else {
+				tag = T_F64; len = 8;
+				if (len <= max) {
+					this.fl();
+					this.f[0] = v;
+					for (let i = 0; i < 8; i++)
+						b[off + i] = this.fb[i];
+				}
+			}
+		}
+		else if (typeof v === "string") {
+			tag = T_STR; len = v.length;
+			if (len <= max && len <= 255)
+				for (let i = 0; i < len; i++)
+					b[off + i] = v.charCodeAt(i) & 255;
+		}
+		else if (v === true) { tag = T_TRUE; len = 0; }
+		else if (v === false) { tag = T_FALSE; len = 0; }
+		else { tag = T_NULL; len = 0; }
+		if (len < 0 || len > 255 || len > max)
+			return -1;
+		b[this.t] = tag;
+		b[this.t + 1] = len;
+		this.t += 2 + len;
+		return ++this.n;
+	}
+	get(i) {
+		const p = this.o(i);
+		if (p < 0)
+			return undefined;
+		const b = this.b, tag = b[p], len = b[p + 1], off = p + 2;
+		switch (tag) {
+			case T_I32:
+				return (b[off] | (b[off + 1] << 8) | (b[off + 2] << 16) | (b[off + 3] << 24)) | 0;
+			case T_F64:
+				this.fl();
+				for (let j = 0; j < 8; j++)
+					this.fb[j] = b[off + j];
+				return this.f[0];
+			case T_STR: {
+				let s = "";
+				for (let j = 0; j < len; j++)
+					s += String.fromCharCode(b[off + j]);
+				return s;
+			}
+			case T_TRUE: return true;
+			case T_FALSE: return false;
+			case T_NULL: return null;
+			default:
+				return this.c[tag][1](b, off, len);
+		}
+	}
+	// Remove record i (shifts the tail down); returns the new count or -1.
+	remove(i) {
+		const p = this.o(i);
+		if (p < 0)
+			return -1;
+		const b = this.b, rec = 2 + b[p + 1], end = this.t - rec;
+		for (let j = p; j < end; j++)
+			b[j] = b[j + rec];
+		this.t = end;
+		return --this.n;
+	}
+	// byte offset of record i, or -1
+	o(i) {
+		if (i < 0 || i >= this.n)
+			return -1;
+		let p = 0;
+		while (i--)
+			p += 2 + this.b[p + 1];
+		return p;
+	}
+	// lazy float scratch
+	fl() {
+		if (this.f === null) {
+			this.f = new Float64Array(1);
+			this.fb = new Uint8Array(this.f.buffer);
+		}
+	}
+};
+
+export const createStore = size => new Store(size);
+

@@ -1,0 +1,73 @@
+// Typed byte-record store suite — value-semantics serialization store
+// (README: "Byte-record store"). Runs on Node against the real module.
+import { createStore } from "../src/embeddedjs/runtime/signals.js";
+import { makeChecker } from "./load-runtime.mjs";
+
+const { check, done } = makeChecker("store");
+
+// primitives round-trip
+const s = createStore(256);
+check("push int", s.push(42) === 1);
+check("get int", s.get(0) === 42);
+check("negative int", (s.push(-7), s.get(1) === -7));
+check("int32 min", (s.push(-0x80000000), s.get(2) === -0x80000000));
+check("float", (s.push(3.25), s.get(3) === 3.25));
+check("string", (s.push("hi tödo"), s.get(4) === "hi tödo"));
+check("empty string", (s.push(""), s.get(5) === ""));
+check("true", (s.push(true), s.get(6) === true));
+check("false", (s.push(false), s.get(7) === false));
+check("null", (s.push(null), s.get(8) === null));
+check("count", s.count() === 9);
+
+// mixed order preserved
+check("order", s.get(0) === 42 && s.get(3) === 3.25 && s.get(6) === true);
+
+// remove middle shifts the rest
+s.remove(3); // the float
+check("remove middle count", s.count() === 8);
+check("remove middle shift", s.get(3) === "hi tödo" && s.get(7) === null);
+check("remove bad index", s.remove(99) === -1);
+check("get bad index", s.get(99) === undefined);
+
+// custom type: {id, done, title}
+const TODO = 8;
+const s2 = createStore(64);
+s2.def(TODO,
+	(v, b, off, max) => {
+		const len = 5 + v.title.length;
+		if (len > max) return -1;
+		b[off] = v.done ? 1 : 0;
+		b[off + 1] = v.id & 255; b[off + 2] = (v.id >> 8) & 255;
+		b[off + 3] = (v.id >> 16) & 255; b[off + 4] = (v.id >> 24) & 255;
+		for (let i = 0; i < v.title.length; i++)
+			b[off + 5 + i] = v.title.charCodeAt(i) & 255;
+		return len;
+	},
+	(b, off, len) => {
+		let title = "";
+		for (let i = 5; i < len; i++)
+			title += String.fromCharCode(b[off + i]);
+		return { done: !!b[off], id: b[off + 1] | (b[off + 2] << 8) | (b[off + 3] << 16) | (b[off + 4] << 24), title };
+	});
+check("custom push", s2.push({ done: true, id: 300, title: "buy" }, TODO) === 1);
+const t = s2.get(0);
+check("custom roundtrip", t.done === true && t.id === 300 && t.title === "buy");
+check("custom is a copy", s2.get(0) !== t);
+
+// custom mixes with primitives
+s2.push(9);
+check("custom + primitive", s2.get(1) === 9 && s2.get(0).id === 300);
+
+// capacity: full store rejects, count unchanged
+const s3 = createStore(8); // fits one i32 record (2+4), then 2 spare bytes
+check("fits first", s3.push(1) === 1);
+check("rejects when full", s3.push(2) === -1);
+check("count intact after reject", s3.count() === 1 && s3.get(0) === 1);
+check("boolean fits in 2 spare bytes", s3.push(true) === 2);
+
+// oversize string rejected
+const s4 = createStore(512);
+check("string >255 rejected", s4.push("x".repeat(256)) === -1);
+check("255-char string ok", s4.push("y".repeat(255)) === 1 && s4.get(0).length === 255);
+
+done();
