@@ -83,6 +83,25 @@ check("f64 magnitude", s6.get(3) === 1e300);
 check("object rejected", s6.push({ a: 1 }) === -1);
 check("undefined stores as null", (s6.push(undefined), s6.get(4) === null));
 
+// persistence: save/load roundtrip through a localStorage stub
+const mem = new Map();
+globalThis.localStorage = {
+	setItem: (k, v) => mem.set(k, v),
+	getItem: k => (mem.has(k) ? mem.get(k) : null),
+};
+const s7 = createStore(64);
+s7.push(42); s7.push("höla"); s7.push(true);
+s7.save("k");
+const s8 = createStore(64);
+check("load returns true", s8.load("k") === true);
+check("load count", s8.count() === 3);
+check("load roundtrip", s8.get(0) === 42 && s8.get(1) === "höla" && s8.get(2) === true);
+check("load missing key", createStore(8).load("nope") === false);
+mem.set("bad", "\u0000\u00ff");	// header says len 255, stream is 2 bytes
+check("load rejects corrupt", createStore(64).load("bad") === false);
+mem.set("big", "x".repeat(100));
+check("load rejects oversize", createStore(8).load("big") === false);
+
 // oversize string rejected
 const s4 = createStore(512);
 check("string >255 rejected", s4.push("x".repeat(256)) === -1);

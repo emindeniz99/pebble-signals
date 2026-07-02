@@ -56,7 +56,7 @@ APP=clock ./build.sh && pebble install --emulator gabbro
 
 | APP | UI | Proves | Verified |
 |-----|----|--------|----------|
-| `list` (default) | dynamic mixed-type list, 3-row window | store + windowing + buttons | ✅ 40-record ramp flat, `ex-*`/`m9` shots |
+| `list` (default) | dynamic mixed-type list, 3-row window, PERSISTED | store + windowing + buttons + localStorage save/load | ✅ 40-record ramp flat; records survive app restart (`ex-list-persisted.png`) |
 | `clock` | ticking HH:MM:SS watchface + date | `Date`, `setInterval`, per-label styles | ✅ `ex-clock.png` |
 | `counter` | classic up/down counter | `useState` + button handlers | ✅ `ex-counter.png` |
 | `toggle` | ON/OFF with live skin+style flip | reactive `skin`/`style` setProp path | ✅ `ex-toggle-on.png` |

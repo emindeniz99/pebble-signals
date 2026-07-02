@@ -18,20 +18,25 @@ const base = new Style({ font: "24px Gothic", color: "white" });
 
 const W = 3;			// visible window rows
 const st = createStore(512);	// ~85 int records (6B each)
-const [count, setCount] = useState(0);
-let nextId = 1;
+st.load("d");			// records PERSIST across launches (localStorage)
+const [count, setCount] = useState(st.count());
+let nextId = st.count() + 1;
 
 function push() {
 	const id = nextId++;
 	const n = st.push(id % 2 ? "s" + id : id);
-	if (n >= 0)
+	if (n >= 0) {
+		st.save("d");
 		setCount(n);
+	}
 }
 
 function drop() {
 	const n = st.remove(0);
-	if (n >= 0)
+	if (n >= 0) {
+		st.save("d");
 		setCount(n);
+	}
 }
 
 // Window slot 0..W-1 -> display text. Reading count() re-runs the row

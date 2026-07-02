@@ -367,6 +367,32 @@ const Store = class {
 			p += 2 + this.b[p + 1];
 		return p;
 	}
+	// Persist the raw record bytes under a key in the host's localStorage
+	// (device key-value store). One byte becomes one Latin-1 char; load()
+	// walks the records to rebuild the count and rejects corrupt data.
+	save(k) {
+		const b = this.b, t = this.t;
+		globalThis.localStorage.setItem(k,
+			t ? String.fromCharCode.apply(String, b.subarray(0, t)) : "");
+	}
+	load(k) {
+		const s = globalThis.localStorage.getItem(k);
+		if (s === null || s.length > this.b.length)
+			return false;
+		const b = this.b;
+		for (let i = 0; i < s.length; i++)
+			b[i] = s.charCodeAt(i) & 255;
+		let n = 0, p = 0;
+		while (p < s.length) {
+			p += 2 + b[p + 1];
+			n++;
+		}
+		if (p !== s.length)	// truncated/corrupt record stream
+			return false;
+		this.t = s.length;
+		this.n = n;
+		return true;
+	}
 	// lazy float scratch
 	fl() {
 		if (this.f === null) {
