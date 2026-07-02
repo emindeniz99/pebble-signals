@@ -35,6 +35,8 @@ Demo controls (buttons, because of an emulator touch bug — see gotcha 2):
 
 ```sh
 npm test          # 47 assertions: reactive core + flow, run against piu stubs
+npm run test:mem  # on-device memory audit (needs the app installed on the
+                  # gabbro emulator and pypkjs killed: pkill -9 -f pypkjs)
 python3 tools/drive.py gabbro b:select s:1 d:shot   # deterministic emu driver
 ```
 
@@ -149,6 +151,12 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
 - **Piu nodes are comparatively cheap for the arena** (their weight lands in
   the 122KB native app heap); closures, signals, effects, behavior handlers
   and module records are what exhaust the 32KB. Budget accordingly.
+- **Live audit** (`npm run test:mem`, combined demo on gabbro): idle floor
+  ~17.5KB slot + ~5.7KB chunk; under button load the pre-GC peak hits
+  **25940B = 97% of the 26.6KB heap budget** (post-GC floor 23208B = 87%,
+  ~2.7KB transient reclaimed per GC, 472B of arena unclaimed, stack peak
+  5072/6144B). The demo lives ~700B from the wall at its worst instant —
+  the test fails the build if the post-GC floor crosses 90%.
 - Baselines (slot used, post-GC): empty Piu app ~7.0KB · M3 reactive label
   ~10.9KB · M5 Show demo ~15.3KB · combined M7 demo sits within ~a few
   hundred bytes of the ceiling and only fits with the runtime preloaded.
