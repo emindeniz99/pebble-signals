@@ -8,7 +8,7 @@ const { signals, jsx: jsxM, flow } = await loadRuntime();
 const { signal } = signals;
 const { createRoot } = signals;
 const { jsx } = jsxM;
-const { Show, For } = flow;
+const { Show, For, VirtualList } = flow;
 const { check, done } = makeChecker("flow");
 
 const inner = host => host.contents[0] && host.contents[0].contents[0];
@@ -133,5 +133,24 @@ check("duplicate keys collapse to one row", dupHost.contents.length === 2);
 check("duplicate built once", dupBuilt === 3);
 dupItems.value = [];
 check("dup cleanup empties host", dupHost.contents.length === 0);
+
+// --- VirtualList: fixed recycled cells, windowed over a data source ---
+const off = signal(0);
+const src = { count: () => 5, get: i => "v" + i };
+const [vl] = createRoot(() =>
+	VirtualList({ data: src, rows: 3, at: () => off.value, format: v => v }));
+check("VL renders exactly `rows` cells", vl.contents.length === 3);
+check("VL initial window", vl.contents.map(c => c.string).join(",") === "v0,v1,v2");
+const cell0 = vl.contents[0], cell2 = vl.contents[2];   // capture node identity
+off.value = 2;
+check("VL scrolls window", vl.contents.map(c => c.string).join(",") === "v2,v3,v4");
+check("VL RECYCLES nodes (no create/destroy on scroll)",
+	vl.contents[0] === cell0 && vl.contents[2] === cell2 && vl.contents.length === 3);
+off.value = 3;   // window v3,v4,[v5] but count=5 -> last slot past end
+check("VL past-end slot blanks", vl.contents.map(c => c.string).join(",") === "v3,v4,");
+check("VL default format is String()", (() => {
+	const [d] = createRoot(() => VirtualList({ data: { count: () => 1, get: () => 7 }, rows: 1 }));
+	return d.contents[0].string === "7";
+})());
 
 done();

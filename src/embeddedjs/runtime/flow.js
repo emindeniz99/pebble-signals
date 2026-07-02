@@ -154,6 +154,37 @@ export function For(props) {
 	return host;
 }
 
+// VirtualList({ data, rows, at, format, ... }) — a virtualized ("windowed")
+// list; our FlatList. Creates a FIXED set of `rows` Labels ONCE and rewrites
+// their .string as the window moves — CELL RECYCLING: nodes are never
+// created or destroyed on scroll, so RAM is O(rows), not O(items). Any data
+// source with count() and get(i) works (the byte-record store is one), so
+// item DATA lives outside the arena (bytes) while only `rows` Piu nodes
+// exist — that is the whole trick behind an unbounded list on 32KB.
+//   data:   { count(): number, get(i): value }
+//   rows:   visible row count (default 3)
+//   at:     thunk -> window start index (read a signal inside it to scroll)
+//   format: (value, index) -> string  (default String(value))
+// A const arrow, not a `function` declaration (preloaded-module alias rule,
+// gotcha 13). Overscan is intentionally omitted: this port redraws text
+// instantly with no pixel/momentum scroll, so pre-mounting off-screen rows
+// buys nothing (there is no lazy mount to warm) — we render exactly `rows`.
+export const VirtualList = (props) => {
+	const host = makeHost(props, Column);
+	const rows = props.rows || 3;
+	const fmt = props.format || (v => String(v));
+	const data = props.data;
+	for (let slot = 0; slot < rows; slot++) {
+		const label = new Label(null, {});
+		track(effect(() => {
+			const i = (props.at ? props.at() : 0) + slot;
+			label.string = (i >= 0 && i < data.count()) ? fmt(data.get(i), i) : "";
+		}));
+		host.add(label);
+	}
+	return host;
+};
+
 function makeHost(props, Type) {
 	const dict = {};
 	for (const k in props) {

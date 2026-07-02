@@ -68,6 +68,7 @@ square screenshots below come from identical `.tsx`.
 | `counter` | classic up/down counter | `useState` + button handlers | ✅ `ex-counter.png` | ✅ `em-counter.png` |
 | `toggle` | ON/OFF with live skin+style flip | reactive `skin`/`style` setProp path | ✅ `ex-toggle-on.png` | ✅ `em-toggle-on.png` |
 | `forbind` | 3 reactive `For` rows (gotcha-16 testbed) | reactive bindings INSIDE For rows | ✅ `ex-forbind-boot.png` / `ex-forbind-updated.png` | ✅ `em-forbind.png` |
+| `scroll` | **virtualized infinite scroll** via `VirtualList` | windowing + cell recycling + scroll offset | ✅ `scroll-gabbro-*.png` | ✅ `scroll-emery-*.png` |
 | `multiscreen` | 4 screens in one mod | does NOT boot — kept as the arena-OOM artifact | ❌ by design | ❌ |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
@@ -167,6 +168,24 @@ build.sh                 tsc + pebble build
   so every transition still uses replace(); the right default on this
   platform). Both modes wrap each side in a host-sized Container
   automatically — users cannot hit the bare-Label port crash (gotcha 3).
+
+- **`VirtualList`** (in `flow.js`) — our **FlatList**: a virtualized
+  ("windowed") list. It creates a FIXED set of `rows` Labels ONCE and
+  rewrites their `.string` as the window moves — **cell recycling**, the
+  same core trick as React Native's FlashList/RecyclerListView: nodes are
+  never created or destroyed on scroll, so RAM is **O(rows), not
+  O(records)**. Any `{ count(), get(i) }` source works — pair it with the
+  byte-record store and the item DATA lives outside the arena (bytes)
+  while only `rows` Piu nodes exist. Props: `data`, `rows`, `at` (thunk ->
+  window start index; read a signal to scroll), `format(value, index)`.
+  Overscan is deliberately omitted — this port redraws text instantly with
+  no pixel/momentum scroll, so pre-mounting off-screen rows buys nothing.
+  We went further than RN's data virtualization (RN keeps every item as a
+  JS object; we keep records as bytes). See the `scroll` example: 8+
+  records, a 3-row window, up/down scroll — the window slides while memory
+  stays O(3). NB the demo drops a reactive header on purpose: a 4th bound
+  label pushed boot to 97% and scroll transients then crashed it (gotcha
+  16 — per-row effects are the arena cost); three bound rows sit at ~85%.
 
 JSX wiring: the Moddable/Alloy build only recognizes `.ts` sources, so the
 SDK's own TypeScript integration can't transform `.tsx`. `build.sh` runs
