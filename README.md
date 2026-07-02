@@ -30,8 +30,9 @@ pebble install --emulator gabbro
 ```
 
 Demo controls (buttons, because of an emulator touch bug — see gotcha 2):
-**select** = counter +1 (toggles the `Show` block) · **up** = add todo ·
-**down** = remove first todo.
+**up** = push a record (odd ids are strings `sN`, even ids are int32 `#N`) ·
+**down** = remove the first record. The demo (M9) is a dynamic mixed-type
+list in a byte pool with a 3-row window — 40+ records with a flat arena.
 
 ```sh
 npm test          # 47 assertions: reactive core + flow, run against piu stubs
@@ -153,12 +154,11 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
 - **Piu nodes are comparatively cheap for the arena** (their weight lands in
   the 122KB native app heap); closures, signals, effects, behavior handlers
   and module records are what exhaust the 32KB. Budget accordingly.
-- **Live audit** (`npm run test:mem`, combined demo on gabbro): idle floor
-  ~17.5KB slot + ~6.0KB chunk; under button load the pre-GC peak hits
-  **25788B = 97% of the 26.6KB heap budget** (post-GC floor 23476B = 88%,
-  ~2.3KB transient reclaimed per GC, stack peak 5072/6144B). The demo
-  lives ~800B from the wall at its worst instant — the test fails the
-  build if the post-GC floor crosses 90%.
+- **Live audit** (`npm run test:mem`, M9 demo on gabbro): under button load
+  the pre-GC peak hits 24520B = 92% of the 26.6KB heap budget, post-GC
+  floor **21840B = 82%**, ~2.7KB transient reclaimed per GC. The test
+  fails the build if the post-GC floor crosses 90%. (The M7 combined demo
+  — Show + arena-resident For rows — ran at 88% floor / 97% peak.)
 - Baselines (slot used, post-GC): empty Piu app ~7.0KB · M3 reactive label
   ~10.9KB · M5 Show demo ~15.3KB · combined M7 demo sits within ~a few
   hundred bytes of the ceiling and only fits with the runtime preloaded.
@@ -169,16 +169,17 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
 - `For` stress (1 row/s ramp): **"fxAbort memory full" at ~10–12 bare-Label
   rows** (~450B slots per row) or ~6–8 skinned Container+Label rows, from a
   baseline app. That is the realistic list ceiling on this firmware.
-- **Limit finder** (`npm run test:limit` = `memtest.py --ramp`): from the
-  full combined demo (counter + keepAlive Show + For), adding todo rows one
-  per button press dies **adding the 5th row** — 4 rows survive, baseline
-  (1 row) at 23620B = 89% of budget, sample before death 25620B = 96%.
-  Byte-identical across fresh-chain reruns, same numbers on emery.
-  `--min 4` makes it a regression gate: rerun after adding any runtime
-  feature and the reported limit shows exactly how far the ceiling moved.
-  (Before the v1.1 slimming — inline signal subscribers, flash-preloaded
-  behavior class, stamp-based `For` reconcile — the limit was 3 rows and
-  the baseline 24056B; every optimization above was verified by this test.)
+- **Limit finder** (`npm run test:limit` = `memtest.py --ramp`): one record
+  added per button press until the machine dies, memory logged per item.
+  History of the same test across designs tells the whole story:
+  - M7 arena-resident `For` rows (~450B slots/row): died adding row 4
+    (v1.0 runtime) → row 5 after the v1.1 slimming (inline signal
+    subscribers, flash-preloaded behavior class, stamp reconcile).
+  - M9 byte-pool + window (rows cost pool BYTES, not slots): **40 records
+    and flat** — usage oscillates 81-93% with GC, no trend, no death; the
+    512B pool holds ~85 records before `push` politely refuses.
+  `--min 20` keeps it as a regression gate; rerun after any runtime change
+  and the curve shows exactly what the change cost.
 - **Preload the runtime.** `"preload"` in the mod manifest moves module
   bodies to flash; before preloading, hooks + Show + For could not coexist
   at all. Preloaded modules must not touch Piu globals at module scope
@@ -254,6 +255,31 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
    needed (verified on-device: all button/tap dispatch works). That lets
    the shared handler class live at module scope and preload to flash
    instead of being rebuilt (prototype + 9 methods) inside the arena.
+15. **The mod archive has a hard size ceiling around ~15.9KB.** Measured:
+   `mc.xsa` at 15669/15776/15806/15839/15859B boots; 15948/16269/16388B
+   dies at startup with the same silent signature as the alias kills —
+   including KNOWN-GOOD code padded with an inert string constant, so it
+   is purely the archive size. Check `ls build/mods/gabbro/mc.xsa` after
+   every feature; this budget, not the 32KB arena, is what forced the M9
+   demo to drop the M7 Show block.
+16. **A reactive prop binding inside a `For` row kills the app at
+   startup.** Isolated by a single-line delta on a booting build: turning
+   the M7 row's `string={"t" + id}` into `string={() => "t" + id}` is
+   fatal (silent, before first instrumentation). Bindings in the
+   top-level render() tree are fine (battle-tested since M3) — so build
+   windowed lists as FIXED bound labels (the M9 pattern), which is what a
+   32KB arena wants anyway.
+17. **Enabling FFI reconfigures the machine to a memory layout the
+   runtime cannot live in.** Passing a non-NULL `fxBuildFFI` makes
+   `__moddable_createMachine` re-carve the arena as
+   `chunk = (static − stack×16)/2 = 13312B` + a FIXED 832-slot heap
+   (13312B) and call `modMachineAllowKernelHeap(0)` — read straight out
+   of the 4.17 firmware disassembly. signal-piu needs ~17.5KB of slots,
+   so the mod dies silently at load. Also: the FFI binding table caps at
+   32 functions (`cmp #31` in `newHostFunction`), and every FFI function
+   name becomes a fresh runtime symbol via `XS->id()`. FFI is therefore
+   only usable by mods whose slot needs fit ~13KB — the M9 byte-pool
+   store is the in-arena substitute (1 byte costs 1 byte in chunk).
 
 ## vs react-pebble
 
@@ -282,5 +308,6 @@ firmware (fixed arena) both are legitimate points on the trade-off curve.
 | M5 | Show swap + disposal flat over 20 cycles | `m5-show-on.png` / `m5-show-fallback.png` |
 | M6 | keyed For add/reverse/remove + stress ceiling | `m6-for-*.png` / `m6-stress-ceiling.png` |
 | M7 | combined demo, 24 interactions, no degradation | `m7-*.png` |
+| M9 | byte-pool windowed list: 40 mixed records, flat arena | `m9-gabbro-window40.png` |
 
 [react-pebble]: https://github.com/eddiemoore/react-pebble

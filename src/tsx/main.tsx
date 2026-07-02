@@ -1,42 +1,101 @@
-// M7 — combined demo: useState counter, Show keyed on the counter, keyed
-// For todo list with add/remove. Buttons drive it (the QEMU touch
-// peripheral crashes the firmware on real touches — see README; onTap is
-// proven in M4/M5): select = count+1 (toggles Show), up = add todo,
-// down = remove first todo. The For children function is the per-row
-// component (components run once).
+// M9 — windowed dynamic list over a BYTE POOL. The list data lives in one
+// Uint8Array (chunk bytes: 1 byte costs 1 byte) instead of per-row JS
+// objects (each row of the M7 list cost ~450B of 16B slots and the arena
+// died adding row 5). Records are [type][len][payload...] — type 0 =
+// int32 LE, type 1 = string bytes — so the list holds MIXED types and is
+// fully dynamic. The screen shows a fixed 3-row window that follows the
+// list tail; scrolling/growth re-runs three string bindings, allocating
+// nothing but the label text. tools/memtest.py --ramp proves the point:
+// each `up` press appends a record and memory stays FLAT to --max instead
+// of dying at the old 4-row cliff.
 //
-// Memory (measured, see README): closures/signals/effects cost the
-// firmware-fixed 32KB JS arena — the scarce resource — so one skin, one
-// style, short strings. Show wraps its sides in Containers internally
-// (bare-Label swaps crash the piu port; the runtime shields that now).
+// (FFI was the first choice for the store — the data would live in the
+// 122KB native heap — but enabling fxBuildFFI on this firmware HALVES the
+// JS arena to a fixed 832-slot heap, which cannot hold the runtime: see
+// README gotcha 17. The byte pool delivers the same shape inside the
+// arena at 1B/byte.)
+//
+// Buttons (QEMU touch crashes the firmware — see README gotcha 2):
+// up = push record (odd ids: string "sN"; even ids: int32 N) ·
+// down = remove the FIRST record.
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";
-import { Show, For } from "runtime/flow";
 
 const bg = new Skin({ fill: "black" });
 const base = new Style({ font: "24px Gothic", color: "white" });
 
+const W = 3;			// visible window rows
+const POOL = 512;		// record bytes; ~85 int records (6B each)
+const pool = new Uint8Array(POOL);
+let head = 0, tail = 0;		// live records occupy pool[head..tail)
+
 const [count, setCount] = useState(0);
-const [todos, setTodos] = useState([1]);
-let nextId = 2;
-// Soft cap 99: high enough that tools/memtest.py --ramp can add rows until
-// the arena actually dies (the measured limit is what the ramp reports).
-function addTodo() { if (todos().length < 99) setTodos([...todos(), nextId++]); }
-function removeTodo() { setTodos(todos().slice(1)); }
+let nextId = 1;
+
+function push() {
+	const id = nextId++;
+	let t = 0, len = 4;
+	let s = "";
+	if (id % 2) {		// odd ids: string record
+		s = "s" + id;
+		t = 1; len = s.length;
+	}
+	if (tail + 2 + len > POOL) {	// compact live records to the front
+		for (let i = head; i < tail; i++)
+			pool[i - head] = pool[i];
+		tail -= head; head = 0;
+		if (tail + 2 + len > POOL)
+			return;		// genuinely full
+	}
+	pool[tail] = t; pool[tail + 1] = len;
+	if (t) {
+		for (let i = 0; i < len; i++)
+			pool[tail + 2 + i] = s.charCodeAt(i) & 255;
+	}
+	else {
+		pool[tail + 2] = id & 255; pool[tail + 3] = (id >> 8) & 255;
+		pool[tail + 4] = (id >> 16) & 255; pool[tail + 5] = (id >> 24) & 255;
+	}
+	tail += 2 + len;
+	setCount(count() + 1);
+}
+
+function drop() {		// remove the FIRST record: advance head
+	if (!count())
+		return;
+	head += 2 + pool[head + 1];
+	if (head === tail)
+		head = tail = 0;
+	setCount(count() - 1);
+}
+
+// Decode the record for window slot 0..W-1 by walking the pool. Reading
+// count() re-runs the row bindings on push/drop; the window tracks the tail.
+function row(slot: number) {
+	const n = count();
+	const want = (n > W ? n - W : 0) + slot;
+	if (want >= n)
+		return "";
+	let p = head;
+	for (let i = 0; i < want; i++)
+		p += 2 + pool[p + 1];
+	const t = pool[p], len = pool[p + 1];
+	if (!t)			// int32 LE
+		return "#" + ((pool[p + 2] | (pool[p + 3] << 8) | (pool[p + 4] << 16) | (pool[p + 5] << 24)) | 0);
+	let s = "";
+	for (let i = 0; i < len; i++)
+		s += String.fromCharCode(pool[p + 2 + i]);
+	return s;
+}
 
 render(() => (
 	<Container left={0} right={0} top={0} bottom={0} focus={true}
-		onPressSelect={() => setCount((c: number) => c + 1)}
-		onPressUp={addTodo} onPressDown={removeTodo}>
+		onPressUp={push} onPressDown={drop}>
 		<Column>
-			<Label string={() => "c" + count()} />
-			<Show keepAlive={true} when={() => count() % 2 === 1} width={120} height={30}
-				fallback={() => <Label string="even" />}>
-				{() => <Label string="odd!" />}
-			</Show>
-			<For each={() => todos()} key={(id: number) => id} width={120}>
-				{(id: number) => <Label string={"t" + id} />}
-			</For>
+			<Label string={() => "n" + count()} />
+			<Label string={() => row(0)} />
+			<Label string={() => row(1)} />
+			<Label string={() => row(2)} />
 		</Column>
 	</Container>
 ), { skin: bg, style: base });
