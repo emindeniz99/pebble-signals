@@ -13,9 +13,11 @@ reactivity at compile time in Node and emits static Piu code; signal-piu keeps
 a live reactive graph on the watch itself, so runtime-dynamic UIs (lists that
 change shape, data-driven trees) work without a compile step.
 
-All milestones below were verified on the **gabbro** (Pebble Round 2, 260×260)
-emulator, SDK 4.17. Every number in this README is measured from XS
-instrumentation logs or on-device bisection — none are estimates.
+All milestones below were verified on the **gabbro** (Pebble Round 2,
+260×260) emulator, SDK 4.17, and the combined demo additionally runs its
+full interaction set on **emery** (Pebble Time 2 — `m7-emery.png`). Every
+number in this README is measured from XS instrumentation logs or
+on-device bisection — none are estimates.
 
 ![combined demo](screenshots/m7-show-odd.png)
 
