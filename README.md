@@ -249,9 +249,13 @@ and the app dies at startup with the silent OOM signature (bisected:
 prebuilt screens with a replace()-switcher died. Working patterns:
 build screens lazily (dispose + rebuild on switch — but see gotcha 16
 about bindings outside the initial tree), keep helper screens
-IMPERATIVE (module-held Label refs, direct .string writes — the tested
-variant lives in `examples/main-multiscreen.tsx`), or spend the
-firmware-upstream effort. Startup arena OOM is SILENT (the log channel
+IMPERATIVE (module-held Label refs, direct .string writes), or spend the
+firmware-upstream effort. `examples/main-multiscreen.tsx` preserves the
+experiment's final bisect state — it does NOT boot; it is the artifact,
+not a working app. The only multi-screen shape expected to fit today is
+Port-based screens (one Port, onDraw switching on the screen signal —
+per-screen cost ~0, see the rendering-tiers section), which has not been
+built yet. Startup arena OOM is SILENT (the log channel
 is not up yet), which is why it masquerades as the other silent kills.
 
 ## Preloading app logic (measured: works, rarely worth it here)
