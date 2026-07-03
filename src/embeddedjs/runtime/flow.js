@@ -330,6 +330,38 @@ export const Navigator = (props) => {
 	return host;
 };
 
+// animate(from, to, ms, easing?) — a Reanimated-style tween. Returns a getter
+// thunk backed by a signal; a single ~30fps timer eases the value from -> to
+// over `ms` and stops itself. Read it in a binding to drive UI:
+//   const x = animate(0, 100, 400);
+//   <Label string={() => "x " + Math.round(x())} />
+// `easing` maps progress 0..1 -> 0..1 (default linear). The timer is registered
+// with the current owner, so disposing the subtree that created it stops the
+// tween; `.stop()` cancels manually. Degrades to an instant jump where no timer
+// global exists (e.g. the Node test env).
+export function animate(from, to, ms, easing) {
+	const s = signal(from);
+	const get = () => s.value;
+	if (typeof setInterval !== "function") {
+		s.value = to; // no timer here — settle immediately
+		get.stop = () => {};
+		return get;
+	}
+	const dur = ms > 0 ? ms : 1;
+	const step = 33; // ~30fps
+	const ease = easing || ((t) => t);
+	let elapsed = 0;
+	const timer = setInterval(() => {
+		elapsed += step;
+		const p = elapsed >= dur ? 1 : elapsed / dur;
+		s.value = from + (to - from) * ease(p);
+		if (p >= 1) clearInterval(timer);
+	}, step);
+	track(() => clearInterval(timer)); // stop on owner dispose
+	get.stop = () => clearInterval(timer);
+	return get;
+}
+
 function makeHost(props, Type) {
 	const dict = {};
 	for (const k in props) {

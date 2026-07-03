@@ -479,6 +479,43 @@ export function useRef(v) {
 	return { current: v };
 }
 
+// React's useReducer, trivially over useState. `dispatch(action)` applies the
+// reducer as a functional update, so it composes with batching and lowering.
+export function useReducer(reducer, init) {
+	const [get, set] = useState(init);
+	return [get, (action) => set((s) => reducer(s, action))];
+}
+
+// onMount(fn): run fn ONCE, untracked. In this run-once model a component body
+// already executes a single time as it builds, so this is just "do it once,
+// without subscribing" — the place to start a timer or kick a fetch. (There is
+// no separate post-layout phase like the DOM's; fn runs during the build.)
+export function onMount(fn) {
+	untrack(fn);
+}
+
+// Context — pass a value down the (synchronous, run-once) build without
+// threading props. createContext(default) -> ctx; provide(ctx, value, build)
+// sets ctx for the duration of build() (children read it via useContext);
+// useContext(ctx) reads the current value. No Symbol/Map (XS rule): a context
+// is a one-field record and provide() is a save/restore around the subtree,
+// which is exactly right because children build synchronously inside build().
+export function createContext(defaultValue) {
+	return { v: defaultValue };
+}
+export function useContext(ctx) {
+	return ctx.v;
+}
+export function provide(ctx, value, build) {
+	const prev = ctx.v;
+	ctx.v = value;
+	try {
+		return build();
+	} finally {
+		ctx.v = prev;
+	}
+}
+
 // ---- typed byte-record store ---------------------------------------------
 // Collections kept as plain JS objects cost ~450B of slots per row and kill
 // the arena at 4-5 rows (measured; README). A Store keeps records as BYTES

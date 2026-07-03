@@ -4,11 +4,11 @@
 // look through one wrapper layer via inner().
 import { loadRuntime, StubContent, makeChecker } from "./load-runtime.mjs";
 
-const { signals, jsx: jsxM, flow } = await loadRuntime();
+const { signals, jsx: jsxM, flow, tick, sandbox } = await loadRuntime();
 const { signal } = signals;
 const { createRoot } = signals;
 const { jsx } = jsxM;
-const { Show, For, VirtualList } = flow;
+const { Show, For, VirtualList, animate } = flow;
 const { check, done } = makeChecker("flow");
 
 const inner = (host) => host.contents[0] && host.contents[0].contents[0];
@@ -365,5 +365,47 @@ const [fullFor, disposeFull] = createRoot(() =>
 check("non-empty For built rows", fullFor.contents.length === 2);
 disposeFull(); // cleanup loop iterates the 2 live disposers
 check("non-empty For disposes cleanly", true);
+
+// animate(): eases a signal from->to over ms via the (mocked) interval clock
+const [, disposeAnim] = createRoot(() => {
+	const x = animate(0, 100, 99); // dur 99, step 33 -> 3 ticks to finish
+	check("animate starts at from", x() === 0);
+	tick(1);
+	check("animate steps toward to", x() > 0 && x() < 100);
+	tick(2);
+	check("animate reaches to and stops", x() === 100);
+	const before = x();
+	tick(5);
+	check("animate stopped (no overshoot)", x() === before);
+	const z0 = animate(0, 8, 0); // ms<=0 -> dur clamps to 1, finishes in one tick
+	tick(1);
+	check("animate with ms<=0 clamps and completes", z0() === 8);
+	return 0;
+});
+disposeAnim();
+
+// animate .stop() halts before completion
+const [, dStop] = createRoot(() => {
+	const y = animate(0, 100, 9999);
+	tick(1);
+	const mid = y();
+	y.stop();
+	tick(9);
+	check("animate .stop() freezes the value", y() === mid);
+	return 0;
+});
+dStop();
+
+// animate degrades to an instant jump when no timer global exists
+const savedSI = sandbox.setInterval;
+sandbox.setInterval = undefined;
+const [, dJump] = createRoot(() => {
+	const z = animate(5, 42, 100);
+	check("animate settles instantly without a timer", z() === 42);
+	z.stop(); // no-timer stop() is a no-op
+	return 0;
+});
+dJump();
+sandbox.setInterval = savedSI;
 
 done();

@@ -42,6 +42,11 @@ declare module "runtime/signals" {
 	export function untrack<T>(fn: () => T): T;
 	export function batch<T>(fn: () => T): T;
 	export function useRef<T>(v: T): { current: T };
+	export function useReducer<S, A>(reducer: (s: S, a: A) => S, init: S): [() => S, (a: A) => void];
+	export function onMount(fn: () => void): void;
+	export function createContext<T>(defaultValue: T): { v: T };
+	export function useContext<T>(ctx: { v: T }): T;
+	export function provide<T, R>(ctx: { v: T }, value: T, build: () => R): R;
 	export function dispose(d: number | (() => void)): void;
 	export function createRoot<T>(fn: () => T): [T, () => void];
 	export function onCleanup(fn: () => void): void;
@@ -73,6 +78,14 @@ declare module "runtime/owner" {
 declare module "runtime/flow" {
 	type Thunk<T> = () => T;
 	type Node = any;
+	// Reanimated-style tween: returns a getter (a signal) eased from->to over
+	// ms; `.stop()` cancels. Read it in a binding to animate a property.
+	export function animate(
+		from: number,
+		to: number,
+		ms: number,
+		easing?: (t: number) => number,
+	): { (): number; stop(): void };
 	interface BoxProps {
 		width?: number; height?: number;
 		left?: number; right?: number; top?: number; bottom?: number;

@@ -13,6 +13,11 @@ import {
 	useState,
 	useMemo,
 	useRef,
+	useReducer,
+	onMount,
+	createContext,
+	useContext,
+	provide,
 	batch,
 	S,
 } from "../src/embeddedjs/runtime/signals.js";
@@ -411,5 +416,33 @@ check("victim is a high-word id", victim > 31);
 trig.value = 1; // killer disposes victim mid-cascade (dep>0)
 check("high-word mid-cascade dispose (qh path) ok", killerRan === 1);
 for (const e of pad2) dispose(e);
+
+// 19. useReducer over useState
+const [rstate, dispatch] = useReducer((s, a) => (a === "inc" ? s + 1 : s - 1), 10);
+dispatch("inc");
+dispatch("inc");
+dispatch("dec");
+check("useReducer applies actions", rstate() === 11);
+
+// 20. onMount runs fn once, untracked (no subscription)
+const om = signal(0);
+let omRuns = 0;
+onMount(() => {
+	om.value;
+	omRuns++;
+});
+om.value = 1; // must NOT re-run onMount
+check("onMount runs once untracked", omRuns === 1);
+
+// 21. context: provide sets the value for the synchronous subtree build
+const Theme = createContext("light");
+check("useContext default", useContext(Theme) === "light");
+let inside = null;
+const outside = provide(Theme, "dark", () => {
+	inside = useContext(Theme);
+	return useContext(Theme);
+});
+check("provide scopes value during build", inside === "dark" && outside === "dark");
+check("provide restores after build", useContext(Theme) === "light");
 
 done();

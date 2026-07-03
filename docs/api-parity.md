@@ -24,14 +24,14 @@ with Solid's primitives, not identical signatures to React's.
 
 | Missing | In | Verdict for a 32KB watch |
 |---|---|---|
-| `useReducer` | React | 🟢 trivial over `useState`; add if asked (a few lines) |
-| `useContext`/`createContext` | React/Solid | 🟡 single-screen apps rarely need it; module-scope signals already act as global state. Addable (a signal + provider) but earns its aliases only for deep trees |
+| `useReducer` | React | ✅ SHIPPED (trivial over useState) |
+| `useContext`/`createContext`/`provide` | React/Solid | ✅ SHIPPED (save/restore around the synchronous build) |
 | `useCallback` | React | 🔴 pointless — components run once, closures are already stable |
 | `createResource` | Solid | 🟡 real gap for async data (fetch → loading/error/data). Would pair with VirtualList. Not yet built |
-| `onMount` | Solid | 🟢 = `useEffect` with no tracked deps; alias if wanted |
+| `onMount` | Solid | ✅ SHIPPED (run once, untracked) |
 | `createSelector` / `mapArray` | Solid | 🔴 niche; `For` covers the list case |
 | `mergeProps` / `splitProps` | Solid | 🔴 props are plain objects; not needed |
-| `animate()` / transitions | Reanimated / Solid `Tween` libs | 🟡 real gap — today animation is manual `setInterval` + signal (see sloth/slothvec). An `animate(from,to,ms)→signal` helper is planned |
+| `animate()` / transitions | Reanimated / Solid `Tween` libs | ✅ SHIPPED `animate(from,to,ms,easing?)` in flow.js |
 | `Suspense`/`ErrorBoundary` | React/Solid | 🔴 no async render; subscriber errors already isolated via `__spError` |
 
 ## Not a React drop-in — say so

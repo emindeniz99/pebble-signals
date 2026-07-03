@@ -82,9 +82,23 @@ export async function loadRuntime() {
 		Error,
 		String,
 		Object,
+		Math,
+		Symbol,
 		globalThis: undefined,
 	};
 	sandbox.globalThis = sandbox;
+	// controllable timers so animate()/setInterval logic is testable: fire them
+	// deterministically via the returned `tick(n)` instead of real time.
+	const timers = new Map();
+	let timerId = 0;
+	sandbox.setInterval = (fn) => {
+		const id = ++timerId;
+		timers.set(id, fn);
+		return id;
+	};
+	sandbox.clearInterval = (id) => {
+		timers.delete(id);
+	};
 	vm.createContext(sandbox);
 
 	const cache = {};
@@ -102,11 +116,16 @@ export async function loadRuntime() {
 
 	const flow = await load("runtime/flow");
 	await flow.evaluate();
+	// fire every live interval `n` times (deterministic clock for animate tests)
+	const tick = (n) => {
+		for (let i = 0; i < n; i++) for (const fn of [...timers.values()]) fn();
+	};
 	return {
 		signals: cache["runtime/signals"].namespace,
 		jsx: cache["runtime/jsx-runtime"].namespace,
 		flow: flow.namespace,
 		sandbox,
+		tick,
 	};
 }
 
