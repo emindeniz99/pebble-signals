@@ -4,6 +4,20 @@
 // removal disposes every effect created inside it.
 import { signal, effect, untrack, track, createRoot } from "runtime/signals";
 import { appendChild, screen } from "runtime/jsx-runtime";
+
+// Control-flow works with Piu nodes and caller-supplied builder thunks — the
+// dynamic boundary of the library. Like the JSX factory, nodes and props are
+// loosely typed here; the precise prop contracts live in src/tsx/globals.d.ts
+// (checked at app compile time). A `Node` is a Piu Content instance.
+type Node = any;
+type Props = Record<string, any>;
+type Disposer = () => void;
+// animate()'s return: a getter you can call for the current value, with a
+// .stop() to cancel the tween.
+interface Tween {
+	(): number;
+	stop: () => void;
+}
 // NOTE: flow deliberately does NOT import consumePendingFocus — calling a
 // preloaded module's function that WRITES another preloaded module's
 // aliased variable kills the firmware at startup (measured by bisection;
@@ -42,12 +56,12 @@ import { appendChild, screen } from "runtime/jsx-runtime";
 // the same two sides toggle often (builds both once, swaps by reference — zero
 // allocation per toggle) and for the default rebuild mode when memory is
 // tighter than update cost (only one side is ever allocated).
-export function Show(props) {
+export function Show(props: Props): Node {
 	const host = makeHost(props, Column);
 	if (props.keepAlive) {
 		const a = wrapSide(props, props.children);
 		const b = wrapSide(props, props.fallback);
-		let mounted = null;
+		let mounted: Node = null;
 		track(
 			effect(() => {
 				const next = props.when() ? a : b;
@@ -59,7 +73,7 @@ export function Show(props) {
 		);
 		return host;
 	}
-	let dispose = null;
+	let dispose: Disposer | null = null;
 	track(
 		effect(() => {
 			const on = !!props.when();
@@ -90,7 +104,7 @@ export function Show(props) {
 // (see the bare-Label port bug above; width/height-sized wrappers are the
 // on-device-proven shape). A missing side yields an EMPTY wrapper — never
 // null — so keepAlive swaps always use replace().
-function wrapSide(props, build) {
+function wrapSide(props: Props, build: unknown): Node {
 	const wrapper = new Container(null, { width: props.width, height: props.height });
 	if (build) appendChild(wrapper, asNode(build));
 	return wrapper;
@@ -105,9 +119,9 @@ function wrapSide(props, build) {
 // nodes) — a full empty()+re-add per update destabilizes the piu Pebble
 // port and costs native churn per row (measured: app death after ~15-25
 // cycles).
-export function For(props) {
+export function For(props: Props): Node {
 	const host = makeHost(props, Column);
-	const keyOf = props.key || ((item) => item);
+	const keyOf = props.key || ((item: unknown) => item);
 	// Rows live in FOUR index-aligned parallel arrays (keys/nodes/disposers/
 	// stamps). A row is an INDEX: the previous Map (~10 slots + hash chunk)
 	// and its per-row {n,d,s} record (~5 slots each) are gone — playbook
@@ -115,17 +129,17 @@ export function For(props) {
 	// is free. Each reconcile pass STAMPS the rows it keeps instead of
 	// rebuilding a key map (a fresh map per pass was pure transient
 	// allocation at exactly the moment the arena is fullest).
-	const rk = [],
-		rn = [],
-		rd = [],
-		rs = [];
+	const rk: unknown[] = [], // keys
+		rn: Node[] = [], // nodes
+		rd: Disposer[] = [], // disposers
+		rs: number[] = []; // pass stamps
 	let stamp = 0;
 	track(
 		effect(() => {
 			const items = props.each();
 			untrack(() => {
 				const pass = ++stamp;
-				const order = []; // nodes in expected order this pass
+				const order: Node[] = []; // nodes in expected order this pass
 				for (let i = 0; i < items.length; i++) {
 					const item = items[i],
 						k = keyOf(item, i);
@@ -208,7 +222,7 @@ export function For(props) {
 // gotcha 13). Overscan is intentionally omitted: this port redraws text
 // instantly with no pixel/momentum scroll, so pre-mounting off-screen rows
 // buys nothing (there is no lazy mount to warm) — we render exactly `rows`.
-export const VirtualList = (props) => {
+export const VirtualList = (props: Props): Node => {
 	const host = makeHost(props, Column);
 	const rows = props.rows || 3;
 	const data = props.data;
@@ -228,7 +242,7 @@ export const VirtualList = (props) => {
 		return host;
 	}
 	// simple rows: one recycled Label per slot, string via `format`
-	const fmt = props.format || ((v) => String(v));
+	const fmt = props.format || ((v: unknown) => String(v));
 	for (let slot = 0; slot < rows; slot++) {
 		const label = new Label(null, {});
 		track(
@@ -273,11 +287,11 @@ export const VirtualList = (props) => {
 //    crashes laying it out (measured — 1 label survived, 2+ died).
 // Buttons go on the outer focused Container and drive nav via the handle
 // screens hand back.
-export const Navigator = (props) => {
+export const Navigator = (props: Props): Node => {
 	const host = makeHost(props, Column);
-	const stack = [props.root];
+	const stack: any[] = [props.root];
 	const depth = signal(1); // reactive; drives depth()/canPop()
-	let disposeTop = null;
+	let disposeTop: Disposer | null = null;
 	const swap = () =>
 		untrack(() => {
 			if (disposeTop) {
@@ -305,7 +319,7 @@ export const Navigator = (props) => {
 			host.add(tree);
 		});
 	const nav = {
-		push(build) {
+		push(build: (nav: unknown) => Node) {
 			stack.push(build);
 			depth.value = stack.length;
 			swap();
@@ -339,9 +353,14 @@ export const Navigator = (props) => {
 // with the current owner, so disposing the subtree that created it stops the
 // tween; `.stop()` cancels manually. Degrades to an instant jump where no timer
 // global exists (e.g. the Node test env).
-export function animate(from, to, ms, easing) {
+export function animate(
+	from: number,
+	to: number,
+	ms: number,
+	easing?: (t: number) => number,
+): Tween {
 	const s = signal(from);
-	const get = () => s.value;
+	const get = (() => s.value as number) as Tween;
 	if (typeof setInterval !== "function") {
 		s.value = to; // no timer here — settle immediately
 		get.stop = () => {};
@@ -349,7 +368,7 @@ export function animate(from, to, ms, easing) {
 	}
 	const dur = ms > 0 ? ms : 1;
 	const step = 33; // ~30fps
-	const ease = easing || ((t) => t);
+	const ease = easing || ((t: number) => t);
 	let elapsed = 0;
 	const timer = setInterval(() => {
 		elapsed += step;
@@ -362,8 +381,8 @@ export function animate(from, to, ms, easing) {
 	return get;
 }
 
-function makeHost(props, Type) {
-	const dict = {};
+function makeHost(props: Props, Type: any): Node {
+	const dict: Record<string, any> = {};
 	for (const k in props) {
 		if (
 			k === "left" ||
@@ -385,7 +404,7 @@ function makeHost(props, Type) {
 	return new Type(null, dict); // every caller passes a Type (Column/Container)
 }
 
-function asNode(build) {
-	const result = build();
-	return typeof result === "function" ? result() : result;
+function asNode(build: unknown): Node {
+	const result = (build as () => unknown)();
+	return typeof result === "function" ? (result as () => unknown)() : result;
 }
