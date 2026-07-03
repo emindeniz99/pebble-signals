@@ -1,24 +1,10 @@
-// Editor-facing shims. The Alloy host injects Piu classes as compartment
-// globals at runtime; the build transpiles with noCheck, so these exist to
-// keep IDEs quiet, not to type-check.
-declare const Application: any;
-declare const Behavior: any;
-declare const Column: any;
-declare const Container: any;
-declare const Content: any;
-declare const Label: any;
-declare const Layout: any;
-declare const Port: any;
-declare const Row: any;
-declare const Scroller: any;
-declare const Skin: any;
-declare const Style: any;
-declare const Text: any;
-declare const Texture: any;
-declare const console: { log(...args: unknown[]): void };
-declare function setInterval(fn: () => void, ms: number): number;
-declare function clearInterval(id: number): void;
-declare function setTimeout(fn: () => void, ms: number): number;
+// Editor/typecheck shims. The Alloy host injects Piu classes as compartment
+// globals at runtime. The Piu/Pebble host globals (Application, Container,
+// Label, Skin, Style, Texture, SVGImage, console, setInterval, …) now come from
+// the REAL Moddable typings vendored under types/moddable/ (see
+// tools/sync-moddable-typings.sh) and wired into tsconfig.check.json — not the
+// `any` stubs that used to live here. This file keeps only what is OURS: the
+// JSX contract and the runtime/* module surface.
 
 declare namespace JSX {
 	type Element = any;

@@ -21,12 +21,19 @@
 		"strictNullChecks": false,
 		"noImplicitAny": false,
 		"types": [],
+		"lib": ["es2022"],
 		"skipLibCheck": true
 	},
+	// NOTE: the real Piu typings are wired into the STRICT tsconfig.check.json
+	// (authoritative, green). This lenient .js guard leaves the Piu globals as
+	// implicit-any on purpose — the runtime bodies get full real Piu types when
+	// they convert to .ts (the vendored typings surface e.g. globalThis.local-
+	// Storage typing there, handled properly in the conversion, not suppressed).
 	"include": [
 		"src/embeddedjs/runtime/signals.js",
 		"src/embeddedjs/runtime/flow.js",
 		"src/embeddedjs/runtime/jsx-runtime.js",
-		"src/tsx/globals.d.ts"
+		"src/tsx/globals.d.ts",
+		"src/tsx/host-stub.d.ts"
 	]
 }
