@@ -311,3 +311,38 @@ the lowering grows to multiple transforms or needs cross-file type flow.
 - **ts-morph**: revisit if lowering grows to multiple transforms or needs
   cross-file type flow — then evaluate ts-morph / jscodeshift for the best
   ergonomics (see #20).
+
+## Lazy-import / infinite nested screens (#23 research)
+
+Moddable XS on Pebble supports **runtime module loading**, and it is the
+*normal* delivery path — your app is not linked into firmware. The boot host
+(`$SDK/toolchain/moddable/build/devices/pebble/host/main.js`) maps the app
+archive (`mc.xsa`) out of SPI flash and imports it through an
+`ArchiveCompartment`: `state.mod.import("main")`. It also injects a global
+**`importNow(specifier)`** (synchronous) for the app to pull in more modules.
+
+Findings (evidence in the moddable toolchain sources):
+- **Dynamic import works**: both async `import()` and sync `importNow()` are
+  compiled in (`xs/sources/xsModule.c`: `fxImport`, `fxRunImportNow`). They
+  resolve **precompiled bytecode** from the flash archive — `eval`/`Function`
+  are stripped, so you cannot compile source on-device.
+- **`preload` = ROM-frozen**: modules in the manifest `preload` list run their
+  bodies at build time and cost ~0 heap (our `runtime/*`). `main` is NOT
+  preloaded — it loads into the 32KB heap on first import.
+- **Bytecode is already O(1) in the heap**: module functions execute reading
+  bytes straight from flash (`xsHost.c`: `fxMapArchive`/`spiRead`). Importing a
+  screen module puts only its record + export bindings + top-level objects in
+  the heap — never its code. So "screen CODE is O(1)" is largely already true.
+- **Lazy pattern**: `importNow("examples/screenN")` on first visit defers a
+  screen's heap cost until shown (the SDK does this for `device.files`).
+- **True unload needs a child Compartment**: modules imported into the app's
+  main compartment are pinned for the app's lifetime (`mxOwnModules` retains
+  them) — no per-module eviction. To reclaim a screen's record/exports you must
+  import it into a `new Compartment(...)` you drop on leave; coarse and
+  compartment overhead is real, so it only pays for large screens — measure.
+
+The `Navigator` primitive (runtime/flow.js) delivers the **arena** half today:
+a screen STACK where only the TOP screen is built, so the node/effect arena is
+O(1) at any depth (Node-verified, tests/flow.test.mjs). Layering `importNow`
+per screen (code lazy-loaded from flash on first push) is the natural next
+step; the bytecode already lives in flash regardless.

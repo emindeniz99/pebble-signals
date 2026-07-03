@@ -168,4 +168,44 @@ check("renderRow builds `rows` rows", rl.contents.length === 2);
 check("renderRow slot index thunks", rrBuilt[0]() === 0 && rrBuilt[1]() === 1);
 check("renderRow row content", rl.contents[0].string === "v0" && rl.contents[1].string === "v1");
 
+// --- Navigator: screen stack, exactly ONE screen built at any depth ---
+const { Navigator } = flow;
+let navRef = null;
+const nbuilt = [];
+const rootPing = signal(0);
+let rootRuns = 0;
+const [navHost] = createRoot(() =>
+	Navigator({
+		root: (nav) => {
+			navRef = nav; nbuilt.push("root");
+			// a live binding so we can prove leaving the screen disposes it
+			return jsx(StubContent, { string: () => { rootRuns++; return "root " + rootPing.value; } });
+		},
+	}));
+check("nav mounts one screen", navHost.contents.length === 1);
+check("nav root built once", nbuilt.join(",") === "root");
+check("nav depth starts at 1, cannot pop", navRef.depth() === 1 && navRef.canPop() === false);
+check("nav root binding live", inner(navHost).string === "root 0");
+rootPing.value = 1;
+check("nav root binding updates", inner(navHost).string === "root 1");
+const rootRunsBefore = rootRuns;
+
+// push a child: parent is disposed, child built, still ONE screen mounted
+navRef.push((nav) => { nbuilt.push("child" + nav.depth()); return jsx(StubContent, { string: "child" }); });
+check("push keeps ONE screen mounted", navHost.contents.length === 1);
+check("push built the child", nbuilt.join(",") === "root,child2");
+check("push depth=2, canPop", navRef.depth() === 2 && navRef.canPop() === true);
+check("child screen is shown", inner(navHost).string === "child");
+rootPing.value = 2;					// parent's binding must be DEAD now
+check("popped-away parent binding disposed", rootRuns === rootRunsBefore);
+
+// pop: child disposed, parent REBUILT from its stored builder
+navRef.pop();
+check("pop keeps ONE screen mounted", navHost.contents.length === 1);
+check("pop rebuilt the root", nbuilt.join(",") === "root,child2,root");
+check("pop depth back to 1", navRef.depth() === 1 && navRef.canPop() === false);
+check("rebuilt root reflects current signal", inner(navHost).string === "root 2");
+navRef.pop();						// pop at root is a no-op
+check("pop at root is a no-op", navRef.depth() === 1 && nbuilt.length === 3);
+
 done();

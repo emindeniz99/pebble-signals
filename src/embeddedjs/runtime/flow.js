@@ -2,7 +2,7 @@
 // by these components. Children are THUNKS returning nodes (there is no
 // compiler making them lazy), each subtree runs under its own root so
 // removal disposes every effect created inside it.
-import { effect, untrack, track, createRoot } from "runtime/signals";
+import { signal, effect, untrack, track, createRoot } from "runtime/signals";
 import { appendChild, screen } from "runtime/jsx-runtime";
 // NOTE: flow deliberately does NOT import consumePendingFocus — calling a
 // preloaded module's function that WRITES another preloaded module's
@@ -215,6 +215,68 @@ export const VirtualList = (props) => {
 		}));
 		host.add(label);
 	}
+	return host;
+};
+
+// Navigator({ root }) — a screen STACK for infinitely-deep navigation on the
+// 32KB heap. Only the TOP screen is ever BUILT: pushing a child disposes the
+// current screen's nodes+effects and builds the child; popping disposes the
+// child and REBUILDS the parent from its stored builder. So the arena holds
+// exactly ONE screen regardless of stack depth — you can drill 100 levels and
+// the heap stays flat (the stack itself is just an array of small builder
+// closures). This is #13's lazy-swap generalized into a back-stack.
+//
+// `root` is a builder (nav) => node|thunk. Every screen builder receives the
+// same `nav` handle:
+//   nav.push(build)  push a child screen (build is (nav) => node)
+//   nav.pop()        pop to the parent (no-op at the root)
+//   nav.depth()      reactive current depth (1 = root)
+//   nav.canPop()     reactive: is there a parent to pop to
+// Parent screen state does NOT survive a pop+rebuild — keep anything that must
+// persist in a signal OUTSIDE the screen builder (the standard swap tradeoff).
+//
+// GOTCHAS (measured):
+//  - do NOT make a Navigator the DIRECT child of a focused Container — the piu
+//    port crashes at mount resolving focus into a dynamically-built direct
+//    child. Wrap it in a Column (like Show).
+//  - each screen builder MUST return a CONTAINER element (a Column/Container),
+//    not a bare Label — the screen node is added straight to the host (the
+//    proven multilazy shape). A bare-Label child crashes the swap; a Column
+//    wrapping your content is safe.
+//  - the host is given a CONCRETE width AND height (full screen unless the
+//    caller passes them). multilazy's host is 180x140 for a reason: a host
+//    with no height gives a multi-child column no vertical box and the port
+//    crashes laying it out (measured — 1 label survived, 2+ died).
+// Buttons go on the outer focused Container and drive nav via the handle
+// screens hand back.
+export const Navigator = (props) => {
+	const host = makeHost(props, Column);
+	const stack = [props.root];
+	const depth = signal(1);			// reactive; drives depth()/canPop()
+	let disposeTop = null;
+	const swap = () => untrack(() => {
+		if (disposeTop) { disposeTop(); disposeTop = null; }
+		while (host.first)
+			host.remove(host.first);
+		const build = stack[stack.length - 1];
+		// Wrap the screen in a Container sized with concrete width+height (like
+		// Show). A screen added straight to a coordinate-anchored/height-less
+		// host has no box and a multi-child column crashes the port's layout
+		// (measured — 1 label survived, 2+ died). The wrapper gives it a box.
+		const wrapper = new Container(null,
+			{ width: props.width || screen.width, height: props.height || screen.height });
+		const [tree, d] = createRoot(() => { appendChild(wrapper, asNode(() => build(nav))); return wrapper; });
+		disposeTop = d;
+		host.add(tree);
+	});
+	const nav = {
+		push(build) { stack.push(build); depth.value = stack.length; swap(); },
+		pop() { if (stack.length > 1) { stack.pop(); depth.value = stack.length; swap(); } },
+		depth: () => depth.value,
+		canPop: () => depth.value > 1,
+	};
+	swap();						// build the root screen (like Show's initial effect)
+	track(() => { if (disposeTop) { disposeTop(); disposeTop = null; } });
 	return host;
 };
 
