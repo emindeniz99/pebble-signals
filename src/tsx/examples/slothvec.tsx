@@ -48,6 +48,19 @@ render(() => (
 	</Container>
 ), { skin: bg, style: hms });
 
-// post-mount (Bind has run): zero the center offset, then scale 2x
-svg.center(0, 0);
+// post-mount (Bind has run). The PDC is PRECISE paths (1/8-px, type 3), so
+// the port's cx*8/tx*8 transform math is unit-correct and we can pivot:
+// center at the branch grip (30,7 in 60-space), translate by the same point
+// to keep the art centred, scale 2x. Screen x = content + cx + s(x-cx) + tx.
+svg.center(30, 7);
+svg.translate(30, 7);
 svg.scale(2, 2);
+
+// ANIMATION — the vector superpower: swinging is a pure transform (rotate
+// around the branch pivot), re-rendered from the same 701B command list.
+// No frames, no pixels, no extra memory. Sloths swing slowly.
+let phase = 0;
+setInterval(() => {
+	phase += 0.25;
+	svg.rotate(0.12 * Math.sin(phase));
+}, 150);

@@ -73,7 +73,7 @@ square screenshots below come from identical `.tsx`.
 | `slothface` | **animated sloth watchface** 🦥 (text-frame animation + clock) | timer-driven frame animation via signals | ✅ `slothface-*.png` (awake/blink/sleepy) | — |
 | `imgwatch` | **animated COLOR bitmap watchface** + HH:MM:SS | bundled bitmaps (png2bmp), `Texture`, frame-swap animation | ✅ `imgwatch-red.png` / `imgwatch-blue.png` | — |
 | `sloth` | **polished animated sloth watchface** 🦥 (soft-shaded 140px emoji, sprite-sheet blink, big one-line HH:MM:SS + date) | one `Texture` sheet, reactive `variant` sprite animation | ✅ `sloth-gabbro-open.png` / `sloth-gabbro-blink.png` | ✅ `sloth-emery-open.png` / `sloth-emery-blink.png` |
-| `slothvec` | **VECTOR sloth watchface** 🦥 (701B PDC authored 60×60, drawn 2×/120px) + one-line HH:MM:SS + date | `SVGImage` + PDC: free runtime scaling, zero pixel RAM | ✅ `slothvec-gabbro.png` | ✅ `slothvec-emery.png` |
+| `slothvec` | **VECTOR sloth watchface** 🦥 (701B PDC, drawn 2×/120px, SWINGS from the branch) + one-line HH:MM:SS + date | `SVGImage` + PDC: free runtime scaling + transform ANIMATION, zero pixel RAM | ✅ `slothvec-gabbro.png` | ✅ `slothvec-emery.png` |
 | `multiscreen` | 4 screens in one mod | does NOT boot — kept as the arena-OOM artifact | ❌ by design | ❌ |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
@@ -428,6 +428,17 @@ circle" saga is why they're numbered):
 Also: give the `SVGImage` dictionary the SCALED `width`/`height` (the content
 box otherwise stays at the PDC's authored bounds and the scaled drawing
 spills outside it), and `Resource` names keep their `.pdc` extension.
+
+**Vector ANIMATION is a pure transform** — the `slothvec` sloth swings from
+its branch by `rotate()`ing around a pivot on a timer: no frames, no pixels,
+the same 701B command list re-rendered. Pivoting needs PRECISE paths (type
+3, 1/8-px units — `gen_pdc.path(..., precise=True)`): the port's transform
+math (`cx*8`, `tx*8`) is calibrated for that unit, so whole-pixel art can
+only use `center(0,0)`. With precise art the recipe is
+`center(px,py); translate(px,py); scale(s,s)` (screen = content + cx +
+s·(x−cx) + tx), then `rotate(a)` swings around the pivot. PDCS sequences
+(multi-frame vector, native `duration`) exist for frame-based vector
+animation — untested here.
 
 ## XS / Piu gotchas actually hit
 

@@ -16,7 +16,11 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gen_pdc import gcolor, path, image  # noqa: E402
+from gen_pdc import gcolor, image, path as rawpath  # noqa: E402
+
+# all sloth paths are PRECISE (1/8-px, type 3): required for correct
+# rotation pivots — the port's transform math is in 1/8-px units
+path = lambda pts, fill, **kw: rawpath(pts, fill, precise=True, **kw)
 
 FUR    = gcolor(170, 85, 0)
 FUR_D  = gcolor(85, 85, 0)

@@ -31,11 +31,15 @@ def circle(cx, cy, radius, fill, stroke=CLEAR, stroke_w=0):
                        radius, 1, cx, cy)
 
 
-def path(points, fill, stroke=CLEAR, stroke_w=0, closed=True):
-    body = struct.pack("<BBBBBBBH", 1, 0, stroke, stroke_w, fill,
+def path(points, fill, stroke=CLEAR, stroke_w=0, closed=True, precise=False):
+    # precise (type 3): points stored in 1/8-px units. The Piu port's
+    # transform math (doTransform: cx*8, tx*8) is calibrated for THIS unit,
+    # so art that will be rotated/pivoted must be precise.
+    t, m = (3, 8) if precise else (1, 1)
+    body = struct.pack("<BBBBBBBH", t, 0, stroke, stroke_w, fill,
                        0 if closed else 1, 0, len(points))
     for x, y in points:
-        body += struct.pack("<hh", x, y)
+        body += struct.pack("<hh", x * m, y * m)
     return body
 
 
