@@ -12,7 +12,10 @@ cd "$(dirname "$0")"
 # the shipping demo). One example = one standalone app — several prebuilt
 # reactive screens in ONE mod exceed the 32KB arena at boot (README, M11).
 APP="${APP:-list}"
-cp "src/tsx/examples/$APP.tsx" src/tsx/main.tsx
+# NOTE: we no longer copy the entry to main.tsx — that displaced an example's
+# relative imports and broke MULTI-FILE apps. Instead tsc compiles every
+# example in place and esbuild --bundle stitches the chosen entry (with its
+# local ./imports) into app/main.js below, runtime/* left external.
 # Generate the mod manifest from the base; add image resources ONLY when the
 # app uses bitmaps — otherwise every app's archive would carry the .bm4
 # assets. The resource list is DERIVED from the app's own `new Texture("x.png")`
@@ -117,16 +120,23 @@ for f in src/embeddedjs/runtime/*.js; do
 		--log-level=error 2>/dev/null || cp "$f" "$out"
 done
 tsc -p tsconfig.json
-# Stage-2 lowering: rewrite `const [x,setX] = useState(v)` + call sites to
-# the packed-signal API (S.sig/get/set) so the per-state closures and the
-# Signal object never exist at runtime. AST-based (TypeScript compiler API):
-# every rewrite is decided on the resolved binding SYMBOL, so shadowing /
-# property access / aliasing are correct by construction and only genuine
-# call sites change; anything ambiguous bails to the object API. Guarded by
-# `node tools/lower.mjs --selftest`.
-node tools/lower.mjs src/embeddedjs/app/*.js
-for f in src/embeddedjs/app/*.js; do
-	npx -y esbuild@0.25 "$f" --minify --format=esm --outfile="$f" \
-		--allow-overwrite --log-level=error 2>/dev/null || true
-done
+# Bundle the chosen entry into ONE app/main.js — this is what makes MULTI-FILE
+# apps work: the entry's local imports (./foo, ./widgets/bar) are inlined so
+# the manifest only needs to map `main`, while `runtime/*` is left EXTERNAL so
+# those modules stay preloaded (frozen in flash/ROM, ~free) instead of being
+# pulled into main (the heap). Single-file apps bundle to themselves (no-op).
+npx -y esbuild@0.25 "src/embeddedjs/app/examples/$APP.js" --bundle \
+	--external:'runtime/*' --format=esm --outfile=src/embeddedjs/app/main.js \
+	--allow-overwrite --log-level=error
+# Stage-2/3 lowering on the bundled entry: rewrite `useState`/`signal`/
+# `computed` + call sites to the packed API (S.sig/get/set/put/computed) so the
+# per-state closures and the Signal object never exist at runtime. AST-based
+# (TypeScript compiler API): every rewrite is decided on the resolved binding
+# SYMBOL, so shadowing / aliasing are correct by construction and only genuine
+# call sites change; anything ambiguous bails to the object API. A prod run
+# re-lowers its own output and refuses to write if it is not a fixed point.
+# Guarded by `node tools/lower.mjs --selftest`.
+node tools/lower.mjs src/embeddedjs/app/main.js
+npx -y esbuild@0.25 src/embeddedjs/app/main.js --minify --format=esm \
+	--outfile=src/embeddedjs/app/main.js --allow-overwrite --log-level=error 2>/dev/null || true
 pebble build
