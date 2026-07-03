@@ -25,9 +25,7 @@ const uniq = (xs: string[]): string[] => [...new Set(xs)];
 export function deriveResources(src: string, manifest: Manifest): Manifest {
 	const m: Manifest = { ...manifest };
 	// `new Texture("x.png")` or `new Texture('x')` — .png optional
-	const tex = [...src.matchAll(/new\s+Texture\(\s*["']([^"']+?)(?:\.png)?["']/g)].map(
-		(x) => x[1],
-	);
+	const tex = [...src.matchAll(/new\s+Texture\(\s*["']([^"']+?)(?:\.png)?["']/g)].map((x) => x[1]);
 	if (tex.length) m.resources = { "*": uniq(tex).map((n) => `../../assets/${n}`) };
 	// any referenced `*.pdc` file
 	const pdc = [...src.matchAll(/["']([^"']+?\.pdc)["']/g)].map((x) => x[1]);
@@ -41,5 +39,6 @@ if (import.meta.main) {
 	const m = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
 	const out = deriveResources(src, m);
 	// only rewrite when something changed (match the Python's `changed` guard)
-	if (out.resources || out.data) writeFileSync(manifestPath, `${JSON.stringify(out, null, "\t")}\n`);
+	if (out.resources || out.data)
+		writeFileSync(manifestPath, `${JSON.stringify(out, null, "\t")}\n`);
 }

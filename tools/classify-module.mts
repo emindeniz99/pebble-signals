@@ -68,9 +68,7 @@ export function classify(src: string): Verdict {
 		if (ts.isVariableStatement(stmt)) {
 			for (const d of stmt.declarationList.declarations)
 				if (d.initializer && hasSideEffect(d.initializer))
-					reasons.push(
-						`module-scope initializer runs at load: ${trim(d.getText(sf))}`,
-					);
+					reasons.push(`module-scope initializer runs at load: ${trim(d.getText(sf))}`);
 			return;
 		}
 		if (ts.isExportAssignment(stmt)) {

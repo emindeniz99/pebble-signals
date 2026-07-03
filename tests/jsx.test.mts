@@ -1,7 +1,7 @@
 // jsx-runtime suite — the factory, host creation, reactive/button/tap
 // bindings, setProp whitelist, appendChild child kinds, Fragment, render.
-// Run with: node --experimental-vm-modules tests/jsx.test.mjs
-import { loadRuntime, makeChecker } from "./load-runtime.mjs";
+// Run with: node --experimental-vm-modules tests/jsx.test.mts
+import { loadRuntime, makeChecker } from "./load-runtime.mts";
 
 const { signals, jsx: jsxM, sandbox } = await loadRuntime();
 const { signal } = signals;

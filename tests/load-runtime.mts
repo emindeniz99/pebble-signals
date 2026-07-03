@@ -2,9 +2,11 @@
 // mod compartment: piu classes as stubs on the global, "runtime/*" module
 // specifiers resolved to ../src/embeddedjs/runtime/*.js.
 // Run with: node --experimental-vm-modules <test>
-import { existsSync, readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import vm from "vm";
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 
 const RUNTIME = fileURLToPath(new URL("../src/embeddedjs/runtime/", import.meta.url));
 // Runtime files that converted to TypeScript are compiled to runtime-build/ by
@@ -137,22 +139,19 @@ export async function loadRuntime() {
 	};
 }
 
+// Bridge the suites' imperative `check(name, cond)` style onto Node's built-in
+// test runner. Conditions are evaluated EAGERLY at the call site (as they always
+// were), so each check captures a boolean; we register a node:test case that
+// asserts that captured value. This keeps the ~250 existing assertions and their
+// exact intermediate-state semantics while gaining: TS-native tests, node:assert,
+// a real exit-1 gate, and built-in V8 coverage that (unlike vitest-v8) DOES see
+// the vm.SourceTextModule sandbox (isolate-wide NODE_V8_COVERAGE). `done()` is a
+// no-op — node:test auto-runs and sets the exit code.
 export function makeChecker(suite) {
-	let pass = 0,
-		fail = 0;
 	return {
 		check(name, cond) {
-			if (cond) {
-				pass++;
-				console.log("PASS " + name);
-			} else {
-				fail++;
-				console.log("FAIL " + name);
-			}
+			test(`${suite}: ${name}`, () => assert.ok(cond, name));
 		},
-		done() {
-			console.log(`${suite}: ${pass} pass, ${fail} fail`);
-			process.exit(fail ? 1 : 0);
-		},
+		done() {},
 	};
 }

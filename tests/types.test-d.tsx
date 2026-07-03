@@ -10,9 +10,14 @@ const data = { count: () => 3, get: (i: number) => "row" + i };
 // --- valid usage: all of these must compile clean ---
 Show({ when: () => true, children: () => 1, width: 10, height: 10 });
 For({ each: () => [1, 2, 3], key: (n) => n, children: (n, i) => n + i });
-VirtualList({ data, rows: 3, format: (v, i) => v + ":" + i });          // simple mode
-VirtualList({ data, rows: 1, renderRow: (at, d) => d.get(at()) });      // rich mode
-Navigator({ root: (nav) => { nav.push(() => 0); return nav.depth(); } });
+VirtualList({ data, rows: 3, format: (v, i) => v + ":" + i }); // simple mode
+VirtualList({ data, rows: 1, renderRow: (at, d) => d.get(at()) }); // rich mode
+Navigator({
+	root: (nav) => {
+		nav.push(() => 0);
+		return nav.depth();
+	},
+});
 
 // --- misuse: each MUST be a type error (guards biting) ---
 // @ts-expect-error — format and renderRow are mutually exclusive

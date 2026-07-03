@@ -43,7 +43,9 @@ if (import.meta.main) {
 		console.error("FONTCHECK FAIL (gotcha 20 — invalid font renders BLANK, no error):");
 		for (const b of bad) console.error(`  ${b}  <- not a Pebble system font key`);
 		console.error("  valid: [bold] 14|18|24|28px Gothic, bold 30px Bitham, [bold] 42px Bitham,");
-		console.error("         21px Roboto, bold 49px Roboto, bold 28px Droid  (SKIP_FONTCHECK=1 to override)");
+		console.error(
+			"         21px Roboto, bold 49px Roboto, bold 28px Droid  (SKIP_FONTCHECK=1 to override)",
+		);
 		process.exit(1);
 	}
 }

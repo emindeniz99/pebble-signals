@@ -12,8 +12,8 @@
 // contract of each library's primitive, encoded as data next to each law. The
 // EXECUTABLE half is our runtime; the reference half is a citation.
 //
-// Run with: node --experimental-vm-modules tests/conformance.test.mjs
-import { loadRuntime, makeChecker } from "./load-runtime.mjs";
+// Run with: node --experimental-vm-modules tests/conformance.test.mts
+import { loadRuntime, makeChecker } from "./load-runtime.mts";
 
 const { signals, jsx: jsxM, sandbox } = await loadRuntime();
 const { signal, computed, effect, batch, untrack, createRoot, track, useState, useEffect } =

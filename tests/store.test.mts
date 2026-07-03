@@ -1,7 +1,7 @@
 // Typed byte-record store suite — value-semantics serialization store
 // (README: "Byte-record store"). Runs on Node against the real module.
 import { createStore } from "../src/embeddedjs/runtime-build/signals.js";
-import { makeChecker } from "./load-runtime.mjs";
+import { makeChecker } from "./load-runtime.mts";
 
 const { check, done } = makeChecker("store");
 

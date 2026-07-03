@@ -2,7 +2,7 @@
 // run against piu stubs. Show sides are auto-wrapped in a Container by the
 // runtime (the piu Pebble port crashes on bare-Label swaps), so assertions
 // look through one wrapper layer via inner().
-import { loadRuntime, StubContent, makeChecker } from "./load-runtime.mjs";
+import { loadRuntime, StubContent, makeChecker } from "./load-runtime.mts";
 
 const { signals, jsx: jsxM, flow, tick, sandbox } = await loadRuntime();
 const { signal } = signals;

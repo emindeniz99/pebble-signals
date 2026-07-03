@@ -16,7 +16,6 @@
   "devDependencies": {
     "typescript": "^5.5.0",
     "esbuild": "^0.25.0",
-    "c8": "^10.1.0",
     "@biomejs/biome": "2.5.2"
   },
   "pebble": {
@@ -41,7 +40,7 @@
   },
   "scripts": {
     "build:runtime": "tsc -p tsconfig.runtime-build.json",
-    "test": "npm run build:runtime && node tests/signals.test.mjs && node tests/store.test.mjs && node --experimental-vm-modules tests/flow.test.mjs && node --experimental-vm-modules tests/jsx.test.mjs && node --experimental-vm-modules tests/conformance.test.mjs && node --test tests/tools.test.mts",
+    "test": "npm run build:runtime && node --test --experimental-vm-modules tests/*.test.mts",
     "typecheck": "tsc -p tsconfig.check.json && tsc -p tsconfig.runtime-build.json",
     "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/",
     "format:c": "clang-format -i src/c/*.c",
@@ -49,7 +48,7 @@
     "lint": "biome lint src/embeddedjs/runtime/ tools/ tests/",
     "check": "biome check src/embeddedjs/runtime/ tools/ tests/",
     "docs": "npx -y -p typedoc@0.28 -p typedoc-plugin-markdown@4 typedoc",
-    "coverage": "npm run build:runtime && c8 --include 'src/embeddedjs/runtime/**' --include 'src/embeddedjs/runtime-build/**' --reporter=text-summary --reporter=text sh -c 'node tests/signals.test.mjs >/dev/null && node tests/store.test.mjs >/dev/null && node --experimental-vm-modules tests/flow.test.mjs >/dev/null && node --experimental-vm-modules tests/jsx.test.mjs >/dev/null && node --experimental-vm-modules tests/conformance.test.mjs >/dev/null'",
+    "coverage": "npm run build:runtime && node --test --experimental-vm-modules --experimental-test-coverage --test-coverage-include='src/embeddedjs/runtime-build/**' --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 tests/*.test.mts",
     "build": "./build.sh",
     "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",
     "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20"

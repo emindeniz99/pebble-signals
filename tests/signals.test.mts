@@ -21,7 +21,7 @@ import {
 	batch,
 	S,
 } from "../src/embeddedjs/runtime-build/signals.js";
-import { makeChecker } from "./load-runtime.mjs";
+import { makeChecker } from "./load-runtime.mts";
 
 const { check, done } = makeChecker("signals");
 

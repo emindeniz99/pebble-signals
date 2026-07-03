@@ -21,6 +21,10 @@
 		}
 	},
 	"files": {
-		"includes": ["src/embeddedjs/runtime/**/*.js", "tools/**/*.mjs", "tests/**/*.mjs"]
+		"includes": [
+			"src/embeddedjs/runtime/**/*.{js,ts}",
+			"tools/**/*.{mjs,mts}",
+			"tests/**/*.{mjs,mts,tsx}"
+		]
 	}
 }

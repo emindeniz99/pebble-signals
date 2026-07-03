@@ -38,7 +38,8 @@ test("gen-manifest: no assets -> no resources/data added", () => {
 });
 
 test("treeshake: pure-signal app drops flow", () => {
-	const src = 'import { useState } from "runtime/signals";\nimport { render } from "runtime/jsx-runtime";';
+	const src =
+		'import { useState } from "runtime/signals";\nimport { render } from "runtime/jsx-runtime";';
 	const need = neededModules(src);
 	assert.deepEqual([...need].sort(), ["runtime/jsx-runtime", "runtime/signals"]);
 	const { manifest, dropped } = pruneManifest(BASE, need);
@@ -51,11 +52,7 @@ test("treeshake: flow importer keeps all three (transitive closure)", () => {
 	const src = 'import { VirtualList } from "runtime/flow";';
 	const need = neededModules(src);
 	// flow pulls in jsx-runtime + signals transitively
-	assert.deepEqual([...need].sort(), [
-		"runtime/flow",
-		"runtime/jsx-runtime",
-		"runtime/signals",
-	]);
+	assert.deepEqual([...need].sort(), ["runtime/flow", "runtime/jsx-runtime", "runtime/signals"]);
 	const { dropped } = pruneManifest(BASE, need);
 	assert.deepEqual(dropped, []);
 });
@@ -100,7 +97,7 @@ test("classify: module-scope host construction is IMPURE", () => {
 
 test("classify: module-scope signal()/useState() is IMPURE (reactive state)", () => {
 	assert.equal(classify('import { signal } from "x"; const c = signal(0);').pure, false);
-	assert.equal(classify('const [g, s] = useState(0);').pure, false);
+	assert.equal(classify("const [g, s] = useState(0);").pure, false);
 });
 
 test("classify: a top-level call like render() is IMPURE", () => {
