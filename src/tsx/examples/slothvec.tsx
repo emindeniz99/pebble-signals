@@ -23,7 +23,17 @@ const hms = new Style({ font: "bold 42px Bitham", color: "white" });
 const date = new Style({ font: "bold 24px Gothic", color: "#FFAA55" });
 
 // explicit width/height = the SCALED size (2 x 60): the content box would
-// otherwise stay at the PDC's 60x60 bounds and the 2x drawing would spill
+// otherwise stay at the PDC's 60x60 bounds and the 2x drawing would spill.
+// The .pdc is a PDCS SEQUENCE (4 blink frames: open/half/closed/half, the
+// durations baked into the file) — the behavior is the official
+// pdc-sequence pattern: start playback on display, loop by rewinding on
+// finish. Frames advance natively by content time; the swing's rotate()
+// re-clones from the CURRENT frame each tick, so blink + swing compose.
+// Frames are selected by CONTENT TIME (PiuSVGImageSync: frame_by_elapsed).
+// We drive svg.time manually from the swing timer instead of start():
+// exact loop pacing, and it sidesteps a port quirk (Bind sums frame 0's
+// duration for every frame, inflating the natural cycle, and elapsed past
+// the real total sticks on the last frame).
 const svg = new SVGImage(null, { path: "slothvec.pdc", width: 120, height: 120 });
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -56,11 +66,15 @@ svg.center(30, 7);
 svg.translate(30, 7);
 svg.scale(2, 2);
 
-// ANIMATION — the vector superpower: swinging is a pure transform (rotate
-// around the branch pivot), re-rendered from the same 701B command list.
-// No frames, no pixels, no extra memory. Sloths swing slowly.
+// ANIMATION — the vector superpower, two layers from ONE timer:
+//  - swing: rotate() around the branch pivot (pure transform, no pixels)
+//  - blink: drive the PDCS sequence clock (svg.time) — Sync picks the
+//    frame by the durations baked into the .pdc (open 2.6s, quick blink)
 let phase = 0;
+let t = 0;
 setInterval(() => {
 	phase += 0.25;
+	t = (t + 150) % 2930;
+	svg.time = t;
 	svg.rotate(0.12 * Math.sin(phase));
 }, 150);

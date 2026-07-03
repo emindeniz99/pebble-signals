@@ -16,7 +16,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gen_pdc import gcolor, image, path as rawpath  # noqa: E402
+from gen_pdc import gcolor, sequence, path as rawpath  # noqa: E402
 
 # all sloth paths are PRECISE (1/8-px, type 3): required for correct
 # rotation pivots — the port's transform math is in 1/8-px units
@@ -43,38 +43,63 @@ def ngon(cx, cy, rx, ry, n=14, rot=0.0):
     return out
 
 
-cmds = [
-    # branch across the top
-    path([(2, 4), (58, 4), (58, 9), (2, 9)], FUR_D),
-    # leaf clusters
-    path(ngon(10, 6, 6, 3, 8), LEAF),
-    path(ngon(50, 6, 6, 3, 8), LEAF),
-    # arms reaching up to the branch
-    path([(20, 30), (14, 8), (19, 8), (26, 28)], FUR),
-    path([(40, 30), (46, 8), (41, 8), (34, 28)], FUR),
-    # ears
-    path(ngon(15, 22, 6, 6, 10), FUR_D),
-    path(ngon(45, 22, 6, 6, 10), FUR_D),
-    # head (big fur mass)
-    path(ngon(30, 32, 19, 18, 16), FUR),
-    # cream face
-    path(ngon(30, 34, 14, 13, 16), FACE),
-    # eye patches (angled teardrops)
-    path(ngon(24, 31, 5, 7, 10, rot=0.3), PATCH),
-    path(ngon(36, 31, 5, 7, 10, rot=-0.3), PATCH),
-    # eyes
-    path(ngon(24, 31, 2, 2, 6), EYE),
-    path(ngon(36, 31, 2, 2, 6), EYE),
-    # rosy cheeks
-    path(ngon(20, 39, 3, 2, 6), CHEEK),
-    path(ngon(40, 39, 3, 2, 6), CHEEK),
-    # nose + smile (open stroked path)
-    path(ngon(30, 38, 2, 2, 6), NOSE),
-    path([(26, 42), (30, 44), (34, 42)], 0, stroke=NOSE, stroke_w=1, closed=False),
-]
+def eyes(mode):
+    """Blink states: open (round pupils), half (squashed pupils under a
+    lid-colored band), closed (happy stroked arcs)."""
+    if mode == "open":
+        return [path(ngon(24, 31, 2, 2, 6), EYE),
+                path(ngon(36, 31, 2, 2, 6), EYE)]
+    if mode == "half":
+        return [path([(21, 28), (27, 28), (27, 31), (21, 31)], PATCH),
+                path([(33, 28), (39, 28), (39, 31), (33, 31)], PATCH),
+                path(ngon(24, 32, 2, 1, 6), EYE),
+                path(ngon(36, 32, 2, 1, 6), EYE)]
+    # closed: gentle downward curves (a content, sleepy face)
+    return [path([(22, 31), (24, 33), (26, 31)], 0, stroke=EYE, stroke_w=1, closed=False),
+            path([(34, 31), (36, 33), (38, 31)], 0, stroke=EYE, stroke_w=1, closed=False)]
 
-data = image(60, 60, cmds)
+
+def frame(mode):
+    return [
+        # branch across the top
+        path([(2, 4), (58, 4), (58, 9), (2, 9)], FUR_D),
+        # leaf clusters
+        path(ngon(10, 6, 6, 3, 8), LEAF),
+        path(ngon(50, 6, 6, 3, 8), LEAF),
+        # arms reaching up to the branch
+        path([(20, 30), (14, 8), (19, 8), (26, 28)], FUR),
+        path([(40, 30), (46, 8), (41, 8), (34, 28)], FUR),
+        # ears
+        path(ngon(15, 22, 6, 6, 10), FUR_D),
+        path(ngon(45, 22, 6, 6, 10), FUR_D),
+        # head (big fur mass)
+        path(ngon(30, 32, 19, 18, 16), FUR),
+        # cream face
+        path(ngon(30, 34, 14, 13, 16), FACE),
+        # eye patches (angled teardrops)
+        path(ngon(24, 31, 5, 7, 10, rot=0.3), PATCH),
+        path(ngon(36, 31, 5, 7, 10, rot=-0.3), PATCH),
+        # eyes (blink state)
+        *eyes(mode),
+        # rosy cheeks
+        path(ngon(20, 39, 3, 2, 6), CHEEK),
+        path(ngon(40, 39, 3, 2, 6), CHEEK),
+        # nose + smile (open stroked path)
+        path(ngon(30, 38, 2, 2, 6), NOSE),
+        path([(26, 42), (30, 44), (34, 42)], 0, stroke=NOSE, stroke_w=1, closed=False),
+    ]
+
+
+# PDCS blink sequence — sloths blink slowly: hold open, quick half/closed/half.
+# Durations live IN the file; the SVGImage behavior loops it (onFinished).
+frames = [
+    (2600, frame("open")),
+    (90,   frame("half")),
+    (150,  frame("closed")),
+    (90,   frame("half")),
+]
+data = sequence(60, 60, frames)
 out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "assets", "slothvec.pdc")
 open(out, "wb").write(data)
-print("wrote", out, len(data), "bytes,", len(cmds), "commands")
+print("wrote", out, len(data), "bytes,", len(frames), "frames")

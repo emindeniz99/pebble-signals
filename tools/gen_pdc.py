@@ -49,6 +49,18 @@ def image(width, height, commands):
     return b"PDCI" + struct.pack("<I", len(body)) + body
 
 
+def sequence(width, height, frames, play_count=1):
+    """PDCS animated sequence. frames = [(duration_ms, commands), ...] —
+    per-frame durations are baked into the file; playback is driven by the
+    SVGImage behavior (onDisplaying: start(); onFinished: time=0+start()).
+    Layout matches the official svg2pdc serialize_sequence byte for byte."""
+    body = struct.pack("<BBhh", 1, 0, width, height)
+    body += struct.pack("<HH", play_count, len(frames))
+    for dur, commands in frames:
+        body += struct.pack("<HH", dur, len(commands)) + b"".join(commands)
+    return b"PDCS" + struct.pack("<I", len(body)) + body
+
+
 if __name__ == "__main__":
     # de-risk asset: a single tan circle. Coordinates are TOP-LEFT origin
     # (matching svg2pdc, whose translate = -viewbox origin), so a centered
