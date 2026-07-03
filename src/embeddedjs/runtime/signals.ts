@@ -12,6 +12,37 @@
 // startup. New module-level helpers must be `const` bindings, and every
 // export costs runtime RAM: make it earn its keep.
 
+// Optional host/app diagnostic hook: notify() routes reaction errors here so a
+// throwing effect can't abort the XS machine. Declared on globalThis (erases).
+declare global {
+	// eslint-disable-next-line no-var
+	var __spError: ((e: unknown) => void) | undefined;
+}
+
+// A reaction is a plain thunk; an effect id indexes into the graph below.
+type EffectFn = () => void;
+
+// The one lazily-created state record (see the block comment below). Typed as
+// an interface so every `G.xxx` access is checked; the runtime keeps it as a
+// plain object literal (no class — a class would add a top-level declaration to
+// this preloaded module, gotcha 13).
+interface Graph {
+	eff: (EffectFn | null)[]; // effect id -> reaction (null = disposed)
+	cln: (EffectFn | null)[] | null; // effect id -> useEffect cleanup
+	val: unknown[]; // packed signal id -> value
+	sub: Uint32Array; // subscription matrix, st words per signal row
+	cap: number; // rows allocated
+	st: number; // stride: words per row (= 1 + hi-word count)
+	n: number; // rows used
+	u: number; // word 0 of the live effect-id set
+	q: number; // word 0 of the quarantined effect-id set
+	uh: Uint32Array | null; // live-set hi-words (ids 32+)
+	qh: Uint32Array | null; // quarantine hi-words
+	dep: number; // notification cascade depth
+	bat: number; // batch() nesting depth
+	pend: number[] | null; // rows whose notify is deferred inside a batch
+}
+
 let current = -1; // id of the running effect, -1 = none
 
 // ---- packed effect graph (task #15 Stage 1 — measured ~2x cheaper) ----
@@ -32,9 +63,9 @@ let current = -1; // id of the running effect, -1 = none
 // Freed ids are QUARANTINED while a notification cascade is running
 // (dep > 0): a set() snapshots masks by value, so without quarantine a
 // stale bit could run a freshly reused id.
-let G = null;
+let G: Graph | null = null;
 
-const gi = () => {
+const gi = (): Graph => {
 	let g = G;
 	if (g === null)
 		// lazy: a preload-time table would be frozen in ROM
@@ -57,7 +88,7 @@ const gi = () => {
 	return g;
 };
 
-const grow = (g) => {
+const grow = (g: Graph): number => {
 	// allocate one subscription row (st words wide)
 	const i = g.n++;
 	if (i >= g.cap) {
@@ -75,7 +106,7 @@ const grow = (g) => {
 // used/quarantine hi-word arrays extend. O(rows) copy, run only when the
 // live-effect count crosses a 32-bit boundary (32, 64, ...), so amortized
 // to nothing. Preserves each row's existing words in place.
-const growStride = (g) => {
+const growStride = (g: Graph): void => {
 	const os = g.st,
 		ns = os + 1;
 	const nsub = new Uint32Array(g.cap * ns);
@@ -89,26 +120,27 @@ const growStride = (g) => {
 		u2.set(g.uh);
 		g.uh = u2;
 		const q2 = new Uint32Array(ns - 1);
-		q2.set(g.qh);
+		q2.set(g.qh!); // uh non-null (this branch) implies qh non-null (invariant)
 		g.qh = q2;
 	}
 	g.st = ns;
 };
 
-const relQ = (g) => {
+const relQ = (g: Graph): void => {
 	// cascade over: release quarantined ids
 	if (g.dep > 0) return;
 	g.u &= ~g.q;
 	g.q = 0;
 	const uh = g.uh;
 	if (uh !== null)
+		// uh non-null implies qh non-null (invariant); `!` erases, emit unchanged
 		for (let k = 0; k < uh.length; k++) {
-			uh[k] &= ~g.qh[k];
-			g.qh[k] = 0;
+			uh[k] &= ~g.qh![k];
+			g.qh![k] = 0;
 		}
 };
 
-const flush = (g, i) => {
+const flush = (g: Graph, i: number): void => {
 	// notify every subscriber of signal row i
 	if (g.bat > 0) {
 		// inside batch(): defer, dedupe rows, notify once
@@ -143,36 +175,38 @@ const flush = (g, i) => {
 // `i` is the signal's row in G.sub, allocated LAZILY on first subscribe:
 // never-watched signals own no row at all.
 class Signal {
-	constructor(value) {
+	v: unknown;
+	i: number;
+	constructor(value: unknown) {
 		this.v = value;
 		this.i = -1;
 	}
-	get value() {
+	get value(): unknown {
 		// eff[current] check: an effect disposed WHILE RUNNING (its subtree
 		// torn down by an outer effect it triggered) must not re-subscribe
 		// as a permanent zombie.
-		if (current >= 0 && G.eff[current]) {
-			const g = G;
+		if (current >= 0 && G!.eff[current]) {
+			const g = G!;
 			let i = this.i;
 			if (i < 0) i = this.i = grow(g);
 			g.sub[i * g.st + (current >> 5)] |= 1 << (current & 31);
 		}
 		return this.v;
 	}
-	set value(value) {
+	set value(value: unknown) {
 		if (value === this.v) return;
 		this.v = value;
 		const i = this.i;
 		if (i < 0)
 			// never subscribed
 			return;
-		flush(G, i); // flush snapshots each subscriber word by value (see above)
+		flush(G!, i); // flush snapshots each subscriber word by value (see above)
 	}
 }
 
 // diagnostic hook: surface subscriber exceptions instead of letting them
 // abort the machine (XS kills the app otherwise)
-function notify(e) {
+function notify(e: number): void {
 	try {
 		run(e);
 	} catch (err) {
@@ -181,8 +215,8 @@ function notify(e) {
 	}
 }
 
-const run = (e) => {
-	const fn = G.eff[e];
+const run = (e: number): void => {
+	const fn = G!.eff[e];
 	if (!fn)
 		// disposed mid-notification — do not resurrect
 		return;
@@ -201,11 +235,11 @@ const run = (e) => {
 // the pass allocates nothing). Called both before every re-run and on
 // disposal, giving useEffect the React contract: cleanup fires before the
 // next run and once more at dispose.
-function unsubscribe(e) {
-	const g = G;
+function unsubscribe(e: number): void {
+	const g = G!;
 	const c = g.cln !== null && g.cln[e];
 	if (c) {
-		g.cln[e] = null;
+		g.cln![e] = null;
 		c();
 	}
 	// effect e lives in word (e>>5) of every row; clear just that word.
@@ -217,7 +251,7 @@ function unsubscribe(e) {
 	for (let s = 0; s < rows; s++) sub[s * st + word] &= m;
 }
 
-export function signal(value) {
+export function signal(value: unknown): Signal {
 	return new Signal(value);
 }
 
@@ -229,19 +263,19 @@ export function signal(value) {
 // DX is unchanged and the per-state getter/setter closures never exist at
 // runtime. set() keeps useState's functional-update contract.
 export const S = {
-	sig(v) {
+	sig(v: unknown): number {
 		const g = gi();
 		const i = grow(g);
 		g.val[i] = v;
 		return i;
 	},
-	get(i) {
-		if (current >= 0 && G.eff[current]) G.sub[i * G.st + (current >> 5)] |= 1 << (current & 31);
-		return G.val[i];
+	get(i: number): unknown {
+		if (current >= 0 && G!.eff[current]) G!.sub[i * G!.st + (current >> 5)] |= 1 << (current & 31);
+		return G!.val[i];
 	},
-	set(i, v) {
-		const g = G;
-		if (typeof v === "function") v = v(g.val[i]);
+	set(i: number, v: unknown): void {
+		const g = G!;
+		if (typeof v === "function") v = (v as (prev: unknown) => unknown)(g.val[i]);
 		if (v === g.val[i]) return;
 		g.val[i] = v;
 		flush(g, i);
@@ -250,8 +284,8 @@ export const S = {
 	// `s.value = e`: the object API stores a function value verbatim, so the
 	// lowered form must too (S.set would CALL it as an updater — measured
 	// semantic drift, not a theoretical one).
-	put(i, v) {
-		const g = G;
+	put(i: number, v: unknown): void {
+		const g = G!;
 		if (v === g.val[i]) return;
 		g.val[i] = v;
 		flush(g, i);
@@ -262,7 +296,7 @@ export const S = {
 	// the current owner so disposing its subtree stops it. The Signal object
 	// never exists — same read path as a packed signal, writes are caller
 	// error (the lowering bails on any `.value =` to a computed).
-	computed(fn) {
+	computed(fn: () => unknown): number {
 		const g = gi();
 		const i = grow(g);
 		track(
@@ -277,9 +311,9 @@ export const S = {
 // Returns the effect ID (an integer — costs ZERO slots), not an object or
 // a disposer closure. Dispose with dispose(id) (or register with track(),
 // whose owner terminates closures and ids alike).
-export function effect(fn) {
+export function effect(fn: EffectFn): number {
 	const g = gi();
-	let e;
+	let e!: number; // every branch below assigns it before use (definite-assign)
 	const m0 = ~(g.u | g.q); // word 0 — the fast path (effects 0-31)
 	if (m0) {
 		const b = m0 & -m0;
@@ -289,18 +323,18 @@ export function effect(fn) {
 		// word 0 full: scan hi-words, else widen the stride by one word
 		let wi = 1;
 		for (; wi < g.st; wi++) {
-			const mh = ~(g.uh[wi - 1] | g.qh[wi - 1]);
+			const mh = ~(g.uh![wi - 1] | g.qh![wi - 1]);
 			if (mh) {
 				const b = mh & -mh;
 				e = (wi << 5) + 31 - Math.clz32(b);
-				g.uh[wi - 1] |= b;
+				g.uh![wi - 1] |= b;
 				break;
 			}
 		}
 		if (wi === g.st) {
 			// all words full — grow, take bit 0 of the new word
 			growStride(g);
-			g.uh[wi - 1] |= 1;
+			g.uh![wi - 1] |= 1;
 			e = wi << 5;
 		}
 	}
@@ -311,7 +345,7 @@ export function effect(fn) {
 
 // Terminal disposal for anything an owner can hold: a plain closure (root
 // disposers, onCleanup callbacks) or a packed effect id.
-export function dispose(d) {
+export function dispose(d: number | EffectFn): void {
 	if (typeof d === "function") {
 		d();
 		return;
@@ -325,17 +359,17 @@ export function dispose(d) {
 	if (g.dep > 0) {
 		// freed mid-cascade: quarantine until it completes
 		if (word === 0) g.q |= b;
-		else g.qh[word - 1] |= b;
+		else g.qh![word - 1] |= b;
 	} else {
 		if (word === 0) g.u &= ~b;
-		else g.uh[word - 1] &= ~b;
+		else g.uh![word - 1] &= ~b;
 	}
 }
 
 // Eager computed. The internal effect is registered with the current owner
 // so disposing the subtree that created the computed also stops it —
 // otherwise it would keep firing (and leaking) after its UI is gone.
-export function computed(fn) {
+export function computed(fn: () => unknown): Signal {
 	const s = new Signal(undefined);
 	track(
 		effect(() => {
@@ -351,7 +385,7 @@ export function computed(fn) {
 // without re-running shared effects N times. Nests; exception-safe (the
 // deferred flushes still run). Values are written eagerly (reads inside the
 // batch see the new value); only NOTIFICATION is deferred — Solid's contract.
-export function batch(fn) {
+export function batch<T>(fn: () => T): T {
 	const g = gi();
 	g.bat++;
 	try {
@@ -386,7 +420,7 @@ export function batch(fn) {
 }
 
 // Read a value without creating a dependency.
-export function untrack(fn) {
+export function untrack<T>(fn: () => T): T {
 	const prev = current;
 	current = -1;
 	try {
@@ -401,10 +435,15 @@ export function untrack(fn) {
 // current owner; disposing the owner disposes the subtree. Leaked effects
 // are the #1 correctness risk in this design.
 
-let owner = null;
+// An owner holds the disposables (effect ids or closures) created in its subtree.
+type Disposable = number | EffectFn;
+interface Owner {
+	d: Disposable[];
+}
+let owner: Owner | null = null;
 
-export function createRoot(fn) {
-	const o = { d: [] };
+export function createRoot<T>(fn: () => T): [T, () => void] {
+	const o: Owner = { d: [] };
 	const prev = owner;
 	owner = o;
 	try {
@@ -420,13 +459,13 @@ export function createRoot(fn) {
 	}
 }
 
-export function onCleanup(fn) {
+export function onCleanup(fn: EffectFn): void {
 	if (owner) owner.d.push(fn);
 }
 
 // Register a disposable (Effect instance or closure) with the current
 // owner so tearing down the subtree tears it down too.
-export function track(disposable) {
+export function track(disposable: Disposable): Disposable {
 	if (owner) owner.d.push(disposable);
 	return disposable;
 }
@@ -435,12 +474,12 @@ export function track(disposable) {
 // Differences from React (see README): components run once; read state by
 // CALLING the getter (count()); pass reactive props as thunks.
 
-export function useState(init) {
+export function useState<T>(init: T): [() => T, (v: T | ((prev: T) => T)) => void] {
 	const s = new Signal(init);
 	return [
-		() => s.value,
-		(v) => {
-			s.value = typeof v === "function" ? v(s.value) : v;
+		() => s.value as T,
+		(v: T | ((prev: T) => T)) => {
+			s.value = typeof v === "function" ? (v as (prev: T) => T)(s.value as T) : v;
 		},
 	];
 }
@@ -450,13 +489,13 @@ export function useState(init) {
 // and once more when the owning subtree is disposed (stored on the Effect
 // itself — registering with the owner would only capture the FIRST run's
 // cleanup, since re-runs happen outside any owner context).
-export function useEffect(fn) {
+export function useEffect(fn: () => void | EffectFn): void {
 	track(
 		effect(() => {
 			const out = fn();
 			if (typeof out === "function") {
-				if (G.cln === null) G.cln = [];
-				G.cln[current] = out;
+				if (G!.cln === null) G!.cln = [];
+				G!.cln![current] = out;
 			}
 		}),
 	);
@@ -467,30 +506,33 @@ export function useEffect(fn) {
 // unlimited — #21), but a screen with dozens of useMemo/computed pays one
 // effect each; prefer a plain thunk `() => a() + b()` when you don't need the
 // value cached across reads.
-export function useMemo(fn) {
+export function useMemo<T>(fn: () => T): () => T {
 	const c = computed(fn);
-	return () => c.value;
+	return () => c.value as T;
 }
 
 // Mutable box that never notifies — React's useRef. (useCallback is
 // deliberately absent: components run ONCE here, so a plain closure is
 // already stable; there is nothing to memoize against.)
-export function useRef(v) {
+export function useRef<T>(v: T): { current: T } {
 	return { current: v };
 }
 
 // React's useReducer, trivially over useState. `dispatch(action)` applies the
 // reducer as a functional update, so it composes with batching and lowering.
-export function useReducer(reducer, init) {
+export function useReducer<S, A>(
+	reducer: (s: S, a: A) => S,
+	init: S,
+): [() => S, (action: A) => void] {
 	const [get, set] = useState(init);
-	return [get, (action) => set((s) => reducer(s, action))];
+	return [get, (action: A) => set((s: S) => reducer(s, action))];
 }
 
 // onMount(fn): run fn ONCE, untracked. In this run-once model a component body
 // already executes a single time as it builds, so this is just "do it once,
 // without subscribing" — the place to start a timer or kick a fetch. (There is
 // no separate post-layout phase like the DOM's; fn runs during the build.)
-export function onMount(fn) {
+export function onMount(fn: () => void): void {
 	untrack(fn);
 }
 
@@ -500,13 +542,13 @@ export function onMount(fn) {
 // useContext(ctx) reads the current value. No Symbol/Map (XS rule): a context
 // is a one-field record and provide() is a save/restore around the subtree,
 // which is exactly right because children build synchronously inside build().
-export function createContext(defaultValue) {
+export function createContext<T>(defaultValue: T): { v: T } {
 	return { v: defaultValue };
 }
-export function useContext(ctx) {
+export function useContext<T>(ctx: { v: T }): T {
 	return ctx.v;
 }
-export function provide(ctx, value, build) {
+export function provide<T, R>(ctx: { v: T }, value: T, build: () => R): R {
 	const prev = ctx.v;
 	ctx.v = value;
 	try {
@@ -538,8 +580,19 @@ const T_I32 = 0,
 	T_FALSE = 4,
 	T_NULL = 5;
 
+// Custom codec: encode writes the payload (returns its byte length, or -1 if it
+// needs more than `max`); decode reads it back.
+type Encode = (value: unknown, bytes: Uint8Array, offset: number, max: number) => number;
+type Decode = (bytes: Uint8Array, offset: number, length: number) => unknown;
+
 const Store = class {
-	constructor(size) {
+	b: Uint8Array;
+	t: number;
+	n: number;
+	c: Record<number, [Encode, Decode]> | null;
+	f: Float64Array | null;
+	fb: Uint8Array | null;
+	constructor(size: number) {
 		this.b = new Uint8Array(size);
 		this.t = 0; // bytes used (records are always compact)
 		this.n = 0; // record count
@@ -547,23 +600,23 @@ const Store = class {
 		this.f = null; // lazy float64 scratch
 		this.fb = null; // byte view over this.f
 	}
-	count() {
+	count(): number {
 		return this.n;
 	}
 	// Register a custom codec under tag 8..255. encode(value, bytes, offset,
 	// max) writes the payload and returns its length, or -1 if it needs more
 	// than max; decode(bytes, offset, length) returns the value.
-	def(tag, encode, decode) {
+	def(tag: number, encode: Encode, decode: Decode): void {
 		if (this.c === null) this.c = {};
 		this.c[tag] = [encode, decode];
 	}
 	// Append a value; pass `tag` only for custom types. Returns the new
 	// count, or -1 when the value does not fit (store full or payload >255B).
-	push(v, tag) {
+	push(v: unknown, tag?: number): number {
 		const b = this.b,
 			off = this.t + 2;
 		const max = b.length - off; // may be negative when nearly full
-		let len;
+		let len!: number;
 		if (tag !== undefined) {
 			const codec = this.c && this.c[tag];
 			if (!codec)
@@ -585,8 +638,8 @@ const Store = class {
 				len = 8;
 				if (len <= max) {
 					this.fl();
-					this.f[0] = v;
-					for (let i = 0; i < 8; i++) b[off + i] = this.fb[i];
+					this.f![0] = v;
+					for (let i = 0; i < 8; i++) b[off + i] = this.fb![i];
 				}
 			}
 		} else if (typeof v === "string") {
@@ -610,7 +663,7 @@ const Store = class {
 		this.t += 2 + len;
 		return ++this.n;
 	}
-	get(i) {
+	get(i: number): unknown {
 		const p = this.o(i);
 		if (p < 0) return undefined;
 		const b = this.b,
@@ -622,12 +675,14 @@ const Store = class {
 				return b[off] | (b[off + 1] << 8) | (b[off + 2] << 16) | (b[off + 3] << 24) | 0;
 			case T_F64:
 				this.fl();
-				for (let j = 0; j < 8; j++) this.fb[j] = b[off + j];
-				return this.f[0];
+				for (let j = 0; j < 8; j++) this.fb![j] = b[off + j];
+				return this.f![0];
 			case T_STR:
 				// apply over a subarray view: 1 allocation instead of one
 				// intermediate string per character
-				return len ? String.fromCharCode.apply(String, b.subarray(off, off + len)) : "";
+				return len
+					? String.fromCharCode.apply(String, b.subarray(off, off + len) as unknown as number[])
+					: "";
 			case T_TRUE:
 				return true;
 			case T_FALSE:
@@ -635,11 +690,11 @@ const Store = class {
 			case T_NULL:
 				return null;
 			default:
-				return this.c[tag][1](b, off, len);
+				return this.c![tag][1](b, off, len);
 		}
 	}
 	// Remove record i (shifts the tail down); returns the new count or -1.
-	remove(i) {
+	remove(i: number): number {
 		const p = this.o(i);
 		if (p < 0) return -1;
 		const b = this.b,
@@ -650,7 +705,7 @@ const Store = class {
 		return --this.n;
 	}
 	// byte offset of record i, or -1
-	o(i) {
+	o(i: number): number {
 		if (i < 0 || i >= this.n) return -1;
 		let p = 0;
 		while (i--) p += 2 + this.b[p + 1];
@@ -659,16 +714,21 @@ const Store = class {
 	// Persist the raw record bytes under a key in the host's localStorage
 	// (device key-value store). One byte becomes one Latin-1 char; load()
 	// walks the records to rebuild the count and rejects corrupt data.
-	save(k) {
+	save(k: string): void {
 		const b = this.b,
 			t = this.t;
-		globalThis.localStorage.setItem(
+		// Keep the exact original `globalThis.localStorage` access (byte-identical
+		// emit). globalThis's type lacks localStorage; the cast (via the vendored
+		// bare-global's type) is erased — no behavior change.
+		(globalThis as typeof globalThis & { localStorage: typeof localStorage }).localStorage.setItem(
 			k,
-			t ? String.fromCharCode.apply(String, b.subarray(0, t)) : "",
+			t ? String.fromCharCode.apply(String, b.subarray(0, t) as unknown as number[]) : "",
 		);
 	}
-	load(k) {
-		const s = globalThis.localStorage.getItem(k);
+	load(k: string): boolean {
+		const s = (
+			globalThis as typeof globalThis & { localStorage: typeof localStorage }
+		).localStorage.getItem(k);
 		if (s === null || s.length > this.b.length) return false;
 		const b = this.b;
 		for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 255;
@@ -686,7 +746,7 @@ const Store = class {
 		return true;
 	}
 	// lazy float scratch
-	fl() {
+	fl(): void {
 		if (this.f === null) {
 			this.f = new Float64Array(1);
 			this.fb = new Uint8Array(this.f.buffer);
@@ -694,4 +754,4 @@ const Store = class {
 	}
 };
 
-export const createStore = (size) => new Store(size);
+export const createStore = (size: number) => new Store(size);

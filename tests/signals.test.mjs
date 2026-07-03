@@ -20,7 +20,7 @@ import {
 	provide,
 	batch,
 	S,
-} from "../src/embeddedjs/runtime/signals.js";
+} from "../src/embeddedjs/runtime-build/signals.js";
 import { makeChecker } from "./load-runtime.mjs";
 
 const { check, done } = makeChecker("signals");

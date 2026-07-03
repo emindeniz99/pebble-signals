@@ -33,7 +33,6 @@
 	// type-checked by tsconfig.runtime-build.json instead (this lenient guard
 	// retires once the last runtime file is .ts).
 	"include": [
-		"src/embeddedjs/runtime/signals.js",
 		"src/embeddedjs/runtime/flow.js",
 		"src/tsx/globals.d.ts",
 		"src/tsx/host-stub.d.ts"
