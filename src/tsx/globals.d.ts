@@ -35,12 +35,86 @@ declare module "runtime/jsx-runtime" {
 }
 declare module "runtime/signals" {
 	export function signal<T>(value: T): { value: T };
-	export function effect(fn: () => void): () => void;
+	export function effect(fn: () => void): number;
 	export function computed<T>(fn: () => T): { readonly value: T };
 	export function untrack<T>(fn: () => T): T;
+	export function dispose(d: number | (() => void)): void;
+	export function createRoot<T>(fn: () => T): [T, () => void];
+	export function onCleanup(fn: () => void): void;
+	export function track(disposer: number | (() => void)): number | (() => void);
+	export function useState<T>(init: T): [() => T, (v: T | ((prev: T) => T)) => void];
+	export function useEffect(fn: () => void | (() => void)): void;
+	export function useMemo<T>(fn: () => T): () => T;
+	// packed lowering target (S.sig/get/set/computed) — integer-id signals
+	export const S: {
+		sig<T>(v: T): number;
+		get<T>(i: number): T;
+		set<T>(i: number, v: T | ((prev: T) => T)): void;
+		computed<T>(fn: () => T): number;
+	};
+	export function createStore(size: number): any;
 }
 declare module "runtime/owner" {
 	export function createRoot<T>(fn: () => T): [T, () => void];
 	export function onCleanup(fn: () => void): void;
 	export function track(disposer: () => void): () => void;
+}
+
+// Control-flow components. Prop contracts are expressed as TYPES so a
+// `npm run typecheck` pass catches misuse at compile time even though the
+// runtime build transpiles with noCheck. The headline guard: VirtualList's
+// `format` (simple mode) and `renderRow` (rich mode) are MUTUALLY EXCLUSIVE —
+// passing both, or neither-with-the-wrong-one, is a type error.
+declare module "runtime/flow" {
+	type Thunk<T> = () => T;
+	type Node = any;
+	interface BoxProps {
+		width?: number; height?: number;
+		left?: number; right?: number; top?: number; bottom?: number;
+		skin?: any; style?: any;
+	}
+
+	interface ShowProps extends BoxProps {
+		when: Thunk<boolean>;
+		children: Thunk<Node>;
+		fallback?: Thunk<Node>;
+		keepAlive?: boolean;
+	}
+	export function Show(props: ShowProps): Node;
+
+	interface ForProps<T> extends BoxProps {
+		each: Thunk<T[]>;
+		key?: (item: T, i: number) => unknown;
+		children: (item: T, i: number) => Node;
+	}
+	export function For<T>(props: ForProps<T>): Node;
+
+	interface DataSource<T> { count(): number; get(i: number): T; }
+	interface VLBase<T> extends BoxProps {
+		data: DataSource<T>;
+		rows?: number;
+		at?: Thunk<number>;
+	}
+	// simple mode: recycled Labels via `format`. `renderRow` forbidden.
+	interface VLSimple<T> extends VLBase<T> {
+		format?: (v: T, i: number) => string;
+		renderRow?: never;
+	}
+	// rich mode: a recycled subtree per slot via `renderRow`. `format` forbidden.
+	interface VLRich<T> extends VLBase<T> {
+		renderRow: (indexThunk: Thunk<number>, data: DataSource<T>) => Node;
+		format?: never;
+	}
+	export function VirtualList<T>(props: VLSimple<T> | VLRich<T>): Node;
+
+	interface NavHandle {
+		push(build: (nav: NavHandle) => Node): void;
+		pop(): void;
+		depth(): number;
+		canPop(): boolean;
+	}
+	interface NavigatorProps extends BoxProps {
+		root: (nav: NavHandle) => Node;
+	}
+	export function Navigator(props: NavigatorProps): Node;
 }

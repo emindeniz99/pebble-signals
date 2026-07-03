@@ -1,0 +1,19 @@
+{
+	// Type-CHECK pass (npm run typecheck). Unlike tsconfig.json (noCheck,
+	// transpile-only for the device build), this actually type-checks — it
+	// enforces the component prop contracts in globals.d.ts. Scoped to the
+	// type-guard test + the ambient decls so it stays fast and deterministic
+	// and is not tripped by the deliberately-loose example .tsx files.
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
+		"jsxImportSource": "runtime",
+		"strict": true,
+		"noEmit": true,
+		"types": [],
+		"skipLibCheck": true
+	},
+	"include": ["src/tsx/globals.d.ts", "tests/types.test-d.tsx"]
+}

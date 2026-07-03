@@ -44,6 +44,42 @@ if pdc:
 if changed:
 	open(p, "w").write(json.dumps(m, indent="\t") + "\n")
 PY
+# Optional per-app tree-shaking (TREESHAKE=1). The runtime modules are frozen
+# into ROM by `preload`, and every preloaded module still costs a few XS
+# aliases at boot. An app that never imports runtime/flow (a pure-signal
+# watchface) does not need it preloaded OR mapped — prune the manifest to the
+# transitive closure of the runtime modules the app actually imports. Off by
+# default (ships the full runtime); flip the flag to trim. Verified by the
+# existing on-boot install — a pruned app that still boots proves the drop was
+# safe (the dropped module was genuinely unreferenced).
+if [ "${TREESHAKE:-0}" = "1" ]; then
+	APP_SRC="src/tsx/examples/$APP.tsx" python3 - <<'PY'
+import json, os, re
+src = open(os.environ["APP_SRC"]).read()
+p = "src/embeddedjs/manifest.json"; m = json.loads(open(p).read())
+# runtime dependency graph (intra-runtime imports)
+deps = {
+	"runtime/signals": set(),
+	"runtime/jsx-runtime": {"runtime/signals"},
+	"runtime/flow": {"runtime/signals", "runtime/jsx-runtime"},
+}
+seed = set(re.findall(r'from\s+["\'](runtime/[a-zA-Z0-9_-]+)["\']', src))
+need, stack = set(), list(seed)
+while stack:
+	mod = stack.pop()
+	if mod in need or mod not in deps:
+		continue
+	need.add(mod)
+	stack.extend(deps[mod])
+keep = {"main"} | need
+before = set(m.get("modules", {}))
+m["modules"] = {k: v for k, v in m["modules"].items() if k in keep}
+m["preload"] = [x for x in m.get("preload", []) if x in need]
+open(p, "w").write(json.dumps(m, indent="\t") + "\n")
+dropped = sorted(before - keep)
+print("treeshake: kept " + ",".join(sorted(need)) + ("; dropped " + ",".join(dropped) if dropped else "; nothing to drop"))
+PY
+fi
 rm -rf src/embeddedjs/app src/embeddedjs/runtime-min
 mkdir -p src/embeddedjs/runtime-min
 for f in src/embeddedjs/runtime/*.js; do
