@@ -73,6 +73,7 @@ square screenshots below come from identical `.tsx`.
 | `slothface` | **animated sloth watchface** 🦥 (text-frame animation + clock) | timer-driven frame animation via signals | ✅ `slothface-*.png` (awake/blink/sleepy) | — |
 | `imgwatch` | **animated COLOR bitmap watchface** + HH:MM:SS | bundled bitmaps (png2bmp), `Texture`, frame-swap animation | ✅ `imgwatch-red.png` / `imgwatch-blue.png` | — |
 | `sloth` | **polished animated sloth watchface** 🦥 (soft-shaded 140px emoji, sprite-sheet blink, big one-line HH:MM:SS + date) | one `Texture` sheet, reactive `variant` sprite animation | ✅ `sloth-gabbro-open.png` / `sloth-gabbro-blink.png` | ✅ `sloth-emery-open.png` / `sloth-emery-blink.png` |
+| `slothvec` | **VECTOR sloth watchface** 🦥 (701B PDC authored 60×60, drawn 2×/120px) + one-line HH:MM:SS + date | `SVGImage` + PDC: free runtime scaling, zero pixel RAM | ✅ `slothvec-gabbro.png` | ✅ `slothvec-emery.png` |
 | `multiscreen` | 4 screens in one mod | does NOT boot — kept as the arena-OOM artifact | ❌ by design | ❌ |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
@@ -387,52 +388,46 @@ main.tsx). Resources bundle into the archive but do NOT count against
 the ~15.9KB boot ceiling (imgwatch's 24.6KB archive boots fine —
 resources aren't preloaded/executed).
 
-## Vector images (SVGImage / PDC) — investigated, currently blocked
+## Vector images (SVGImage / PDC) — SOLVED, measured
 
 The Pebble Piu port ships a native **`SVGImage`** class backed by **PDC**
 (Pebble Draw Commands — a compact vector format; PDCS is the animated
 sequence variant). Vector is the proper way to make an icon *bigger* without
 the raster native-heap cost: `scale()`/`rotate()`/`translate()` are runtime
-transforms on the draw-command coordinates, no per-scale pixels.
+transforms on the draw-command coordinates, no per-scale pixels. The
+`slothvec` watchface proves it end to end: a **701-byte** PDC authored at
+60×60 renders at **2× (120px)** on both gabbro and emery — vs the raster
+sloth's 68KB sheet + native-heap decode (~97× less flash, zero pixel RAM).
 
-Tooling exists and is ready: the official **`svg2pdc.py`** (pebble-examples/
-cards-example; Python 2, needs `svg.path` + `pebble_image_routines.py`) and
-the Rust **`pdc_tool`** (HBehrens). `tools/gen_pdc.py` here emits PDCI bytes
-directly (layout verified against `svg2pdc.serialize`), and `build.sh` now
-bundles any referenced `*.pdc` as a Moddable **`data`** resource (read on the
-watch via `new Resource("x.pdc")`, the `SVGImage` `path` route).
+Pipeline: `tools/gen_pdc.py` emits PDCI bytes directly (output verified
+BYTE-IDENTICAL to the official `svg2pdc.py`, ported to py3 and diffed);
+`tools/gen_sloth_pdc.py` composes the sloth from flat polygon paths;
+`build.sh` bundles any referenced `*.pdc` as a Moddable **`data`** resource
+(read on-watch via `new Resource("x.pdc")` — the `SVGImage` `path` route).
+The official `svg2pdc.py` (pebble-examples/cards-example) or Rust `pdc_tool`
+(HBehrens) work for converting real SVGs.
 
-Proven, step by step (spike in `examples/slothvec.tsx`, a WIP artifact):
-1. **Bytes are correct.** `tools/gen_pdc.py` output is BYTE-IDENTICAL to the
-   real `svg2pdc.py` (ported to py3, run on an equivalent circle SVG) — so the
-   PDC data is not the problem.
-2. **Bundling works.** An on-screen probe (`new Resource("testcircle.pdc")`)
-   reports `len=29 b0=80` on-device — the intact 29-byte file, first byte `P`.
-3. **Validation succeeds.** With NO explicit width/height, `SVGImage` still
-   sizes itself to the PDC's 100×100 bounds, so `gdraw_command_image_validate`
-   passes and `dci` is valid. The image IS parsed. (So the earlier
-   "validation fails / PDCI_DATA_OFFSET" guess was WRONG.)
-4. **The real bug is POSITIONING.** `DrawAux` moves the draw box by `(cx,cy)`
-   (default = bounds/2 = 50) and then draws each command at its own coords, so
-   a circle authored at (50,50) lands at content+100 — off in a corner.
-   `center(0,0)` should zero that offset so (50,50) hits the content centre.
+**The four hard-won rules** (each cost a debugging round; the "invisible
+circle" saga is why they're numbered):
+1. **Transforms only work AFTER `render()`.** `PiuSVGImageBind` overwrites
+   `cx/cy` to `bounds/2` at mount, silently clobbering anything set earlier —
+   the docs' examples all transform inside behavior callbacks for this
+   reason. Set `center`/`scale` after the tree is mounted.
+2. **`center(0,0)` is mandatory for whole-pixel art.** `doTransform`
+   subtracts `cx*8` from every point (the port's transform math is in
+   1/8-pixel "precise" units), so the default centre displaces a whole-pixel
+   command by `-7×cx` pixels — clean off screen. (Precise-path PDCs,
+   `svg2pdc -p`, are what the default math is calibrated for.)
+3. **An image with NO transform never draws at all.** `DrawAux` renders a
+   command list built lazily inside the `if (transforming)` branch, so at
+   least one `scale(1,1)` is required even at native size.
+4. **`scale()` does not scale circle radii** — only path points and stroke
+   widths. Scalable art must be all paths/polygons (ellipses as N-gons);
+   a scaled circle keeps its radius and only its centre moves (measured).
 
-Also found: `SVGImage` only draws after a transform is set once (`DrawAux`
-renders `dcl`, built lazily inside the `if (transforming)` branch — so
-`scale(1,1)` is mandatory even at native size), and svg2pdc uses top-left
-coordinates.
-
-CONCLUSION: despite all of the above, the PDC never renders. Exhaustively
-ruled out on both gabbro and emery — a big WHITE circle is equally invisible
-(not colour), `center(0,0)` and `center(50,50)` are both blank (not the
-offset), and the transform trigger set pre-mount AND re-applied by a
-post-mount timer changes nothing. `dci` validates and `DrawAux`'s math checks
-out on paper, yet `gdraw_command_list_draw` yields no visible pixels. Best
-read: the `SVGImage` **`path`/Resource** route does not render on this Alloy
-firmware build — a port limitation, not a JS-fixable bug. The one route not
-tried is the native Pebble resource **`id`** (needs the generated
-`RESOURCE_ID` plumbed into Moddable JS). **Net for now: raster `Texture` is
-the working image path; vector stays parked.**
+Also: give the `SVGImage` dictionary the SCALED `width`/`height` (the content
+box otherwise stays at the PDC's authored bounds and the scaled drawing
+spills outside it), and `Resource` names keep their `.pdc` extension.
 
 ## XS / Piu gotchas actually hit
 

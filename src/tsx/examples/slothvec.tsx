@@ -1,59 +1,53 @@
-// SPIKE — vector (SVGImage/PDC) path, close but not fully confirmed on-device.
-// Goal: scale an icon for free (no per-scale pixels, unlike a raster Texture).
+// VECTOR sloth watchface 🦥 — the sloth is a Pebble Draw Command (PDC)
+// image (assets/slothvec.pdc, ~600B of flat vector paths) authored in a
+// 60x60 viewbox and rendered at 2x (120px) via SVGImage.scale(2,2): free
+// resolution-independent scaling, zero pixel memory (vs the raster sloth's
+// 68KB sheet + native-heap decode).
 //
-// PROVEN so far (see README "Vector images"):
-//  - bytes: tools/gen_pdc.py output is BYTE-IDENTICAL to the real svg2pdc.py,
-//    so the PDC data is correct.
-//  - loading: the on-screen probe below shows `len=29 b0=80` — new Resource()
-//    returns the intact 29-byte file (starts with 'P'), so bundling works.
-//  - validation: with NO explicit width/height the SVGImage still sizes itself
-//    to the PDC's 100x100 bounds, so gdraw_command_image_validate SUCCEEDS
-//    (dci is valid). The image IS parsed.
-// CONCLUSION: the PDC never renders despite all of the above. Exhaustively
-// ruled out on-device (gabbro + emery): color (a big WHITE circle is equally
-// invisible), positioning (center(0,0) and center(50,50) both blank), and
-// the transform trigger (scale set pre-mount AND re-applied post-mount by a
-// timer). dci validates and DrawAux's math checks out on paper, yet
-// gdraw_command_list_draw produces no visible pixels. This looks like a
-// limitation of the SVGImage `path`/Resource route on this Alloy firmware
-// build, not something fixable from JS. Not-yet-tried: the native Pebble
-// resource `id` route (needs the generated RESOURCE_ID plumbed into JS).
+// HARD-WON rules for SVGImage on this port (see README "Vector images"):
+//  - transforms must be applied AFTER render(): PiuSVGImageBind overwrites
+//    cx/cy at mount, clobbering anything set earlier, and the image only
+//    draws at all once a transform has been applied.
+//  - center(0,0) is required: doTransform subtracts cx*8 from every point
+//    (1/8-px units), so the default center displaces whole-pixel art off
+//    screen (the "invisible circle" bug).
+//  - scale() multiplies path POINTS and stroke widths but NOT circle radii
+//    — scalable art must be all paths/polygons (ellipses as N-gons).
 // Build: APP=slothvec ./build.sh
 import { render } from "runtime/jsx-runtime";
+import { useState } from "runtime/signals";
 declare const SVGImage: any;
-declare const Resource: any;
 
 const bg = new Skin({ fill: "black" });
-const big = new Style({ font: "bold 24px Gothic", color: "white" });
+const hms = new Style({ font: "bold 42px Bitham", color: "white" });
+const date = new Style({ font: "bold 24px Gothic", color: "#FFAA55" });
 
-// ON-SCREEN diagnostic (trace() doesn't reach the app log in this build):
-// prove whether the bundled .pdc actually loads and how many bytes it is.
-let info: string;
-try {
-	const r = new Resource("testcircle.pdc");
-	info = "len=" + r.byteLength + " b0=" + new Uint8Array(r)[0];
-} catch (e) {
-	info = "ERR " + e;
+// explicit width/height = the SCALED size (2 x 60): the content box would
+// otherwise stay at the PDC's 60x60 bounds and the 2x drawing would spill
+const svg = new SVGImage(null, { path: "slothvec.pdc", width: 120, height: 120 });
+
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const two = (n: number) => (n < 10 ? "0" : "") + n;
+const [hm, setHm] = useState("");
+const [day, setDay] = useState("");
+function tick() {
+	const d = new Date();
+	setHm(two(d.getHours()) + ":" + two(d.getMinutes()) + ":" + two(d.getSeconds()));
+	setDay(DOW[d.getDay()] + " " + d.getDate());
 }
-
-// NO explicit width/height: force the SVGImage to size from the PDC bounds,
-// which only happens if dci validated — a size probe for validation success.
-const svg = new SVGImage(null, { path: "testcircle.pdc" });
-// _create does NOT initialize the transform fields (r/tx/ty/cx/cy) — set them
-// all explicitly so the draw matrix isn't built from garbage.
-// DrawAux offsets the draw box by (cx,cy); command coords are top-left, so
-// keep cx=cy=0 or the image shifts by half. center(0,0) => circle at its
-// own (50,50) lands at the content's (50,50) center.
-svg.center(0, 0);
-svg.rotate(0);
-svg.translate(0, 0);
-svg.scale(1, 1);
+tick();
+setInterval(tick, 1000);
 
 render(() => (
 	<Container left={0} right={0} top={0} bottom={0}>
 		<Column>
 			{svg}
-			<Label style={big} string={info} />
+			<Label style={hms} string={() => hm()} />
+			<Label style={date} string={() => day()} />
 		</Column>
 	</Container>
-), { skin: bg, style: big });
+), { skin: bg, style: hms });
+
+// post-mount (Bind has run): zero the center offset, then scale 2x
+svg.center(0, 0);
+svg.scale(2, 2);
