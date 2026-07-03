@@ -112,4 +112,16 @@ let threw = false;
 try { createStore(64).push({}, 200); } catch (e) { threw = /no codec for tag 200/.test(e.message); }
 check("push with unregistered tag throws clear error", threw);
 
+// coverage: custom codec push when the store is already FULL (max < 0 path)
+const sfull = createStore(6);			// 2-byte header + 4-byte payload = one i32
+const TAG = 9;
+sfull.def(TAG, (v, b, off, max) => { if (4 > max) return -1; return 4; }, () => 0);
+check("codec fits first", sfull.push(0, TAG) === 1);	// now t=6, store full
+check("codec push when full rejects (max<0)", sfull.push(0, TAG) === -1);
+
+// coverage: save() an EMPTY store writes "" (t === 0 branch)
+const sempty = createStore(16);
+sempty.save("emptykey");
+check("empty store saves \"\"", globalThis.localStorage.getItem("emptykey") === "");
+
 done();

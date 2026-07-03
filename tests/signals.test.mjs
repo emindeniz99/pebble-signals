@@ -250,4 +250,38 @@ r1.current = 6;
 check("useRef holds and never notifies", r1.current === 6 && rruns === 1);
 dispose(re);
 
+// 18. coverage: remaining branches
+// useState plain-value setter (non-functional)
+const [pv, setPv] = useState(1);
+setPv(9);
+check("useState plain-value set", pv() === 9);
+
+// dispose(function) runs it; dispose(invalid id) is a silent no-op
+let dran = 0;
+dispose(() => dran++);
+check("dispose(function) runs it", dran === 1);
+dispose(99999);					// no such effect id
+check("dispose(invalid) is a no-op", true);
+
+// throwing subscriber with NO __spError hook rethrows (default path)
+const th = signal(0);
+let propagated = false;
+effect(() => { if (th.value === 1) throw new Error("nohook"); });
+try { th.value = 1; } catch (e) { propagated = e.message === "nohook"; }
+check("throwing subscriber rethrows without hook", propagated);
+
+// high-word effect (id > 31) disposed MID-cascade -> qh quarantine path.
+// Pad past 32 so the victim lands in word 1, then dispose it from a
+// co-subscriber during the notification.
+const pad2 = [];
+for (let k = 0; k < 34; k++) { const sg = signal(0); pad2.push(effect(() => { sg.value; })); }
+const trig = signal(0);
+let victim = null, killerRan = 0;
+effect(() => { if (trig.value === 1 && victim !== null) { dispose(victim); killerRan++; } });
+victim = effect(() => { trig.value; });		// id > 31 (word 1)
+check("victim is a high-word id", victim > 31);
+trig.value = 1;					// killer disposes victim mid-cascade (dep>0)
+check("high-word mid-cascade dispose (qh path) ok", killerRan === 1);
+for (const e of pad2) dispose(e);
+
 done();

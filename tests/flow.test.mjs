@@ -208,4 +208,41 @@ check("rebuilt root reflects current signal", inner(navHost).string === "root 2"
 navRef.pop();						// pop at root is a no-op
 check("pop at root is a no-op", navRef.depth() === 1 && nbuilt.length === 3);
 
+// --- coverage: default-arg branches + keepAlive same-side early return ---
+// For WITHOUT key (default identity keyOf) and children returning a THUNK
+// (asNode's function branch)
+const ki = signal([1, 2]);
+const [forNoKey] = createRoot(() => For({
+	each: () => ki.value,
+	children: (n) => () => jsx(StubContent, { string: "n" + n }),	// returns a thunk
+}));
+check("For without key uses identity", forNoKey.contents.length === 2);
+check("For child thunk resolved via asNode", forNoKey.contents[0].string === "n1");
+
+// VirtualList WITHOUT rows (default 3) and renderRow WITHOUT at (default 0)
+const [vlDefault] = createRoot(() => VirtualList({
+	data: { count: () => 9, get: i => i },
+	renderRow: (idx) => { const c = new StubContent(null, {}); c.string = "r" + idx(); return c; },
+}));
+check("VirtualList default rows = 3", vlDefault.contents.length === 3);
+check("renderRow default at = 0", vlDefault.contents[0].string === "r0");
+
+// makeHost with left+right given: width is NOT defaulted to screen.width
+const [vlLR] = createRoot(() => VirtualList({
+	data: { count: () => 1, get: () => 0 }, rows: 1, left: 5, right: 5,
+}));
+check("left+right suppresses width default", vlLR.width === undefined && vlLR.left === 5);
+
+// Show keepAlive: when() re-runs but returns the SAME side -> early return
+const lvl = signal(1);
+let kbuilt = 0;
+const [kaSame] = createRoot(() => Show({
+	keepAlive: true, when: () => lvl.value > 0, width: 10, height: 10,
+	children: () => { kbuilt++; return jsx(StubContent, { string: "on" }); },
+	fallback: () => { kbuilt++; return jsx(StubContent, { string: "off" }); },
+}));
+const builtAfterMount = kbuilt;
+lvl.value = 2;					// still > 0 -> same side -> no swap
+check("keepAlive same-side re-eval is a no-op", kbuilt === builtAfterMount);
+
 done();

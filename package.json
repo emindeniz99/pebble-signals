@@ -30,8 +30,9 @@
     }
   },
   "scripts": {
-    "test": "node tests/signals.test.mjs && node tests/store.test.mjs && node --experimental-vm-modules tests/flow.test.mjs",
+    "test": "node tests/signals.test.mjs && node tests/store.test.mjs && node --experimental-vm-modules tests/flow.test.mjs && node --experimental-vm-modules tests/jsx.test.mjs",
     "typecheck": "tsc -p tsconfig.check.json",
+    "coverage": "npx -y c8@10 --include 'src/embeddedjs/runtime/**' --reporter=text-summary --reporter=text sh -c 'node tests/signals.test.mjs >/dev/null && node tests/store.test.mjs >/dev/null && node --experimental-vm-modules tests/flow.test.mjs >/dev/null && node --experimental-vm-modules tests/jsx.test.mjs >/dev/null'",
     "build": "./build.sh",
     "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",
     "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20"

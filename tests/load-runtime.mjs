@@ -72,8 +72,11 @@ export async function loadRuntime() {
 	const cache = {};
 	async function load(spec) {
 		if (cache[spec]) return cache[spec];
-		const src = readFileSync(RUNTIME + spec.replace("runtime/", "") + ".js", "utf8");
-		const mod = new vm.SourceTextModule(src, { context: sandbox, identifier: spec });
+		const file = RUNTIME + spec.replace("runtime/", "") + ".js";
+		const src = readFileSync(file, "utf8");
+		// identifier = real file path so V8/c8 attributes coverage to the source
+		// file (a bare "runtime/flow" id would be invisible to --include globs).
+		const mod = new vm.SourceTextModule(src, { context: sandbox, identifier: file });
 		cache[spec] = mod;
 		await mod.link(load);
 		return mod;
