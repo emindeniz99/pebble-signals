@@ -477,8 +477,12 @@ const Store = class {
 		const b = this.b, off = this.t + 2;
 		const max = b.length - off;	// may be negative when nearly full
 		let len;
-		if (tag !== undefined)
-			len = this.c[tag][0](v, b, off, max < 0 ? 0 : max);
+		if (tag !== undefined) {
+			const codec = this.c && this.c[tag];
+			if (!codec)		// def(tag,...) never registered — fail with a clear signal
+				throw new Error("store: no codec for tag " + tag);
+			len = codec[0](v, b, off, max < 0 ? 0 : max);
+		}
 		else if (typeof v === "number") {
 			if (Number.isInteger(v) && v >= -0x80000000 && v <= 0x7fffffff) {
 				tag = T_I32; len = 4;

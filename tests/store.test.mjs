@@ -107,4 +107,9 @@ const s4 = createStore(512);
 check("string >255 rejected", s4.push("x".repeat(256)) === -1);
 check("255-char string ok", s4.push("y".repeat(255)) === 1 && s4.get(0).length === 255);
 
+// unregistered custom tag fails loud (not a cryptic TypeError)
+let threw = false;
+try { createStore(64).push({}, 200); } catch (e) { threw = /no codec for tag 200/.test(e.message); }
+check("push with unregistered tag throws clear error", threw);
+
 done();
