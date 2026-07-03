@@ -74,7 +74,8 @@ square screenshots below come from identical `.tsx`.
 | `imgwatch` | **animated COLOR bitmap watchface** + HH:MM:SS | bundled bitmaps (png2bmp), `Texture`, frame-swap animation | ✅ `imgwatch-red.png` / `imgwatch-blue.png` | — |
 | `sloth` | **polished animated sloth watchface** 🦥 (soft-shaded 140px emoji, sprite-sheet blink, big one-line HH:MM:SS + date) | one `Texture` sheet, reactive `variant` sprite animation | ✅ `sloth-gabbro-open.png` / `sloth-gabbro-blink.png` | ✅ `sloth-emery-open.png` / `sloth-emery-blink.png` |
 | `slothvec` | **VECTOR sloth watchface** 🦥 (2.8KB PDCS, drawn 2×/120px, SWINGS from the branch AND BLINKS) + one-line HH:MM:SS + date | `SVGImage` + PDC: free scaling, transform animation + native frame sequence, zero pixel RAM | ✅ `slothvec-gabbro.png` / `slothvec-gabbro-blink.png` | ✅ `slothvec-emery.png` / `slothvec-emery-blink.png` |
-| `multiscreen` | 4 screens in one mod | does NOT boot — kept as the arena-OOM artifact | ❌ by design | ❌ |
+| `multilazy` | **lazy multiscreen**: 3 screens, SELECT cycles, ONE built at a time (dispose + on-demand rebuild) | arena holds O(1 screen) — survives repeated full cycles with live bindings | — | ✅ verified (screens cycle, tick binding live after each rebuild) |
+| `multiscreen` | 4 PREBUILT screens in one mod | does NOT boot — kept as the arena-OOM artifact that motivated `multilazy` | ❌ by design | ❌ |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
 83% on gabbro, 84% on emery; the 40-record ramp stays flat on both.

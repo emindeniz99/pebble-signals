@@ -138,3 +138,58 @@ Integration status — **BOTH STAGES SHIPPED and verified on-device**:
 - Snapshot-free hot loops: no for-of/spread/slice in notify/unsubscribe.
 - Numbers over strings in signals; format at the Label binding.
 - Images: pixels in native heap / flash — never in XS (Texture, SVGImage).
+
+
+## Code-review pass (post Stage 1+2) — findings
+
+Reviewed: signals.js, flow.js, jsx-runtime.js, tools/lower.py, build.sh.
+
+- **signals.js**: bit-31 arithmetic verified safe end to end (JS bitwise ops
+  coerce to int32; `Math.clz32` coerces ToUint32 — `1 << 31` masks round-trip
+  correctly through `g.u`/`g.sub`). Quarantine can never hand a live id to a
+  snapshot: allocation excludes `q`, release only at cascade depth 0.
+  `unsubscribe` is O(rows) per effect re-run — deliberate CPU-for-RAM.
+  `dispose()` of ids is idempotent (`!g.eff[d]` guard). One behavioral note:
+  effect ids are recycled, so a stale id held across a dispose could alias a
+  NEW effect — owners drop ids at dispose so the runtime never does this;
+  user code holding raw ids long-term should not either (documented here).
+- **flow.js**: For's swap-pop sweep is correct under downward iteration
+  (swapped-in elements always come from already-visited higher indices).
+  `order` captures node refs before the sweep, so removal cannot skew the
+  position pass. Duplicate-key and dispose semantics covered by tests.
+- **jsx-runtime.js**: no heap regressions; per-binding cost is now thunk
+  closure + reaction closure + packed id (the closures are entries 1-2 on
+  the marginal list below).
+- **lower.py**: string-aware balanced-paren scan; NOT comment- or
+  regex-literal-aware — acceptable for tsc output of this repo's examples
+  (none in init position); the on-device-caught property-access bug
+  (`st.count()` vs a state named `count`) is fixed + selftest-covered.
+- **Gap found and fixed during this pass**: For kept rows in a Map — now
+  parallel arrays (commit 6bdf174).
+
+## Marginal-benefit backlog (ranked: est. saving / effort)
+
+1. **Recycled-row For** (fixed slots + index thunks, VirtualList-style,
+   for row-COUNT-stable reactive lists): kills per-row createRoot + owner
+   record + wrapper + rebuild churn. ~300-500 B/row, effort M.
+   → This is the "I want 5 reactive rows" answer: the forbind5 boot cost
+   is Piu nodes + closures per row, not the reactive graph.
+2. **Shared-binding reaction**: jsx-runtime allocates a reaction closure
+   per binding (`() => setProp(node,key,thunk())`). Store (node,key,thunk)
+   in parallel arrays indexed by effect id + ONE shared reaction that looks
+   up its triple — saves ~2-3 slots (~40 B)/binding. Effort M.
+3. **Owner packing**: each createRoot allocates `{d:[]}` (~4 slots) — For
+   rows each carry one. Parallel-array owner table keyed by root id:
+   ~60 B/root. Effort M.
+4. **esbuild-plugin lowering** (replace tools/lower.py): fold the useState
+   transform into the esbuild step (single build.mjs driving transform +
+   minify) — no python in the pipeline, AST-grade correctness instead of
+   regex. RAM-neutral; tooling robustness win. Effort S-M.
+5. **Stage 3 lowering**: same treatment for bare `signal()`/`computed()`
+   in app code (→ S.sig / plain fn): ~50 B/signal. Effort S.
+6. **Constant tables → preloaded ROM**: DOW/month names etc. as consts in
+   the preloaded runtime instead of app modules: ~50-150 B/app. Effort XS.
+7. **Runtime export pruning**: each export costs alias RAM; audit rarely
+   used exports (useMemo?) once apps stabilize. ~tens of B. Effort XS.
+8. **Flash string catalog** (`strings.dat` + offset table, read in place):
+   only pays off with large static text; none in current examples. Effort M.
