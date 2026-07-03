@@ -29,10 +29,12 @@
 	// implicit-any on purpose — the runtime bodies get full real Piu types when
 	// they convert to .ts (the vendored typings surface e.g. globalThis.local-
 	// Storage typing there, handled properly in the conversion, not suppressed).
+	// Only the files still authored in .js. Converted-to-.ts files are strictly
+	// type-checked by tsconfig.runtime-build.json instead (this lenient guard
+	// retires once the last runtime file is .ts).
 	"include": [
 		"src/embeddedjs/runtime/signals.js",
 		"src/embeddedjs/runtime/flow.js",
-		"src/embeddedjs/runtime/jsx-runtime.js",
 		"src/tsx/globals.d.ts",
 		"src/tsx/host-stub.d.ts"
 	]

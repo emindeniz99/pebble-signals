@@ -5,3 +5,5 @@ src/embeddedjs/runtime-min/
 src/tsx/main.tsx
 src/embeddedjs/manifest.json
 coverage/
+src/embeddedjs/runtime-build/
+src/embeddedjs/runtime-types/

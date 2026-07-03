@@ -135,8 +135,18 @@ fi
 # verbatim copy rather than failing the build.
 MINIFY="${MINIFY:-1}"
 rm -rf src/embeddedjs/app src/embeddedjs/runtime-min
+rm -rf src/embeddedjs/runtime-build src/embeddedjs/runtime-types
+# The runtime is converting to TypeScript one file at a time. Compile any .ts
+# sources to runtime-build/*.js (types erase — behavior-identical to the old
+# hand-written .js, verified emit-diff); files still in .js are used as-is. So
+# the minify input for each module is runtime-build/X.js if it was converted,
+# else runtime/X.js.
+if ls src/embeddedjs/runtime/*.ts >/dev/null 2>&1; then
+	tsc -p tsconfig.runtime-build.json
+fi
 mkdir -p src/embeddedjs/runtime-min
-for f in src/embeddedjs/runtime/*.js; do
+for f in src/embeddedjs/runtime/*.js src/embeddedjs/runtime-build/*.js; do
+	[ -e "$f" ] || continue
 	out="src/embeddedjs/runtime-min/$(basename "$f")"
 	if [ "$MINIFY" = "1" ]; then
 		npx -y esbuild@0.25 "$f" --minify --format=esm --outfile="$out" \

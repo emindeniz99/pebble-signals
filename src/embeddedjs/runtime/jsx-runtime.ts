@@ -3,14 +3,20 @@
 // live effect bindings that assign single Piu properties on change.
 import { effect, track, createRoot } from "runtime/signals";
 
+// A JSX result: a Piu node, a primitive child, an array of them, or nullish.
+// The factory is inherently dynamic (host class OR component fn), so the
+// dispatch boundary is loosely typed — like React's own jsx-runtime.
+type Node = any;
+type Props = Record<string, any>;
+
 // Piu content classes are compartment globals provided by the Alloy host.
 // Hardened JS freezes primordials and can make instanceof unreliable, so
 // host elements are recognized by identity in this registry. Built lazily:
 // this module is PRELOADED (instantiated at build time, stored in flash)
 // and the Piu globals only exist at runtime.
-let PIU = null;
+let PIU: unknown[] | null = null;
 
-function isPiu(type) {
+function isPiu(type: unknown): boolean {
 	if (PIU === null)
 		// a 9-entry array beats a Set on the 32KB arena
 		PIU = [Label, Text, Content, Container, Column, Row, Scroller, Port, Layout].filter(
@@ -19,11 +25,11 @@ function isPiu(type) {
 	return PIU.indexOf(type) >= 0;
 }
 
-export function Fragment(props) {
+export function Fragment(props: Props): Node {
 	return props.children;
 }
 
-export function jsx(type, props) {
+export function jsx(type: any, props: Props): Node {
 	if (isPiu(type)) return createHost(type, props);
 	if (typeof type === "function") return type(props || {});
 	throw new Error("jsx:type");
@@ -45,7 +51,7 @@ const BUTTON_EVENTS = Object.freeze([
 	"onReleaseBack",
 ]);
 
-let pendingFocus = null;
+let pendingFocus: Node = null;
 
 // One shared behavior class; handlers live in instance fields. piu stops
 // button bubbling when the method returns truthy — consume by default,
@@ -55,11 +61,17 @@ let pendingFocus = null;
 // to flash; the previous lazy `class extends Behavior` rebuilt its
 // prototype + 9 methods inside the 32KB arena at runtime.
 class HandlerBehavior {
-	constructor(tap, buttons) {
+	// `declare` = type-only, no field initializer emitted (constructor sets them)
+	declare t: ((content: Node, x: number, y: number) => void) | null;
+	declare b: Record<string, (content: Node) => unknown> | null;
+	constructor(
+		tap: ((content: Node, x: number, y: number) => void) | null,
+		buttons: Record<string, (content: Node) => unknown> | null,
+	) {
 		this.t = tap;
 		this.b = buttons;
 	}
-	onTouchEnded(content, id, x, y) {
+	onTouchEnded(content: Node, _id: number, x: number, y: number) {
 		if (this.t) this.t(content, x, y);
 	}
 }
@@ -68,17 +80,17 @@ class HandlerBehavior {
 // the closures land in flash and the prototype is written before it
 // freezes. ~300B of archive saved over the literal methods.
 for (const n of BUTTON_EVENTS)
-	HandlerBehavior.prototype[n] = function (content) {
+	(HandlerBehavior.prototype as any)[n] = function (this: HandlerBehavior, content: Node) {
 		const h = this.b && this.b[n];
 		return h ? h(content) !== false : false;
 	};
 
-function createHost(type, props) {
-	const dict = {};
-	let bindings = null,
-		tap = null,
-		buttons = null,
-		children,
+function createHost(type: any, props: Props): Node {
+	const dict: Record<string, any> = {};
+	let bindings: any[] | null = null,
+		tap: any = null,
+		buttons: Record<string, any> | null = null,
+		children: Node,
 		focus = false;
 	for (const k in props) {
 		const v = props[k];
@@ -146,7 +158,7 @@ const POSITION_PROPS = Object.freeze([
 ]);
 
 // Actionable bind-time error for a prop that can't be a reactive binding.
-function bindErr(key) {
+function bindErr(key: string): string {
 	if (key === "visible")
 		return "jsx: `visible` can't be reactive (crashes the port) — use <Show> for conditional UI";
 	if (POSITION_PROPS.indexOf(key) >= 0)
@@ -166,11 +178,11 @@ function bindErr(key) {
 
 // createHost guarantees `key` is in REACTIVE_PROPS before it ever calls this, so
 // this is just the write. Kept as a named step so the binding effect reads well.
-function setProp(node, key, value) {
+function setProp(node: any, key: string, value: unknown) {
 	node[key] = value;
 }
 
-export function appendChild(parent, child) {
+export function appendChild(parent: any, child: Node) {
 	if (child === undefined || child === null || child === false || child === true) return;
 	if (Array.isArray(child)) {
 		for (const c of child) appendChild(parent, c);
@@ -207,7 +219,7 @@ export const screen = { width: 0, height: 0 };
 
 // Mount a JSX tree as the Piu application. `build` runs under a root owner;
 // the returned disposer is kept alive for the app's lifetime.
-export function render(build, dict) {
+export function render(build: () => Node, dict?: any): any {
 	const app = new Application(null, dict || {});
 	screen.width = app.width; // screen size is known once the app exists,
 	screen.height = app.height; // before build() runs so it can read it

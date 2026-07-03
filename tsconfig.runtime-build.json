@@ -1,0 +1,40 @@
+{
+	// EMIT pass for the TypeScript runtime: compiles src/embeddedjs/runtime/*.ts
+	// -> plain .js into src/embeddedjs/runtime-build/ (gitignored), which build.sh
+	// then minifies into runtime-min/ (what the manifest ships). Types ERASE —
+	// the emitted .js is behavior-identical to the hand-written .js it replaces
+	// (verified by an emit-diff in build.sh). target es2022 = no downleveling, no
+	// injected helpers, so top-level class/function declarations are preserved
+	// exactly (gotcha 13 alias budget unchanged).
+	//
+	// Cross-runtime imports (`from "runtime/signals"`) resolve against the
+	// `declare module "runtime/*"` blocks in globals.d.ts, so each runtime .ts
+	// type-checks independently of whether its siblings are .ts or .js yet — this
+	// is what lets the conversion proceed one file at a time. Piu host classes
+	// come from the vendored Moddable typings.
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"lib": ["es2022"],
+		"skipLibCheck": true,
+		"types": [],
+		"importHelpers": false,
+		"removeComments": false,
+		"newLine": "lf",
+		// match the hand-written .js: fields are set in the constructor ([[Set]]),
+		// not [[Define]]d — so tsc must NOT emit field initializers (which would
+		// change semantics AND the emit-diff / gotcha-13 alias budget).
+		"useDefineForClassFields": false,
+		"outDir": "src/embeddedjs/runtime-build",
+		"rootDir": "src/embeddedjs/runtime"
+	},
+	"include": ["src/embeddedjs/runtime/**/*.ts"],
+	"files": [
+		"src/tsx/globals.d.ts",
+		"types/moddable/piu/MC.d.ts",
+		"types/moddable/pebble/global.d.ts",
+		"types/moddable/pebble/piu.d.ts"
+	]
+}

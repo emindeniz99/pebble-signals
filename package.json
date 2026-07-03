@@ -40,7 +40,8 @@
     }
   },
   "scripts": {
-    "test": "node tests/signals.test.mjs && node tests/store.test.mjs && node --experimental-vm-modules tests/flow.test.mjs && node --experimental-vm-modules tests/jsx.test.mjs && node --experimental-vm-modules tests/conformance.test.mjs",
+    "build:runtime": "tsc -p tsconfig.runtime-build.json",
+    "test": "npm run build:runtime && node tests/signals.test.mjs && node tests/store.test.mjs && node --experimental-vm-modules tests/flow.test.mjs && node --experimental-vm-modules tests/jsx.test.mjs && node --experimental-vm-modules tests/conformance.test.mjs",
     "typecheck": "tsc -p tsconfig.check.json",
     "typecheck:runtime": "tsc -p tsconfig.runtime-check.json",
     "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/",
@@ -49,7 +50,7 @@
     "lint": "biome lint src/embeddedjs/runtime/ tools/ tests/",
     "check": "biome check src/embeddedjs/runtime/ tools/ tests/",
     "docs": "npx -y -p typedoc@0.28 -p typedoc-plugin-markdown@4 typedoc",
-    "coverage": "c8 --include 'src/embeddedjs/runtime/**' --reporter=text-summary --reporter=text sh -c 'node tests/signals.test.mjs >/dev/null && node tests/store.test.mjs >/dev/null && node --experimental-vm-modules tests/flow.test.mjs >/dev/null && node --experimental-vm-modules tests/jsx.test.mjs >/dev/null && node --experimental-vm-modules tests/conformance.test.mjs >/dev/null'",
+    "coverage": "npm run build:runtime && c8 --include 'src/embeddedjs/runtime/**' --include 'src/embeddedjs/runtime-build/**' --reporter=text-summary --reporter=text sh -c 'node tests/signals.test.mjs >/dev/null && node tests/store.test.mjs >/dev/null && node --experimental-vm-modules tests/flow.test.mjs >/dev/null && node --experimental-vm-modules tests/jsx.test.mjs >/dev/null && node --experimental-vm-modules tests/conformance.test.mjs >/dev/null'",
     "build": "./build.sh",
     "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",
     "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20"

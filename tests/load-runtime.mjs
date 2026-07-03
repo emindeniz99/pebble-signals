@@ -2,11 +2,17 @@
 // mod compartment: piu classes as stubs on the global, "runtime/*" module
 // specifiers resolved to ../src/embeddedjs/runtime/*.js.
 // Run with: node --experimental-vm-modules <test>
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import vm from "vm";
 
 const RUNTIME = fileURLToPath(new URL("../src/embeddedjs/runtime/", import.meta.url));
+// Runtime files that converted to TypeScript are compiled to runtime-build/ by
+// `tsc -p tsconfig.runtime-build.json` (run by the test script before the
+// suites). Prefer the compiled .js when present; fall back to the raw .js for
+// files still authored in JavaScript. This is what lets the runtime convert to
+// TS one file at a time without breaking the vm-sandbox tests.
+const RUNTIME_BUILD = fileURLToPath(new URL("../src/embeddedjs/runtime-build/", import.meta.url));
 
 // ---- piu stubs: enough surface for jsx-runtime/flow (add/remove/insert/
 // replace, first/next walking, construction dicts) ----
@@ -104,7 +110,9 @@ export async function loadRuntime() {
 	const cache = {};
 	async function load(spec) {
 		if (cache[spec]) return cache[spec];
-		const file = RUNTIME + spec.replace("runtime/", "") + ".js";
+		const rel = spec.replace("runtime/", "");
+		const built = RUNTIME_BUILD + rel + ".js"; // tsc-compiled .ts output
+		const file = existsSync(built) ? built : RUNTIME + rel + ".js";
 		const src = readFileSync(file, "utf8");
 		// identifier = real file path so V8/c8 attributes coverage to the source
 		// file (a bare "runtime/flow" id would be invisible to --include globs).
