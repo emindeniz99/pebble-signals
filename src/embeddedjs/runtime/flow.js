@@ -35,6 +35,13 @@ import { appendChild, screen } from "runtime/jsx-runtime";
 //    goes through replace(). Both subtrees stay live — their effects keep
 //    running while off-screen. The right default when memory is tighter
 //    than update cost.
+//
+// PERF: Show is the most expensive control-flow node — a host container plus a
+// per-side wrapper subtree. For a one-widget toggle prefer a reactive string
+// (`string={() => cond() ? a : b}`) — no subtree. Reach for `keepAlive` when
+// the same two sides toggle often (builds both once, swaps by reference — zero
+// allocation per toggle) and for the default rebuild mode when memory is
+// tighter than update cost (only one side is ever allocated).
 export function Show(props) {
 	const host = makeHost(props, Column);
 	if (props.keepAlive) {
@@ -182,6 +189,12 @@ export function For(props) {
 //   rows:   visible row count (default 3)
 //   at:     thunk -> window start index (read a signal inside it to scroll)
 //   format: (value, index) -> string  (default String(value))
+//
+// PERF / LAZY DATA: only `rows` nodes ever exist (recycled), and get(i) is
+// called ONLY for the visible window — so the data source can lazy-fetch or
+// lazy-compute inside get(i) and an "unbounded" list costs O(rows) RAM. Keep
+// `rows` small (each row is live Piu nodes on the 32KB heap); use `format`
+// (one Label/row, cheap) over `renderRow` (a subtree/row) unless you need it.
 // A const arrow, not a `function` declaration (preloaded-module alias rule,
 // gotcha 13). Overscan is intentionally omitted: this port redraws text
 // instantly with no pixel/momentum scroll, so pre-mounting off-screen rows

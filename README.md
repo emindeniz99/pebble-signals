@@ -117,7 +117,21 @@ render(() => (
 ), { skin: new Skin({ fill: "black" }), style: new Style({ font: "24px Gothic", color: "white" }) });
 ```
 
-## Three differences from React
+The example above puts state at **module scope** — that works because
+components run ONCE, so root-level and in-component state behave identically.
+You can also factor UI into components; state lives in whichever component
+owns it and passes down as props (a getter thunk + setter). Arrow
+(`const C = () => …`) and named (`function C() {…}`) components are equivalent
+in an app file — purely stylistic (in a *preloaded* `runtime/*` module,
+top-level `function` is banned, gotcha 13, so `const C = () =>` there). See
+`examples/component.tsx` for both forms.
+
+## Solid-flavored, NOT a React drop-in
+
+This is fine-grained reactivity in the **Solid** model, not React. `useState`
+returns `[getter, setter]` (Solid semantics), components don't re-render, and
+reactive values are thunks — so React code does not port unchanged. Three
+concrete differences:
 
 1. **Components run once.** There is no re-render. A component function
    executes a single time to build real Piu nodes; updates flow through
@@ -127,6 +141,9 @@ render(() => (
 3. **Pass reactive values as thunks and don't destructure reactive props.**
    `string={() => "c" + count()}` creates a live binding;
    `string={"c" + count()}` bakes in the value at build time forever.
+
+Full hook/primitive parity table (what we have, what we skip, and why) is in
+[`docs/api-parity.md`](docs/api-parity.md).
 
 ## Architecture
 

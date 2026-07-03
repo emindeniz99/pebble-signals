@@ -421,6 +421,11 @@ export function useEffect(fn) {
 	}));
 }
 
+// PERF: like computed(), this allocates ONE internal effect to keep the
+// derived value live. Cheap (effect ids are integers, and the cap is now
+// unlimited — #21), but a screen with dozens of useMemo/computed pays one
+// effect each; prefer a plain thunk `() => a() + b()` when you don't need the
+// value cached across reads.
 export function useMemo(fn) {
 	const c = computed(fn);
 	return () => c.value;
