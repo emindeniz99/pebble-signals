@@ -292,3 +292,22 @@ no-node_modules build; (2) the transform is ~180 lines, works, and is
 fully selftest-guarded; (3) ts-morph would mostly save the Program/host
 boilerplate (~15 lines) — cosmetic, not a fragility fix. Revisit only if
 the lowering grows to multiple transforms or needs cross-file type flow.
+
+## Future / maybe (noted, not scheduled)
+
+- **Recursive alias-following in lowering**: today `const p = setX` bails the
+  pair. Could follow p's uses and lower them too — but requires whole-program
+  flow analysis and is undecidable in the dynamic case (Rice's theorem: "what
+  is this value at runtime" is not generally computable). Alias chains blur
+  fast. HARD, low value (aliasing is rare), high risk. Revisit only with a
+  real need + a bounded, provable analysis.
+- **Type-directed storage (revives #17)**: the runtime-tag split was rejected
+  (hurts strings), but the COMPILER knows the type — `useState(0):number` can
+  lower to a typed-array-backed numeric signal (8 B chunk, no tag), strings
+  stay generic, `any` stays generic. Each optimal, no runtime branch. Win is
+  small (~8 B chunk / numeric signal) but positive. Needs the checker's
+  getTypeAtLocation (works for primitive literals even without lib). Do it
+  when we want maximal optimization; low priority.
+- **ts-morph**: revisit if lowering grows to multiple transforms or needs
+  cross-file type flow — then evaluate ts-morph / jscodeshift for the best
+  ergonomics (see #20).
