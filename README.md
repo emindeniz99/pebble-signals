@@ -54,6 +54,20 @@ apps, selected at build time:
 APP=clock ./build.sh && pebble install --emulator gabbro
 ```
 
+### Build flags
+
+All optimizations are **default-on and self-disabling** — the safe, lean
+build needs no flags; each flag exists to turn an optimization *off* (for
+debugging) or *force* it past its self-disable.
+
+| Flag | Default | What it does |
+|------|:---:|--------------|
+| `APP=<name>` | `list` | which `src/tsx/examples/<name>.tsx` to build |
+| `MINIFY` | `1` | esbuild minify (DCE + identifier mangling) on the runtime and the bundled app. `MINIFY=0` ships **readable** modules for debugging — correctness is identical. Self-disables to a verbatim copy if esbuild is missing. |
+| `TREESHAKE` | `1` | prune the manifest to the runtime modules the app actually imports (a pure-signal watchface drops `runtime/flow` from preload). **Self-disables** when the app uses a dynamic `import()`/`importNow()` the static scan can't follow — pruning could drop a module reached at runtime. `TREESHAKE=0` forces the full runtime; `TREESHAKE_FORCE=1` prunes anyway. |
+| `BUNDLE` | `all` | app-submodule strategy. `all` inlines the app's own `./`-imports into `main.js` (loaded into the 32KB heap). `preload` targets a large static shared submodule frozen into ROM — its device-verified realization is the lazy-import path in `multilazy.tsx` (build.sh points there rather than ship an unmeasured eager-preload path, Rule 2). `runtime/*` is always left external/preloaded in both. |
+| `SKIP_FONTCHECK` | `0` | skip the compile-time Pebble system-font validation (gotcha 20). Set to `1` for custom/new fonts. |
+
 Every app below is verified on BOTH watches — **gabbro** (Round 2, round
 260×260) and **emery** (Time 2, square 200×228) — from the SAME source,
 with no per-platform code. Layout is fill-based (`left/right/top/bottom
