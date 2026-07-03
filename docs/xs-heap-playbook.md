@@ -204,8 +204,8 @@ standard low-hardware toolkit, with the remaining gaps as tracked tasks:
 
 | Technique | Status | Gap → task |
 |---|---|---|
-| Structure-of-Arrays | partial | numeric signal values still a boxed JS array → **#17** |
-| Object pooling / recycling | partial | VirtualList yes; For rows / Show subtrees not → **#18** |
+| Structure-of-Arrays | ✓ (graph) | numeric value split ANALYZED → net-negative, see #17 |
+| Object pooling / recycling | ✓ (rows) | VirtualList recycles; 5-live-rows proven (#18); dynamic-For subtree pool still open |
 | Flyweight (share immutable) | partial | HandlerBehavior yes; per-binding reaction closure not → **#19** |
 | SoA — owner records | ✗ | createRoot `{d:[]}` per root → **#19** |
 | Compile-time codegen | partial | useState lowered; signal()/computed not → **#19** |
@@ -222,3 +222,27 @@ graph (ids are still allocated at runtime), so unlike react-pebble's
 compile-away-reactivity model we keep 100% runtime dynamism. A pair that
 can't be proven safe (getter/setter used as a first-class value) simply
 BAILS to the object API — correctness always wins over the optimization.
+
+
+## #17 typed numeric signal storage — ANALYZED, REJECTED (net-negative)
+
+Considered storing packed-signal values in a `Float64Array` (numeric) +
+side-table (non-numeric) instead of the current `G.val = []` JS array.
+Rejected on architectural analysis:
+
+- Packed-signal values ALREADY live in the CHUNK heap, not the scarce slot
+  heap: XS stores JS-array elements in the array's contiguous items chunk
+  (~16 B/element, numbers stored inline). The big win — deleting the Signal
+  OBJECT (~3 slots) — is already banked by Stage 2. So a typed split can
+  only shave chunk bytes, never slots.
+- Numeric element: 16 B → 8 B (`num`) + 1 B (`tag`) = 9 B, saving ~7 B.
+- Non-numeric element (STRINGS — every watchface's time/date signals): the
+  8 B `num` slot is wasted PLUS the value still needs its side-table
+  reference (~16 B) PLUS the tag → ~25 B vs 16 B, WORSE by ~9 B.
+- Our real workload is string-heavy (`hm`, `day` in sloth; time strings
+  everywhere) with a few numeric counters, so the split is a wash-to-loss.
+
+Verdict: not worth the parallel-array + tag complexity for a chunk-only,
+possibly-negative delta. The SoA win that mattered (indices instead of
+objects for the graph) is done. Effort reallocated to #18/#19 (real slot
+wins). Recorded per Rule 2 (don't ship an unmeasured/negative change).

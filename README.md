@@ -68,6 +68,7 @@ square screenshots below come from identical `.tsx`.
 | `counter` | classic up/down counter | `useState` + button handlers | ✅ `ex-counter.png` | ✅ `em-counter.png` |
 | `toggle` | ON/OFF with live skin+style flip | reactive `skin`/`style` setProp path | ✅ `ex-toggle-on.png` | ✅ `em-toggle-on.png` |
 | `forbind` | 3 reactive `For` rows (gotcha-16 testbed) | reactive bindings INSIDE For rows | ✅ `ex-forbind-boot.png` / `ex-forbind-updated.png` | ✅ `em-forbind.png` |
+| `forbind5vl` | **5 LIVE reactive rows** via recycled `VirtualList` cells | recycling beats keyed `For` at the ceiling: raw `For` over 5 rows fxAborts, these 5 update live | — | ✅ `forbind5vl-emery.png` |
 | `scroll` | **virtualized infinite scroll** via `VirtualList` | windowing + cell recycling + scroll offset | ✅ `scroll-gabbro-*.png` | ✅ `scroll-emery-*.png` |
 | `richlist` | **rich recycled rows** (`renderRow`): 2-column row, 1 visible, scrollable | multi-element rows, not just text | ✅ `richlist-gabbro-*.png` | ✅ `richlist-emery-*.png` |
 | `slothface` | **animated sloth watchface** 🦥 (text-frame animation + clock) | timer-driven frame animation via signals | ✅ `slothface-*.png` (awake/blink/sleepy) | — |
