@@ -511,10 +511,30 @@ free. To go glitch-free we add only:
 No per-edge objects, no linked lists, no topological sort — the recursion in
 recompute is the sort. Cost: **~+4 B per signal and per computed + one global
 bitmask.** This is the minimum known glitch-free construction and drops onto the
-existing masks. NOT YET IMPLEMENTED — measure the slot delta on-device (now the
-emulator is healthy) before committing; the eager core is correct-on-converge
-and cheaper, so the trade is glitch-freedom vs a few bytes/node + the lazy-read
-path complexity. Decision pending.
+existing masks.
+
+**MEASUREMENT (prototype, `tools/glitch-prototype.mts`, node:test — PROVEN).**
+A standalone implementation of the design demonstrates the fix: the diamond
+sink runs **once, straight to the correct value** (`seen === [4, 31]`) where the
+shipped eager core produces `[4, 13, 31]` (two runs, one transient glitch). So
+the design is validated end-to-end.
+
+Building the prototype surfaced the real integration shape (and cost): glitch-
+freedom needs (a) lazy computeds (recompute-on-read, pull sources first) AND (b)
+an **always-coalesced notify** — every write defers + dedupes its subscriber
+notifications so a sink reached by two paths runs once. We already have the
+coalescing machinery (`batch()` unions subscriber masks); the change is to route
+the normal `flush()` through it always, plus per-computed dirty/version state.
+Estimated ~+4 B/computed + a global dirty word + ~30–50 lines (minified a few
+hundred bytes). The remaining unknown is the on-device HEAP delta and any
+notify-path perf cost — the emulator is currently too flaky to measure cleanly
+(flow-apps won't launch, #29).
+
+DECISION: **design proven + byte cost estimated; integration into the shipped
+core is deferred to a stable-emulator session** (it changes the reactivity hot
+path, so Rule 2 wants a device measurement, and the eager core is correct-on-
+converge + cheaper). The prototype + this spec are the ready-to-integrate
+artifact. When integrated, flip conformance law 12 to MATCH.
 
 ## Emulator stability note (session finding)
 
