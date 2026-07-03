@@ -41,7 +41,7 @@
   },
   "scripts": {
     "build:runtime": "tsc -p tsconfig.runtime-build.json",
-    "test": "npm run build:runtime && node tests/signals.test.mjs && node tests/store.test.mjs && node --experimental-vm-modules tests/flow.test.mjs && node --experimental-vm-modules tests/jsx.test.mjs && node --experimental-vm-modules tests/conformance.test.mjs",
+    "test": "npm run build:runtime && node tests/signals.test.mjs && node tests/store.test.mjs && node --experimental-vm-modules tests/flow.test.mjs && node --experimental-vm-modules tests/jsx.test.mjs && node --experimental-vm-modules tests/conformance.test.mjs && node --test tests/tools.test.mts",
     "typecheck": "tsc -p tsconfig.check.json && tsc -p tsconfig.runtime-build.json",
     "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/",
     "format:c": "clang-format -i src/c/*.c",

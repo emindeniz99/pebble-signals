@@ -22,31 +22,9 @@ APP="${APP:-list}"
 # references (each mapped to assets/x), so an app bundles exactly the bitmaps
 # it names and nothing else. manifest.json is build-generated (gitignored).
 cp src/embeddedjs/manifest.base.json src/embeddedjs/manifest.json
-APP_SRC="src/tsx/examples/$APP.tsx" python3 - <<'PY'
-import json, os, re
-src = open(os.environ["APP_SRC"]).read()
-p = "src/embeddedjs/manifest.json"; m = json.loads(open(p).read())
-changed = False
-# bitmaps: derive resources from `new Texture("x.png")` (png2bmp pipeline)
-tex = re.findall(r'new\s+Texture\(\s*["\']([^"\']+?)(?:\.png)?["\']', src)
-if tex:
-	seen, res = set(), []
-	for n in tex:
-		if n not in seen:
-			seen.add(n); res.append("../../assets/" + n)
-	m["resources"] = {"*": res}; changed = True
-# vector: bundle any referenced `*.pdc` file verbatim as `data`, read on the
-# watch via `new Resource("x.pdc")` (SVGImage path route).
-pdc = re.findall(r'["\']([^"\']+?\.pdc)["\']', src)
-if pdc:
-	seen, data = set(), []
-	for n in pdc:
-		if n not in seen:
-			seen.add(n); data.append("../../assets/" + n)
-	m["data"] = {"*": data}; changed = True
-if changed:
-	open(p, "w").write(json.dumps(m, indent="\t") + "\n")
-PY
+# Derive image (Texture) + vector (pdc) resources from the app source. Ported
+# from a Python heredoc to a testable TS module (Node runs .mts natively).
+node tools/gen-manifest.mts "src/tsx/examples/$APP.tsx" src/embeddedjs/manifest.json
 # Per-app runtime tree-shaking. The runtime modules are frozen into ROM by
 # `preload`, and every preloaded module still costs a few XS aliases at boot.
 # An app that never imports runtime/flow (a pure-signal watchface) does not
@@ -71,61 +49,14 @@ if [ "$TREESHAKE" = "1" ] && grep -Eq 'import(Now)?\s*\(' "src/tsx/examples/$APP
 	TREESHAKE=0
 fi
 if [ "$TREESHAKE" = "1" ]; then
-	APP_SRC="src/tsx/examples/$APP.tsx" python3 - <<'PY'
-import json, os, re
-src = open(os.environ["APP_SRC"]).read()
-p = "src/embeddedjs/manifest.json"; m = json.loads(open(p).read())
-# runtime dependency graph (intra-runtime imports)
-deps = {
-	"runtime/signals": set(),
-	"runtime/jsx-runtime": {"runtime/signals"},
-	"runtime/flow": {"runtime/signals", "runtime/jsx-runtime"},
-}
-seed = set(re.findall(r'from\s+["\'](runtime/[a-zA-Z0-9_-]+)["\']', src))
-need, stack = set(), list(seed)
-while stack:
-	mod = stack.pop()
-	if mod in need or mod not in deps:
-		continue
-	need.add(mod)
-	stack.extend(deps[mod])
-keep = {"main"} | need
-before = set(m.get("modules", {}))
-m["modules"] = {k: v for k, v in m["modules"].items() if k in keep}
-m["preload"] = [x for x in m.get("preload", []) if x in need]
-open(p, "w").write(json.dumps(m, indent="\t") + "\n")
-dropped = sorted(before - keep)
-print("treeshake: kept " + ",".join(sorted(need)) + ("; dropped " + ",".join(dropped) if dropped else "; nothing to drop"))
-PY
+	node tools/treeshake.mts "src/tsx/examples/$APP.tsx" src/embeddedjs/manifest.json
 fi
 # Font sanity check (gotcha 20): an invalid font string renders NOTHING —
 # blank text, no error, hours lost. Validate every `font:` literal in the app
 # source against the Pebble system-font table at COMPILE time and fail loud.
 # Escape hatch for custom/new fonts: SKIP_FONTCHECK=1.
 if [ "${SKIP_FONTCHECK:-0}" != "1" ]; then
-	APP_SRC="src/tsx/examples/$APP.tsx" python3 - <<'PY'
-import os, re, sys
-src = open(os.environ["APP_SRC"]).read()
-# Pebble system fonts reachable via piu "['bold '][N]px Family" strings.
-# (family, size, bold?) — from the official FONT_KEY_* table.
-VALID = set()
-for n in (14, 18, 24, 28):
-	VALID.add(("gothic", n, False)); VALID.add(("gothic", n, True))
-VALID |= {("bitham", 30, True), ("bitham", 42, True), ("bitham", 42, False),
-	("roboto", 21, False), ("roboto", 49, True), ("droid", 28, True)}
-bad = []
-for m in re.finditer(r'font:\s*["\'](?:(bold)\s+)?(\d+)px\s+([A-Za-z]+)["\']', src):
-	bold, size, fam = m.group(1) is not None, int(m.group(2)), m.group(3).lower()
-	if (fam, size, bold) not in VALID:
-		bad.append(m.group(0))
-if bad:
-	print("FONTCHECK FAIL (gotcha 20 — invalid font renders BLANK, no error):", file=sys.stderr)
-	for b in bad:
-		print("  " + b + "  <- not a Pebble system font key", file=sys.stderr)
-	print("  valid: [bold] 14|18|24|28px Gothic, bold 30px Bitham, [bold] 42px Bitham,", file=sys.stderr)
-	print("         21px Roboto, bold 49px Roboto, bold 28px Droid  (SKIP_FONTCHECK=1 to override)", file=sys.stderr)
-	sys.exit(1)
-PY
+	node tools/fontcheck.mts "src/tsx/examples/$APP.tsx" || exit 1
 fi
 # Minify (DCE + identifier mangling) is DEFAULT ON — it buys back ~370B of the
 # ~15.9KB startup ceiling (gotcha 15) and dead-code-eliminates unused runtime
