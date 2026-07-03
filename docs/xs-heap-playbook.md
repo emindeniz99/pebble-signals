@@ -346,3 +346,53 @@ a screen STACK where only the TOP screen is built, so the node/effect arena is
 O(1) at any depth (Node-verified, tests/flow.test.mjs). Layering `importNow`
 per screen (code lazy-loaded from flash on first push) is the natural next
 step; the bytecode already lives in flash regardless.
+
+## #30 re-analysis — type-directed numeric storage (revive #17)
+
+The idea: the compiler knows `useState(0)` is `number`, so route numeric
+signals to a `Float64Array` (8B, contiguous, no per-slot tag) instead of the
+shared `g.val` JS array (~16B/slot on XS), with NO runtime type tag. Attractive
+because it dodges #17's original objection (a runtime tag hurting strings).
+
+Re-analyzed against the ACTUAL packed layout — it does not cleanly pay:
+
+- **Shared-id double-waste.** Every packed signal draws a unique row id from
+  `grow()` (that id is also its `g.sub` subscription row). If numeric values
+  live in a `Float64Array` indexed by that same id and non-numeric values in
+  `g.val` indexed by the same id, then BOTH arrays must be sized to the max id
+  — a numeric row wastes a `val` slot and a non-numeric row wastes an `fval`
+  slot. Net: +8B per NON-numeric signal to save ~8B per numeric one. Only wins
+  when numeric signals outnumber non-numeric, and even then the fixed second
+  array eats the margin at the 2-4-signal scale a watch app actually has.
+- **Separate id spaces cost more.** Giving numeric signals their own dense
+  `Float64Array` index (no wasted slots) breaks the shared subscription graph:
+  a numeric signal would need BOTH a sub-row id and an fval index, i.e. two
+  numbers per signal + a mapping on the get/set hot path. Worse than the box
+  it removes.
+- **The one clean variant is a behavior TRADE, not a win.** Make `g.val` a
+  `Float64Array` by default and BAIL every non-numeric `signal()`/`useState`
+  to the object API (a real `Signal`, unlowered). No double-waste, no routing.
+  But then string/boolean signals lose packing (back to a ~4-slot Signal
+  object) — a numeric-heavy app wins, a string-heavy app loses. Compile-time
+  types remove the tag but NOT this storage-routing/sizing cost, which was #17's
+  real reason for rejection.
+
+Decision: keep #17's verdict. The dominant win (deleting the Signal object)
+is already shipped in the packed core; ~8B/numeric-signal on top is not worth
+the double-waste or the get/set-path mapping on a 2-4-signal watch app. If a
+genuinely numeric-heavy app appears, revisit the `Float64Array`-default +
+string-bail variant behind a build flag (like TREESHAKE) and MEASURE it there.
+
+## Emulator stability note (session finding)
+
+The QEMU/pypkjs emulator in this environment wedges easily under install
+churn: a 2nd `pebble install` onto a running emulator, or several
+reset+install cycles in a row, leaves it unable to render EVEN a known-good
+app (screenshot/ping time out). `tools/reset-emulator.sh` + a single cold
+install is the only reliable path, and even that intermittently needs the
+documented retry. Consequence: some device conclusions this session
+(notably the Navigator "swapped-screen reactive binding crashes" claim, #29)
+are UNCONFIRMED — they may be emulator flakiness, not real crashes. #29 needs
+a stable emulator to settle: reset, single-install a minimal reactive-
+Navigator app, and only then trust the result. Do not chase it on a wedged
+emulator.
