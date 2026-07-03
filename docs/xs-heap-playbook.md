@@ -95,20 +95,34 @@ numeric signals (clocks, counters, offsets — our dominant load) get the
 full win. Cap: 32 effects per u32 word; tier to N words if ever needed
 (largest example uses ~6 effects).
 
-Integration status: **Stage 1 INTEGRATED** (runtime-internal; zero DX
-change): `effect()` now returns a packed integer id, the Effect object and
-its dependency array are gone, subscriptions are one u32 word per signal
-row (lazy, stride 1, cap 32 live effects), freed ids quarantine during a
-notification cascade so snapshot masks can never run a reused id. Signals
-keep the `.value` object API (their objects go in Stage 2). Full Node
-suite passes (96/96). On-device (emery, pre-trim build): slotbench
-marginal cost 273 → 178 B/pair (−35%), capacity 20 → 22 pairs; the
-fixed-overhead trim (single-word masks, lazy cln, 8-row initial table)
-landed after that run. VERIFICATION DEBT: example re-runs (forbind/list)
-+ post-trim ramp are pending — the QEMU emulators wedged (frozen first
-boot on both platforms) at the end of the session. An earlier forbind
-"crash" observation is CONFOUNDED (the firmware was on its recovery
-screen from a prior ramp death — gotcha 1), so treat it as unproven.
+Integration status — **BOTH STAGES SHIPPED and verified on-device**:
+- **Stage 1** (99e8184): `effect()` returns a packed integer id; the
+  Effect object + dependency array are gone; subscriptions are one u32
+  word per lazy signal row (cap 32 live effects, `fx:max` loud); ids
+  freed mid-cascade are quarantined so snapshot masks never run a reused
+  id. Measured (emery ramp): marginal cost 273 → **176 B/pair (−36%)**,
+  capacity 20 → **24 pairs**.
+- **Stage 2** (206f46d): packed signals — an INTEGER id indexing `G.val`
+  (1 slot per value, no Signal object, no getter/setter closures) via the
+  `S` API, produced by **compile-time lowering** (`tools/lower.py`,
+  between tsc and esbuild): `const [x,setX] = useState(v)` → `S.sig`,
+  `x()` → `S.get(x)`, `setX(e)` → `S.set(x, e)`. Authoring DX unchanged;
+  aliased getters/setters bail to the object API, property calls like
+  `st.count()` are protected (caught on-device, selftest-covered).
+- **On-device verification (emery)**: forbind 3 reactive rows ✅ (the
+  earlier "crash" was confirmed to be recovery-screen contamination —
+  after a FULL emulator state wipe incl. persist dirs it boots and
+  updates), list with store + localStorage persistence ✅ (lowered),
+  counter ✅ (lowered), sloth watchface ✅ (3 pairs lowered), post-trim
+  slotbench ramp ✅. forbind5 (5 reactive rows) still exceeds the boot
+  ceiling — the row cost is dominated by Piu nodes + closures, not the
+  reactive graph. Node suites: 102/102 + `lower.py --selftest`.
+- **Emulator recovery recipe** (the wedge was NOT the SPI flash): kill
+  qemu+pypkjs, then delete the WHOLE per-platform persist dir
+  (`~/.local/share/pebble-sdk/4.17/<platform>/` — app_cache,
+  localstorage, timeline.db AND flash) plus `/tmp/pb-emulator.json`;
+  a corrupted persist dir freezes fresh first-boots at the progress
+  bar.
 
 ## Standing tricks (quick list)
 
