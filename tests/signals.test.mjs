@@ -169,4 +169,40 @@ rootDispose();
 S.set(rbase, 3);
 check("S.computed dead after root dispose", cRuns === 2);
 
+// 15. effect cap lifted (#21): >32 simultaneous live effects. The subscriber
+// mask, used/quarantine sets grow from one u32 word to a multi-word stride
+// once the 33rd effect is allocated. Verifies independent firing across word
+// boundaries, a single signal watched by effects spanning >1 word, and that
+// disposing a high-id effect frees its slot for reuse.
+const N = 50;
+const sigs = [], fires = new Array(N).fill(0), effs = [];
+for (let k = 0; k < N; k++) {
+	const s = signal(k);
+	sigs.push(s);
+	effs.push(effect(() => { s.value; fires[k]++; }));	// each watches its OWN signal
+}
+check("50 effects all ran once (crossed 32 cap)", fires.every(f => f === 1));
+for (let k = 0; k < N; k++) sigs[k].value = 1000 + k;
+check("50 effects re-fire independently across words", fires.every(f => f === 2));
+
+// one signal watched by 40 effects — subscriber mask spans >1 word
+const shared = signal(0);
+let sharedCount = 0;
+const shEffs = [];
+for (let k = 0; k < 40; k++) shEffs.push(effect(() => { shared.value; sharedCount++; }));
+sharedCount = 0;
+shared.value = 1;
+check("40 effects on one signal all fire (cross-word subscriber mask)", sharedCount === 40);
+
+// dispose a high-id effect; a fresh effect reuses a freed slot and still fires
+dispose(shEffs[39]);
+const reused = effect(() => { shared.value; sharedCount++; });	// reclaims a freed id, runs once
+sharedCount = 0;						// count only the notification pass
+shared.value = 2;
+check("high-id dispose frees slot; reused effect keeps live count at 40", sharedCount === 40);
+
+for (const e of effs) dispose(e);
+for (let k = 0; k < 39; k++) dispose(shEffs[k]);
+dispose(reused);
+
 done();

@@ -19,10 +19,16 @@ let current = -1;	// id of the running effect, -1 = none
 // created state record (a preload-time buffer would be frozen into ROM):
 //   eff[id]  reaction fn (null = disposed — doubles as the zombie guard)
 //   cln[id]  optional useEffect cleanup
-//   sub      Uint32Array, 2 words per SIGNAL row = 64 effect bits;
+//   sub      Uint32Array, `st` words per SIGNAL row (32 effect bits each);
 //            subscribe is one OR — and the old per-effect dependency
 //            array is GONE: reverse edges are implied by the forward
 //            masks, so unsubscribe is one AND-NOT pass over the rows.
+//   u/q      word 0 of the used / quarantined effect-id sets (effects
+//            0-31, the fast path); uh/qh hold words 1..st-1 and stay null
+//            until a 33rd live effect forces the stride to grow (#21).
+//   st       stride: words per signal row AND (1 + uh.length). Starts at 1
+//            (single-word core, zero overhead); grows lazily so apps with
+//            <=32 effects pay nothing.
 // Freed ids are QUARANTINED while a notification cascade is running
 // (dep > 0): a set() snapshots masks by value, so without quarantine a
 // stale bit could run a freshly reused id.
@@ -31,32 +37,62 @@ let G = null;
 const gi = () => {
 	let g = G;
 	if (g === null)		// lazy: a preload-time table would be frozen in ROM
-		G = g = { eff: [], cln: null, val: [], sub: new Uint32Array(8), n: 0, u: 0, q: 0, dep: 0 };
+		G = g = { eff: [], cln: null, val: [], sub: new Uint32Array(8),
+			cap: 8, st: 1, n: 0, u: 0, q: 0, uh: null, qh: null, dep: 0 };
 	return g;
 };
 
-const grow = (g) => {	// allocate one subscription row
+const grow = (g) => {	// allocate one subscription row (st words wide)
 	const i = g.n++;
-	if (i >= g.sub.length) {
-		const s2 = new Uint32Array(g.sub.length << 1);
+	if (i >= g.cap) {	// rows packed contiguously — a flat copy preserves layout
+		const nc = g.cap << 1;
+		const s2 = new Uint32Array(nc * g.st);
 		s2.set(g.sub);
 		g.sub = s2;
+		g.cap = nc;
 	}
 	return i;
 };
 
-const flush = (g, w) => {	// notify every effect bit in snapshot w
+// Widen the stride by one word: every signal row gains a word and the
+// used/quarantine hi-word arrays extend. O(rows) copy, run only when the
+// live-effect count crosses a 32-bit boundary (32, 64, ...), so amortized
+// to nothing. Preserves each row's existing words in place.
+const growStride = (g) => {
+	const os = g.st, ns = os + 1;
+	const nsub = new Uint32Array(g.cap * ns);
+	for (let r = 0; r < g.n; r++)
+		for (let w = 0; w < os; w++)
+			nsub[r * ns + w] = g.sub[r * os + w];
+	g.sub = nsub;
+	if (g.uh === null) { g.uh = new Uint32Array(1); g.qh = new Uint32Array(1); }
+	else {
+		const u2 = new Uint32Array(ns - 1); u2.set(g.uh); g.uh = u2;
+		const q2 = new Uint32Array(ns - 1); q2.set(g.qh); g.qh = q2;
+	}
+	g.st = ns;
+};
+
+const flush = (g, i) => {	// notify every subscriber of signal row i
 	g.dep++;
 	try {
-		while (w) {
-			const b = w & -w;
-			w &= w - 1;
-			notify(31 - Math.clz32(b));
+		const st = g.st, base = i * st, sub = g.sub;
+		for (let wi = 0; wi < st; wi++) {	// one iteration when st === 1
+			let w = sub[base + wi];		// snapshot this word by value
+			const off = wi << 5;
+			while (w) {
+				const b = w & -w;
+				w &= w - 1;
+				notify(off + 31 - Math.clz32(b));
+			}
 		}
 	} finally {
 		if (--g.dep === 0) {	// cascade over: release quarantined ids
 			g.u &= ~g.q;
 			g.q = 0;
+			const uh = g.uh;
+			if (uh !== null)
+				for (let k = 0; k < uh.length; k++) { uh[k] &= ~g.qh[k]; g.qh[k] = 0; }
 		}
 	}
 };
@@ -78,7 +114,7 @@ class Signal {
 			let i = this.i;
 			if (i < 0)
 				i = this.i = grow(g);
-			g.sub[i] |= 1 << current;
+			g.sub[i * g.st + (current >> 5)] |= 1 << (current & 31);
 		}
 		return this.v;
 	}
@@ -89,12 +125,7 @@ class Signal {
 		const i = this.i;
 		if (i < 0)		// never subscribed
 			return;
-		const g = G;
-		// snapshot BY VALUE: subscriber mutation during notification cannot
-		// touch it, and quarantine makes stale bits harmless (see above)
-		const w = g.sub[i];
-		if (w)
-			flush(g, w);
+		flush(G, i);	// flush snapshots each subscriber word by value (see above)
 	}
 }
 
@@ -137,9 +168,10 @@ function unsubscribe(e) {
 		g.cln[e] = null;
 		c();
 	}
-	const sub = g.sub, m = ~(1 << e), rows = g.n;
+	// effect e lives in word (e>>5) of every row; clear just that word.
+	const sub = g.sub, st = g.st, word = e >> 5, m = ~(1 << (e & 31)), rows = g.n;
 	for (let s = 0; s < rows; s++)
-		sub[s] &= m;
+		sub[s * st + word] &= m;
 }
 
 export function signal(value) {
@@ -162,7 +194,7 @@ export const S = {
 	},
 	get(i) {
 		if (current >= 0 && G.eff[current])
-			G.sub[i] |= 1 << current;
+			G.sub[i * G.st + (current >> 5)] |= 1 << (current & 31);
 		return G.val[i];
 	},
 	set(i, v) {
@@ -172,9 +204,7 @@ export const S = {
 		if (v === g.val[i])
 			return;
 		g.val[i] = v;
-		const w = g.sub[i];
-		if (w)
-			flush(g, w);
+		flush(g, i);
 	},
 	// Packed computed: one value slot + one effect that recomputes into it.
 	// Reads (S.get) track the slot; when fn's deps change the effect re-runs
@@ -195,12 +225,30 @@ export const S = {
 // whose owner terminates closures and ids alike).
 export function effect(fn) {
 	const g = gi();
-	const m = ~(g.u | g.q);
-	if (!m)
-		throw new Error("fx:max");	// 32 live effects (one mask word)
-	const b = m & -m;
-	const e = 31 - Math.clz32(b);
-	g.u |= b;
+	let e;
+	const m0 = ~(g.u | g.q);		// word 0 — the fast path (effects 0-31)
+	if (m0) {
+		const b = m0 & -m0;
+		e = 31 - Math.clz32(b);
+		g.u |= b;
+	} else {
+		// word 0 full: scan hi-words, else widen the stride by one word
+		let wi = 1;
+		for (; wi < g.st; wi++) {
+			const mh = ~(g.uh[wi - 1] | g.qh[wi - 1]);
+			if (mh) {
+				const b = mh & -mh;
+				e = (wi << 5) + 31 - Math.clz32(b);
+				g.uh[wi - 1] |= b;
+				break;
+			}
+		}
+		if (wi === g.st) {		// all words full — grow, take bit 0 of the new word
+			growStride(g);
+			g.uh[wi - 1] |= 1;
+			e = wi << 5;
+		}
+	}
 	g.eff[e] = fn;
 	run(e);
 	return e;
@@ -218,11 +266,12 @@ export function dispose(d) {
 		return;
 	g.eff[d] = null;	// run() becomes a no-op — no resurrection
 	unsubscribe(d);
-	const b = 1 << d;
-	if (g.dep > 0)		// freed mid-cascade: quarantine until it completes
-		g.q |= b;
-	else
-		g.u &= ~b;
+	const word = d >> 5, b = 1 << (d & 31);
+	if (g.dep > 0) {	// freed mid-cascade: quarantine until it completes
+		if (word === 0) g.q |= b; else g.qh[word - 1] |= b;
+	} else {
+		if (word === 0) g.u &= ~b; else g.uh[word - 1] &= ~b;
+	}
 }
 
 // Eager computed. The internal effect is registered with the current owner
