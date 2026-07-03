@@ -38,7 +38,29 @@ with Solid's primitives, not identical signatures to React's.
 
 Because `useState` returns `[getter, setter]` (Solid semantics) and components
 don't re-run, React code does NOT port unchanged. Don't advertise React
-compatibility; advertise **Solid-style fine-grained reactivity on Piu**. A
-future "conformance suite" could port Solid's reactivity/batch/cleanup
-behavior specs against our API to *prove* the semantics match — but React's
-own test-utils assume React runtime + DOM and won't run against us.
+compatibility; advertise **Solid-style fine-grained reactivity on Piu**.
+
+## Conformance suite — the parity claim is CHECKED
+
+`tests/conformance.test.mjs` runs our runtime through 12 canonical
+fine-grained-reactivity laws and records, per law, how Solid / Preact-signals /
+React behave. We can't take those libraries as deps (no-node_modules build, the
+32KB ethos, the release-age cooldown), so the reference column is each
+primitive's documented contract encoded as data next to the executable check.
+
+Result: **10 laws MATCH Solid** (auto-tracking, no-run-for-unread, dynamic
+re-tracking of conditional deps, computed memoization + recompute, untrack,
+batch coalescing, cleanup ordering, owner disposal) and **2 intentionally
+DIVERGE**:
+
+- **Components run exactly once** — the structural break from React (which
+  re-renders). This is *why* `useState` is `[getter, setter]`.
+- **Push notify is NOT glitch-free** — a diamond (A→B, A→C, D reads B+C) re-runs
+  the sink D twice on an A change, transiting one glitched value before settling
+  correct. Solid and Preact are glitch-free (D runs once). The tradeoff is
+  deliberate: on a 2–4-signal watch the transient extra run is invisible, and
+  the topological scheduler glitch-freedom needs would cost slots the 32KB arena
+  doesn't have. The final value always converges (asserted).
+
+React's own test-utils assume a React runtime + DOM and won't run against us,
+so React parity is documented, not executed.

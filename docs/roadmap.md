@@ -17,8 +17,10 @@ flaky) QEMU emulator.
   signal, driven by one shared timer. Put it in flow.js (module-cost rule).
 - **TSDoc + TypeDoc → markdown** into `docs/api/`, linked from README (HTML/MD/
   JSON outputs available; MD is GitHub-readable).
-- **Conformance suite:** port Solid's reactivity/batch/cleanup behavior specs
-  against our API to PROVE the semantics (we are Solid-flavored, not React).
+- ~~**Conformance suite:**~~ ✅ SHIPPED. `tests/conformance.test.mjs` — 12
+  fine-grained-reactivity laws run against our runtime, each annotated with the
+  Solid/Preact/React contract. 10 MATCH Solid, 2 intentional DIVERGE (components
+  run once; push notify is not glitch-free). See docs/api-parity.md.
 - ~~**JSX auto-thunk lowering:**~~ ✅ SHIPPED. `lower.mjs` `autoThunk()` wraps a
   reactive read written bare in a JSX prop — `string={count()}` → `string={() =>
   count()}` — before the read-lowering, so it lands as `() => __sp.get(count)`.

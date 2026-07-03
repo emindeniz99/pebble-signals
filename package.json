@@ -40,12 +40,12 @@
     }
   },
   "scripts": {
-    "test": "node tests/signals.test.mjs && node tests/store.test.mjs && node --experimental-vm-modules tests/flow.test.mjs && node --experimental-vm-modules tests/jsx.test.mjs",
+    "test": "node tests/signals.test.mjs && node tests/store.test.mjs && node --experimental-vm-modules tests/flow.test.mjs && node --experimental-vm-modules tests/jsx.test.mjs && node --experimental-vm-modules tests/conformance.test.mjs",
     "typecheck": "tsc -p tsconfig.check.json",
     "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/",
     "lint": "biome lint src/embeddedjs/runtime/ tools/ tests/",
     "check": "biome check src/embeddedjs/runtime/ tools/ tests/",
-    "coverage": "c8 --include 'src/embeddedjs/runtime/**' --reporter=text-summary --reporter=text sh -c 'node tests/signals.test.mjs >/dev/null && node tests/store.test.mjs >/dev/null && node --experimental-vm-modules tests/flow.test.mjs >/dev/null && node --experimental-vm-modules tests/jsx.test.mjs >/dev/null'",
+    "coverage": "c8 --include 'src/embeddedjs/runtime/**' --reporter=text-summary --reporter=text sh -c 'node tests/signals.test.mjs >/dev/null && node tests/store.test.mjs >/dev/null && node --experimental-vm-modules tests/flow.test.mjs >/dev/null && node --experimental-vm-modules tests/jsx.test.mjs >/dev/null && node --experimental-vm-modules tests/conformance.test.mjs >/dev/null'",
     "build": "./build.sh",
     "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",
     "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20"
