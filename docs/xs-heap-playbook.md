@@ -83,12 +83,24 @@ Consequence for the "does adding native C code shrink the JS heap?" question:
 the JS arena is a FIXED 32768 B carved out by firmware, independent of the app's
 own native `main()` — your `window_create()` and any native allocations draw
 from the *separate* ~122–130 KB native app heap, not the XS arena. So native
-code does not "halve" the JS heap; the JS heap was never yours to size in the
-first place — it is a constant the firmware hands you. The corollary is the
-whole reason this library exists: 32 KB is the hard, unmovable budget, so the
-architecture optimizes RAM at every turn (bytes not objects, indices not refs,
-recompute not cache) rather than trying to buy more. Every attempt to enlarge
-the machine from the app side has been measured to be a no-op.
+code does not "halve" the JS heap; on **4.17** the JS heap was not yours to size
+— a constant the firmware hands you.
+
+**CORRECTION / potential unlock (Rule 2, 2026-07 research).** The "sizes are
+ignored" result is specific to our **4.17** emulator. Reading upstream
+`coredevices/PebbleOS` `main` (`src/fw/applib/moddable/moddable.c`), the current
+firmware DOES honor `stack`/`slot`/`chunk` — it maps them onto the `xsCreation`
+record (`stackCount = stack/sizeof(xsSlot)`, `initialHeapCount = slot/…`,
+`initialChunkSize = chunk`), all-or-nothing (any nonzero → all must be nonzero).
+So on a **newer firmware than 4.17, a larger-than-32 KB arena may be
+requestable from `mdbl.c`** — a real potential heap unlock, not a dead end. This
+is NOT yet re-measured (the 4.17 emulator's instrumentation stream is currently
+not attaching — see the emulator note; and 4.17 ignored the fields regardless).
+Tracked in the roadmap: retest sizing when the SDK/firmware updates. Also
+configurable on `main`: `.flags` (only two — `LogInstrumentation` + `Debug`,
+both no-ops without a BT log listener) and `.fxBuildFFI` (custom native
+bindings). Until then, treat 32 KB as the budget on 4.17 and keep optimizing
+RAM — but the ceiling is a firmware VERSION artifact, not a law of physics.
 
 ## Where else data can live (the memory ladder)
 

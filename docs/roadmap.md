@@ -52,12 +52,30 @@ device work is unblocked again.
   a mounted node imperatively inside an effect (NOT via a reactive dict prop).
   Needs on-device timing/repaint verification.
 
-## Toolchain fetches (need web; roadmap in case scope blocks)
-- **Real Piu/Moddable `.d.ts`** for the TS conversion (Moddable typings repo).
-- **Pebble's upstream `.clang-format`** — our `src/c/.clang-format` is a
-  Google-derived match to mdbl.c's style; swap for the real one if fetched.
-- **Full `kModdableCreationFlag*` enum** from the Pebble Moddable fork — document
-  every machine-creation flag (size fields are ignored; `.flags` is what works).
+## Toolchain — RESOLVED (2026-07 research)
+- ~~Real Piu/Moddable `.d.ts`~~ FOUND: **`@moddable/typings`** (npm, v8.2.3,
+  official — phoddie/patrick-soquet). Piu host globals in `piu/MC.d.ts`,
+  interfaces in `piu/MC-types.d.ts`; Pebble extras in `pebble/piu.d.ts`.
+  Constructor shape is `(behaviorData?, dictionary?)` (our `new T(null, dict)` is
+  correct — null = behaviorData). Use these to type the Piu globals in the TS
+  conversion. Source: Moddable-OpenSource/moddable `public` branch `typings/`.
+- ~~Pebble's upstream `.clang-format`~~ DONE: copied verbatim from
+  `coredevices/PebbleOS main` into `src/c/.clang-format` (Google base, 2-space,
+  PointerAlignment Right, 100 col, SortIncludes Never).
+- ~~`kModdableCreationFlag*` enum~~ FOUND (`coredevices/PebbleOS`
+  `src/fw/applib/moddable/moddable.h`): only TWO flags — `LogInstrumentation`
+  (1<<0), `Debug` (1<<1), both no-ops without a BT log listener. Plus
+  `.fxBuildFFI` for custom native bindings.
+
+## Heap-sizing retest (Rule 2 — potential unlock)
+- **Re-measure whether stack/slot/chunk are honored on newer firmware.** Our
+  4.17 measurement showed them IGNORED, but upstream PebbleOS `main`
+  (moddable.c) maps them onto `xsCreation` (all-or-nothing) — a >32 KB arena may
+  be requestable on a newer firmware. Blocked twice: (a) our emulator is 4.17,
+  (b) the 4.17 instrumentation stream isn't currently attaching (memtest reports
+  "no instrumentation received" even post-relaunch). Fix the instrumentation
+  pipeline first, then retest sizing; if a newer SDK/emulator appears, retest
+  there. See mdbl.c + xs-heap-playbook "Firmware heap ceiling".
 
 ## Product ideas (RN-parity, evaluated in api-parity.md)
 - react-compat shim (cosmetic — decided against; we stay honestly Solid-flavored),
