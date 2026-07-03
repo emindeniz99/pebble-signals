@@ -188,4 +188,19 @@ if [ "$MINIFY" = "1" ]; then
 	npx -y esbuild@0.25 src/embeddedjs/app/main.js --minify --format=esm \
 		--outfile=src/embeddedjs/app/main.js --allow-overwrite --log-level=error 2>/dev/null || true
 fi
+# Native C clang-format gate — DEFAULT ON (CHECK_C=1), self-disabling: if
+# clang-format isn't installed we skip with a note rather than fail the build.
+# A misformatted src/c/*.c fails loud (CHECK_C=0 to override). Fix with
+# `npm run format:c`.
+CHECK_C="${CHECK_C:-1}"
+if [ "$CHECK_C" = "1" ]; then
+	if command -v clang-format >/dev/null 2>&1; then
+		clang-format --dry-run --Werror src/c/*.c || {
+			echo "build: native C is misformatted — run 'npm run format:c' (CHECK_C=0 to skip)" >&2
+			exit 1
+		}
+	else
+		echo "build: clang-format not found — skipping native C format check" >&2
+	fi
+fi
 pebble build
