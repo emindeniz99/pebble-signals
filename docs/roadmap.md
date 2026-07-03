@@ -77,6 +77,27 @@ device work is unblocked again.
   pipeline first, then retest sizing; if a newer SDK/emulator appears, retest
   there. See mdbl.c + xs-heap-playbook "Firmware heap ceiling".
 
+## Auto pure-module preload (classifier SHIPPED; wiring pending device measure)
+- ~~**PURE/IMPURE classifier**~~ ✅ `tools/classify-module.mts` — AST-classifies an
+  app submodule as PURE (only declarations / pure const initializers → preload-
+  eligible, frozen into ROM ~free) or IMPURE (module-scope host construction
+  `new Skin()`, reactive state `signal()`/`useState()`, or any top-level call/
+  side effect → must stay in `main`, the 32KB heap). Unit-tested (6 cases). Also
+  a diagnostic: it flags that even `hint.tsx` is impure ONLY because of a module-
+  scope `new Style` — the "smart module splitting" hint.
+- **v1 wiring (TODO, behind `PRELOAD_PURE=1`, default off until measured):**
+  build.sh runs the classifier over each app submodule; PURE ones get added to
+  the manifest `modules` + `preload` (ROM) instead of being bundled into main;
+  IMPURE ones bundle into main as today. Measure the heap delta on a healthy
+  emulator before flipping the default (Rule 2) — a watchface with a big static
+  string table is the win case; a pure-reactive counter has nothing to move.
+- **v2 "smart module splitting" (your idea — advanced, risky):** auto-split a
+  MIXED module into a pure half (the const tables/formatters → preloaded) and an
+  impure half (UI/reactive → main). Needs dependency analysis + import rewrite;
+  ship only if v1 measurements show mixed modules carry significant pure weight.
+  The safe interim is developer-assisted: put constants in `foo.const.ts`, and
+  the v1 classifier auto-preloads it.
+
 ## Product ideas (RN-parity, evaluated in api-parity.md)
 - react-compat shim (cosmetic — decided against; we stay honestly Solid-flavored),
   gesture/scroll polish, BUNDLE=preload for pure shared submodules (measure).

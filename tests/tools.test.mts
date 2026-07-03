@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { deriveResources } from "../tools/gen-manifest.mts";
 import { badFonts } from "../tools/fontcheck.mts";
 import { neededModules, pruneManifest } from "../tools/treeshake.mts";
+import { classify } from "../tools/classify-module.mts";
 
 const BASE = {
 	modules: {
@@ -77,4 +78,41 @@ test("fontcheck: invalid font size/family is flagged", () => {
 test("fontcheck: bold matters (bold 30px Bitham valid, 30px Bitham not)", () => {
 	assert.deepEqual(badFonts('font: "bold 30px Bitham"'), []);
 	assert.deepEqual(badFonts('font: "30px Bitham"'), ['font: "30px Bitham"']);
+});
+
+// --- classify-module: PURE (preload-eligible) vs IMPURE (stays in main) ---
+test("classify: const tables + pure functions/classes are PURE", () => {
+	const src = `
+		export const DOW = ["Mon", "Tue"];
+		export function fmt(n: number) { return DOW[n]; }
+		export const dbl = (x: number) => x * 2;
+		export class Widget { build() { return new Container(null, {}); } }
+		type T = { a: number };
+		interface I { b: string }`;
+	assert.equal(classify(src).pure, true);
+});
+
+test("classify: module-scope host construction is IMPURE", () => {
+	const v = classify('const bg = new Skin({ fill: "black" });');
+	assert.equal(v.pure, false);
+	assert.match(v.reasons[0], /runs at load/);
+});
+
+test("classify: module-scope signal()/useState() is IMPURE (reactive state)", () => {
+	assert.equal(classify('import { signal } from "x"; const c = signal(0);').pure, false);
+	assert.equal(classify('const [g, s] = useState(0);').pure, false);
+});
+
+test("classify: a top-level call like render() is IMPURE", () => {
+	assert.equal(classify("render(() => 1, {});").pure, false);
+});
+
+test("classify: imports and nested new/call (inside fn bodies) stay PURE", () => {
+	// the new/call is deferred to call time, not module-eval time
+	const src = 'import { x } from "y";\nexport const make = () => new Container(null, {});';
+	assert.equal(classify(src).pure, true);
+});
+
+test("classify: top-level control flow is IMPURE", () => {
+	assert.equal(classify("for (let i = 0; i < 3; i++) doThing(i);").pure, false);
 });
