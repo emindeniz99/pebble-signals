@@ -435,6 +435,34 @@ the double-waste or the get/set-path mapping on a 2-4-signal watch app. If a
 genuinely numeric-heavy app appears, revisit the `Float64Array`-default +
 string-bail variant behind a build flag (like TREESHAKE) and MEASURE it there.
 
+## Runtime type safety — typed-.js, NOT converted to .ts (measured decision)
+
+The question "should the whole runtime be strict TypeScript, it's a library"
+was answered with a measurement, not a preference:
+
+- `strict` `checkJs` over signals.js / flow.js / jsx-runtime.js reports **163
+  errors** — but the breakdown is: 90 implicit-any params (TS7006), 43
+  implicit-any vars (TS7005), 11+7 implicit-any index/element, and a handful of
+  unprovable-null (the lazy `Store` float scratch that `fl()` DOES initialize
+  before use) + lib-strictness (`Uint8Array` where `apply` wants `number[]`,
+  the `globalThis.__spError` hook index). Turn `noImplicitAny` and
+  `strictNullChecks` off and the count is **ZERO real type bugs**.
+- So a full `.ts` conversion would add ~163 annotations of ceremony to
+  device-shipped files tuned to the ~15.9 KB boot ceiling, catch zero bugs, and
+  ship a new transpile step we can't re-verify on device while the emulator is
+  wedged (Rule 2).
+
+Decision: keep the runtime as **typed-.js**. Its PUBLIC contracts are already
+type-checked — `src/tsx/globals.d.ts` declares every export and
+`tests/types.test-d.tsx` asserts the prop contracts under the strict
+`tsconfig.check.json` (`npm run typecheck`). On top of that, `npm run
+typecheck:runtime` runs a **lenient checkJs** over the runtime bodies as a
+regression guard: it stays at 0 and will flag a genuine type error (wrong arg,
+bad index) without the annotation burden. Convert to `.ts` only if/when a
+device-verified transpile step is on the table AND strict typing starts earning
+its keep (e.g. the runtime grows past what globals.d.ts can express). Today it
+does not.
+
 ## Emulator stability note (session finding)
 
 The QEMU/pypkjs emulator in this environment wedges easily under install

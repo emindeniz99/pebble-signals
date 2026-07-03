@@ -42,6 +42,7 @@
   "scripts": {
     "test": "node tests/signals.test.mjs && node tests/store.test.mjs && node --experimental-vm-modules tests/flow.test.mjs && node --experimental-vm-modules tests/jsx.test.mjs && node --experimental-vm-modules tests/conformance.test.mjs",
     "typecheck": "tsc -p tsconfig.check.json",
+    "typecheck:runtime": "tsc -p tsconfig.runtime-check.json",
     "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/",
     "lint": "biome lint src/embeddedjs/runtime/ tools/ tests/",
     "check": "biome check src/embeddedjs/runtime/ tools/ tests/",

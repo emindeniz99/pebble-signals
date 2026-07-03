@@ -1,0 +1,32 @@
+{
+	// Type-CHECK the SHIPPED runtime .js in place (checkJs), as a regression
+	// guard — NOT a conversion to .ts. Rationale (measured, see
+	// docs/xs-heap-playbook.md "Runtime type safety"): full `strict` checkJs
+	// reports 163 errors on the runtime, but ALL are implicit-any or
+	// unprovable-null ceremony — with noImplicitAny + strictNullChecks off the
+	// count is ZERO real type bugs. So we keep the runtime as typed-.js (its
+	// public contracts are enforced by src/tsx/globals.d.ts +
+	// tests/types.test-d.tsx under the strict tsconfig.check.json) and use THIS
+	// lenient pass to catch genuine type errors (wrong-arg, bad-index) without
+	// annotating 163 sites on files tuned to the ~15.9KB boot ceiling, and
+	// without a device-shipped transpile step we can't re-verify while the
+	// emulator is wedged (Rule 2). Run: npm run typecheck:runtime
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"noEmit": true,
+		"allowJs": true,
+		"checkJs": true,
+		"strictNullChecks": false,
+		"noImplicitAny": false,
+		"types": [],
+		"skipLibCheck": true
+	},
+	"include": [
+		"src/embeddedjs/runtime/signals.js",
+		"src/embeddedjs/runtime/flow.js",
+		"src/embeddedjs/runtime/jsx-runtime.js",
+		"src/tsx/globals.d.ts"
+	]
+}
