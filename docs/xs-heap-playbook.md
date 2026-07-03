@@ -463,6 +463,47 @@ device-verified transpile step is on the table AND strict typing starts earning
 its keep (e.g. the runtime grows past what globals.d.ts can express). Today it
 does not.
 
+## Glitch-free reactivity — design spec (from Solid + Preact source)
+
+**The problem (measured in tests/conformance.test.mjs, law 12).** Diamond A→B,
+A→C, D reads B+C. Our push-based notify is depth-first EAGER: writing A runs B's
+computed → notifies D → D runs with B-new-but-C-STALE (a glitch value, e.g. 13),
+then C's computed runs → notifies D again → D runs correct (31). Two defects: D
+runs twice, and observes one transient wrong value. Final value converges, so on
+a 2–4-signal watch it's invisible — but it's a real divergence from Solid/Preact.
+
+**Why Solid & Preact don't glitch (source-read).** Both make derived nodes
+(computed/memo) **LAZY / pull-based**: a write never recomputes, it only MARKS
+downstream dirty (cheap bit-flip). Recompute happens on READ, and the read
+*pulls each source first* — the recursion `read → refresh(sources) → read` IS a
+topological sort, so D is only ever computed after B and C are current, and runs
+ONCE. Preact gates with per-edge `_version` + a global `globalVersion`; Solid
+gates with two-color `state` (STALE/PENDING) + a global `ExecCount` and
+`updatedAt` stamp. Neither builds an explicit schedule; recursion gives order.
+
+**Cheapest scheme for OUR bitmask/id core (the floor).** We already have the
+mark direction (per-signal `Uint32` subscriber masks) — that's the expensive
+half in the libraries (Preact's 8-slot per-edge Node objects), and we get it
+free. To go glitch-free we add only:
+- a `Uint32 version` per node (signal + computed) — **+4 B/node**;
+- a shared `dirtySet` bitmask (1 word / 32 nodes) — **~free**;
+- make `computed` LAZY: recompute on read, gated by its `dirtySet` bit, pulling
+  each source (recurse if the source is dirty) before running `fn`; bump its own
+  `version` only if the output VALUE changed;
+- effects run last, off the `dirtySet` bits, after memos settle.
+- OPTIONAL equal-value cutoff (skip recomputing D when B recomputed to an equal
+  value): a per-computed `seenVersions: Uint32Array[fanin]` — the source-id list
+  a lazy computed needs for re-tracking anyway. Drop it and glitch-freedom still
+  holds; you just occasionally recompute an unchanged-input node.
+
+No per-edge objects, no linked lists, no topological sort — the recursion in
+recompute is the sort. Cost: **~+4 B per signal and per computed + one global
+bitmask.** This is the minimum known glitch-free construction and drops onto the
+existing masks. NOT YET IMPLEMENTED — measure the slot delta on-device (now the
+emulator is healthy) before committing; the eager core is correct-on-converge
+and cheaper, so the trade is glitch-freedom vs a few bytes/node + the lazy-read
+path complexity. Decision pending.
+
 ## Emulator stability note (session finding)
 
 The QEMU/pypkjs emulator in this environment wedges easily under install
