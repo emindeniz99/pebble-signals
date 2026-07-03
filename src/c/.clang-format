@@ -1,0 +1,8 @@
+# C style for the native shim (src/c/*.c). Derived to match mdbl.c's existing
+# 2-space Pebble-C conventions (K&R braces, 2-space indent). NOT copied from the
+# upstream Pebble firmware repo — that repo is out of scope for this session, so
+# this is the Google base (closest public match to Pebble's C style) pinned to a
+# 100-col limit. If the upstream .clang-format is ever available, prefer it.
+BasedOnStyle: Google
+ColumnLimit: 100
+IndentWidth: 2

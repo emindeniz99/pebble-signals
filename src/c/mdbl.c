@@ -17,14 +17,13 @@ int main(void) {
   //    machine is cloned from the firmware's built-in creation config
   //    ("static": 32768 in the Moddable pebble device manifest); only
   //    .flags takes effect. The values below match that real config.
-  ModdableCreationRecord cr = {
-    .recordSize = sizeof(cr),
-    .stack = 6144,
-    .slot = 8192,
-    .chunk = 8192,
-    .flags = kModdableCreationFlagLogInstrumentation
+  ModdableCreationRecord cr = {.recordSize = sizeof(cr),
+                               .stack = 6144,
+                               .slot = 8192,
+                               .chunk = 8192,
+                               .flags = kModdableCreationFlagLogInstrumentation
 #ifdef PBL_DEBUG
-             | kModdableCreationFlagDebug
+                                        | kModdableCreationFlagDebug
 #endif
   };
   moddable_createMachine(&cr);
