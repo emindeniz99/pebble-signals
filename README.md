@@ -402,21 +402,29 @@ directly (layout verified against `svg2pdc.serialize`), and `build.sh` now
 bundles any referenced `*.pdc` as a Moddable **`data`** resource (read on the
 watch via `new Resource("x.pdc")`, the `SVGImage` `path` route).
 
-What works: the `.pdc` bundles (archive shows it in the `%DATA` partition,
-`Resource` finds it) and `SVGImage` constructs + boots with no crash. Two
-real quirks found in `piuSVGImage.c`: (1) it only draws after a transform is
-set at least once — `DrawAux` renders `dcl`, which is built lazily *inside*
-the `if (transforming)` branch, so `scale(1,1)` is mandatory even at native
-size; (2) svg2pdc uses top-left coordinates (`translate = -viewbox origin`).
+Proven, step by step (spike in `examples/slothvec.tsx`, a WIP artifact):
+1. **Bytes are correct.** `tools/gen_pdc.py` output is BYTE-IDENTICAL to the
+   real `svg2pdc.py` (ported to py3, run on an equivalent circle SVG) — so the
+   PDC data is not the problem.
+2. **Bundling works.** An on-screen probe (`new Resource("testcircle.pdc")`)
+   reports `len=29 b0=80` on-device — the intact 29-byte file, first byte `P`.
+3. **Validation succeeds.** With NO explicit width/height, `SVGImage` still
+   sizes itself to the PDC's 100×100 bounds, so `gdraw_command_image_validate`
+   passes and `dci` is valid. The image IS parsed. (So the earlier
+   "validation fails / PDCI_DATA_OFFSET" guess was WRONG.)
+4. **The real bug is POSITIONING.** `DrawAux` moves the draw box by `(cx,cy)`
+   (default = bounds/2 = 50) and then draws each command at its own coords, so
+   a circle authored at (50,50) lands at content+100 — off in a corner.
+   `center(0,0)` should zero that offset so (50,50) hits the content centre.
 
-BLOCKED: even with byte-correct PDC + `scale(1,1)` + geometry tried both
-ways, the image never renders — `gdraw_command_image_validate` appears to
-reject `dci` via the Moddable `Resource` route (a `PDCI_DATA_OFFSET` /
-data-partition detail that isn't inspectable — firmware headers aren't
-shipped and the release build's `trace()` doesn't reach the app log). The
-spike lives in `examples/slothvec.tsx` (a WIP artifact, like `multiscreen`).
-Next: convert with the real `svg2pdc.py` to isolate bytes-vs-bundling, or try
-the native Pebble resource `id` route instead of the Moddable `path` route.
+Also found: `SVGImage` only draws after a transform is set once (`DrawAux`
+renders `dcl`, built lazily inside the `if (transforming)` branch — so
+`scale(1,1)` is mandatory even at native size), and svg2pdc uses top-left
+coordinates.
+
+REMAINING: confirm `center(0,0)` renders the circle on-device (was pending
+when the emulator wedged), then author a real vector sloth SVG → `svg2pdc` →
+`.pdc`. The hard blockers (bytes, bundling, validation) are all cleared.
 
 ## XS / Piu gotchas actually hit
 
