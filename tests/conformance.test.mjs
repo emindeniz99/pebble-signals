@@ -15,7 +15,7 @@
 // Run with: node --experimental-vm-modules tests/conformance.test.mjs
 import { loadRuntime, makeChecker } from "./load-runtime.mjs";
 
-const { signals, jsx: jsxM } = await loadRuntime();
+const { signals, jsx: jsxM, sandbox } = await loadRuntime();
 const { signal, computed, effect, batch, untrack, createRoot, track, useState, useEffect } =
 	signals;
 const { jsx } = jsxM;
@@ -284,6 +284,153 @@ const law = (name, verdict, cond, refs) => {
 	// the tradeoff: on a 2-4-signal watch a transient extra run is invisible,
 	// and the topological scheduler Solid needs would cost slots we don't have.
 	check("diamond still converges to the correct final value", seen[seen.length - 1] === 31);
+}
+
+// --- Law 13: writing the SAME value does not notify ------------------------
+{
+	const s = signal(1);
+	let runs = 0;
+	effect(() => {
+		s.value;
+		runs++;
+	});
+	runs = 0;
+	s.value = 1; // identical value -> no notification
+	law("equal write skips notification", "MATCH", runs === 0, {
+		solid: "createSignal skips when Object.is-equal (default)",
+		preact: "signal skips when === equal",
+		react: "setState bails on Object.is-equal",
+	});
+}
+
+// --- Law 14: batch nests — one flush at the OUTERMOST close ------------------
+{
+	const p = signal(0);
+	const q = signal(0);
+	let runs = 0;
+	effect(() => {
+		p.value;
+		q.value;
+		runs++;
+	});
+	runs = 0;
+	batch(() => {
+		p.value = 1;
+		batch(() => {
+			q.value = 1;
+		}); // inner close does NOT flush
+	});
+	law("nested batch flushes once at the outer close", "MATCH", runs === 1, {
+		solid: "batch nests; flush at depth 0",
+		preact: "batch nests; flush at depth 0",
+		react: "nested updates batch within one commit",
+	});
+}
+
+// --- Law 15: a throwing effect is ISOLATED, the machine survives ------------
+// XS aborts the app on an uncaught throw, so notify() routes subscriber errors
+// to globalThis.__spError instead of letting one bad effect kill every other.
+{
+	// __spError is read off the RUNTIME's globalThis — the vm sandbox, not the
+	// test's — so stub it there (same as jsx.test's sandbox access).
+	let captured = null;
+	sandbox.__spError = (e) => {
+		captured = e.message;
+	};
+	const s = signal(0);
+	let otherRuns = 0;
+	effect(() => {
+		if (s.value === 1) throw new Error("boom");
+	});
+	effect(() => {
+		s.value;
+		otherRuns++;
+	}); // a SECOND effect on the same signal
+	otherRuns = 0;
+	s.value = 1; // effect 1 throws, effect 2 must still run
+	law(
+		"throwing effect is isolated, others still run",
+		"DIVERGE",
+		captured === "boom" && otherRuns === 1,
+		{
+			solid: "error propagates; needs an ErrorBoundary to contain",
+			preact: "error propagates out of the batch",
+			react: "error bubbles to the nearest error boundary",
+		},
+	);
+	delete sandbox.__spError;
+}
+
+// --- Law 16: memo of a memo (a CHAIN) updates once, converges ---------------
+{
+	const base = signal(2);
+	const m1 = computed(() => base.value * 10);
+	const m2 = computed(() => m1.value + 1);
+	const seen = [];
+	effect(() => seen.push(m2.value));
+	base.value = 3; // 2->3: m1 20->30, m2 21->31
+	law("memo-of-memo chain converges", "MATCH", seen[0] === 21 && seen[seen.length - 1] === 31, {
+		solid: "chained memos pull in order",
+		preact: "chained computeds refresh in order",
+		react: "chained useMemo recompute per render",
+	});
+}
+
+// --- Law 17: untrack INSIDE an effect scopes the suppression ----------------
+{
+	const x = signal(0);
+	const y = signal(0);
+	let runs = 0;
+	effect(() => {
+		x.value; // tracked
+		untrack(() => y.value); // NOT tracked
+		runs++;
+	});
+	runs = 0;
+	y.value = 1; // untracked read -> no run
+	const afterY = runs;
+	x.value = 1; // tracked read -> run
+	law("untrack inside an effect suppresses only its reads", "MATCH", afterY === 0 && runs === 1, {
+		solid: "untrack scopes to its callback",
+		preact: "untracked scopes to its callback",
+		react: "N/A",
+	});
+}
+
+// --- Law 18: nested RAW effects accumulate (caveat vs Solid ownership) -------
+// A raw effect() created inside another effect is NOT auto-owned, so when the
+// outer re-runs it creates a NEW inner without disposing the old one — they
+// accumulate. Solid owns nested computations and disposes them on parent
+// re-run. Our framework path avoids this: Show/For/Navigator wrap each subtree
+// in createRoot, and disposing that root tears the nested effects down. The
+// caveat is only for hand-rolled effect-in-effect; use an owner or the hooks.
+{
+	const o = signal(0);
+	const inner = signal(0);
+	let innerRuns = 0;
+	createRoot(() => {
+		track(
+			effect(() => {
+				o.value;
+				track(
+					effect(() => {
+						inner.value;
+						innerRuns++;
+					}),
+				);
+			}),
+		);
+	});
+	innerRuns = 0;
+	o.value = 1; // outer re-runs -> a SECOND inner effect now also listens
+	inner.value = 1; // BOTH inners run -> 2, not 1 (accumulation)
+	law("nested raw effects accumulate without an owner", "DIVERGE", innerRuns === 3, {
+		solid: "MATCH-by-ownership — outer re-run disposes the previous inner",
+		preact: "N/A — no built-in ownership tree",
+		react: "N/A — effects are per-render, cleaned on deps change",
+	});
+	// The guarded path (Show/For/createRoot) does NOT leak — that's the intended
+	// way to nest; this law documents the raw-primitive sharp edge, not a bug.
 }
 
 // --- parity summary ---------------------------------------------------------
