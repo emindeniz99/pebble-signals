@@ -155,10 +155,19 @@ function consumePendingFocus() {
 	}
 }
 
+// Live screen dimensions, RN-Dimensions style. Populated by render() from the
+// Application's measured size, so it is VALID ONCE render() HAS STARTED (like
+// RN's "after layout" caveat) — read it inside the build callback / component
+// bodies, not at module top level. Lets components size to the real screen
+// (200x228 emery, 260x260 gabbro) instead of a hardcoded width.
+export const screen = { width: 0, height: 0 };
+
 // Mount a JSX tree as the Piu application. `build` runs under a root owner;
 // the returned disposer is kept alive for the app's lifetime.
 export function render(build, dict) {
 	const app = new Application(null, dict || {});
+	screen.width = app.width;		// screen size is known once the app exists,
+	screen.height = app.height;		// before build() runs so it can read it
 	const [tree] = createRoot(build);
 	appendChild(app, tree);
 	consumePendingFocus();

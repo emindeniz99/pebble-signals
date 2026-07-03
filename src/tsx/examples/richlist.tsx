@@ -2,9 +2,11 @@
 // row (a Row of two Labels: index + value). Single row = lowest arena cost,
 // so this one SCROLLS (up/down) where 2-3 rich rows crashed. Trades visible
 // rows for row richness on the 32KB arena. Build: APP=richlist ./build.sh
-import { render } from "runtime/jsx-runtime";
+import { render, screen } from "runtime/jsx-runtime";
 import { useState, createStore } from "runtime/signals";
 import { VirtualList } from "runtime/flow";
+
+const IDX_W = 44;			// fixed index column; text column fills the rest
 
 const bg = new Skin({ fill: "black" });
 const base = new Style({ font: "24px Gothic", color: "white" });
@@ -22,11 +24,11 @@ function down() { setOffset((o: number) => Math.min(maxOffset(), o + 1)); }
 render(() => (
 	<Container left={0} right={0} top={0} bottom={0} focus={true}
 		onPressUp={up} onPressDown={down}>
-		<VirtualList data={st} rows={1} width={180} at={() => offset()}
+		<VirtualList data={st} rows={1} at={() => offset()}
 			renderRow={(idx: () => number, data: any) => (
 				<Row height={40}>
-					<Label width={44} style={dim} string={() => (idx() + 1) + "."} />
-					<Label width={130} string={() => {
+					<Label width={IDX_W} style={dim} string={() => (idx() + 1) + "."} />
+					<Label width={screen.width - IDX_W} string={() => {
 						const v = data.get(idx());
 						return v === undefined ? "" : (typeof v === "number" ? "#" + v : String(v));
 					}} />

@@ -18,7 +18,7 @@ const data = { count: () => 5, get: (i: number) => bump() + i };
 render(() => (
 	<Container left={0} right={0} top={0} bottom={0} focus={true}
 		onPressUp={() => setBump((b: number) => b + 1)}>
-		<VirtualList data={data} rows={5} width={160}
+		<VirtualList data={data} rows={5}
 			at={() => 0}
 			format={(v: any, i: number) => "row " + i + " = " + v} />
 	</Container>

@@ -3,7 +3,7 @@
 // compiler making them lazy), each subtree runs under its own root so
 // removal disposes every effect created inside it.
 import { effect, untrack, track, createRoot } from "runtime/signals";
-import { appendChild } from "runtime/jsx-runtime";
+import { appendChild, screen } from "runtime/jsx-runtime";
 // NOTE: flow deliberately does NOT import consumePendingFocus — calling a
 // preloaded module's function that WRITES another preloaded module's
 // aliased variable kills the firmware at startup (measured by bisection;
@@ -225,6 +225,11 @@ function makeHost(props, Type) {
 				|| k === "width" || k === "height" || k === "skin" || k === "style")
 			dict[k] = props[k];
 	}
+	// A width-less list measures 0 and draws nothing (gotcha 16). Default to
+	// the real screen width so callers no longer hardcode `width={160}`;
+	// explicit width, or left+right together, still win.
+	if (dict.width === undefined && !(dict.left !== undefined && dict.right !== undefined))
+		dict.width = screen.width;
 	return new (Type || Container)(null, dict);
 }
 

@@ -33,7 +33,7 @@ function append() {
 render(() => (
 	<Container left={0} right={0} top={0} bottom={0} focus={true}
 		onPressUp={up} onPressDown={down} onPressSelect={append}>
-		<VirtualList data={st} rows={ROWS} width={160}
+		<VirtualList data={st} rows={ROWS}
 			at={() => offset()}
 			format={(v: any, i: number) => (i + 1) + ": " + (typeof v === "number" ? "#" + v : v)} />
 	</Container>
