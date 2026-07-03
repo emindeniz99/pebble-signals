@@ -169,6 +169,23 @@ rootDispose();
 S.set(rbase, 3);
 check("S.computed dead after root dispose", cRuns === 2);
 
+// 14b. S.put — the Stage-3 target for direct `s.value = e`. Unlike S.set
+// (useState's functional-update contract), put stores a FUNCTION verbatim:
+// this is the object-API semantic, and lowering must not change it.
+const pf = S.sig(null);
+const stored = () => "i am data, not an updater";
+S.put(pf, stored);
+check("S.put stores a function verbatim", S.get(pf) === stored);
+S.set(pf, () => 42);				// set: same function value would be CALLED
+check("S.set unwraps functional update", S.get(pf) === 42);
+let putSeen = 0;
+const pe2 = effect(() => { S.get(pf); putSeen++; });
+S.put(pf, 42);					// equal value: no notify
+check("S.put equal set is a no-op", putSeen === 1);
+S.put(pf, 43);
+check("S.put notifies on change", putSeen === 2);
+dispose(pe2);
+
 // 15. effect cap lifted (#21): >32 simultaneous live effects. The subscriber
 // mask, used/quarantine sets grow from one u32 word to a multi-word stride
 // once the 33rd effect is allocated. Verifies independent firing across word

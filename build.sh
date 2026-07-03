@@ -80,6 +80,35 @@ dropped = sorted(before - keep)
 print("treeshake: kept " + ",".join(sorted(need)) + ("; dropped " + ",".join(dropped) if dropped else "; nothing to drop"))
 PY
 fi
+# Font sanity check (gotcha 20): an invalid font string renders NOTHING —
+# blank text, no error, hours lost. Validate every `font:` literal in the app
+# source against the Pebble system-font table at COMPILE time and fail loud.
+# Escape hatch for custom/new fonts: SKIP_FONTCHECK=1.
+if [ "${SKIP_FONTCHECK:-0}" != "1" ]; then
+	APP_SRC="src/tsx/examples/$APP.tsx" python3 - <<'PY'
+import os, re, sys
+src = open(os.environ["APP_SRC"]).read()
+# Pebble system fonts reachable via piu "['bold '][N]px Family" strings.
+# (family, size, bold?) — from the official FONT_KEY_* table.
+VALID = set()
+for n in (14, 18, 24, 28):
+	VALID.add(("gothic", n, False)); VALID.add(("gothic", n, True))
+VALID |= {("bitham", 30, True), ("bitham", 42, True), ("bitham", 42, False),
+	("roboto", 21, False), ("roboto", 49, True), ("droid", 28, True)}
+bad = []
+for m in re.finditer(r'font:\s*["\'](?:(bold)\s+)?(\d+)px\s+([A-Za-z]+)["\']', src):
+	bold, size, fam = m.group(1) is not None, int(m.group(2)), m.group(3).lower()
+	if (fam, size, bold) not in VALID:
+		bad.append(m.group(0))
+if bad:
+	print("FONTCHECK FAIL (gotcha 20 — invalid font renders BLANK, no error):", file=sys.stderr)
+	for b in bad:
+		print("  " + b + "  <- not a Pebble system font key", file=sys.stderr)
+	print("  valid: [bold] 14|18|24|28px Gothic, bold 30px Bitham, [bold] 42px Bitham,", file=sys.stderr)
+	print("         21px Roboto, bold 49px Roboto, bold 28px Droid  (SKIP_FONTCHECK=1 to override)", file=sys.stderr)
+	sys.exit(1)
+PY
+fi
 rm -rf src/embeddedjs/app src/embeddedjs/runtime-min
 mkdir -p src/embeddedjs/runtime-min
 for f in src/embeddedjs/runtime/*.js; do

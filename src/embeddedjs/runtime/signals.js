@@ -206,6 +206,17 @@ export const S = {
 		g.val[i] = v;
 		flush(g, i);
 	},
+	// RAW write — no functional-update unwrap. The Stage-3 target for direct
+	// `s.value = e`: the object API stores a function value verbatim, so the
+	// lowered form must too (S.set would CALL it as an updater — measured
+	// semantic drift, not a theoretical one).
+	put(i, v) {
+		const g = G;
+		if (v === g.val[i])
+			return;
+		g.val[i] = v;
+		flush(g, i);
+	},
 	// Packed computed: one value slot + one effect that recomputes into it.
 	// Reads (S.get) track the slot; when fn's deps change the effect re-runs
 	// and S.set re-notifies the computed's own subscribers. Registered with

@@ -32,6 +32,8 @@ declare module "runtime/jsx-runtime" {
 	export function Fragment(props: any): any;
 	export function render(build: () => any, dict?: any): any;
 	export function appendChild(parent: any, child: any): void;
+	// RN-Dimensions-style screen size; valid once render() has started.
+	export const screen: { width: number; height: number };
 }
 declare module "runtime/signals" {
 	export function signal<T>(value: T): { value: T };
@@ -49,7 +51,8 @@ declare module "runtime/signals" {
 	export const S: {
 		sig<T>(v: T): number;
 		get<T>(i: number): T;
-		set<T>(i: number, v: T | ((prev: T) => T)): void;
+		set<T>(i: number, v: T | ((prev: T) => T)): void;	// functional-update (useState)
+		put<T>(i: number, v: T): void;					// raw write (signal .value =)
 		computed<T>(fn: () => T): number;
 	};
 	export function createStore(size: number): any;

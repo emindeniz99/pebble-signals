@@ -8,7 +8,7 @@
 declare const fetch: any;
 
 const bg = new Skin({ fill: "black" });
-const base = new Style({ font: "16px Gothic", color: "white" });
+const base = new Style({ font: "18px Gothic", color: "white" });
 const label = new Label(null, { width: 190, string: "SELECT to fetch", style: base });
 
 const beh = {

@@ -81,6 +81,22 @@ function collectIdentifiers(sf) {
 	return ids;
 }
 
+// Is `node` (an expression) part of a destructuring ASSIGNMENT TARGET?
+// Walks up through array/object literal layers; true when the chain ends as
+// the left side of an `=` or a for-of/for-in initializer.
+function isDestructuringTarget(ts, node) {
+	let c = node, p = node.parent;
+	while (p && (ts.isArrayLiteralExpression(p) || ts.isSpreadElement(p)
+		|| ts.isObjectLiteralExpression(p)
+		|| (ts.isPropertyAssignment(p) && p.initializer === c))) {
+		c = p; p = p.parent;
+	}
+	if (ts.isBinaryExpression(p) && p.operatorToken.kind === ts.SyntaxKind.EqualsToken
+		&& p.left === c && c !== node)
+		return true;
+	return (ts.isForOfStatement(p) || ts.isForInStatement(p)) && p.initializer === c;
+}
+
 function freshAlias(sf) {
 	const used = new Set(collectIdentifiers(sf).map((i) => i.text));
 	let a = "__sp";
@@ -193,16 +209,31 @@ export function lower(text) {
 				if (s.kind !== "sig") { ok = false; break; }				// write to a computed
 				if (!ts.isExpressionStatement(asn.parent)) { ok = false; break; }	// value-used assignment
 				// two edits so nested reads in the RHS lower independently:
-				// `s.value =` -> `__sp.set(s,`  and  insert `)` after the RHS
+				// `s.value =` -> `__sp.put(s,` and insert `)` after the RHS.
+				// put (RAW write), NOT set: set unwraps function values as
+				// functional updates (the useState contract) but the object API
+				// stores a function verbatim — set here would silently CALL a
+				// function the user meant to store.
 				plan.push({ start: pae.getStart(sf), end: asn.operatorToken.getEnd(),
-					text: `__ALIAS__.set(${s.name},` });
+					text: `__ALIAS__.put(${s.name},` });
 				plan.push({ start: asn.getEnd(), end: asn.getEnd(), text: ")" });
 			}
 			// compound assignment (+= -= &&= ...) — the read+write can't be
-			// expressed as one S.set, so bail. Range is COMPOUND ops only, so a
+			// expressed as one S.put, so bail. Range is COMPOUND ops only, so a
 			// plain binary like `s.value * 2` falls through to the read branch.
 			else if (opk >= ts.SyntaxKind.FirstCompoundAssignment
 				&& opk <= ts.SyntaxKind.LastCompoundAssignment) { ok = false; break; }
+			// ++/--, delete: mutations a get()-rewrite would turn into syntax
+			// errors (`__sp.get(s)++`). Bail so the whole file still lowers
+			// cleanly with this signal on the object API.
+			else if ((ts.isPostfixUnaryExpression(asn) || ts.isPrefixUnaryExpression(asn))
+				&& (asn.operator === ts.SyntaxKind.PlusPlusToken
+					|| asn.operator === ts.SyntaxKind.MinusMinusToken)) { ok = false; break; }
+			else if (ts.isDeleteExpression(asn)) { ok = false; break; }
+			// destructuring write target (`[s.value] = arr`, `({x: s.value} = o)`)
+			// — a get() there is a syntax error; walk up through literal layers
+			// and bail if the chain ends on the LEFT of an `=`.
+			else if (isDestructuringTarget(ts, pae)) { ok = false; break; }
 			else
 				plan.push({ start: pae.getStart(sf), end: pae.getEnd(),
 					text: `__ALIAS__.get(${s.name})` });							// read
@@ -291,7 +322,7 @@ function selftest() {
 	eq(r.code, r.lowered === 1 && r.bailed === 0, "signal happy");
 	eq(r.code, r.code.includes("const flag = __sp.sig(false)"), "signal decl");
 	eq(r.code, r.code.includes("__sp.get(flag)"), "signal read");
-	eq(r.code, r.code.includes("__sp.set(flag, !__sp.get(flag))"), "signal write nests read");
+	eq(r.code, r.code.includes("__sp.put(flag, !__sp.get(flag))"), "signal write nests read (raw put)");
 	// signal used as a value (not .value) bails
 	r = lower(SIG + "const s = signal(0);\nconst r2 = s;\ns.value = 1;\n");
 	eq(r.code, r.lowered === 0 && r.bailed === 1, "signal alias bail");
@@ -307,6 +338,16 @@ function selftest() {
 		+ "sc(c() + f.value);\nf.value = 2;\n");
 	eq(r.code, r.lowered === 2 && r.bailed === 0, "mixed useState+signal");
 	eq(r.code, r.code.includes("__sp.set(c, __sp.get(c) + __sp.get(f))"), "mixed refs");
+
+	// ++/-- bails (a get() rewrite would be a syntax error)
+	r = lower(SIG + "const s = signal(0);\ns.value++;\n");
+	eq(r.code, r.lowered === 0 && r.bailed === 1, "signal ++ bails");
+	// destructuring write target bails
+	r = lower(SIG + "const s = signal(0);\n[s.value] = [1];\n");
+	eq(r.code, r.lowered === 0 && r.bailed === 1, "signal destructuring-write bails");
+	// destructuring READ does not bail
+	r = lower(SIG + "const s = signal(0);\nconst a = [s.value];\ns.value = 1;\n");
+	eq(r.code, r.lowered === 1 && r.code.includes("[__sp.get(s)]"), "array-literal read still lowers");
 
 	// --- Stage 3: computed() / useMemo() (read-only derived) ---
 	r = lower('import { signal, computed } from "runtime/signals";\n'
@@ -334,7 +375,18 @@ if (argv[0] === "--selftest") {
 	for (const path of argv) {
 		const src = readFileSync(path, "utf8");
 		const { code, lowered, bailed } = lower(src);
-		if (code !== src) writeFileSync(path, code);
+		if (code !== src) {
+			// Idempotency guard, every prod build: lowering its own output must
+			// be a fixed point. If a second pass would change the code again,
+			// pass one missed or double-applied something — fail LOUD, don't
+			// ship a possibly-corrupt lower.
+			const second = lower(code);
+			if (second.code !== code) {
+				console.error(`lower: ${path} NOT IDEMPOTENT — second pass changed the output; refusing to write`);
+				process.exit(1);
+			}
+			writeFileSync(path, code);
+		}
 		console.log(`lower: ${path}  ${lowered} lowered, ${bailed} bailed`);
 	}
 }
