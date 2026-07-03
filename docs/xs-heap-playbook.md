@@ -246,3 +246,49 @@ Verdict: not worth the parallel-array + tag complexity for a chunk-only,
 possibly-negative delta. The SoA win that mattered (indices instead of
 objects for the graph) is done. Effort reallocated to #18/#19 (real slot
 wins). Recorded per Rule 2 (don't ship an unmeasured/negative change).
+
+## #19 runtime-internal SoA/flyweight — ANALYZED: amortization floor reached
+
+Measured binding/owner counts in real examples: 2-4 reactive bindings and
+1-4 owners per app. The remaining SoA/flyweight targets each need a FIXED
+side-table (parallel arrays indexed by effect/root id, sized to the id
+space ~32); that table only pays once the per-item saving × N exceeds the
+table's fixed cost — break-even around N ≈ table size. At 2-4 items/app it
+is NET-NEGATIVE, the same reason #17 failed.
+
+- **Shared-binding reaction** (one reaction + B_NODE/B_KEY/B_THUNK arrays):
+  saves the per-binding closure (~2-3 slots) but adds 3 chunk slots/binding
+  + a fixed registry + a bounded stale-node-reference leak. Net-negative at
+  2-4 bindings. DEFERRED (revisit only for binding-heavy UIs, dozens+).
+- **Owner packing** (createRoot {d:[]} → parallel table): same story at 1-4
+  owners/app. DEFERRED.
+- **Stage-3 signal()/computed lowering**: `signal()` → `S.sig` IS a real
+  object→index win (no fixed table, same as the shipped useState lowering)
+  — but ZERO current benefit: every example uses useState, none call
+  signal() directly, and computed() is inherently runtime. SPEC'd for when
+  direct signal() usage appears (extend lower.mjs: `const s = signal(v)` →
+  `S.sig`, `s.value` read → `S.get(s)`, `s.value = e` statement → `S.set(s,
+  e)`, bail on any non-.value use). Not implemented to avoid adding
+  untested-in-practice complexity to a working tool for no current gain.
+- **ROM const tables**: moving app-specific arrays (DOW) into the shared
+  preloaded runtime ROMs them but charges every app; marginal. DEFERRED.
+
+CONCLUSION: the optimization campaign has hit its natural floor. What paid
+did so because it was NUMEROUS with a SHARED graph — the packed effect core
+(effects are the most numerous object; the subscription graph is one shared
+Uint32Array) and object→index lowering (per-signal, no fixed table). The
+remaining targets are few-per-app, so their SoA/flyweight forms can't
+amortize their fixed tables. Banked wins: packed core 273→176 B/pair
+(-36%, +20% capacity), 5-live-rows via recycling (raw For fxAborts),
+useState lowering (RAM + smaller archive), lazy multiscreen (O(1 screen)).
+
+## #20 ts-morph vs raw TS Compiler API — DECISION: keep raw API
+
+tools/lower.mjs uses the raw TypeScript Compiler API. ts-morph wraps the
+SAME engine with nicer ergonomics. Decision: KEEP the raw API. Rationale:
+(1) zero new dependency — typescript is already required for tsc; ts-morph
+would need a real install, at odds with the repo's `npx -y esbuild` /
+no-node_modules build; (2) the transform is ~180 lines, works, and is
+fully selftest-guarded; (3) ts-morph would mostly save the Program/host
+boilerplate (~15 lines) — cosmetic, not a fragility fix. Revisit only if
+the lowering grows to multiple transforms or needs cross-file type flow.
