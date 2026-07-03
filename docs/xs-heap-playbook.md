@@ -117,12 +117,13 @@ Integration status — **BOTH STAGES SHIPPED and verified on-device**:
   slotbench ramp ✅. forbind5 (5 reactive rows) still exceeds the boot
   ceiling — the row cost is dominated by Piu nodes + closures, not the
   reactive graph. Node suites: 102/102 + `lower.py --selftest`.
-- **Emulator recovery recipe** (the wedge was NOT the SPI flash): kill
-  qemu+pypkjs, then delete the WHOLE per-platform persist dir
-  (`~/.local/share/pebble-sdk/4.17/<platform>/` — app_cache,
-  localstorage, timeline.db AND flash) plus `/tmp/pb-emulator.json`;
-  a corrupted persist dir freezes fresh first-boots at the progress
-  bar.
+- **Emulator recovery** — when installs hang/fail and
+  `/tmp/pb-emulator.json` shows an empty platform: run
+  `tools/reset-emulator.sh [platform]`. The wedge is NOT the SPI flash;
+  the whole per-platform persist dir (app_cache, localstorage,
+  timeline.db AND flash) corrupts and freezes first boot, so the script
+  hard-kills qemu+pypkjs and deletes the entire dir. `pebble` re-extracts
+  a pristine one on next install (retry once after a cold boot).
 
 ## Standing tricks (quick list)
 
@@ -160,10 +161,12 @@ Reviewed: signals.js, flow.js, jsx-runtime.js, tools/lower.py, build.sh.
 - **jsx-runtime.js**: no heap regressions; per-binding cost is now thunk
   closure + reaction closure + packed id (the closures are entries 1-2 on
   the marginal list below).
-- **lower.py**: string-aware balanced-paren scan; NOT comment- or
-  regex-literal-aware — acceptable for tsc output of this repo's examples
-  (none in init position); the on-device-caught property-access bug
-  (`st.count()` vs a state named `count`) is fixed + selftest-covered.
+- **lower.mjs** (replaced the regex lower.py): AST-based via the TypeScript
+  compiler API — every rewrite is decided on the resolved binding SYMBOL
+  (`checker.getSymbolAtLocation`), so shadowing, property access
+  (`st.count()` vs a state `count`), and aliasing are correct by
+  construction, not by heuristic. Ambiguous pairs bail to the object API.
+  Guarded by `node tools/lower.mjs --selftest`.
 - **Gap found and fixed during this pass**: For kept rows in a Map — now
   parallel arrays (commit 6bdf174).
 
@@ -181,10 +184,10 @@ Reviewed: signals.js, flow.js, jsx-runtime.js, tools/lower.py, build.sh.
 3. **Owner packing**: each createRoot allocates `{d:[]}` (~4 slots) — For
    rows each carry one. Parallel-array owner table keyed by root id:
    ~60 B/root. Effort M.
-4. **esbuild-plugin lowering** (replace tools/lower.py): fold the useState
-   transform into the esbuild step (single build.mjs driving transform +
-   minify) — no python in the pipeline, AST-grade correctness instead of
-   regex. RAM-neutral; tooling robustness win. Effort S-M.
+4. ~~esbuild-plugin lowering~~ **DONE** (tools/lower.mjs): the useState
+   transform is now AST-based on the TypeScript compiler API — python is
+   out of the pipeline, rewrites are binding-symbol-exact. RAM-neutral;
+   the tooling-robustness win is banked.
 5. **Stage 3 lowering**: same treatment for bare `signal()`/`computed()`
    in app code (→ S.sig / plain fn): ~50 B/signal. Effort S.
 6. **Constant tables → preloaded ROM**: DOW/month names etc. as consts in

@@ -32,7 +32,17 @@ measurement, and say so. When a prior conclusion is overturned (it happens —
 see gotcha 16, the fetch correction, the SVGImage saga), correct the README
 explicitly rather than silently.
 
-## Rule 3 — The XS heap is the scarcest resource
+## Rule 3 — Recovering a wedged emulator
+
+When `pebble install --emulator` starts hanging/failing and
+`/tmp/pb-emulator.json` shows an empty platform entry, the per-platform
+PERSIST dir is corrupt (not just the SPI flash). Run
+`tools/reset-emulator.sh [platform]` — it hard-kills qemu+pypkjs and wipes
+the whole state dir; `pebble` re-extracts a clean one on next install.
+Retry the first cold-boot install once. Do NOT chase it with flash-only
+deletes — that was the multi-hour red herring.
+
+## Rule 4 — The XS heap is the scarcest resource
 
 The JS heap ("arena") is firmware-fixed at 32KB and every design decision
 bends around it. Trade CPU for RAM freely — recompute, don't cache; bytes,
