@@ -1,0 +1,5 @@
+# Pinned toolchain (mise / https://mise.jdx.dev). `mise install` provisions
+# these; CI and every contributor get the same node + pnpm.
+[tools]
+node = "24"
+pnpm = "10"

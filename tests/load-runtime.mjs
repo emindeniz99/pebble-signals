@@ -46,13 +46,17 @@ export class StubContent {
 		this.contents.length = 0;
 	}
 	focus() {}
-	get first() { return this.contents.length ? this.contents[0] : null; }
-	get last() { return this.contents.length ? this.contents[this.contents.length - 1] : null; }
+	get first() {
+		return this.contents.length ? this.contents[0] : null;
+	}
+	get last() {
+		return this.contents.length ? this.contents[this.contents.length - 1] : null;
+	}
 	get next() {
 		if (!this.container) return null;
 		const sib = this.container.contents;
 		const i = sib.indexOf(this);
-		return (i >= 0 && i + 1 < sib.length) ? sib[i + 1] : null;
+		return i >= 0 && i + 1 < sib.length ? sib[i + 1] : null;
 	}
 }
 
@@ -60,11 +64,25 @@ export class StubBehavior {}
 
 export async function loadRuntime() {
 	const sandbox = {
-		Label: StubContent, Text: StubContent, Content: StubContent,
-		Container: StubContent, Column: StubContent, Row: StubContent,
-		Scroller: StubContent, Port: StubContent, Layout: StubContent,
-		Behavior: StubBehavior, Application: StubContent,
-		console, Set, Map, Array, Error, String, Object, globalThis: undefined,
+		Label: StubContent,
+		Text: StubContent,
+		Content: StubContent,
+		Container: StubContent,
+		Column: StubContent,
+		Row: StubContent,
+		Scroller: StubContent,
+		Port: StubContent,
+		Layout: StubContent,
+		Behavior: StubBehavior,
+		Application: StubContent,
+		console,
+		Set,
+		Map,
+		Array,
+		Error,
+		String,
+		Object,
+		globalThis: undefined,
 	};
 	sandbox.globalThis = sandbox;
 	vm.createContext(sandbox);
@@ -93,11 +111,17 @@ export async function loadRuntime() {
 }
 
 export function makeChecker(suite) {
-	let pass = 0, fail = 0;
+	let pass = 0,
+		fail = 0;
 	return {
 		check(name, cond) {
-			if (cond) { pass++; console.log("PASS " + name); }
-			else { fail++; console.log("FAIL " + name); }
+			if (cond) {
+				pass++;
+				console.log("PASS " + name);
+			} else {
+				fail++;
+				console.log("FAIL " + name);
+			}
 		},
 		done() {
 			console.log(`${suite}: ${pass} pass, ${fail} fail`);

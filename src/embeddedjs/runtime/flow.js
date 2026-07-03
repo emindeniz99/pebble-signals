@@ -48,33 +48,41 @@ export function Show(props) {
 		const a = wrapSide(props, props.children);
 		const b = wrapSide(props, props.fallback);
 		let mounted = null;
-		track(effect(() => {
-			const next = props.when() ? a : b;
-			if (next === mounted)
-				return;
-			if (mounted)
-				host.replace(mounted, next);
-			else
-				host.add(next);
-			mounted = next;
-		}));
+		track(
+			effect(() => {
+				const next = props.when() ? a : b;
+				if (next === mounted) return;
+				if (mounted) host.replace(mounted, next);
+				else host.add(next);
+				mounted = next;
+			}),
+		);
 		return host;
 	}
 	let dispose = null;
-	track(effect(() => {
-		const on = !!props.when();
-		untrack(() => {
-			if (dispose) { dispose(); dispose = null; }
-			// remove one-by-one instead of empty(): see For note below
-			while (host.first)
-				host.remove(host.first);
-			const build = on ? props.children : props.fallback;
-			const [tree, d] = createRoot(() => wrapSide(props, build));
-			dispose = d;
-			host.add(tree);
-		});
-	}));
-	track(() => { if (dispose) { dispose(); dispose = null; } });
+	track(
+		effect(() => {
+			const on = !!props.when();
+			untrack(() => {
+				if (dispose) {
+					dispose();
+					dispose = null;
+				}
+				// remove one-by-one instead of empty(): see For note below
+				while (host.first) host.remove(host.first);
+				const build = on ? props.children : props.fallback;
+				const [tree, d] = createRoot(() => wrapSide(props, build));
+				dispose = d;
+				host.add(tree);
+			});
+		}),
+	);
+	track(() => {
+		if (dispose) {
+			dispose();
+			dispose = null;
+		}
+	});
 	return host;
 }
 
@@ -84,8 +92,7 @@ export function Show(props) {
 // null — so keepAlive swaps always use replace().
 function wrapSide(props, build) {
 	const wrapper = new Container(null, { width: props.width, height: props.height });
-	if (build)
-		appendChild(wrapper, asNode(build));
+	if (build) appendChild(wrapper, asNode(build));
 	return wrapper;
 }
 
@@ -100,7 +107,7 @@ function wrapSide(props, build) {
 // cycles).
 export function For(props) {
 	const host = makeHost(props, Column);
-	const keyOf = props.key || (item => item);
+	const keyOf = props.key || ((item) => item);
 	// Rows live in FOUR index-aligned parallel arrays (keys/nodes/disposers/
 	// stamps). A row is an INDEX: the previous Map (~10 slots + hash chunk)
 	// and its per-row {n,d,s} record (~5 slots each) are gone — playbook
@@ -108,71 +115,73 @@ export function For(props) {
 	// is free. Each reconcile pass STAMPS the rows it keeps instead of
 	// rebuilding a key map (a fresh map per pass was pure transient
 	// allocation at exactly the moment the arena is fullest).
-	const rk = [], rn = [], rd = [], rs = [];
+	const rk = [],
+		rn = [],
+		rd = [],
+		rs = [];
 	let stamp = 0;
-	track(effect(() => {
-		const items = props.each();
-		untrack(() => {
-			const pass = ++stamp;
-			const order = [];	// nodes in expected order this pass
-			for (let i = 0; i < items.length; i++) {
-				const item = items[i], k = keyOf(item, i);
-				let x = rk.indexOf(k);
-				if (x >= 0) {
-					if (rs[x] === pass)	// duplicate key: first occurrence wins
-						continue;
-				}
-				else {
-					const [node, dispose] = createRoot(() => asNode(() => props.children(item, i)));
-					x = rk.length;
-					rk.push(k);
-					rn.push(node);
-					rd.push(dispose);
-					rs.push(0);
-				}
-				rs[x] = pass;
-				order.push(rn[x]);
-			}
-			// Sweep departed keys: downward walk + swap-pop keeps the arrays
-			// dense with zero allocation (row array ORDER is irrelevant —
-			// screen order comes from the position pass below).
-			for (let x = rk.length - 1; x >= 0; x--) {
-				if (rs[x] !== pass) {
-					host.remove(rn[x]);
-					rd[x]();
-					const last = rk.length - 1;
-					if (x !== last) {
-						rk[x] = rk[last];
-						rn[x] = rn[last];
-						rd[x] = rd[last];
-						rs[x] = rs[last];
+	track(
+		effect(() => {
+			const items = props.each();
+			untrack(() => {
+				const pass = ++stamp;
+				const order = []; // nodes in expected order this pass
+				for (let i = 0; i < items.length; i++) {
+					const item = items[i],
+						k = keyOf(item, i);
+					let x = rk.indexOf(k);
+					if (x >= 0) {
+						if (rs[x] === pass)
+							// duplicate key: first occurrence wins
+							continue;
+					} else {
+						const [node, dispose] = createRoot(() => asNode(() => props.children(item, i)));
+						x = rk.length;
+						rk.push(k);
+						rn.push(node);
+						rd.push(dispose);
+						rs.push(0);
 					}
-					rk.pop();
-					rn.pop();
-					rd.pop();
-					rs.pop();
+					rs[x] = pass;
+					order.push(rn[x]);
 				}
-			}
-			// Position pass: walk expected order with a cursor over the
-			// host's real children; move/insert only mismatched nodes.
-			let cursor = host.first;
-			for (const node of order) {
-				if (node === cursor) {
-					cursor = cursor.next;
-					continue;
+				// Sweep departed keys: downward walk + swap-pop keeps the arrays
+				// dense with zero allocation (row array ORDER is irrelevant —
+				// screen order comes from the position pass below).
+				for (let x = rk.length - 1; x >= 0; x--) {
+					if (rs[x] !== pass) {
+						host.remove(rn[x]);
+						rd[x]();
+						const last = rk.length - 1;
+						if (x !== last) {
+							rk[x] = rk[last];
+							rn[x] = rn[last];
+							rd[x] = rd[last];
+							rs[x] = rs[last];
+						}
+						rk.pop();
+						rn.pop();
+						rd.pop();
+						rs.pop();
+					}
 				}
-				if (node.container)
-					host.remove(node);
-				if (cursor)
-					host.insert(node, cursor);
-				else
-					host.add(node);
-			}
-		});
-	}));
+				// Position pass: walk expected order with a cursor over the
+				// host's real children; move/insert only mismatched nodes.
+				let cursor = host.first;
+				for (const node of order) {
+					if (node === cursor) {
+						cursor = cursor.next;
+						continue;
+					}
+					if (node.container) host.remove(node);
+					if (cursor) host.insert(node, cursor);
+					else host.add(node);
+				}
+			});
+		}),
+	);
 	track(() => {
-		for (let x = 0; x < rd.length; x++)
-			rd[x]();
+		for (let x = 0; x < rd.length; x++) rd[x]();
 		rk.length = rn.length = rd.length = rs.length = 0;
 	});
 	return host;
@@ -219,13 +228,15 @@ export const VirtualList = (props) => {
 		return host;
 	}
 	// simple rows: one recycled Label per slot, string via `format`
-	const fmt = props.format || (v => String(v));
+	const fmt = props.format || ((v) => String(v));
 	for (let slot = 0; slot < rows; slot++) {
 		const label = new Label(null, {});
-		track(effect(() => {
-			const i = (props.at ? props.at() : 0) + slot;
-			label.string = (i >= 0 && i < data.count()) ? fmt(data.get(i), i) : "";
-		}));
+		track(
+			effect(() => {
+				const i = (props.at ? props.at() : 0) + slot;
+				label.string = i >= 0 && i < data.count() ? fmt(data.get(i), i) : "";
+			}),
+		);
 		host.add(label);
 	}
 	return host;
@@ -265,39 +276,73 @@ export const VirtualList = (props) => {
 export const Navigator = (props) => {
 	const host = makeHost(props, Column);
 	const stack = [props.root];
-	const depth = signal(1);			// reactive; drives depth()/canPop()
+	const depth = signal(1); // reactive; drives depth()/canPop()
 	let disposeTop = null;
-	const swap = () => untrack(() => {
-		if (disposeTop) { disposeTop(); disposeTop = null; }
-		while (host.first)
-			host.remove(host.first);
-		const build = stack[stack.length - 1];
-		// Wrap the screen in a Container sized with concrete width+height (like
-		// Show). A screen added straight to a coordinate-anchored/height-less
-		// host has no box and a multi-child column crashes the port's layout
-		// (measured — 1 label survived, 2+ died). The wrapper gives it a box.
-		const wrapper = new Container(null,
-			{ width: props.width || screen.width, height: props.height || screen.height });
-		const [tree, d] = createRoot(() => { appendChild(wrapper, asNode(() => build(nav))); return wrapper; });
-		disposeTop = d;
-		host.add(tree);
-	});
+	const swap = () =>
+		untrack(() => {
+			if (disposeTop) {
+				disposeTop();
+				disposeTop = null;
+			}
+			while (host.first) host.remove(host.first);
+			const build = stack[stack.length - 1];
+			// Wrap the screen in a Container sized with concrete width+height (like
+			// Show). A screen added straight to a coordinate-anchored/height-less
+			// host has no box and a multi-child column crashes the port's layout
+			// (measured — 1 label survived, 2+ died). The wrapper gives it a box.
+			const wrapper = new Container(null, {
+				width: props.width || screen.width,
+				height: props.height || screen.height,
+			});
+			const [tree, d] = createRoot(() => {
+				appendChild(
+					wrapper,
+					asNode(() => build(nav)),
+				);
+				return wrapper;
+			});
+			disposeTop = d;
+			host.add(tree);
+		});
 	const nav = {
-		push(build) { stack.push(build); depth.value = stack.length; swap(); },
-		pop() { if (stack.length > 1) { stack.pop(); depth.value = stack.length; swap(); } },
+		push(build) {
+			stack.push(build);
+			depth.value = stack.length;
+			swap();
+		},
+		pop() {
+			if (stack.length > 1) {
+				stack.pop();
+				depth.value = stack.length;
+				swap();
+			}
+		},
 		depth: () => depth.value,
 		canPop: () => depth.value > 1,
 	};
-	swap();						// build the root screen (like Show's initial effect)
-	track(() => { if (disposeTop) { disposeTop(); disposeTop = null; } });
+	swap(); // build the root screen (like Show's initial effect)
+	track(() => {
+		if (disposeTop) {
+			disposeTop();
+			disposeTop = null;
+		}
+	});
 	return host;
 };
 
 function makeHost(props, Type) {
 	const dict = {};
 	for (const k in props) {
-		if (k === "left" || k === "right" || k === "top" || k === "bottom"
-				|| k === "width" || k === "height" || k === "skin" || k === "style")
+		if (
+			k === "left" ||
+			k === "right" ||
+			k === "top" ||
+			k === "bottom" ||
+			k === "width" ||
+			k === "height" ||
+			k === "skin" ||
+			k === "style"
+		)
 			dict[k] = props[k];
 	}
 	// A width-less list measures 0 and draws nothing (gotcha 16). Default to
@@ -310,5 +355,5 @@ function makeHost(props, Type) {
 
 function asNode(build) {
 	const result = build();
-	return (typeof result === "function") ? result() : result;
+	return typeof result === "function" ? result() : result;
 }

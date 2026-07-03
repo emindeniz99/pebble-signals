@@ -32,23 +32,29 @@ check("get bad index", s.get(99) === undefined);
 // custom type: {id, done, title}
 const TODO = 8;
 const s2 = createStore(64);
-s2.def(TODO,
+s2.def(
+	TODO,
 	(v, b, off, max) => {
 		const len = 5 + v.title.length;
 		if (len > max) return -1;
 		b[off] = v.done ? 1 : 0;
-		b[off + 1] = v.id & 255; b[off + 2] = (v.id >> 8) & 255;
-		b[off + 3] = (v.id >> 16) & 255; b[off + 4] = (v.id >> 24) & 255;
-		for (let i = 0; i < v.title.length; i++)
-			b[off + 5 + i] = v.title.charCodeAt(i) & 255;
+		b[off + 1] = v.id & 255;
+		b[off + 2] = (v.id >> 8) & 255;
+		b[off + 3] = (v.id >> 16) & 255;
+		b[off + 4] = (v.id >> 24) & 255;
+		for (let i = 0; i < v.title.length; i++) b[off + 5 + i] = v.title.charCodeAt(i) & 255;
 		return len;
 	},
 	(b, off, len) => {
 		let title = "";
-		for (let i = 5; i < len; i++)
-			title += String.fromCharCode(b[off + i]);
-		return { done: !!b[off], id: b[off + 1] | (b[off + 2] << 8) | (b[off + 3] << 16) | (b[off + 4] << 24), title };
-	});
+		for (let i = 5; i < len; i++) title += String.fromCharCode(b[off + i]);
+		return {
+			done: !!b[off],
+			id: b[off + 1] | (b[off + 2] << 8) | (b[off + 3] << 16) | (b[off + 4] << 24),
+			title,
+		};
+	},
+);
 check("custom push", s2.push({ done: true, id: 300, title: "buy" }, TODO) === 1);
 const t = s2.get(0);
 check("custom roundtrip", t.done === true && t.id === 300 && t.title === "buy");
@@ -67,13 +73,18 @@ check("boolean fits in 2 spare bytes", s3.push(true) === 2);
 
 // remove at head and at tail (the demo's exact calls + the no-copy edge)
 const s5 = createStore(64);
-s5.push(1); s5.push(2); s5.push(3);
+s5.push(1);
+s5.push(2);
+s5.push(3);
 check("remove head", s5.remove(0) === 2 && s5.get(0) === 2);
 check("remove tail", s5.remove(1) === 1 && s5.get(0) === 2 && s5.get(1) === undefined);
 
 // float specials round-trip through the f64 path
 const s6 = createStore(64);
-s6.push(Infinity); s6.push(-Infinity); s6.push(NaN); s6.push(1e300);
+s6.push(Infinity);
+s6.push(-Infinity);
+s6.push(NaN);
+s6.push(1e300);
 check("Infinity", s6.get(0) === Infinity);
 check("-Infinity", s6.get(1) === -Infinity);
 check("NaN", Number.isNaN(s6.get(2)));
@@ -87,17 +98,19 @@ check("undefined stores as null", (s6.push(undefined), s6.get(4) === null));
 const mem = new Map();
 globalThis.localStorage = {
 	setItem: (k, v) => mem.set(k, v),
-	getItem: k => (mem.has(k) ? mem.get(k) : null),
+	getItem: (k) => (mem.has(k) ? mem.get(k) : null),
 };
 const s7 = createStore(64);
-s7.push(42); s7.push("höla"); s7.push(true);
+s7.push(42);
+s7.push("höla");
+s7.push(true);
 s7.save("k");
 const s8 = createStore(64);
 check("load returns true", s8.load("k") === true);
 check("load count", s8.count() === 3);
 check("load roundtrip", s8.get(0) === 42 && s8.get(1) === "höla" && s8.get(2) === true);
 check("load missing key", createStore(8).load("nope") === false);
-mem.set("bad", "\u0000\u00ff");	// header says len 255, stream is 2 bytes
+mem.set("bad", "\u0000\u00ff"); // header says len 255, stream is 2 bytes
 check("load rejects corrupt", createStore(64).load("bad") === false);
 mem.set("big", "x".repeat(100));
 check("load rejects oversize", createStore(8).load("big") === false);
@@ -109,19 +122,30 @@ check("255-char string ok", s4.push("y".repeat(255)) === 1 && s4.get(0).length =
 
 // unregistered custom tag fails loud (not a cryptic TypeError)
 let threw = false;
-try { createStore(64).push({}, 200); } catch (e) { threw = /no codec for tag 200/.test(e.message); }
+try {
+	createStore(64).push({}, 200);
+} catch (e) {
+	threw = /no codec for tag 200/.test(e.message);
+}
 check("push with unregistered tag throws clear error", threw);
 
 // coverage: custom codec push when the store is already FULL (max < 0 path)
-const sfull = createStore(6);			// 2-byte header + 4-byte payload = one i32
+const sfull = createStore(6); // 2-byte header + 4-byte payload = one i32
 const TAG = 9;
-sfull.def(TAG, (v, b, off, max) => { if (4 > max) return -1; return 4; }, () => 0);
-check("codec fits first", sfull.push(0, TAG) === 1);	// now t=6, store full
+sfull.def(
+	TAG,
+	(v, b, off, max) => {
+		if (4 > max) return -1;
+		return 4;
+	},
+	() => 0,
+);
+check("codec fits first", sfull.push(0, TAG) === 1); // now t=6, store full
 check("codec push when full rejects (max<0)", sfull.push(0, TAG) === -1);
 
 // coverage: save() an EMPTY store writes "" (t === 0 branch)
 const sempty = createStore(16);
 sempty.save("emptykey");
-check("empty store saves \"\"", globalThis.localStorage.getItem("emptykey") === "");
+check('empty store saves ""', globalThis.localStorage.getItem("emptykey") === "");
 
 done();

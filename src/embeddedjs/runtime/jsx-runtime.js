@@ -11,9 +11,11 @@ import { effect, track, createRoot } from "runtime/signals";
 let PIU = null;
 
 function isPiu(type) {
-	if (PIU === null)		// a 9-entry array beats a Set on the 32KB arena
-		PIU = [Label, Text, Content, Container, Column, Row, Scroller, Port, Layout]
-			.filter(t => t !== undefined);
+	if (PIU === null)
+		// a 9-entry array beats a Set on the 32KB arena
+		PIU = [Label, Text, Content, Container, Column, Row, Scroller, Port, Layout].filter(
+			(t) => t !== undefined,
+		);
 	return PIU.indexOf(type) >= 0;
 }
 
@@ -22,10 +24,8 @@ export function Fragment(props) {
 }
 
 export function jsx(type, props) {
-	if (isPiu(type))
-		return createHost(type, props);
-	if (typeof type === "function")
-		return type(props || {});
+	if (isPiu(type)) return createHost(type, props);
+	if (typeof type === "function") return type(props || {});
 	throw new Error("jsx:type");
 }
 
@@ -35,8 +35,14 @@ export const jsxs = jsx;
 // onPress*/onRelease* button events reach the behavior of the focused
 // content (or an ancestor), so pair them with the `focus` prop.
 const BUTTON_EVENTS = Object.freeze([
-	"onPressSelect", "onReleaseSelect", "onPressUp", "onReleaseUp",
-	"onPressDown", "onReleaseDown", "onPressBack", "onReleaseBack",
+	"onPressSelect",
+	"onReleaseSelect",
+	"onPressUp",
+	"onReleaseUp",
+	"onPressDown",
+	"onReleaseDown",
+	"onPressBack",
+	"onReleaseBack",
 ]);
 
 let pendingFocus = null;
@@ -54,8 +60,7 @@ class HandlerBehavior {
 		this.b = buttons;
 	}
 	onTouchEnded(content, id, x, y) {
-		if (this.t)
-			this.t(content, x, y);
+		if (this.t) this.t(content, x, y);
 	}
 }
 // The eight identical one-line button delegates are GENERATED here instead
@@ -63,25 +68,39 @@ class HandlerBehavior {
 // the closures land in flash and the prototype is written before it
 // freezes. ~300B of archive saved over the literal methods.
 for (const n of BUTTON_EVENTS)
-	HandlerBehavior.prototype[n] = function(content) {
+	HandlerBehavior.prototype[n] = function (content) {
 		const h = this.b && this.b[n];
 		return h ? h(content) !== false : false;
 	};
 
 function createHost(type, props) {
 	const dict = {};
-	let bindings = null, tap = null, buttons = null, children, focus = false;
+	let bindings = null,
+		tap = null,
+		buttons = null,
+		children,
+		focus = false;
 	for (const k in props) {
 		const v = props[k];
-		if (k === "children") { children = v; continue; }
-		if (k === "focus") { focus = !!v; continue; }
-		if (k === "onTap") { tap = v; continue; }
+		if (k === "children") {
+			children = v;
+			continue;
+		}
+		if (k === "focus") {
+			focus = !!v;
+			continue;
+		}
+		if (k === "onTap") {
+			tap = v;
+			continue;
+		}
 		if (BUTTON_EVENTS.indexOf(k) >= 0) {
 			if (buttons === null) buttons = {};
 			buttons[k] = v;
 			continue;
 		}
-		if (typeof v === "function") {	// reactive prop: thunk -> live binding
+		if (typeof v === "function") {
+			// reactive prop: thunk -> live binding
 			if (bindings === null) bindings = [];
 			bindings.push(k, v);
 			continue;
@@ -89,21 +108,19 @@ function createHost(type, props) {
 		dict[k] = v;
 	}
 	if (tap || buttons) {
-		if (tap)
-			dict.active = true;
+		if (tap) dict.active = true;
 		dict.behavior = new HandlerBehavior(tap, buttons);
 	}
 	const node = new type(null, dict);
-	if (focus)
-		pendingFocus = node;	// applied after mount; focus() needs a bound node
+	if (focus) pendingFocus = node; // applied after mount; focus() needs a bound node
 	if (bindings) {
 		for (let i = 0; i < bindings.length; i += 2) {
-			const key = bindings[i], thunk = bindings[i + 1];
+			const key = bindings[i],
+				thunk = bindings[i + 1];
 			track(effect(() => setProp(node, key, thunk())));
 		}
 	}
-	if (children !== undefined)
-		appendChild(node, children);
+	if (children !== undefined) appendChild(node, children);
 	return node;
 }
 
@@ -116,20 +133,16 @@ function createHost(type, props) {
 const REACTIVE_PROPS = Object.freeze(["string", "state", "variant", "skin", "style", "active"]);
 
 function setProp(node, key, value) {
-	if (REACTIVE_PROPS.indexOf(key) >= 0)
-		node[key] = value;
+	if (REACTIVE_PROPS.indexOf(key) >= 0) node[key] = value;
 	else if (key === "visible")
-		throw new Error("jsx:visible");	// crashes the port; use Show
-	else
-		throw new Error("jsx:prop " + key);
+		throw new Error("jsx:visible"); // crashes the port; use Show
+	else throw new Error("jsx:prop " + key);
 }
 
 export function appendChild(parent, child) {
-	if (child === undefined || child === null || child === false || child === true)
-		return;
+	if (child === undefined || child === null || child === false || child === true) return;
 	if (Array.isArray(child)) {
-		for (const c of child)
-			appendChild(parent, c);
+		for (const c of child) appendChild(parent, c);
 		return;
 	}
 	const t = typeof child;
@@ -137,8 +150,7 @@ export function appendChild(parent, child) {
 		parent.add(new Label(null, { string: String(child) }));
 		return;
 	}
-	if (t === "function")
-		throw new Error("jsx:fn-child");	// use Show/For or a string-prop thunk
+	if (t === "function") throw new Error("jsx:fn-child"); // use Show/For or a string-prop thunk
 	parent.add(child);
 }
 
@@ -166,8 +178,8 @@ export const screen = { width: 0, height: 0 };
 // the returned disposer is kept alive for the app's lifetime.
 export function render(build, dict) {
 	const app = new Application(null, dict || {});
-	screen.width = app.width;		// screen size is known once the app exists,
-	screen.height = app.height;		// before build() runs so it can read it
+	screen.width = app.width; // screen size is known once the app exists,
+	screen.height = app.height; // before build() runs so it can read it
 	const [tree] = createRoot(build);
 	appendChild(app, tree);
 	consumePendingFocus();

@@ -1,0 +1,26 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.5.2/schema.json",
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"lineWidth": 100
+	},
+	"assist": { "actions": { "source": { "organizeImports": "off" } } },
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": false,
+			"correctness": {
+				"noUnusedVariables": "warn",
+				"useValidTypeof": "error"
+			},
+			"suspicious": {
+				"noDoubleEquals": "off",
+				"noAssignInExpressions": "off"
+			}
+		}
+	},
+	"files": {
+		"includes": ["src/embeddedjs/runtime/**/*.js", "tools/**/*.mjs", "tests/**/*.mjs"]
+	}
+}

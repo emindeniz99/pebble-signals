@@ -9,10 +9,15 @@
   "dependencies": {
     "@moddable/pebbleproxy": "^0.1.8"
   },
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24"
+  },
   "devDependencies": {
     "typescript": "^5.5.0",
     "esbuild": "^0.25.0",
-    "c8": "^10.1.0"
+    "c8": "^10.1.0",
+    "@biomejs/biome": "2.5.2"
   },
   "pebble": {
     "displayName": "signal-piu",
@@ -37,6 +42,9 @@
   "scripts": {
     "test": "node tests/signals.test.mjs && node tests/store.test.mjs && node --experimental-vm-modules tests/flow.test.mjs && node --experimental-vm-modules tests/jsx.test.mjs",
     "typecheck": "tsc -p tsconfig.check.json",
+    "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/",
+    "lint": "biome lint src/embeddedjs/runtime/ tools/ tests/",
+    "check": "biome check src/embeddedjs/runtime/ tools/ tests/",
     "coverage": "c8 --include 'src/embeddedjs/runtime/**' --reporter=text-summary --reporter=text sh -c 'node tests/signals.test.mjs >/dev/null && node tests/store.test.mjs >/dev/null && node --experimental-vm-modules tests/flow.test.mjs >/dev/null && node --experimental-vm-modules tests/jsx.test.mjs >/dev/null'",
     "build": "./build.sh",
     "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",

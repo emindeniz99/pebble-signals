@@ -12,7 +12,7 @@
 // startup. New module-level helpers must be `const` bindings, and every
 // export costs runtime RAM: make it earn its keep.
 
-let current = -1;	// id of the running effect, -1 = none
+let current = -1; // id of the running effect, -1 = none
 
 // ---- packed effect graph (task #15 Stage 1 — measured ~2x cheaper) ----
 // An effect is an INTEGER ID, not an object. Tables live in ONE lazily
@@ -36,16 +36,32 @@ let G = null;
 
 const gi = () => {
 	let g = G;
-	if (g === null)		// lazy: a preload-time table would be frozen in ROM
-		G = g = { eff: [], cln: null, val: [], sub: new Uint32Array(8),
-			cap: 8, st: 1, n: 0, u: 0, q: 0, uh: null, qh: null, dep: 0,
-			bat: 0, pend: null };
+	if (g === null)
+		// lazy: a preload-time table would be frozen in ROM
+		G = g = {
+			eff: [],
+			cln: null,
+			val: [],
+			sub: new Uint32Array(8),
+			cap: 8,
+			st: 1,
+			n: 0,
+			u: 0,
+			q: 0,
+			uh: null,
+			qh: null,
+			dep: 0,
+			bat: 0,
+			pend: null,
+		};
 	return g;
 };
 
-const grow = (g) => {	// allocate one subscription row (st words wide)
+const grow = (g) => {
+	// allocate one subscription row (st words wide)
 	const i = g.n++;
-	if (i >= g.cap) {	// rows packed contiguously — a flat copy preserves layout
+	if (i >= g.cap) {
+		// rows packed contiguously — a flat copy preserves layout
 		const nc = g.cap << 1;
 		const s2 = new Uint32Array(nc * g.st);
 		s2.set(g.sub);
@@ -60,42 +76,56 @@ const grow = (g) => {	// allocate one subscription row (st words wide)
 // live-effect count crosses a 32-bit boundary (32, 64, ...), so amortized
 // to nothing. Preserves each row's existing words in place.
 const growStride = (g) => {
-	const os = g.st, ns = os + 1;
+	const os = g.st,
+		ns = os + 1;
 	const nsub = new Uint32Array(g.cap * ns);
-	for (let r = 0; r < g.n; r++)
-		for (let w = 0; w < os; w++)
-			nsub[r * ns + w] = g.sub[r * os + w];
+	for (let r = 0; r < g.n; r++) for (let w = 0; w < os; w++) nsub[r * ns + w] = g.sub[r * os + w];
 	g.sub = nsub;
-	if (g.uh === null) { g.uh = new Uint32Array(1); g.qh = new Uint32Array(1); }
-	else {
-		const u2 = new Uint32Array(ns - 1); u2.set(g.uh); g.uh = u2;
-		const q2 = new Uint32Array(ns - 1); q2.set(g.qh); g.qh = q2;
+	if (g.uh === null) {
+		g.uh = new Uint32Array(1);
+		g.qh = new Uint32Array(1);
+	} else {
+		const u2 = new Uint32Array(ns - 1);
+		u2.set(g.uh);
+		g.uh = u2;
+		const q2 = new Uint32Array(ns - 1);
+		q2.set(g.qh);
+		g.qh = q2;
 	}
 	g.st = ns;
 };
 
-const relQ = (g) => {		// cascade over: release quarantined ids
-	if (g.dep > 0)
-		return;
+const relQ = (g) => {
+	// cascade over: release quarantined ids
+	if (g.dep > 0) return;
 	g.u &= ~g.q;
 	g.q = 0;
 	const uh = g.uh;
 	if (uh !== null)
-		for (let k = 0; k < uh.length; k++) { uh[k] &= ~g.qh[k]; g.qh[k] = 0; }
+		for (let k = 0; k < uh.length; k++) {
+			uh[k] &= ~g.qh[k];
+			g.qh[k] = 0;
+		}
 };
 
-const flush = (g, i) => {	// notify every subscriber of signal row i
-	if (g.bat > 0) {		// inside batch(): defer, dedupe rows, notify once
+const flush = (g, i) => {
+	// notify every subscriber of signal row i
+	if (g.bat > 0) {
+		// inside batch(): defer, dedupe rows, notify once
 		const p = g.pend || (g.pend = []);
-		if (p.indexOf(i) < 0)	// linear: batched rows are few (no Set — XS rule)
+		if (p.indexOf(i) < 0)
+			// linear: batched rows are few (no Set — XS rule)
 			p.push(i);
 		return;
 	}
 	g.dep++;
 	try {
-		const st = g.st, base = i * st, sub = g.sub;
-		for (let wi = 0; wi < st; wi++) {	// one iteration when st === 1
-			let w = sub[base + wi];		// snapshot this word by value
+		const st = g.st,
+			base = i * st,
+			sub = g.sub;
+		for (let wi = 0; wi < st; wi++) {
+			// one iteration when st === 1
+			let w = sub[base + wi]; // snapshot this word by value
 			const off = wi << 5;
 			while (w) {
 				const b = w & -w;
@@ -124,20 +154,19 @@ class Signal {
 		if (current >= 0 && G.eff[current]) {
 			const g = G;
 			let i = this.i;
-			if (i < 0)
-				i = this.i = grow(g);
+			if (i < 0) i = this.i = grow(g);
 			g.sub[i * g.st + (current >> 5)] |= 1 << (current & 31);
 		}
 		return this.v;
 	}
 	set value(value) {
-		if (value === this.v)
-			return;
+		if (value === this.v) return;
 		this.v = value;
 		const i = this.i;
-		if (i < 0)		// never subscribed
+		if (i < 0)
+			// never subscribed
 			return;
-		flush(G, i);	// flush snapshots each subscriber word by value (see above)
+		flush(G, i); // flush snapshots each subscriber word by value (see above)
 	}
 }
 
@@ -147,16 +176,15 @@ function notify(e) {
 	try {
 		run(e);
 	} catch (err) {
-		if (globalThis.__spError)
-			globalThis.__spError(err);
-		else
-			throw err;
+		if (globalThis.__spError) globalThis.__spError(err);
+		else throw err;
 	}
 }
 
 const run = (e) => {
 	const fn = G.eff[e];
-	if (!fn)		// disposed mid-notification — do not resurrect
+	if (!fn)
+		// disposed mid-notification — do not resurrect
 		return;
 	unsubscribe(e);
 	const prev = current;
@@ -181,9 +209,12 @@ function unsubscribe(e) {
 		c();
 	}
 	// effect e lives in word (e>>5) of every row; clear just that word.
-	const sub = g.sub, st = g.st, word = e >> 5, m = ~(1 << (e & 31)), rows = g.n;
-	for (let s = 0; s < rows; s++)
-		sub[s * st + word] &= m;
+	const sub = g.sub,
+		st = g.st,
+		word = e >> 5,
+		m = ~(1 << (e & 31)),
+		rows = g.n;
+	for (let s = 0; s < rows; s++) sub[s * st + word] &= m;
 }
 
 export function signal(value) {
@@ -205,16 +236,13 @@ export const S = {
 		return i;
 	},
 	get(i) {
-		if (current >= 0 && G.eff[current])
-			G.sub[i * G.st + (current >> 5)] |= 1 << (current & 31);
+		if (current >= 0 && G.eff[current]) G.sub[i * G.st + (current >> 5)] |= 1 << (current & 31);
 		return G.val[i];
 	},
 	set(i, v) {
 		const g = G;
-		if (typeof v === "function")
-			v = v(g.val[i]);
-		if (v === g.val[i])
-			return;
+		if (typeof v === "function") v = v(g.val[i]);
+		if (v === g.val[i]) return;
 		g.val[i] = v;
 		flush(g, i);
 	},
@@ -224,8 +252,7 @@ export const S = {
 	// semantic drift, not a theoretical one).
 	put(i, v) {
 		const g = G;
-		if (v === g.val[i])
-			return;
+		if (v === g.val[i]) return;
 		g.val[i] = v;
 		flush(g, i);
 	},
@@ -238,7 +265,11 @@ export const S = {
 	computed(fn) {
 		const g = gi();
 		const i = grow(g);
-		track(effect(() => { S.set(i, fn()); }));
+		track(
+			effect(() => {
+				S.set(i, fn());
+			}),
+		);
 		return i;
 	},
 };
@@ -249,7 +280,7 @@ export const S = {
 export function effect(fn) {
 	const g = gi();
 	let e;
-	const m0 = ~(g.u | g.q);		// word 0 — the fast path (effects 0-31)
+	const m0 = ~(g.u | g.q); // word 0 — the fast path (effects 0-31)
 	if (m0) {
 		const b = m0 & -m0;
 		e = 31 - Math.clz32(b);
@@ -266,7 +297,8 @@ export function effect(fn) {
 				break;
 			}
 		}
-		if (wi === g.st) {		// all words full — grow, take bit 0 of the new word
+		if (wi === g.st) {
+			// all words full — grow, take bit 0 of the new word
 			growStride(g);
 			g.uh[wi - 1] |= 1;
 			e = wi << 5;
@@ -285,15 +317,18 @@ export function dispose(d) {
 		return;
 	}
 	const g = G;
-	if (!g || !g.eff[d])
-		return;
-	g.eff[d] = null;	// run() becomes a no-op — no resurrection
+	if (!g || !g.eff[d]) return;
+	g.eff[d] = null; // run() becomes a no-op — no resurrection
 	unsubscribe(d);
-	const word = d >> 5, b = 1 << (d & 31);
-	if (g.dep > 0) {	// freed mid-cascade: quarantine until it completes
-		if (word === 0) g.q |= b; else g.qh[word - 1] |= b;
+	const word = d >> 5,
+		b = 1 << (d & 31);
+	if (g.dep > 0) {
+		// freed mid-cascade: quarantine until it completes
+		if (word === 0) g.q |= b;
+		else g.qh[word - 1] |= b;
 	} else {
-		if (word === 0) g.u &= ~b; else g.uh[word - 1] &= ~b;
+		if (word === 0) g.u &= ~b;
+		else g.uh[word - 1] &= ~b;
 	}
 }
 
@@ -302,8 +337,12 @@ export function dispose(d) {
 // otherwise it would keep firing (and leaking) after its UI is gone.
 export function computed(fn) {
 	const s = new Signal(undefined);
-	track(effect(() => { s.value = fn(); }));
-	return s;	// its .value getter tracks; writing .value is caller error
+	track(
+		effect(() => {
+			s.value = fn();
+		}),
+	);
+	return s; // its .value getter tracks; writing .value is caller error
 }
 
 // Batch writes: N sets inside fn produce ONE notification pass per touched
@@ -320,17 +359,17 @@ export function batch(fn) {
 	} finally {
 		if (--g.bat === 0 && g.pend !== null) {
 			const rows = g.pend;
-			g.pend = null;		// re-entrant set()s during notify flush directly
+			g.pend = null; // re-entrant set()s during notify flush directly
 			// Coalesce at the EFFECT level (Solid semantics): union the
 			// subscriber masks of every touched row, so an effect watching
 			// several batched signals runs ONCE, not once per signal.
-			const st = g.st, sub = g.sub;
+			const st = g.st,
+				sub = g.sub;
 			g.dep++;
 			try {
 				for (let wi = 0; wi < st; wi++) {
 					let acc = 0;
-					for (let k = 0; k < rows.length; k++)
-						acc |= sub[rows[k] * st + wi];
+					for (let k = 0; k < rows.length; k++) acc |= sub[rows[k] * st + wi];
 					const off = wi << 5;
 					while (acc) {
 						const b = acc & -acc;
@@ -369,27 +408,26 @@ export function createRoot(fn) {
 	const prev = owner;
 	owner = o;
 	try {
-		return [fn(), () => {
-			for (let i = o.d.length - 1; i >= 0; i--)
-				dispose(o.d[i]);
-			o.d.length = 0;
-		}];
+		return [
+			fn(),
+			() => {
+				for (let i = o.d.length - 1; i >= 0; i--) dispose(o.d[i]);
+				o.d.length = 0;
+			},
+		];
 	} finally {
 		owner = prev;
 	}
 }
 
-
 export function onCleanup(fn) {
-	if (owner)
-		owner.d.push(fn);
+	if (owner) owner.d.push(fn);
 }
 
 // Register a disposable (Effect instance or closure) with the current
 // owner so tearing down the subtree tears it down too.
 export function track(disposable) {
-	if (owner)
-		owner.d.push(disposable);
+	if (owner) owner.d.push(disposable);
 	return disposable;
 }
 
@@ -401,7 +439,9 @@ export function useState(init) {
 	const s = new Signal(init);
 	return [
 		() => s.value,
-		v => { s.value = (typeof v === "function") ? v(s.value) : v; },
+		(v) => {
+			s.value = typeof v === "function" ? v(s.value) : v;
+		},
 	];
 }
 
@@ -411,14 +451,15 @@ export function useState(init) {
 // itself — registering with the owner would only capture the FIRST run's
 // cleanup, since re-runs happen outside any owner context).
 export function useEffect(fn) {
-	track(effect(() => {
-		const out = fn();
-		if (typeof out === "function") {
-			if (G.cln === null)
-				G.cln = [];
-			G.cln[current] = out;
-		}
-	}));
+	track(
+		effect(() => {
+			const out = fn();
+			if (typeof out === "function") {
+				if (G.cln === null) G.cln = [];
+				G.cln[current] = out;
+			}
+		}),
+	);
 }
 
 // PERF: like computed(), this allocates ONE internal effect to keep the
@@ -438,7 +479,6 @@ export function useRef(v) {
 	return { current: v };
 }
 
-
 // ---- typed byte-record store ---------------------------------------------
 // Collections kept as plain JS objects cost ~450B of slots per row and kill
 // the arena at 4-5 rows (measured; README). A Store keeps records as BYTES
@@ -454,16 +494,21 @@ export function useRef(v) {
 // allocated LAZILY at runtime — a buffer created at preload time would be
 // frozen into ROM and unwritable.
 
-const T_I32 = 0, T_F64 = 1, T_STR = 2, T_TRUE = 3, T_FALSE = 4, T_NULL = 5;
+const T_I32 = 0,
+	T_F64 = 1,
+	T_STR = 2,
+	T_TRUE = 3,
+	T_FALSE = 4,
+	T_NULL = 5;
 
 const Store = class {
 	constructor(size) {
 		this.b = new Uint8Array(size);
-		this.t = 0;		// bytes used (records are always compact)
-		this.n = 0;		// record count
-		this.c = null;		// custom codecs: tag -> [encode, decode]
-		this.f = null;		// lazy float64 scratch
-		this.fb = null;		// byte view over this.f
+		this.t = 0; // bytes used (records are always compact)
+		this.n = 0; // record count
+		this.c = null; // custom codecs: tag -> [encode, decode]
+		this.f = null; // lazy float64 scratch
+		this.fb = null; // byte view over this.f
 	}
 	count() {
 		return this.n;
@@ -472,53 +517,57 @@ const Store = class {
 	// max) writes the payload and returns its length, or -1 if it needs more
 	// than max; decode(bytes, offset, length) returns the value.
 	def(tag, encode, decode) {
-		if (this.c === null)
-			this.c = {};
+		if (this.c === null) this.c = {};
 		this.c[tag] = [encode, decode];
 	}
 	// Append a value; pass `tag` only for custom types. Returns the new
 	// count, or -1 when the value does not fit (store full or payload >255B).
 	push(v, tag) {
-		const b = this.b, off = this.t + 2;
-		const max = b.length - off;	// may be negative when nearly full
+		const b = this.b,
+			off = this.t + 2;
+		const max = b.length - off; // may be negative when nearly full
 		let len;
 		if (tag !== undefined) {
 			const codec = this.c && this.c[tag];
-			if (!codec)		// def(tag,...) never registered — fail with a clear signal
+			if (!codec)
+				// def(tag,...) never registered — fail with a clear signal
 				throw new Error("store: no codec for tag " + tag);
 			len = codec[0](v, b, off, max < 0 ? 0 : max);
-		}
-		else if (typeof v === "number") {
+		} else if (typeof v === "number") {
 			if (Number.isInteger(v) && v >= -0x80000000 && v <= 0x7fffffff) {
-				tag = T_I32; len = 4;
+				tag = T_I32;
+				len = 4;
 				if (len <= max) {
-					b[off] = v & 255; b[off + 1] = (v >> 8) & 255;
-					b[off + 2] = (v >> 16) & 255; b[off + 3] = (v >> 24) & 255;
+					b[off] = v & 255;
+					b[off + 1] = (v >> 8) & 255;
+					b[off + 2] = (v >> 16) & 255;
+					b[off + 3] = (v >> 24) & 255;
 				}
-			}
-			else {
-				tag = T_F64; len = 8;
+			} else {
+				tag = T_F64;
+				len = 8;
 				if (len <= max) {
 					this.fl();
 					this.f[0] = v;
-					for (let i = 0; i < 8; i++)
-						b[off + i] = this.fb[i];
+					for (let i = 0; i < 8; i++) b[off + i] = this.fb[i];
 				}
 			}
-		}
-		else if (typeof v === "string") {
-			tag = T_STR; len = v.length;
+		} else if (typeof v === "string") {
+			tag = T_STR;
+			len = v.length;
 			if (len <= max && len <= 255)
-				for (let i = 0; i < len; i++)
-					b[off + i] = v.charCodeAt(i) & 255;
-		}
-		else if (v === true) { tag = T_TRUE; len = 0; }
-		else if (v === false) { tag = T_FALSE; len = 0; }
-		else if (v === null || v === undefined) { tag = T_NULL; len = 0; }
-		else
-			return -1;	// objects need a registered codec + explicit tag
-		if (len < 0 || len > 255 || len > max)
-			return -1;
+				for (let i = 0; i < len; i++) b[off + i] = v.charCodeAt(i) & 255;
+		} else if (v === true) {
+			tag = T_TRUE;
+			len = 0;
+		} else if (v === false) {
+			tag = T_FALSE;
+			len = 0;
+		} else if (v === null || v === undefined) {
+			tag = T_NULL;
+			len = 0;
+		} else return -1; // objects need a registered codec + explicit tag
+		if (len < 0 || len > 255 || len > max) return -1;
 		b[this.t] = tag;
 		b[this.t + 1] = len;
 		this.t += 2 + len;
@@ -526,24 +575,28 @@ const Store = class {
 	}
 	get(i) {
 		const p = this.o(i);
-		if (p < 0)
-			return undefined;
-		const b = this.b, tag = b[p], len = b[p + 1], off = p + 2;
+		if (p < 0) return undefined;
+		const b = this.b,
+			tag = b[p],
+			len = b[p + 1],
+			off = p + 2;
 		switch (tag) {
 			case T_I32:
-				return (b[off] | (b[off + 1] << 8) | (b[off + 2] << 16) | (b[off + 3] << 24)) | 0;
+				return b[off] | (b[off + 1] << 8) | (b[off + 2] << 16) | (b[off + 3] << 24) | 0;
 			case T_F64:
 				this.fl();
-				for (let j = 0; j < 8; j++)
-					this.fb[j] = b[off + j];
+				for (let j = 0; j < 8; j++) this.fb[j] = b[off + j];
 				return this.f[0];
 			case T_STR:
 				// apply over a subarray view: 1 allocation instead of one
 				// intermediate string per character
 				return len ? String.fromCharCode.apply(String, b.subarray(off, off + len)) : "";
-			case T_TRUE: return true;
-			case T_FALSE: return false;
-			case T_NULL: return null;
+			case T_TRUE:
+				return true;
+			case T_FALSE:
+				return false;
+			case T_NULL:
+				return null;
 			default:
 				return this.c[tag][1](b, off, len);
 		}
@@ -551,44 +604,45 @@ const Store = class {
 	// Remove record i (shifts the tail down); returns the new count or -1.
 	remove(i) {
 		const p = this.o(i);
-		if (p < 0)
-			return -1;
-		const b = this.b, rec = 2 + b[p + 1], end = this.t - rec;
-		for (let j = p; j < end; j++)
-			b[j] = b[j + rec];
+		if (p < 0) return -1;
+		const b = this.b,
+			rec = 2 + b[p + 1],
+			end = this.t - rec;
+		for (let j = p; j < end; j++) b[j] = b[j + rec];
 		this.t = end;
 		return --this.n;
 	}
 	// byte offset of record i, or -1
 	o(i) {
-		if (i < 0 || i >= this.n)
-			return -1;
+		if (i < 0 || i >= this.n) return -1;
 		let p = 0;
-		while (i--)
-			p += 2 + this.b[p + 1];
+		while (i--) p += 2 + this.b[p + 1];
 		return p;
 	}
 	// Persist the raw record bytes under a key in the host's localStorage
 	// (device key-value store). One byte becomes one Latin-1 char; load()
 	// walks the records to rebuild the count and rejects corrupt data.
 	save(k) {
-		const b = this.b, t = this.t;
-		globalThis.localStorage.setItem(k,
-			t ? String.fromCharCode.apply(String, b.subarray(0, t)) : "");
+		const b = this.b,
+			t = this.t;
+		globalThis.localStorage.setItem(
+			k,
+			t ? String.fromCharCode.apply(String, b.subarray(0, t)) : "",
+		);
 	}
 	load(k) {
 		const s = globalThis.localStorage.getItem(k);
-		if (s === null || s.length > this.b.length)
-			return false;
+		if (s === null || s.length > this.b.length) return false;
 		const b = this.b;
-		for (let i = 0; i < s.length; i++)
-			b[i] = s.charCodeAt(i) & 255;
-		let n = 0, p = 0;
+		for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 255;
+		let n = 0,
+			p = 0;
 		while (p < s.length) {
 			p += 2 + b[p + 1];
 			n++;
 		}
-		if (p !== s.length)	// truncated/corrupt record stream
+		if (p !== s.length)
+			// truncated/corrupt record stream
 			return false;
 		this.t = s.length;
 		this.n = n;
@@ -603,5 +657,4 @@ const Store = class {
 	}
 };
 
-export const createStore = size => new Store(size);
-
+export const createStore = (size) => new Store(size);
