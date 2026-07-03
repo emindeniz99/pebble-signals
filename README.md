@@ -660,6 +660,17 @@ resources → the phone). It includes the MEASURED packed-core experiment
    drop the `Row`, keep HH:MM:SS as ONE white `Label`, and spend the one
    restrained accent colour on the existing date line instead.
 
+22. **Position/size props are STATIC — a reactive one is rejected at bind
+   time, not silently ignored.** `<Container left={() => x()}>` throws
+   `jsx: position/size prop \`left\` is static …` the moment it builds:
+   Piu's retained layout fixes coordinates at construction, so unlike React
+   (which re-renders the whole element) you can't animate `left/top/width`
+   by writing the property. Reposition by SWAPPING the node via `<Show>`
+   (dispose + rebuild at the new coordinates), or use a Piu move/Transition.
+   Only `string/state/variant/skin/style/active` accept a reactive binding.
+   (This is a Piu limitation, not a signals one — Solid can set `style.left`
+   because the DOM allows it; Piu does not.)
+
 ## vs react-pebble
 
 |                       | react-pebble                          | signal-piu                                |

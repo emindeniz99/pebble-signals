@@ -39,23 +39,34 @@ check("reactive prop binds initial", lbl.string === "hi");
 sig.value = "bye";
 check("reactive prop updates on change", lbl.string === "bye");
 
-// --- setProp whitelist: visible + unknown rejected loudly at creation ---
-// (the binding's initial run assigns the prop synchronously, so an illegal
-// prop throws right where the host is built — fail loud, not silent.)
-let vErr = "",
-	pErr = "";
-try {
-	jsx(Label, { visible: () => true });
-} catch (e) {
-	vErr = e.message;
-}
-check("visible binding is rejected", vErr === "jsx:visible");
-try {
-	jsx(Label, { left: () => 1 });
-} catch (e) {
-	pErr = e.message;
-}
-check("unknown-prop binding is rejected", /^jsx:prop left/.test(pErr));
+// --- reactive-prop whitelist: illegal reactive props rejected AT BIND TIME
+// with an actionable message (not a cryptic per-run throw) ---
+const catchMsg = (fn) => {
+	try {
+		fn();
+	} catch (e) {
+		return e.message;
+	}
+	return "";
+};
+check(
+	"reactive visible rejected with guidance",
+	/`visible` can't be reactive/.test(catchMsg(() => jsx(Label, { visible: () => true }))),
+);
+check(
+	"reactive position prop rejected with guidance",
+	/position\/size prop `left` is static/.test(catchMsg(() => jsx(Label, { left: () => 1 }))),
+);
+check(
+	"reactive width (position) rejected with guidance",
+	/position\/size prop `width` is static/.test(catchMsg(() => jsx(Label, { width: () => 1 }))),
+);
+check(
+	"reactive unknown prop rejected with the reactive-props list",
+	/can't be a reactive binding \(reactive props:/.test(
+		catchMsg(() => jsx(Label, { frobnicate: () => 1 })),
+	),
+);
 
 // --- onTap: active + behavior; delegate fires ---
 let tapped = null;

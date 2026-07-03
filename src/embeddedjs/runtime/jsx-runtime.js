@@ -117,6 +117,11 @@ function createHost(type, props) {
 		for (let i = 0; i < bindings.length; i += 2) {
 			const key = bindings[i],
 				thunk = bindings[i + 1];
+			// Reject an illegal reactive prop ONCE, HERE (bind time), with an
+			// actionable message — not on every effect run. Only the whitelist
+			// can be written reactively; a reactive position prop is the classic
+			// React-refugee surprise (Piu layout is construction-time).
+			if (REACTIVE_PROPS.indexOf(key) < 0) throw new Error(bindErr(key));
 			track(effect(() => setProp(node, key, thunk())));
 		}
 	}
@@ -124,19 +129,45 @@ function createHost(type, props) {
 	return node;
 }
 
-// Reactive property writes. Position/size are static-only in v1: Piu
-// coordinates are construction-dict state, not plain property writes.
-// `visible` is deliberately rejected — writing .visible on bound content
-// crashes the piu Pebble firmware (measured); use Show for conditional UI.
-// Of the rest, `string` is battle-tested on-device; state/variant/skin/
-// style/active pass through and follow the same setter path.
+// Reactive property writes. Position/size are static-only: Piu coordinates are
+// construction-dict state, not plain property writes. `visible` crashes the piu
+// Pebble port when written on bound content (measured); use Show. `string` is
+// battle-tested on-device; state/variant/skin/style/active follow the same path.
 const REACTIVE_PROPS = Object.freeze(["string", "state", "variant", "skin", "style", "active"]);
+const POSITION_PROPS = Object.freeze([
+	"left",
+	"right",
+	"top",
+	"bottom",
+	"width",
+	"height",
+	"x",
+	"y",
+]);
 
+// Actionable bind-time error for a prop that can't be a reactive binding.
+function bindErr(key) {
+	if (key === "visible")
+		return "jsx: `visible` can't be reactive (crashes the port) — use <Show> for conditional UI";
+	if (POSITION_PROPS.indexOf(key) >= 0)
+		return (
+			"jsx: position/size prop `" +
+			key +
+			"` is static — Piu lays out at construction time. Reposition by swapping with <Show>, not a reactive binding."
+		);
+	return (
+		"jsx: prop `" +
+		key +
+		"` can't be a reactive binding (reactive props: " +
+		REACTIVE_PROPS.join(", ") +
+		")"
+	);
+}
+
+// createHost guarantees `key` is in REACTIVE_PROPS before it ever calls this, so
+// this is just the write. Kept as a named step so the binding effect reads well.
 function setProp(node, key, value) {
-	if (REACTIVE_PROPS.indexOf(key) >= 0) node[key] = value;
-	else if (key === "visible")
-		throw new Error("jsx:visible"); // crashes the port; use Show
-	else throw new Error("jsx:prop " + key);
+	node[key] = value;
 }
 
 export function appendChild(parent, child) {
