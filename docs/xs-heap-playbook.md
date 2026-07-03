@@ -38,6 +38,58 @@ Numbers below are measured on gabbro/SDK 4.17 unless marked est.
 Deep recursion (reconcile over deep trees) is the risk; our runtime keeps
 recursion shallow (appendChild recurses over children arrays only).
 
+## Memory partitions — the size table
+
+Consolidated sizes for every place a byte can live on this watch. "Measured"
+= from XS instrumentation logs (`mdbl.c`) or an on-device probe this project
+ran; "firmware" = fixed by the Moddable/Pebble build, not ours to change.
+
+| Partition | Size | Basis | Volatile? | Costs XS heap? |
+|---|---|---|---|---|
+| XS **stack** | 6144 B | measured (instrumentation) | yes | — (part of the 32KB) |
+| XS **slot heap** | ~8176 B initial, grows within the arena | measured | yes | THIS is the scarce one |
+| XS **chunk heap** | 8192 B initial, GC-compacted, grows within the arena | measured | yes | bytes here (typed arrays) |
+| XS machine **total** | **32768 B** (slot+chunk+stack, firmware-cloned) | measured, firmware | yes | the whole budget |
+| Mod archive **boot ceiling** | ~15.9 KB (the `.xsa` that loads at boot) | measured (gotcha 15) | ROM | no (flash), but caps app size |
+| Native **app heap** | ~122–130 KB | measured (this project) | yes | no (separate heap) |
+| Flash **resource area** | 256 KB, read-only | firmware (device manifest) | ROM | no — `Resource` views it in place |
+| **localStorage** (PKJS bridge) | per-key/-app cap **UNVERIFIED** — measure before relying on a size | needs a probe | persistent | no (native/phone side) |
+| **Phone** (PKJS + AppMessage/fetch) | effectively unlimited | — | persistent | no |
+
+Two rows are deliberately not given a number: localStorage's per-app cap and
+any Pebble "persistent storage" key limit. This project has round-tripped
+strings through localStorage (memory ladder step 3) but has NOT measured its
+ceiling, and Rule 2 forbids quoting a limit we didn't measure. If an app needs
+to know, write a probe (grow a stored blob until write fails) and record the
+number here. Do not assume the classic-SDK 4 KB persist cap applies to the
+Moddable localStorage path without checking.
+
+## Firmware heap ceiling — you cannot grow the 32KB (mdbl.c finding)
+
+The single most important constraint, and the most counter-intuitive:
+**requesting a bigger JS machine does nothing.** Measured in `src/c/mdbl.c`
+(SDK 4.17, gabbro/emery):
+
+- The `ModdableCreationRecord` stack/slot/chunk fields must all be nonzero or
+  the record is REJECTED (`moddable.c:79 invalid ModdableCreationRecord`, no
+  machine starts) — so you must pass sizes...
+- ...but the sizes are then **IGNORED**. Instrumentation reports the SAME arena
+  (chunk 8192, ~8176 B slots, 6144 B stack, 32768 total) whether you ask for
+  slot=16K/chunk=16K or slot=32K/chunk=32K. The JS machine is **cloned from the
+  firmware's built-in creation config** (`"static": 32768` in the Moddable
+  pebble device manifest). Only `.flags` (instrumentation, debug) takes effect.
+
+Consequence for the "does adding native C code shrink the JS heap?" question:
+the JS arena is a FIXED 32768 B carved out by firmware, independent of the app's
+own native `main()` — your `window_create()` and any native allocations draw
+from the *separate* ~122–130 KB native app heap, not the XS arena. So native
+code does not "halve" the JS heap; the JS heap was never yours to size in the
+first place — it is a constant the firmware hands you. The corollary is the
+whole reason this library exists: 32 KB is the hard, unmovable budget, so the
+architecture optimizes RAM at every turn (bytes not objects, indices not refs,
+recompute not cache) rather than trying to buy more. Every attempt to enlarge
+the machine from the app side has been measured to be a no-op.
+
 ## Where else data can live (the memory ladder)
 
 From scarcest to cheapest — push data DOWN this ladder whenever possible:
