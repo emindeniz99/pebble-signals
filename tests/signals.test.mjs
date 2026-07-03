@@ -1,6 +1,6 @@
 // Reactive core suite — mirrors the assertions verified on XS in M1
 // (on-device the verdict renders as a Piu label; here it exits nonzero).
-import { signal, effect, computed, untrack, createRoot, onCleanup, track, useEffect, dispose, useState, useMemo }
+import { signal, effect, computed, untrack, createRoot, onCleanup, track, useEffect, dispose, useState, useMemo, S }
 	from "../src/embeddedjs/runtime/signals.js";
 import { makeChecker } from "./load-runtime.mjs";
 
@@ -121,5 +121,28 @@ check("computed tracked", sq2.value === 4 && computes === 2);
 disposeC();
 cSrc.value = 3;
 check("computed dead after root dispose", computes === 2);
+
+// 13. packed-signal API (S) — the Stage 2 lowering target
+const px = S.sig(10);
+let pSeen = [];
+const pe = effect(() => pSeen.push(S.get(px)));
+check("S initial read", pSeen.join(",") === "10");
+S.set(px, 11);
+check("S set notifies", pSeen.join(",") === "10,11");
+S.set(px, v => v + 9);
+check("S functional update", pSeen.join(",") === "10,11,20");
+S.set(px, 20);
+check("S equal set is a no-op", pSeen.length === 3);
+dispose(pe);
+S.set(px, 99);
+check("S disposed effect silent", pSeen.length === 3);
+// packed + object signals share one graph
+const mix = signal(1);
+const px2 = S.sig(2);
+let mixSeen = 0;
+effect(() => { mix.value; S.get(px2); mixSeen++; });
+mix.value = 5;
+S.set(px2, 7);
+check("mixed graph both notify", mixSeen === 3);
 
 done();

@@ -52,6 +52,11 @@ for f in src/embeddedjs/runtime/*.js; do
 		--log-level=error 2>/dev/null || cp "$f" "$out"
 done
 tsc -p tsconfig.json
+# Stage-2 lowering: rewrite `const [x,setX] = useState(v)` + call sites to
+# the packed-signal API (S.sig/get/set) so the per-state closures and the
+# Signal object never exist at runtime. Aliased getters/setters bail to the
+# object API — semantics never change (tools/lower.py --selftest).
+python3 tools/lower.py src/embeddedjs/app/*.js
 for f in src/embeddedjs/app/*.js; do
 	npx -y esbuild@0.25 "$f" --minify --format=esm --outfile="$f" \
 		--allow-overwrite --log-level=error 2>/dev/null || true

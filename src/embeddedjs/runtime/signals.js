@@ -28,6 +28,39 @@ let current = -1;	// id of the running effect, -1 = none
 // stale bit could run a freshly reused id.
 let G = null;
 
+const gi = () => {
+	let g = G;
+	if (g === null)		// lazy: a preload-time table would be frozen in ROM
+		G = g = { eff: [], cln: null, val: [], sub: new Uint32Array(8), n: 0, u: 0, q: 0, dep: 0 };
+	return g;
+};
+
+const grow = (g) => {	// allocate one subscription row
+	const i = g.n++;
+	if (i >= g.sub.length) {
+		const s2 = new Uint32Array(g.sub.length << 1);
+		s2.set(g.sub);
+		g.sub = s2;
+	}
+	return i;
+};
+
+const flush = (g, w) => {	// notify every effect bit in snapshot w
+	g.dep++;
+	try {
+		while (w) {
+			const b = w & -w;
+			w &= w - 1;
+			notify(31 - Math.clz32(b));
+		}
+	} finally {
+		if (--g.dep === 0) {	// cascade over: release quarantined ids
+			g.u &= ~g.q;
+			g.q = 0;
+		}
+	}
+};
+
 // Signals keep the object API (`.value`) — Stage 1 packs only the graph.
 // `i` is the signal's row in G.sub, allocated LAZILY on first subscribe:
 // never-watched signals own no row at all.
@@ -43,14 +76,8 @@ class Signal {
 		if (current >= 0 && G.eff[current]) {
 			const g = G;
 			let i = this.i;
-			if (i < 0) {
-				i = this.i = g.n++;
-				if (i >= g.sub.length) {
-					const s2 = new Uint32Array(g.sub.length << 1);
-					s2.set(g.sub);
-					g.sub = s2;
-				}
-			}
+			if (i < 0)
+				i = this.i = grow(g);
 			g.sub[i] |= 1 << current;
 		}
 		return this.v;
@@ -65,22 +92,9 @@ class Signal {
 		const g = G;
 		// snapshot BY VALUE: subscriber mutation during notification cannot
 		// touch it, and quarantine makes stale bits harmless (see above)
-		let w = g.sub[i];
-		if (!w)
-			return;
-		g.dep++;
-		try {
-			while (w) {
-				const b = w & -w;
-				w &= w - 1;
-				notify(31 - Math.clz32(b));
-			}
-		} finally {
-			if (--g.dep === 0) {	// cascade over: release quarantined ids
-				g.u &= ~g.q;
-				g.q = 0;
-			}
-		}
+		const w = g.sub[i];
+		if (w)
+			flush(g, w);
 	}
 }
 
@@ -132,13 +146,43 @@ export function signal(value) {
 	return new Signal(value);
 }
 
+// ---- packed signals — the Stage 2 lowering target -------------------------
+// A packed signal is an INTEGER: the id doubles as its subscription row and
+// indexes G.val (ONE slot per value instead of a ~4-slot Signal object).
+// build.sh lowers `const [x, setX] = useState(v)` to this API at compile
+// time (tools/lower.py): x() -> S.get(x), setX(e) -> S.set(x, e). Authoring
+// DX is unchanged and the per-state getter/setter closures never exist at
+// runtime. set() keeps useState's functional-update contract.
+export const S = {
+	sig(v) {
+		const g = gi();
+		const i = grow(g);
+		g.val[i] = v;
+		return i;
+	},
+	get(i) {
+		if (current >= 0 && G.eff[current])
+			G.sub[i] |= 1 << current;
+		return G.val[i];
+	},
+	set(i, v) {
+		const g = G;
+		if (typeof v === "function")
+			v = v(g.val[i]);
+		if (v === g.val[i])
+			return;
+		g.val[i] = v;
+		const w = g.sub[i];
+		if (w)
+			flush(g, w);
+	},
+};
+
 // Returns the effect ID (an integer — costs ZERO slots), not an object or
 // a disposer closure. Dispose with dispose(id) (or register with track(),
 // whose owner terminates closures and ids alike).
 export function effect(fn) {
-	let g = G;
-	if (g === null)		// lazy: a preload-time table would be frozen in ROM
-		G = g = { eff: [], cln: null, sub: new Uint32Array(8), n: 0, u: 0, q: 0, dep: 0 };
+	const g = gi();
 	const m = ~(g.u | g.q);
 	if (!m)
 		throw new Error("fx:max");	// 32 live effects (one mask word)
