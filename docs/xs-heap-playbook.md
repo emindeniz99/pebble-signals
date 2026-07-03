@@ -95,9 +95,20 @@ numeric signals (clocks, counters, offsets — our dominant load) get the
 full win. Cap: 32 effects per u32 word; tier to N words if ever needed
 (largest example uses ~6 effects).
 
-Integration status: PROTOTYPE — the shipped runtime still uses the object
-core. Integrating means an index-based API through jsx-runtime/flow (a
-compat layer of closures would hand the savings back). Decision pending.
+Integration status: **Stage 1 INTEGRATED** (runtime-internal; zero DX
+change): `effect()` now returns a packed integer id, the Effect object and
+its dependency array are gone, subscriptions are one u32 word per signal
+row (lazy, stride 1, cap 32 live effects), freed ids quarantine during a
+notification cascade so snapshot masks can never run a reused id. Signals
+keep the `.value` object API (their objects go in Stage 2). Full Node
+suite passes (96/96). On-device (emery, pre-trim build): slotbench
+marginal cost 273 → 178 B/pair (−35%), capacity 20 → 22 pairs; the
+fixed-overhead trim (single-word masks, lazy cln, 8-row initial table)
+landed after that run. VERIFICATION DEBT: example re-runs (forbind/list)
++ post-trim ramp are pending — the QEMU emulators wedged (frozen first
+boot on both platforms) at the end of the session. An earlier forbind
+"crash" observation is CONFOUNDED (the firmware was on its recovery
+screen from a prior ramp death — gotcha 1), so treat it as unproven.
 
 ## Standing tricks (quick list)
 

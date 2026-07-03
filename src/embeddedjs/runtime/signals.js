@@ -12,35 +12,46 @@
 // startup. New module-level helpers must be `const` bindings, and every
 // export costs runtime RAM: make it earn its keep.
 
-let current = null;
+let current = -1;	// id of the running effect, -1 = none
 
-// Subscribers are stored INLINE: `s` is null (none), the single subscribing
-// Effect, or an array of Effects. The obvious `new Set()` per signal costs
-// ~10 slots + a hash-table chunk, and nearly every signal here has 0-2
-// subscribers — on the 32KB arena that Set was the single biggest per-signal
-// expense (see README for the measured before/after row limit).
+// ---- packed effect graph (task #15 Stage 1 — measured ~2x cheaper) ----
+// An effect is an INTEGER ID, not an object. Tables live in ONE lazily
+// created state record (a preload-time buffer would be frozen into ROM):
+//   eff[id]  reaction fn (null = disposed — doubles as the zombie guard)
+//   cln[id]  optional useEffect cleanup
+//   sub      Uint32Array, 2 words per SIGNAL row = 64 effect bits;
+//            subscribe is one OR — and the old per-effect dependency
+//            array is GONE: reverse edges are implied by the forward
+//            masks, so unsubscribe is one AND-NOT pass over the rows.
+// Freed ids are QUARANTINED while a notification cascade is running
+// (dep > 0): a set() snapshots masks by value, so without quarantine a
+// stale bit could run a freshly reused id.
+let G = null;
+
+// Signals keep the object API (`.value`) — Stage 1 packs only the graph.
+// `i` is the signal's row in G.sub, allocated LAZILY on first subscribe:
+// never-watched signals own no row at all.
 class Signal {
 	constructor(value) {
 		this.v = value;
-		this.s = null;
+		this.i = -1;
 	}
 	get value() {
-		// current.f check: an effect disposed WHILE RUNNING (its subtree torn
-		// down by an outer effect it triggered) must not re-subscribe as a
-		// permanent zombie — run() would no-op forever but never unsubscribe.
-		if (current && current.f) {
-			const s = this.s;
-			if (s === null)
-				this.s = current;
-			else if (s !== current) {
-				if (Array.isArray(s)) {
-					if (s.indexOf(current) < 0)
-						s.push(current);
+		// eff[current] check: an effect disposed WHILE RUNNING (its subtree
+		// torn down by an outer effect it triggered) must not re-subscribe
+		// as a permanent zombie.
+		if (current >= 0 && G.eff[current]) {
+			const g = G;
+			let i = this.i;
+			if (i < 0) {
+				i = this.i = g.n++;
+				if (i >= g.sub.length) {
+					const s2 = new Uint32Array(g.sub.length << 1);
+					s2.set(g.sub);
+					g.sub = s2;
 				}
-				else
-					this.s = [s, current];
 			}
-			current.d.push(this);
+			g.sub[i] |= 1 << current;
 		}
 		return this.v;
 	}
@@ -48,20 +59,28 @@ class Signal {
 		if (value === this.v)
 			return;
 		this.v = value;
-		const s = this.s;
-		if (s === null)
+		const i = this.i;
+		if (i < 0)		// never subscribed
 			return;
-		// Snapshot arrays: subscribers may mutate `s` while we notify. run()
-		// is a no-op for effects disposed mid-notification (fn === null) —
-		// without that guard a disposed effect would resurrect itself by
-		// re-subscribing during its final run. The single-subscriber path
-		// (the common one) allocates nothing.
-		if (Array.isArray(s)) {
-			for (const e of [...s])
-				notify(e);
+		const g = G;
+		// snapshot BY VALUE: subscriber mutation during notification cannot
+		// touch it, and quarantine makes stale bits harmless (see above)
+		let w = g.sub[i];
+		if (!w)
+			return;
+		g.dep++;
+		try {
+			while (w) {
+				const b = w & -w;
+				w &= w - 1;
+				notify(31 - Math.clz32(b));
+			}
+		} finally {
+			if (--g.dep === 0) {	// cascade over: release quarantined ids
+				g.u &= ~g.q;
+				g.q = 0;
+			}
 		}
-		else
-			notify(s);
 	}
 }
 
@@ -69,7 +88,7 @@ class Signal {
 // abort the machine (XS kills the app otherwise)
 function notify(e) {
 	try {
-		e.run();
+		run(e);
 	} catch (err) {
 		if (globalThis.__spError)
 			globalThis.__spError(err);
@@ -78,81 +97,76 @@ function notify(e) {
 	}
 }
 
-class Effect {
-	// Fields stay minimal — every slot is arena RAM and effects are the
-	// most numerous runtime object. `fn === null` doubles as the disposed
-	// flag; the optional useEffect cleanup is only materialized on the
-	// instances that actually use it (current.cleanup = ...).
-	constructor(fn) {
-		this.f = fn;		// null doubles as the disposed flag
-		this.d = [];		// subscribed signals
-		this.c = null;		// optional user cleanup (useEffect)
+const run = (e) => {
+	const fn = G.eff[e];
+	if (!fn)		// disposed mid-notification — do not resurrect
+		return;
+	unsubscribe(e);
+	const prev = current;
+	current = e;
+	try {
+		fn();
+	} finally {
+		current = prev;
 	}
-	run() {
-		if (!this.f)		// disposed mid-notification — do not resurrect
-			return;
-		unsubscribe(this);
-		const prev = current;
-		current = this;
-		try {
-			this.f();
-		} finally {
-			current = prev;
-		}
-	}
-}
+};
 
-// Runs the user cleanup (if any) and drops all subscriptions. Called both
-// before every re-run and on disposal, giving useEffect the React contract:
-// cleanup fires before the next run and once more at dispose.
+// Runs the user cleanup (if any) and drops every subscription of effect e
+// in ONE masked pass over the signal rows (CPU for RAM: rows are few and
+// the pass allocates nothing). Called both before every re-run and on
+// disposal, giving useEffect the React contract: cleanup fires before the
+// next run and once more at dispose.
 function unsubscribe(e) {
-	if (e.c) {
-		const c = e.c;
-		e.c = null;
+	const g = G;
+	const c = g.cln !== null && g.cln[e];
+	if (c) {
+		g.cln[e] = null;
 		c();
 	}
-	// indexed loop: for-of allocates an iterator and this runs before EVERY
-	// effect re-run — the hottest path in the runtime
-	const d = e.d;
-	for (let i = 0; i < d.length; i++) {
-		const sig = d[i], s = sig.s;
-		if (s === e)
-			sig.s = null;
-		else if (Array.isArray(s)) {
-			const j = s.indexOf(e);
-			if (j >= 0) {
-				s.splice(j, 1);
-				if (s.length === 1)	// collapse back to the inline form
-					sig.s = s[0];
-			}
-		}
-	}
-	d.length = 0;
+	const sub = g.sub, m = ~(1 << e), rows = g.n;
+	for (let s = 0; s < rows; s++)
+		sub[s] &= m;
 }
 
 export function signal(value) {
 	return new Signal(value);
 }
 
-// Returns the Effect itself, NOT a disposer closure: a closure per effect
-// costs 3-4 arena slots and effects are the most numerous runtime object.
-// Dispose with dispose(e) (or register with track(), whose owner knows how
-// to terminate both closures and Effect instances).
+// Returns the effect ID (an integer — costs ZERO slots), not an object or
+// a disposer closure. Dispose with dispose(id) (or register with track(),
+// whose owner terminates closures and ids alike).
 export function effect(fn) {
-	const e = new Effect(fn);
-	e.run();
+	let g = G;
+	if (g === null)		// lazy: a preload-time table would be frozen in ROM
+		G = g = { eff: [], cln: null, sub: new Uint32Array(8), n: 0, u: 0, q: 0, dep: 0 };
+	const m = ~(g.u | g.q);
+	if (!m)
+		throw new Error("fx:max");	// 32 live effects (one mask word)
+	const b = m & -m;
+	const e = 31 - Math.clz32(b);
+	g.u |= b;
+	g.eff[e] = fn;
+	run(e);
 	return e;
 }
 
 // Terminal disposal for anything an owner can hold: a plain closure (root
-// disposers, onCleanup callbacks) or an Effect instance.
+// disposers, onCleanup callbacks) or a packed effect id.
 export function dispose(d) {
 	if (typeof d === "function") {
 		d();
 		return;
 	}
-	d.f = null;		// run() becomes a no-op — no resurrection
+	const g = G;
+	if (!g || !g.eff[d])
+		return;
+	g.eff[d] = null;	// run() becomes a no-op — no resurrection
 	unsubscribe(d);
+	const b = 1 << d;
+	if (g.dep > 0)		// freed mid-cascade: quarantine until it completes
+		g.q |= b;
+	else
+		g.u &= ~b;
 }
 
 // Eager computed. The internal effect is registered with the current owner
@@ -167,7 +181,7 @@ export function computed(fn) {
 // Read a value without creating a dependency.
 export function untrack(fn) {
 	const prev = current;
-	current = null;
+	current = -1;
 	try {
 		return fn();
 	} finally {
@@ -231,8 +245,11 @@ export function useState(init) {
 export function useEffect(fn) {
 	track(effect(() => {
 		const out = fn();
-		if (typeof out === "function")
-			current.c = out;
+		if (typeof out === "function") {
+			if (G.cln === null)
+				G.cln = [];
+			G.cln[current] = out;
+		}
 	}));
 }
 
