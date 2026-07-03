@@ -422,9 +422,17 @@ renders `dcl`, built lazily inside the `if (transforming)` branch — so
 `scale(1,1)` is mandatory even at native size), and svg2pdc uses top-left
 coordinates.
 
-REMAINING: confirm `center(0,0)` renders the circle on-device (was pending
-when the emulator wedged), then author a real vector sloth SVG → `svg2pdc` →
-`.pdc`. The hard blockers (bytes, bundling, validation) are all cleared.
+CONCLUSION: despite all of the above, the PDC never renders. Exhaustively
+ruled out on both gabbro and emery — a big WHITE circle is equally invisible
+(not colour), `center(0,0)` and `center(50,50)` are both blank (not the
+offset), and the transform trigger set pre-mount AND re-applied by a
+post-mount timer changes nothing. `dci` validates and `DrawAux`'s math checks
+out on paper, yet `gdraw_command_list_draw` yields no visible pixels. Best
+read: the `SVGImage` **`path`/Resource** route does not render on this Alloy
+firmware build — a port limitation, not a JS-fixable bug. The one route not
+tried is the native Pebble resource **`id`** (needs the generated
+`RESOURCE_ID` plumbed into Moddable JS). **Net for now: raster `Texture` is
+the working image path; vector stays parked.**
 
 ## XS / Piu gotchas actually hit
 

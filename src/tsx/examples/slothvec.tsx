@@ -9,12 +9,16 @@
 //  - validation: with NO explicit width/height the SVGImage still sizes itself
 //    to the PDC's 100x100 bounds, so gdraw_command_image_validate SUCCEEDS
 //    (dci is valid). The image IS parsed.
-//  - The bug is POSITIONING, not data: DrawAux offsets the draw box by
-//    (cx,cy) (default = bounds/2 = 50) AND then draws the command at its own
-//    (50,50), so the circle lands at content+100 — off in a corner. Setting
-//    center(0,0) should drop cx/cy so the circle's (50,50) hits the content
-//    center. That final on-device confirmation is still PENDING (emulator was
-//    wedged at the time). Build: APP=slothvec ./build.sh
+// CONCLUSION: the PDC never renders despite all of the above. Exhaustively
+// ruled out on-device (gabbro + emery): color (a big WHITE circle is equally
+// invisible), positioning (center(0,0) and center(50,50) both blank), and
+// the transform trigger (scale set pre-mount AND re-applied post-mount by a
+// timer). dci validates and DrawAux's math checks out on paper, yet
+// gdraw_command_list_draw produces no visible pixels. This looks like a
+// limitation of the SVGImage `path`/Resource route on this Alloy firmware
+// build, not something fixable from JS. Not-yet-tried: the native Pebble
+// resource `id` route (needs the generated RESOURCE_ID plumbed into JS).
+// Build: APP=slothvec ./build.sh
 import { render } from "runtime/jsx-runtime";
 declare const SVGImage: any;
 declare const Resource: any;
