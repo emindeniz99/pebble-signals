@@ -350,7 +350,7 @@ function makeHost(props, Type) {
 	// explicit width, or left+right together, still win.
 	if (dict.width === undefined && !(dict.left !== undefined && dict.right !== undefined))
 		dict.width = screen.width;
-	return new (Type || Container)(null, dict);
+	return new Type(null, dict); // every caller passes a Type (Column/Container)
 }
 
 function asNode(build) {

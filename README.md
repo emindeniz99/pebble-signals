@@ -128,6 +128,10 @@ top-level `function` is banned, gotcha 13, so `const C = () =>` there). See
 
 ## Solid-flavored, NOT a React drop-in
 
+> Wondering *why not just use React / a VDOM / Solid directly*, and how we got
+> here? The full evaluation — every approach we weighed and why the 32KB heap
+> forced each decision — is in [`docs/design-journey.md`](docs/design-journey.md).
+
 This is fine-grained reactivity in the **Solid** model, not React. `useState`
 returns `[getter, setter]` (Solid semantics), components don't re-render, and
 reactive values are thunks — so React code does not port unchanged. Three

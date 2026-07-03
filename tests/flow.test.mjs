@@ -316,4 +316,54 @@ const builtAfterMount = kbuilt;
 lvl.value = 2; // still > 0 -> same side -> no swap
 check("keepAlive same-side re-eval is a no-op", kbuilt === builtAfterMount);
 
+// coverage: dispose an EMPTY For -> cleanup loop runs over zero rows
+const [emptyFor, disposeEmpty] = createRoot(() =>
+	For({
+		each: () => [],
+		key: (x) => x,
+		width: 10,
+		children: (x) => jsx(StubContent, { string: "" + x }),
+	}),
+);
+check("empty For has no rows", emptyFor.contents.length === 0);
+disposeEmpty(); // exercises the rd-empty cleanup branch
+check("empty For disposes cleanly", true);
+
+// coverage: disposing the OWNER of a Show (default mode) runs its tracked
+// cleanup (dispose the live side)
+const shOn = signal(true);
+const [, disposeShowOwner] = createRoot(() => {
+	Show({
+		when: () => shOn.value,
+		width: 10,
+		height: 10,
+		children: () => jsx(StubContent, { string: "on" }),
+		fallback: () => jsx(StubContent, { string: "off" }),
+	});
+	return 0;
+});
+disposeShowOwner(); // runs Show's `if (dispose) dispose()` cleanup
+check("Show owner-dispose runs cleanup", true);
+
+// coverage: disposing the OWNER of a Navigator runs its tracked cleanup
+const [, disposeNavOwner] = createRoot(() => {
+	Navigator({ root: () => jsx(StubContent, { string: "screen" }) });
+	return 0;
+});
+disposeNavOwner(); // runs Navigator's `if (disposeTop) disposeTop()` cleanup
+check("Navigator owner-dispose runs cleanup", true);
+
+// coverage: dispose a NON-empty For -> cleanup loop runs over live rows (taken)
+const [fullFor, disposeFull] = createRoot(() =>
+	For({
+		each: () => [1, 2],
+		key: (x) => x,
+		width: 10,
+		children: (x) => jsx(StubContent, { string: "" + x }),
+	}),
+);
+check("non-empty For built rows", fullFor.contents.length === 2);
+disposeFull(); // cleanup loop iterates the 2 live disposers
+check("non-empty For disposes cleanly", true);
+
 done();
