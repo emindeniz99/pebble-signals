@@ -196,3 +196,29 @@ Reviewed: signals.js, flow.js, jsx-runtime.js, tools/lower.py, build.sh.
    used exports (useMemo?) once apps stabilize. ~tens of B. Effort XS.
 8. **Flash string catalog** (`strings.dat` + offset table, read in place):
    only pays off with large static text; none in current examples. Effort M.
+
+## Low-hardware technique coverage audit (which DOD/embedded patterns we use)
+
+The whole codebase is applied Data-Oriented Design. Coverage vs the
+standard low-hardware toolkit, with the remaining gaps as tracked tasks:
+
+| Technique | Status | Gap → task |
+|---|---|---|
+| Structure-of-Arrays | partial | numeric signal values still a boxed JS array → **#17** |
+| Object pooling / recycling | partial | VirtualList yes; For rows / Show subtrees not → **#18** |
+| Flyweight (share immutable) | partial | HandlerBehavior yes; per-binding reaction closure not → **#19** |
+| SoA — owner records | ✗ | createRoot `{d:[]}` per root → **#19** |
+| Compile-time codegen | partial | useState lowered; signal()/computed not → **#19** |
+| Constant data → ROM | ✗ | DOW/month arrays in app modules → **#19** |
+| Flash string catalog | ✗ | `.dat` + offset table for big static text (no example needs it yet) |
+| Dirty-region / clip redraw | ✗ | SVGImage rotate invalidates the whole screen — CPU/battery, not XS heap; add `clip` |
+| Bitset / swap-pop / arena / bit-tricks | ✓ | — |
+| Recompute > cache (CPU for RAM) | ✓ | — |
+
+Tooling: lowering is AST-based (raw TS Compiler API); ts-morph adoption is
+under evaluation (**#20**). Lowering is Svelte/Solid-style compile-time
+reactivity — it removes the closure/object BOILERPLATE, NOT the reactive
+graph (ids are still allocated at runtime), so unlike react-pebble's
+compile-away-reactivity model we keep 100% runtime dynamism. A pair that
+can't be proven safe (getter/setter used as a first-class value) simply
+BAILS to the object API — correctness always wins over the optimization.
