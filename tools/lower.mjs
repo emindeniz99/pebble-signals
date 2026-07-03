@@ -54,7 +54,8 @@ function program(text) {
 }
 
 // symbol of the local `useState` binding IF imported from runtime/signals
-function useStateImportSymbol(checker, sf) {
+// symbol of a local binding imported by `name` from runtime/signals (else null)
+function importSymbol(checker, sf, name) {
 	let sym = null;
 	for (const st of sf.statements) {
 		if (ts.isImportDeclaration(st)
@@ -63,7 +64,7 @@ function useStateImportSymbol(checker, sf) {
 			&& st.importClause?.namedBindings
 			&& ts.isNamedImports(st.importClause.namedBindings)) {
 			for (const el of st.importClause.namedBindings.elements) {
-				if ((el.propertyName ?? el.name).text === "useState")
+				if ((el.propertyName ?? el.name).text === name)
 					sym = checker.getSymbolAtLocation(el.name);
 			}
 		}
@@ -89,38 +90,48 @@ function freshAlias(sf) {
 
 export function lower(text) {
 	const { checker, sf } = program(text);
-	const useSym = useStateImportSymbol(checker, sf);
-	if (!useSym) return { code: text, lowered: 0, bailed: 0 };
+	const useSym = importSymbol(checker, sf, "useState");
+	const sigSym = importSymbol(checker, sf, "signal");
+	if (!useSym && !sigSym) return { code: text, lowered: 0, bailed: 0 };
 
-	// candidate pairs: const [g, s] = useState(init) whose useState is OURS
-	const pairs = [];
 	const declIds = new Set();
+	const txt = (n) => text.slice(n.getStart(sf), n.getEnd());
+
+	// candidate useState pairs: const [g, s] = useState(init) whose useState is OURS
+	const pairs = [];
+	// candidate signal bindings: const s = signal(init) whose signal is OURS
+	const sigs = [];
 	(function walk(n) {
-		if (ts.isVariableDeclaration(n)
-			&& n.name && ts.isArrayBindingPattern(n.name)
-			&& n.name.elements.length === 2
-			&& n.initializer && ts.isCallExpression(n.initializer)
-			&& ts.isIdentifier(n.initializer.expression)
-			&& checker.getSymbolAtLocation(n.initializer.expression) === useSym) {
-			const [ge, se] = n.name.elements;
-			if (!ts.isOmittedExpression(ge) && !ts.isOmittedExpression(se)
-				&& ts.isIdentifier(ge.name) && ts.isIdentifier(se.name)) {
-				const init = n.initializer.arguments[0];
-				pairs.push({
-					decl: n, gName: ge.name.text,
-					gSym: checker.getSymbolAtLocation(ge.name),
-					sSym: checker.getSymbolAtLocation(se.name),
-					initText: init ? text.slice(init.getStart(sf), init.getEnd()) : "undefined",
-				});
-				declIds.add(ge.name); declIds.add(se.name);
+		if (ts.isVariableDeclaration(n) && n.initializer && ts.isCallExpression(n.initializer)
+			&& ts.isIdentifier(n.initializer.expression)) {
+			const callee = checker.getSymbolAtLocation(n.initializer.expression);
+			const init = n.initializer.arguments[0];
+			const initText = init ? txt(init) : "undefined";
+			if (useSym && callee === useSym && n.name && ts.isArrayBindingPattern(n.name)
+				&& n.name.elements.length === 2) {
+				const [ge, se] = n.name.elements;
+				if (!ts.isOmittedExpression(ge) && !ts.isOmittedExpression(se)
+					&& ts.isIdentifier(ge.name) && ts.isIdentifier(se.name)) {
+					pairs.push({ decl: n, gName: ge.name.text, initText,
+						gSym: checker.getSymbolAtLocation(ge.name),
+						sSym: checker.getSymbolAtLocation(se.name) });
+					declIds.add(ge.name); declIds.add(se.name);
+				}
+			}
+			else if (sigSym && callee === sigSym && n.name && ts.isIdentifier(n.name)) {
+				sigs.push({ call: n.initializer, name: n.name.text, initText,
+					sym: checker.getSymbolAtLocation(n.name) });
+				declIds.add(n.name);
 			}
 		}
 		ts.forEachChild(n, walk);
 	})(sf);
-	if (!pairs.length) return { code: text, lowered: 0, bailed: 0 };
+	if (!pairs.length && !sigs.length) return { code: text, lowered: 0, bailed: 0 };
 
 	// classify every reference by resolved symbol (not by name)
-	const refs = new Map(pairs.flatMap((p) => [[p.gSym, []], [p.sSym, []]]));
+	const refs = new Map();
+	for (const p of pairs) { refs.set(p.gSym, []); refs.set(p.sSym, []); }
+	for (const s of sigs) refs.set(s.sym, []);
 	for (const id of collectIdentifiers(sf)) {
 		if (declIds.has(id)) continue;
 		const s = checker.getSymbolAtLocation(id);
@@ -140,17 +151,49 @@ export function lower(text) {
 		lowered++;
 		edits.push({ start: p.decl.getStart(sf), end: p.decl.getEnd(),
 			text: `${p.gName} = __ALIAS__.sig(${p.initText})` });
-		for (const id of refs.get(p.gSym)) {
-			const c = id.parent;
-			edits.push({ start: c.getStart(sf), end: c.getEnd(),
+		for (const id of refs.get(p.gSym))
+			edits.push({ start: id.parent.getStart(sf), end: id.parent.getEnd(),
 				text: `__ALIAS__.get(${p.gName})` });
-		}
 		for (const id of refs.get(p.sSym)) {
 			const c = id.parent;
-			const a = text.slice(c.arguments.pos, c.arguments.end).trim();
-			edits.push({ start: c.getStart(sf), end: c.getEnd(),
-				text: `__ALIAS__.set(${p.gName}, ${a || "undefined"})` });
+			if (c.arguments.length === 0)						// setX()
+				edits.push({ start: c.getStart(sf), end: c.getEnd(),
+					text: `__ALIAS__.set(${p.gName}, undefined)` });
+			else								// wrap not slurp: keep arg + `)` so nested reads lower
+				edits.push({ start: c.getStart(sf), end: c.arguments.pos,
+					text: `__ALIAS__.set(${p.gName}, ` });
 		}
+	}
+	// Stage 3: direct signal() — every ref must be `s.value` (read or a
+	// statement-level `s.value = e` write); anything else bails.
+	for (const s of sigs) {
+		const uses = refs.get(s.sym);
+		const plan = [];
+		let ok = true;
+		for (const id of uses) {
+			const pae = id.parent;
+			if (!(ts.isPropertyAccessExpression(pae) && pae.expression === id
+				&& pae.name.text === "value")) { ok = false; break; }
+			const asn = pae.parent;
+			if (ts.isBinaryExpression(asn) && asn.left === pae
+				&& asn.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+				if (!ts.isExpressionStatement(asn.parent)) { ok = false; break; }	// value-used assignment
+				// two edits so nested reads in the RHS lower independently:
+				// `s.value =` -> `__sp.set(s,`  and  insert `)` after the RHS
+				plan.push({ start: pae.getStart(sf), end: asn.operatorToken.getEnd(),
+					text: `__ALIAS__.set(${s.name},` });
+				plan.push({ start: asn.getEnd(), end: asn.getEnd(), text: ")" });
+			}
+			else if (ts.isBinaryExpression(asn) && asn.left === pae) { ok = false; break; }	// compound (+= etc)
+			else
+				plan.push({ start: pae.getStart(sf), end: pae.getEnd(),
+					text: `__ALIAS__.get(${s.name})` });							// read
+		}
+		if (!ok) { bailed++; continue; }
+		lowered++;
+		edits.push({ start: s.call.getStart(sf), end: s.call.getEnd(),
+			text: `__ALIAS__.sig(${s.initText})` });
+		edits.push(...plan);
 	}
 	if (!lowered) return { code: text, lowered: 0, bailed };
 
@@ -214,6 +257,30 @@ function selftest() {
 	// idempotent
 	const once = lower(IMP + "const [z, sZ] = useState(0);\nsZ(z() + 1);\n").code;
 	eq(once, lower(once).code === once, "idempotent");
+
+	// --- Stage 3: direct signal() ---
+	const SIG = 'import { signal } from "runtime/signals";\n';
+	r = lower(SIG + "const flag = signal(false);\n"
+		+ "render(() => flag.value ? 1 : 0);\nflag.value = !flag.value;\n");
+	eq(r.code, r.lowered === 1 && r.bailed === 0, "signal happy");
+	eq(r.code, r.code.includes("const flag = __sp.sig(false)"), "signal decl");
+	eq(r.code, r.code.includes("__sp.get(flag)"), "signal read");
+	eq(r.code, r.code.includes("__sp.set(flag, !__sp.get(flag))"), "signal write nests read");
+	// signal used as a value (not .value) bails
+	r = lower(SIG + "const s = signal(0);\nconst r2 = s;\ns.value = 1;\n");
+	eq(r.code, r.lowered === 0 && r.bailed === 1, "signal alias bail");
+	// s.value += 1 (compound) bails
+	r = lower(SIG + "const s = signal(0);\ns.value += 1;\n");
+	eq(r.code, r.lowered === 0 && r.bailed === 1, "signal compound-assign bail");
+	// assignment used as a value bails (S.set returns undefined, not the value)
+	r = lower(SIG + "const s = signal(0);\nconst y = (s.value = 5);\n");
+	eq(r.code, r.lowered === 0 && r.bailed === 1, "signal value-used-assignment bail");
+	// useState + signal together, share one alias
+	r = lower('import { useState, signal } from "runtime/signals";\n'
+		+ "const [c, sc] = useState(0);\nconst f = signal(1);\n"
+		+ "sc(c() + f.value);\nf.value = 2;\n");
+	eq(r.code, r.lowered === 2 && r.bailed === 0, "mixed useState+signal");
+	eq(r.code, r.code.includes("__sp.set(c, __sp.get(c) + __sp.get(f))"), "mixed refs");
 	console.log("lower.mjs selftest OK");
 }
 
