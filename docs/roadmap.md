@@ -15,8 +15,9 @@ flaky) QEMU emulator.
   nothing.
 - **animate() helper** (Reanimated-style): `animate(from, to, ms, easing)` →
   signal, driven by one shared timer. Put it in flow.js (module-cost rule).
-- **TSDoc + TypeDoc → markdown** into `docs/api/`, linked from README (HTML/MD/
-  JSON outputs available; MD is GitHub-readable).
+- ~~**TSDoc + TypeDoc → markdown**~~ ✅ SHIPPED. TSDoc on every export in
+  `src/tsx/globals.d.ts`; `npm run docs` (typedoc + typedoc-plugin-markdown, via
+  npx — no committed dep) generates `docs/api/`. Regenerate after API changes.
 - ~~**Conformance suite:**~~ ✅ SHIPPED. `tests/conformance.test.mjs` — 12
   fine-grained-reactivity laws run against our runtime, each annotated with the
   Solid/Preact/React contract. 10 MATCH Solid, 2 intentional DIVERGE (components

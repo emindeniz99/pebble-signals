@@ -156,12 +156,16 @@ concrete differences:
    signals into individual property writes.
 2. **Read state by calling the getter**: `count()`, not `count`. `useState`
    returns `[getter, setter]`.
-3. **Pass reactive values as thunks and don't destructure reactive props.**
-   `string={() => "c" + count()}` creates a live binding;
-   `string={"c" + count()}` bakes in the value at build time forever.
+3. **Reactive values are thunks — but the build auto-wraps them.** A binding is
+   `string={() => "c" + count()}`. As of JSX auto-thunk, you can also write it
+   BARE — `string={"c" + count()}` — and `lower.mjs` wraps the reactive read
+   into a thunk at compile time (Solid-compiler style). The reactivity signal is
+   the CALL (`count()`) or `sig.value`; a truly static value (no reactive read)
+   stays static. Bare `{count}` (no call) is deliberately NOT reactive.
 
 Full hook/primitive parity table (what we have, what we skip, and why) is in
-[`docs/api-parity.md`](docs/api-parity.md).
+[`docs/api-parity.md`](docs/api-parity.md); the generated API reference
+(`npm run docs`) is in [`docs/api/`](docs/api/).
 
 ## Architecture
 

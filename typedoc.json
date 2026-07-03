@@ -1,0 +1,10 @@
+{
+  "entryPoints": ["src/tsx/globals.d.ts"],
+  "entryPointStrategy": "expand",
+  "plugin": ["typedoc-plugin-markdown"],
+  "out": "docs/api",
+  "readme": "none",
+  "githubPages": false,
+  "hideGenerator": true,
+  "skipErrorChecking": true
+}
