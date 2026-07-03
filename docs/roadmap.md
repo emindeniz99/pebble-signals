@@ -19,9 +19,12 @@ flaky) QEMU emulator.
   JSON outputs available; MD is GitHub-readable).
 - **Conformance suite:** port Solid's reactivity/batch/cleanup behavior specs
   against our API to PROVE the semantics (we are Solid-flavored, not React).
-- **JSX auto-thunk lowering:** extend lower.mjs to wrap `string={count()}` →
-  `string={() => count()}` (what Solid's compiler does), so authoring drops the
-  arrow.
+- ~~**JSX auto-thunk lowering:**~~ ✅ SHIPPED. `lower.mjs` `autoThunk()` wraps a
+  reactive read written bare in a JSX prop — `string={count()}` → `string={() =>
+  count()}` — before the read-lowering, so it lands as `() => __sp.get(count)`.
+  Symbol-resolved (getter call or `sig.value`), skips already-thunks / `children`
+  / static props, idempotent. Bare `{count}` (no call) is deliberately NOT
+  supported — the call is the reactivity signal, same rule as Solid's `{count()}`.
 - **lower.mjs coverage:** currently ~93% branch; close to 100% like the runtime.
 - **#30 type-directed storage:** analyzed net-negative; only revisit behind a
   `NUMERIC_STORAGE=1` flag if a float-heavy app appears (float signals are rare;

@@ -35,6 +35,7 @@ async function loadTS() {
 const ts = await loadTS();
 
 const SRC_MODULE = "runtime/signals";
+const JSX_MODULE = "runtime/jsx-runtime";
 
 function program(text) {
 	const fileName = "app.js";
@@ -66,15 +67,15 @@ function program(text) {
 	return { checker: prog.getTypeChecker(), sf: prog.getSourceFile(fileName) };
 }
 
-// symbol of the local `useState` binding IF imported from runtime/signals
-// symbol of a local binding imported by `name` from runtime/signals (else null)
-function importSymbol(checker, sf, name) {
+// symbol of a local binding imported by `name` from `module` (default:
+// runtime/signals), resolved by the checker so aliased imports still match.
+function importSymbol(checker, sf, name, module = SRC_MODULE) {
 	let sym = null;
 	for (const st of sf.statements) {
 		if (
 			ts.isImportDeclaration(st) &&
 			ts.isStringLiteral(st.moduleSpecifier) &&
-			st.moduleSpecifier.text === SRC_MODULE &&
+			st.moduleSpecifier.text === module &&
 			st.importClause?.namedBindings &&
 			ts.isNamedImports(st.importClause.namedBindings)
 		) {
@@ -128,7 +129,145 @@ function freshAlias(sf) {
 	return a;
 }
 
+// --- JSX auto-thunk (Stage 1.5) ------------------------------------------
+// What Solid's JSX compiler does: a reactive read written directly in a JSX
+// attribute — `string={count()}` — is wrapped into a thunk `() => count()` so
+// the runtime binds it live. Authors then drop the arrow and write React-
+// looking `string={count()}` while keeping fine-grained semantics.
+//
+// This runs on the ESBUILD-BUNDLED output (jsx factory calls, arg[1] = props
+// object), BEFORE the signal/useState read-lowering below, so the wrapped
+// `count()` still lowers to `() => __sp.get(count)` in the same build.
+//
+// Conservative by construction — a prop value is wrapped ONLY when:
+//   * the value is not already a function/arrow (event handlers, existing
+//     thunks are left alone), and
+//   * it is not the `children` prop (a function child is a different path,
+//     it throws jsx:fn-child), and
+//   * the value subtree contains a REACTIVE READ resolved by symbol: a 0-arg
+//     call to a useState getter, or `sig.value` on a signal/computed/useMemo
+//     binding. A static `left={40}` or `x={props.n}` is never touched.
+// Idempotent: a wrapped value is an arrow on the next pass, so it is skipped.
+export function autoThunk(text) {
+	const { checker, sf } = program(text);
+	const jsxSym = importSymbol(checker, sf, "jsx", JSX_MODULE);
+	const jsxsSym = importSymbol(checker, sf, "jsxs", JSX_MODULE);
+	if (!jsxSym && !jsxsSym) return { code: text, wrapped: 0 };
+
+	// reactive symbols: useState getters (read via g()), signal/computed/useMemo
+	// bindings (read via .value). Collected by resolved symbol, not by name.
+	const useSym = importSymbol(checker, sf, "useState");
+	const sigSym = importSymbol(checker, sf, "signal");
+	const compSym = importSymbol(checker, sf, "computed");
+	const memoSym = importSymbol(checker, sf, "useMemo");
+	const getterSyms = new Set(); // read as g()
+	const valueSyms = new Set(); // read as x.value
+	(function walk(n) {
+		if (
+			ts.isVariableDeclaration(n) &&
+			n.initializer &&
+			ts.isCallExpression(n.initializer) &&
+			ts.isIdentifier(n.initializer.expression)
+		) {
+			const callee = checker.getSymbolAtLocation(n.initializer.expression);
+			if (
+				useSym &&
+				callee === useSym &&
+				ts.isArrayBindingPattern(n.name) &&
+				n.name.elements.length === 2 &&
+				!ts.isOmittedExpression(n.name.elements[0]) &&
+				ts.isIdentifier(n.name.elements[0].name)
+			) {
+				const s = checker.getSymbolAtLocation(n.name.elements[0].name);
+				if (s) getterSyms.add(s);
+			} else if (
+				((sigSym && callee === sigSym) ||
+					(compSym && callee === compSym) ||
+					(memoSym && callee === memoSym)) &&
+				ts.isIdentifier(n.name)
+			) {
+				const s = checker.getSymbolAtLocation(n.name);
+				if (s) valueSyms.add(s);
+			}
+		}
+		ts.forEachChild(n, walk);
+	})(sf);
+	if (!getterSyms.size && !valueSyms.size) return { code: text, wrapped: 0 };
+
+	// does an expression subtree contain a reactive read?
+	function hasReactiveRead(node) {
+		let found = false;
+		(function scan(n) {
+			if (found) return;
+			if (ts.isIdentifier(n)) {
+				const s = checker.getSymbolAtLocation(n);
+				if (s) {
+					// getter: `g()` — the identifier is the call target, 0 args
+					if (
+						getterSyms.has(s) &&
+						ts.isCallExpression(n.parent) &&
+						n.parent.expression === n &&
+						n.parent.arguments.length === 0
+					)
+						found = true;
+					// signal read: `x.value`
+					else if (
+						valueSyms.has(s) &&
+						ts.isPropertyAccessExpression(n.parent) &&
+						n.parent.expression === n &&
+						n.parent.name.text === "value"
+					)
+						found = true;
+				}
+			}
+			ts.forEachChild(n, scan);
+		})(node);
+		return found;
+	}
+
+	const isJsxCall = (call) => {
+		if (!ts.isIdentifier(call.expression)) return false;
+		const s = checker.getSymbolAtLocation(call.expression);
+		return s && (s === jsxSym || s === jsxsSym);
+	};
+
+	const edits = [];
+	(function walk(n) {
+		if (
+			ts.isCallExpression(n) &&
+			isJsxCall(n) &&
+			n.arguments.length >= 2 &&
+			ts.isObjectLiteralExpression(n.arguments[1])
+		) {
+			for (const prop of n.arguments[1].properties) {
+				if (!ts.isPropertyAssignment(prop)) continue; // skip spreads/shorthand
+				const key = ts.isIdentifier(prop.name)
+					? prop.name.text
+					: ts.isStringLiteral(prop.name)
+						? prop.name.text
+						: null;
+				if (key === "children" || key === null) continue;
+				const v = prop.initializer;
+				if (ts.isArrowFunction(v) || ts.isFunctionExpression(v)) continue; // already a thunk
+				if (!hasReactiveRead(v)) continue;
+				edits.push({ start: v.getStart(sf), end: v.getStart(sf), text: "() => (" });
+				edits.push({ start: v.getEnd(), end: v.getEnd(), text: ")" });
+			}
+		}
+		ts.forEachChild(n, walk);
+	})(sf);
+	if (!edits.length) return { code: text, wrapped: 0 };
+
+	let out = text;
+	for (const e of edits.sort((a, b) => b.start - a.start))
+		out = out.slice(0, e.start) + e.text + out.slice(e.end);
+	return { code: out, wrapped: edits.length / 2 };
+}
+
 export function lower(text) {
+	// JSX auto-thunk first: `string={count()}` -> `string={() => count()}`, so
+	// the wrapped read lowers to `() => __sp.get(count)` in the same pass below.
+	text = autoThunk(text).code;
 	const { checker, sf } = program(text);
 	const useSym = importSymbol(checker, sf, "useState");
 	const sigSym = importSymbol(checker, sf, "signal");
@@ -515,6 +654,60 @@ function selftest() {
 		"useMemo lowers to computed",
 	);
 	eq(r.code, r.code.includes("__sp.get(m)"), "useMemo read lowered");
+
+	// --- Stage 1.5: JSX auto-thunk (bundled jsx-factory form) ---
+	const JSXIMP =
+		'import { useState, signal } from "runtime/signals";\n' +
+		'import { jsx } from "runtime/jsx-runtime";\n';
+	// bare reactive read in a prop -> wrapped into a thunk, THEN lowered
+	r = lower(
+		JSXIMP + "const [count, setCount] = useState(0);\n" + "jsx(Label, { string: count() });\n",
+	);
+	eq(
+		r.code,
+		r.code.includes("string: () => (__sp.get(count))"),
+		"auto-thunk wraps + lowers getter",
+	);
+	// expression containing a read is wrapped whole (so it stays reactive)
+	r = lower(
+		JSXIMP +
+			"const [count, setCount] = useState(0);\n" +
+			'jsx(Label, { string: "c" + count() });\n',
+	);
+	eq(
+		r.code,
+		r.code.includes('string: () => ("c" + __sp.get(count))'),
+		"auto-thunk wraps expression",
+	);
+	// signal .value read wrapped too
+	r = lower(JSXIMP + "const s = signal(0);\n" + "jsx(Label, { string: s.value });\n");
+	eq(r.code, r.code.includes("string: () => (__sp.get(s))"), "auto-thunk wraps signal .value");
+	// already-a-thunk is left alone (idempotent authoring + our own output)
+	r = lower(
+		JSXIMP +
+			"const [count, setCount] = useState(0);\n" +
+			"jsx(Label, { string: () => count() });\n",
+	);
+	eq(r.code, r.code.includes("string: () => __sp.get(count)"), "existing thunk not double-wrapped");
+	eq(r.code, !r.code.includes("() => (() =>"), "no double thunk");
+	// static prop with NO reactive read is untouched
+	r = lower(
+		JSXIMP + "const [count, setCount] = useState(0);\n" + "jsx(Label, { string: 'x', top: 40 });\n",
+	);
+	eq(r.code, !/=>\s*\('x'\)/.test(r.code) && r.code.includes("top: 40"), "static props untouched");
+	// event handler (a function) never wrapped
+	r = lower(
+		JSXIMP +
+			"const [count, setCount] = useState(0);\n" +
+			"jsx(Btn, { onTap: () => setCount(count() + 1) });\n",
+	);
+	eq(r.code, !r.code.includes("onTap: () => (() =>"), "event handler not wrapped");
+	// children prop with a reactive read is NOT auto-wrapped (fn-child path)
+	r = lower(JSXIMP + "const s = signal(0);\n" + "jsx(Box, { children: s.value });\n");
+	eq(r.code, !r.code.includes("children: () =>"), "children not auto-wrapped");
+	// idempotent end-to-end
+	const twice = lower(JSXIMP + "const s = signal(0);\njsx(Label, { string: s.value });\n").code;
+	eq(twice, lower(twice).code === twice, "auto-thunk + lowering idempotent");
 	console.log("lower.mjs selftest OK");
 }
 
