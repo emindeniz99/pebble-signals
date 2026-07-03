@@ -94,11 +94,14 @@ function wrapSide(props, build) {
 export function For(props) {
 	const host = makeHost(props, Column);
 	const keyOf = props.key || (item => item);
-	// Rows live in ONE persistent Map; each reconcile pass stamps the rows
-	// it keeps instead of rebuilding a key map (a fresh Map per pass was
-	// pure transient allocation at exactly the moment the arena is fullest
-	// — adding a row is when "fxAbort memory full" hits).
-	const rows = new Map();		// key -> { n: node, d: dispose, s: stamp }
+	// Rows live in FOUR index-aligned parallel arrays (keys/nodes/disposers/
+	// stamps). A row is an INDEX: the previous Map (~10 slots + hash chunk)
+	// and its per-row {n,d,s} record (~5 slots each) are gone — playbook
+	// rule, "no Set/Map". Lookup is a linear indexOf: rows are few and CPU
+	// is free. Each reconcile pass STAMPS the rows it keeps instead of
+	// rebuilding a key map (a fresh map per pass was pure transient
+	// allocation at exactly the moment the arena is fullest).
+	const rk = [], rn = [], rd = [], rs = [];
 	let stamp = 0;
 	track(effect(() => {
 		const items = props.each();
@@ -107,29 +110,42 @@ export function For(props) {
 			const order = [];	// nodes in expected order this pass
 			for (let i = 0; i < items.length; i++) {
 				const item = items[i], k = keyOf(item, i);
-				let row = rows.get(k);
-				if (row) {
-					if (row.s === pass)	// duplicate key: first occurrence wins
+				let x = rk.indexOf(k);
+				if (x >= 0) {
+					if (rs[x] === pass)	// duplicate key: first occurrence wins
 						continue;
 				}
 				else {
 					const [node, dispose] = createRoot(() => asNode(() => props.children(item, i)));
-					row = { n: node, d: dispose, s: 0 };
-					rows.set(k, row);
+					x = rk.length;
+					rk.push(k);
+					rn.push(node);
+					rd.push(dispose);
+					rs.push(0);
 				}
-				row.s = pass;
-				order.push(row.n);
+				rs[x] = pass;
+				order.push(rn[x]);
 			}
-			// forEach, not entries(): the entries iterator allocates a fresh
-			// [key, value] array per row on EVERY pass — garbage at exactly
-			// the moment the arena is fullest (spec allows delete-in-forEach)
-			rows.forEach((row, k) => {
-				if (row.s !== pass) {	// key gone from the data
-					host.remove(row.n);
-					row.d();
-					rows.delete(k);
+			// Sweep departed keys: downward walk + swap-pop keeps the arrays
+			// dense with zero allocation (row array ORDER is irrelevant —
+			// screen order comes from the position pass below).
+			for (let x = rk.length - 1; x >= 0; x--) {
+				if (rs[x] !== pass) {
+					host.remove(rn[x]);
+					rd[x]();
+					const last = rk.length - 1;
+					if (x !== last) {
+						rk[x] = rk[last];
+						rn[x] = rn[last];
+						rd[x] = rd[last];
+						rs[x] = rs[last];
+					}
+					rk.pop();
+					rn.pop();
+					rd.pop();
+					rs.pop();
 				}
-			});
+			}
 			// Position pass: walk expected order with a cursor over the
 			// host's real children; move/insert only mismatched nodes.
 			let cursor = host.first;
@@ -148,8 +164,9 @@ export function For(props) {
 		});
 	}));
 	track(() => {
-		rows.forEach(row => row.d());
-		rows.clear();
+		for (let x = 0; x < rd.length; x++)
+			rd[x]();
+		rk.length = rn.length = rd.length = rs.length = 0;
 	});
 	return host;
 }
