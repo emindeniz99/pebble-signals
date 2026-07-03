@@ -1,6 +1,6 @@
 // Reactive core suite — mirrors the assertions verified on XS in M1
 // (on-device the verdict renders as a Piu label; here it exits nonzero).
-import { signal, effect, computed, untrack, createRoot, onCleanup, track, useEffect, dispose, useState, useMemo, S }
+import { signal, effect, computed, untrack, createRoot, onCleanup, track, useEffect, dispose, useState, useMemo, useRef, batch, S }
 	from "../src/embeddedjs/runtime/signals.js";
 import { makeChecker } from "./load-runtime.mjs";
 
@@ -221,5 +221,33 @@ check("high-id dispose frees slot; reused effect keeps live count at 40", shared
 for (const e of effs) dispose(e);
 for (let k = 0; k < 39; k++) dispose(shEffs[k]);
 dispose(reused);
+
+// 16. batch() — N writes, ONE notification pass per touched signal
+const bx = signal(0), by = signal(0);
+let bruns = 0;
+const be = effect(() => { bx.value; by.value; bruns++; });
+batch(() => { bx.value = 1; bx.value = 2; by.value = 3; });
+check("batch coalesces to one run", bruns === 2);		// 1 initial + 1 batched
+check("batch wrote final values", bx.value === 2 && by.value === 3);
+check("reads inside batch see new value", batch(() => { bx.value = 9; return bx.value; }) === 9);
+bruns = 0;
+batch(() => { batch(() => { bx.value = 10; }); by.value = 11; });	// nested: flush at OUTER end
+check("nested batch flushes once at outer end", bruns === 1);
+try { batch(() => { bx.value = 20; throw new Error("boom"); }); } catch {}
+check("batch is exception-safe (still flushed)", bx.value === 20 && bruns === 2);
+const pbx = S.sig(0);
+let pbruns = 0;
+const pbe = effect(() => { S.get(pbx); pbruns++; });
+batch(() => { S.set(pbx, 1); S.put(pbx, 2); });
+check("batch covers packed set/put too", pbruns === 2 && S.get(pbx) === 2);
+dispose(be); dispose(pbe);
+
+// 17. useRef — mutable box, never notifies
+const r1 = useRef(5);
+let rruns = 0;
+const re = effect(() => { r1.current; rruns++; });	// reading .current tracks NOTHING
+r1.current = 6;
+check("useRef holds and never notifies", r1.current === 6 && rruns === 1);
+dispose(re);
 
 done();

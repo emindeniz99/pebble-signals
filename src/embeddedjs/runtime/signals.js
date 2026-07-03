@@ -38,7 +38,8 @@ const gi = () => {
 	let g = G;
 	if (g === null)		// lazy: a preload-time table would be frozen in ROM
 		G = g = { eff: [], cln: null, val: [], sub: new Uint32Array(8),
-			cap: 8, st: 1, n: 0, u: 0, q: 0, uh: null, qh: null, dep: 0 };
+			cap: 8, st: 1, n: 0, u: 0, q: 0, uh: null, qh: null, dep: 0,
+			bat: 0, pend: null };
 	return g;
 };
 
@@ -73,7 +74,23 @@ const growStride = (g) => {
 	g.st = ns;
 };
 
+const relQ = (g) => {		// cascade over: release quarantined ids
+	if (g.dep > 0)
+		return;
+	g.u &= ~g.q;
+	g.q = 0;
+	const uh = g.uh;
+	if (uh !== null)
+		for (let k = 0; k < uh.length; k++) { uh[k] &= ~g.qh[k]; g.qh[k] = 0; }
+};
+
 const flush = (g, i) => {	// notify every subscriber of signal row i
+	if (g.bat > 0) {		// inside batch(): defer, dedupe rows, notify once
+		const p = g.pend || (g.pend = []);
+		if (p.indexOf(i) < 0)	// linear: batched rows are few (no Set — XS rule)
+			p.push(i);
+		return;
+	}
 	g.dep++;
 	try {
 		const st = g.st, base = i * st, sub = g.sub;
@@ -87,13 +104,8 @@ const flush = (g, i) => {	// notify every subscriber of signal row i
 			}
 		}
 	} finally {
-		if (--g.dep === 0) {	// cascade over: release quarantined ids
-			g.u &= ~g.q;
-			g.q = 0;
-			const uh = g.uh;
-			if (uh !== null)
-				for (let k = 0; k < uh.length; k++) { uh[k] &= ~g.qh[k]; g.qh[k] = 0; }
-		}
+		g.dep--;
+		relQ(g);
 	}
 };
 
@@ -294,6 +306,46 @@ export function computed(fn) {
 	return s;	// its .value getter tracks; writing .value is caller error
 }
 
+// Batch writes: N sets inside fn produce ONE notification pass per touched
+// signal, after fn returns — subscribers see final values only. On the 32KB
+// arena this is the cheap way to update several signals from one button press
+// without re-running shared effects N times. Nests; exception-safe (the
+// deferred flushes still run). Values are written eagerly (reads inside the
+// batch see the new value); only NOTIFICATION is deferred — Solid's contract.
+export function batch(fn) {
+	const g = gi();
+	g.bat++;
+	try {
+		return fn();
+	} finally {
+		if (--g.bat === 0 && g.pend !== null) {
+			const rows = g.pend;
+			g.pend = null;		// re-entrant set()s during notify flush directly
+			// Coalesce at the EFFECT level (Solid semantics): union the
+			// subscriber masks of every touched row, so an effect watching
+			// several batched signals runs ONCE, not once per signal.
+			const st = g.st, sub = g.sub;
+			g.dep++;
+			try {
+				for (let wi = 0; wi < st; wi++) {
+					let acc = 0;
+					for (let k = 0; k < rows.length; k++)
+						acc |= sub[rows[k] * st + wi];
+					const off = wi << 5;
+					while (acc) {
+						const b = acc & -acc;
+						acc &= acc - 1;
+						notify(off + 31 - Math.clz32(b));
+					}
+				}
+			} finally {
+				g.dep--;
+				relQ(g);
+			}
+		}
+	}
+}
+
 // Read a value without creating a dependency.
 export function untrack(fn) {
 	const prev = current;
@@ -372,6 +424,13 @@ export function useEffect(fn) {
 export function useMemo(fn) {
 	const c = computed(fn);
 	return () => c.value;
+}
+
+// Mutable box that never notifies — React's useRef. (useCallback is
+// deliberately absent: components run ONCE here, so a plain closure is
+// already stable; there is nothing to memoize against.)
+export function useRef(v) {
+	return { current: v };
 }
 
 

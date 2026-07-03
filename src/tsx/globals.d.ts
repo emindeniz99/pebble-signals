@@ -40,6 +40,8 @@ declare module "runtime/signals" {
 	export function effect(fn: () => void): number;
 	export function computed<T>(fn: () => T): { readonly value: T };
 	export function untrack<T>(fn: () => T): T;
+	export function batch<T>(fn: () => T): T;
+	export function useRef<T>(v: T): { current: T };
 	export function dispose(d: number | (() => void)): void;
 	export function createRoot<T>(fn: () => T): [T, () => void];
 	export function onCleanup(fn: () => void): void;
