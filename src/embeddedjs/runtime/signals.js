@@ -176,6 +176,18 @@ export const S = {
 		if (w)
 			flush(g, w);
 	},
+	// Packed computed: one value slot + one effect that recomputes into it.
+	// Reads (S.get) track the slot; when fn's deps change the effect re-runs
+	// and S.set re-notifies the computed's own subscribers. Registered with
+	// the current owner so disposing its subtree stops it. The Signal object
+	// never exists — same read path as a packed signal, writes are caller
+	// error (the lowering bails on any `.value =` to a computed).
+	computed(fn) {
+		const g = gi();
+		const i = grow(g);
+		track(effect(() => { S.set(i, fn()); }));
+		return i;
+	},
 };
 
 // Returns the effect ID (an integer — costs ZERO slots), not an object or

@@ -92,7 +92,9 @@ export function lower(text) {
 	const { checker, sf } = program(text);
 	const useSym = importSymbol(checker, sf, "useState");
 	const sigSym = importSymbol(checker, sf, "signal");
-	if (!useSym && !sigSym) return { code: text, lowered: 0, bailed: 0 };
+	const compSym = importSymbol(checker, sf, "computed");
+	const memoSym = importSymbol(checker, sf, "useMemo");
+	if (!useSym && !sigSym && !compSym && !memoSym) return { code: text, lowered: 0, bailed: 0 };
 
 	const declIds = new Set();
 	const txt = (n) => text.slice(n.getStart(sf), n.getEnd());
@@ -119,7 +121,15 @@ export function lower(text) {
 				}
 			}
 			else if (sigSym && callee === sigSym && n.name && ts.isIdentifier(n.name)) {
-				sigs.push({ call: n.initializer, name: n.name.text, initText,
+				sigs.push({ call: n.initializer, name: n.name.text, initText, kind: "sig",
+					sym: checker.getSymbolAtLocation(n.name) });
+				declIds.add(n.name);
+			}
+			else if ((compSym && callee === compSym || memoSym && callee === memoSym)
+				&& n.name && ts.isIdentifier(n.name)) {
+				// computed()/useMemo(): read-only derived signal. Same read path
+				// as a signal (.value -> S.get); any write is caller error -> bail.
+				sigs.push({ call: n.initializer, name: n.name.text, initText, kind: "computed",
 					sym: checker.getSymbolAtLocation(n.name) });
 				declIds.add(n.name);
 			}
@@ -164,8 +174,10 @@ export function lower(text) {
 					text: `__ALIAS__.set(${p.gName}, ` });
 		}
 	}
-	// Stage 3: direct signal() — every ref must be `s.value` (read or a
-	// statement-level `s.value = e` write); anything else bails.
+	// Stage 3: direct signal() / computed() / useMemo() — every ref must be
+	// `s.value` (a read, or for a signal a statement-level `s.value = e`
+	// write); anything else bails. A computed is read-only, so any write to
+	// it bails (and stays the object API, where it is still caller error).
 	for (const s of sigs) {
 		const uses = refs.get(s.sym);
 		const plan = [];
@@ -175,8 +187,10 @@ export function lower(text) {
 			if (!(ts.isPropertyAccessExpression(pae) && pae.expression === id
 				&& pae.name.text === "value")) { ok = false; break; }
 			const asn = pae.parent;
-			if (ts.isBinaryExpression(asn) && asn.left === pae
-				&& asn.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+			const opk = ts.isBinaryExpression(asn) && asn.left === pae
+				? asn.operatorToken.kind : 0;
+			if (opk === ts.SyntaxKind.EqualsToken) {						// `s.value = e`
+				if (s.kind !== "sig") { ok = false; break; }				// write to a computed
 				if (!ts.isExpressionStatement(asn.parent)) { ok = false; break; }	// value-used assignment
 				// two edits so nested reads in the RHS lower independently:
 				// `s.value =` -> `__sp.set(s,`  and  insert `)` after the RHS
@@ -184,15 +198,27 @@ export function lower(text) {
 					text: `__ALIAS__.set(${s.name},` });
 				plan.push({ start: asn.getEnd(), end: asn.getEnd(), text: ")" });
 			}
-			else if (ts.isBinaryExpression(asn) && asn.left === pae) { ok = false; break; }	// compound (+= etc)
+			// compound assignment (+= -= &&= ...) — the read+write can't be
+			// expressed as one S.set, so bail. Range is COMPOUND ops only, so a
+			// plain binary like `s.value * 2` falls through to the read branch.
+			else if (opk >= ts.SyntaxKind.FirstCompoundAssignment
+				&& opk <= ts.SyntaxKind.LastCompoundAssignment) { ok = false; break; }
 			else
 				plan.push({ start: pae.getStart(sf), end: pae.getEnd(),
 					text: `__ALIAS__.get(${s.name})` });							// read
 		}
 		if (!ok) { bailed++; continue; }
 		lowered++;
-		edits.push({ start: s.call.getStart(sf), end: s.call.getEnd(),
-			text: `__ALIAS__.sig(${s.initText})` });
+		// signal(init) -> __sp.sig(init) ; computed(fn) -> __sp.computed(fn).
+		// WRAP the call head (don't slurp the argument) so a nested signal
+		// read in the argument — `computed(() => a.value)` — lowers too.
+		const call = s.call, method = s.kind === "sig" ? "sig" : "computed";
+		if (call.arguments.length === 0)
+			edits.push({ start: call.getStart(sf), end: call.getEnd(),
+				text: `__ALIAS__.${method}(${s.initText})` });		// initText == "undefined"
+		else
+			edits.push({ start: call.getStart(sf), end: call.arguments.pos,
+				text: `__ALIAS__.${method}(` });						// keeps arg + `)`
 		edits.push(...plan);
 	}
 	if (!lowered) return { code: text, lowered: 0, bailed };
@@ -281,6 +307,23 @@ function selftest() {
 		+ "sc(c() + f.value);\nf.value = 2;\n");
 	eq(r.code, r.lowered === 2 && r.bailed === 0, "mixed useState+signal");
 	eq(r.code, r.code.includes("__sp.set(c, __sp.get(c) + __sp.get(f))"), "mixed refs");
+
+	// --- Stage 3: computed() / useMemo() (read-only derived) ---
+	r = lower('import { signal, computed } from "runtime/signals";\n'
+		+ "const a = signal(1);\nconst d = computed(() => a.value * 2);\n"
+		+ "render(() => d.value);\n");
+	eq(r.code, r.lowered === 2 && r.bailed === 0, "computed lowers");
+	eq(r.code, r.code.includes("const d = __sp.computed(() => __sp.get(a) * 2)"), "computed decl keeps fn, nested read lowered");
+	eq(r.code, r.code.includes("render(() => __sp.get(d))"), "computed read lowered");
+	// writing a computed bails (read-only; stays object API where it's caller error)
+	r = lower('import { computed } from "runtime/signals";\n'
+		+ "const d = computed(() => 1);\nd.value = 2;\n");
+	eq(r.code, r.lowered === 0 && r.bailed === 1, "computed write bails");
+	// useMemo is the same primitive
+	r = lower('import { useMemo } from "runtime/signals";\n'
+		+ "const m = useMemo(() => 5);\nrender(() => m.value);\n");
+	eq(r.code, r.lowered === 1 && r.code.includes("const m = __sp.computed(() => 5)"), "useMemo lowers to computed");
+	eq(r.code, r.code.includes("__sp.get(m)"), "useMemo read lowered");
 	console.log("lower.mjs selftest OK");
 }
 

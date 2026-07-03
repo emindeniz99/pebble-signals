@@ -145,4 +145,28 @@ mix.value = 5;
 S.set(px2, 7);
 check("mixed graph both notify", mixSeen === 3);
 
+// 14. packed computed (S.computed) — the Stage-3 lowering target for
+// computed()/useMemo(). Derives into a value slot via an internal effect;
+// reads track it, and it re-notifies its own subscribers on recompute.
+const cbase = S.sig(3);
+const cder = S.computed(() => S.get(cbase) * 10);
+check("S.computed initial derived", S.get(cder) === 30);
+const cSeen = [];
+const ce = effect(() => cSeen.push(S.get(cder)));
+check("S.computed read seeds subscriber", cSeen.join(",") === "30");
+S.set(cbase, 4);							// upstream change recomputes + re-notifies
+check("S.computed recomputes on dep change", S.get(cder) === 40 && cSeen.join(",") === "30,40");
+dispose(ce);
+
+// disposing a computed created inside a root stops its internal effect
+let cRuns = 0;
+const rbase = S.sig(1);
+const [, rootDispose] = createRoot(() => { S.computed(() => { cRuns++; return S.get(rbase); }); });
+check("S.computed in root ran once", cRuns === 1);
+S.set(rbase, 2);
+check("S.computed in root tracked", cRuns === 2);
+rootDispose();
+S.set(rbase, 3);
+check("S.computed dead after root dispose", cRuns === 2);
+
 done();
