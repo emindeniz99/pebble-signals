@@ -167,27 +167,53 @@ Full hook/primitive parity table (what we have, what we skip, and why) is in
 [`docs/api-parity.md`](docs/api-parity.md); the generated API reference
 (`npm run docs`) is in [`docs/api/`](docs/api/).
 
+### What's NOT supported (know the edges up front)
+
+| Not here | Why / what to do instead |
+|---|---|
+| React re-render model | Components run **once**. State updates flow through bindings, not re-invocation. `useState` returns `[getter, setter]` — read with `count()`. |
+| `createResource` (async data) | The one real gap — no `fetch → {loading,error,data}` helper yet. Roadmapped; today fetch by hand into a signal. |
+| `Suspense` / `ErrorBoundary` | No async render. Subscriber errors are already isolated per-effect via the `__spError` hook (a throwing effect can't kill the others). |
+| `useCallback` / `useMemo`-for-identity | Pointless — components run once, so closures are already stable. `useMemo` exists only for *value* caching. |
+| Glitch-free diamonds | Push notify re-runs a diamond sink twice through one transient value before converging (conformance law 12). Fine for a 2–4-signal watch; a lazy-computed fix is spec'd in the playbook. |
+| Reactive position/size props | Piu lays out at construction time — `left/top/width/height` are static. A reactive one is rejected at bind time with guidance; use `<Show>` to swap. |
+| Bare `{count}` reactivity | The reactivity signal is the **call** `{count()}` (or `sig.value`); a bare identifier can't be told apart from a static value. |
+
+Conformance is CHECKED, not claimed: `tests/conformance.test.mjs` runs 18
+fine-grained-reactivity laws against the runtime (14 match Solid, 4 intentional
+divergences — see [`docs/api-parity.md`](docs/api-parity.md)).
+
 ## Architecture
 
 ```
 src/tsx/*.tsx            app code (JSX) — transpiled by plain tsc
 src/embeddedjs/
   manifest.json          Moddable mod manifest (maps modules, PRELOADS runtime)
-  runtime/signals.js     signals + ownership + hooks   (preloaded to flash)
-  runtime/jsx-runtime.js JSX factory -> real Piu nodes (preloaded to flash)
-  runtime/flow.js        Show / For control flow       (preloaded to flash)
+  runtime/signals.ts     signals + ownership + hooks   (preloaded to flash)
+  runtime/jsx-runtime.ts JSX factory -> real Piu nodes (preloaded to flash)
+  runtime/flow.ts        Show / For control flow       (preloaded to flash)
+  runtime-build/*.js     tsc-emitted runtime (gitignored) -> minified -> shipped
   app/*.js               generated from src/tsx (gitignored)
+types/moddable/          vendored Moddable/Piu .d.ts (tools/sync-moddable-typings.sh)
+tools/*.mts              build steps (manifest/treeshake/fontcheck) + lowering
 src/c/mdbl.c             machine creation + instrumentation flag
-build.sh                 tsc + pebble build
+build.sh                 tsc (app + runtime) + pebble build
 ```
 
-- **`signals.js`** — `signal/effect/computed/untrack` (auto-tracked,
+The runtime is **strict TypeScript** (`signals.ts` / `jsx-runtime.ts` /
+`flow.ts`); `tsc` emits behavior-identical `.js` (types erase — every file's
+minified output is byte/behavior-identical to its old hand-written form, and
+`target: es2022` injects no helpers, so the gotcha-13 alias budget is unchanged).
+`npm run typecheck` runs both the app prop-contracts and the strict runtime emit;
+`npm test` compiles the runtime first, then runs the suites against the output.
+
+- **`signals.ts`** — `signal/effect/computed/untrack` (auto-tracked,
   class-based so per-instance cost is fields only), `createRoot/onCleanup/
   track` ownership, and the `useState/useEffect/useMemo` hooks layer.
   Three logical units share one file deliberately: each XS module costs
   arena RAM, and two extra module records were the difference between the
   combined demo booting or dying (the ≤5-module budget holds at 3).
-- **`jsx-runtime.js`** — `jsx/jsxs/Fragment` + `render`. Host elements are
+- **`jsx-runtime.ts`** — `jsx/jsxs/Fragment` + `render`. Host elements are
   recognized by identity against a lazily-built `Set` of the compartment's
   Piu globals (Hardened JS makes `instanceof` unreliable; laziness is
   required because preloaded module bodies run at build time, before Piu
@@ -203,7 +229,7 @@ build.sh                 tsc + pebble build
   Coordinates are static-only in v1. `effect()` returns the Effect object
   itself (dispose with `dispose(e)`), not a disposer closure — one closure
   per effect was measurable arena money.
-- **`flow.js`** — `Show` and keyed `For`. Both host a `Column` sized by
+- **`flow.ts`** — `Show` and keyed `For`. Both host a `Column` sized by
   caller props. `For` reconciles with **minimal Piu ops** (remove departed,
   cursor-walk and insert/move only misplaced nodes); each row lives in its
   own root and is disposed on removal. `Show` has two modes: the default
@@ -215,7 +241,7 @@ build.sh                 tsc + pebble build
   platform). Both modes wrap each side in a host-sized Container
   automatically — users cannot hit the bare-Label port crash (gotcha 3).
 
-- **`VirtualList`** (in `flow.js`) — our **FlatList**: a virtualized
+- **`VirtualList`** (in `flow.ts`) — our **FlatList**: a virtualized
   ("windowed") list. It creates a FIXED set of `rows` Labels ONCE and
   rewrites their `.string` as the window moves — **cell recycling**, the
   same core trick as React Native's FlashList/RecyclerListView: nodes are
