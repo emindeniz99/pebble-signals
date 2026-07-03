@@ -440,6 +440,16 @@ s·(x−cx) + tx), then `rotate(a)` swings around the pivot. PDCS sequences
 (multi-frame vector, native `duration`) exist for frame-based vector
 animation — untested here.
 
+## Memory playbook
+
+`docs/xs-heap-playbook.md` is the standing inventory of everything that
+lives in the 32KB XS heap, what each thing costs, and the measured tricks
+for pushing data down the memory ladder (chunk bytes → native heap → flash
+resources → the phone). It includes the MEASURED packed-core experiment
+(task #15): bitmask/SoA reactive graph = ~2× cheaper per binding
+(273 → 144 B/pair, capacity 20 → 32+ pairs; benches `slotbench` /
+`slotbenchp`).
+
 ## XS / Piu gotchas actually hit
 
 1. **Every fatal error looks identical**: `fxAbort` (memory full, unhandled
