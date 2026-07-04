@@ -446,17 +446,22 @@ export function createRoot<T>(fn: () => T): [T, () => void] {
 	const o: Owner = { d: [] };
 	const prev = owner;
 	owner = o;
+	const disposer = () => {
+		for (let i = o.d.length - 1; i >= 0; i--) dispose(o.d[i]);
+		o.d.length = 0;
+	};
+	let result: T;
 	try {
-		return [
-			fn(),
-			() => {
-				for (let i = o.d.length - 1; i >= 0; i--) dispose(o.d[i]);
-				o.d.length = 0;
-			},
-		];
-	} finally {
+		result = fn();
+	} catch (e) {
+		// build threw: restore the owner, tear down whatever effects it already
+		// created (else they leak — the disposer never reaches the caller), rethrow.
 		owner = prev;
+		disposer();
+		throw e;
 	}
+	owner = prev;
+	return [result, disposer];
 }
 
 export function onCleanup(fn: EffectFn): void {
@@ -689,8 +694,13 @@ const Store = class {
 				return false;
 			case T_NULL:
 				return null;
-			default:
-				return this.c![tag][1](b, off, len);
+			default: {
+				// custom-codec tag: fail with a clear message if none is registered
+				// (e.g. corrupt bytes loaded from localStorage), not a raw TypeError.
+				const codec = this.c && this.c[tag];
+				if (!codec) throw new Error("store: no codec for tag " + tag);
+				return codec[1](b, off, len);
+			}
 		}
 	}
 	// Remove record i (shifts the tail down); returns the new count or -1.

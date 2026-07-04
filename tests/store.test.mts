@@ -148,4 +148,39 @@ const sempty = createStore(16);
 sempty.save("emptykey");
 check('empty store saves ""', globalThis.localStorage.getItem("emptykey") === "");
 
+// A4: get() on an unregistered custom tag (e.g. corrupt localStorage bytes)
+// throws a CLEAR error, not a raw TypeError from indexing a null codec table.
+mem.set("badtag", String.fromCharCode(8, 0)); // one record: tag 8 (custom range), len 0
+const badTag = createStore(64);
+badTag.load("badtag");
+let tagErr = "";
+try {
+	badTag.get(0);
+} catch (e) {
+	tagErr = e.message;
+}
+check(
+	"get() on unregistered custom tag throws clear error",
+	tagErr === "store: no codec for tag 8",
+);
+
+// same, but with a codec table that EXISTS yet lacks this tag (c truthy branch)
+const badTag2 = createStore(64);
+badTag2.def(
+	9,
+	() => 0,
+	() => 0,
+); // registers tag 9, not 8
+badTag2.load("badtag"); // record tag is 8
+let tagErr2 = "";
+try {
+	badTag2.get(0);
+} catch (e) {
+	tagErr2 = e.message;
+}
+check(
+	"get() with codec table but missing tag throws clear error",
+	tagErr2 === "store: no codec for tag 8",
+);
+
 done();

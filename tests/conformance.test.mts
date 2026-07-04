@@ -433,6 +433,35 @@ const law = (name, verdict, cond, refs) => {
 	// way to nest; this law documents the raw-primitive sharp edge, not a bug.
 }
 
+// --- Law 19: createRoot disposes partial effects when the build THROWS -------
+// If the build fn throws, its disposer never reaches the caller, so any effects
+// it already created would leak. createRoot tears them down before rethrowing.
+{
+	const s = signal(0);
+	let runs = 0;
+	let threw = false;
+	try {
+		createRoot(() => {
+			track(
+				effect(() => {
+					s.value;
+					runs++;
+				}),
+			);
+			throw new Error("build boom");
+		});
+	} catch {
+		threw = true;
+	}
+	runs = 0;
+	s.value = 1; // the effect must be gone (disposed on the throw)
+	law("createRoot disposes partial effects on a throwing build", "MATCH", threw && runs === 0, {
+		solid: "createRoot cleans up on throw",
+		preact: "manual",
+		react: "error boundary unmounts the subtree",
+	});
+}
+
 // --- parity summary ---------------------------------------------------------
 console.log("\n--- parity vs Solid / Preact / React ---");
 for (const p of parity)
