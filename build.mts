@@ -73,6 +73,7 @@ const cli = parseArgs({
 		bundle: { type: "string" },
 		"check-c": { type: "boolean" },
 		lower: { type: "boolean" },
+		prune: { type: "boolean" },
 	},
 	allowNegative: true, // --no-minify / --no-treeshake / --no-check-c / --no-lower
 }).values;
@@ -169,21 +170,6 @@ if (readdirSync(join(PKG, "src/embeddedjs/runtime")).some((f) => f.endsWith(".ts
 			consumer ? ["--outDir", join(PROJ, "src/embeddedjs/runtime-build")] : [],
 		),
 	);
-mkdirSync("src/embeddedjs/runtime-min", { recursive: true });
-for (const dir of [join(PKG, "src/embeddedjs/runtime"), "src/embeddedjs/runtime-build"]) {
-	if (!existsSync(dir)) continue;
-	for (const name of readdirSync(dir)) {
-		if (!name.endsWith(".js")) continue;
-		const f = join(dir, name);
-		const out = join("src/embeddedjs/runtime-min", name);
-		if (minify) {
-			if (!tryEsbuild({ entryPoints: [f], minify: true, format: "esm", outfile: out }))
-				copyFileSync(f, out);
-		} else {
-			copyFileSync(f, out);
-		}
-	}
-}
 run(TSC, ["-p", "tsconfig.json"]);
 // PKJS (phone-side) glue: index.ts -> index.js for `pebble build` to bundle
 // into the mobile app (separate engine/config — see tsconfig.pkjs.json).
@@ -223,6 +209,84 @@ esbuild.buildSync({
 // costs ~2x slots per state and loses the auto-thunk sugar (docs/packaging.md).
 if (flag(cli.lower, "LOWER", "1", true))
 	run(process.execPath, [join(TOOLS, "lower", `cli${EXT}`), "src/embeddedjs/app/main.js"]);
+
+// ---- runtime-min: per-app EXPORT pruning + minify (the #29 fix) -----------
+// Runs AFTER lower so the keep-set is read off the FINAL main.js (lowering
+// swaps `useState` for the packed `S`, so the pre-lower import list would keep
+// the wrong things). Every runtime export the app + shipped sibling modules
+// never import is demoted to a module-local declaration
+// (tools/prune-exports.mts) and esbuild's minify DCE drops its code — the
+// bisect showed the boot arena floor tracks runtime size (clock died at
+// mc.xsa ~14.9KB purely from runtime growth), so unused exports are boot RAM.
+// Self-disabling with treeshake (a dynamic import the scan can't follow could
+// reach anything); --no-prune / PRUNE=0 forces the full surface.
+const prune = flag(cli.prune, "PRUNE", "1", true) && treeshake;
+// named imports per runtime module, scanned from built .js (`as` aliases keep
+// the SOURCE name: `import { S as __sp }` needs export S)
+const importScan = (file: string, keeps: Map<string, Set<string> | "all">) => {
+	const src = readFileSync(file, "utf8");
+	for (const m of src.matchAll(/import\s*(\*\s*as\s+\w+|{[^}]*})\s*from\s*"runtime\/([\w-]+)"/g)) {
+		const mod = m[2];
+		if (m[1].startsWith("*")) {
+			keeps.set(mod, "all"); // namespace import — cannot prune this module
+			continue;
+		}
+		const cur = keeps.get(mod);
+		if (cur === "all") continue;
+		const set = cur ?? new Set<string>();
+		for (const name of m[1].slice(1, -1).split(","))
+			if (name.trim()) set.add(name.trim().split(/\s+as\s+/)[0].trim());
+		keeps.set(mod, set);
+	}
+};
+const shipped = (
+	JSON.parse(readFileSync("src/embeddedjs/manifest.json", "utf8")) as {
+		modules?: Record<string, string>;
+	}
+).modules;
+const keeps = new Map<string, Set<string> | "all">();
+if (prune) {
+	importScan("src/embeddedjs/app/main.js", keeps);
+	// sibling runtime modules that actually SHIP (per the possibly-treeshaken
+	// manifest) also pull exports from each other
+	for (const name of Object.keys(shipped ?? {})) {
+		const rel = name.replace("runtime/", "");
+		const built = join("src/embeddedjs/runtime-build", `${rel}.js`);
+		if (name.startsWith("runtime/") && existsSync(built)) importScan(built, keeps);
+	}
+}
+mkdirSync("src/embeddedjs/runtime-min", { recursive: true });
+for (const dir of [join(PKG, "src/embeddedjs/runtime"), "src/embeddedjs/runtime-build"]) {
+	if (!existsSync(dir)) continue;
+	for (const name of readdirSync(dir)) {
+		if (!name.endsWith(".js")) continue;
+		const f = join(dir, name);
+		const out = join("src/embeddedjs/runtime-min", name);
+		copyFileSync(f, out); // work on a copy — never mutate the source dirs
+		const keep = keeps.get(name.replace(/\.js$/, ""));
+		if (prune && keep !== "all")
+			run(process.execPath, [
+				join(TOOLS, `prune-exports${EXT}`),
+				out,
+				[...(keep ?? new Set<string>())].join(","),
+			]);
+		if (minify)
+			tryEsbuild({
+				entryPoints: [out],
+				// bundle:true is what makes the demoted exports actually DISAPPEAR:
+				// esbuild only tree-shakes when bundling, and with runtime/* external
+				// nothing gets inlined — imports/exports survive for the manifest map.
+				bundle: true,
+				external: ["runtime/*"],
+				treeShaking: true,
+				minify: true,
+				format: "esm",
+				outfile: out,
+				allowOverwrite: true,
+			});
+	}
+}
+
 if (minify)
 	tryEsbuild({
 		entryPoints: ["src/embeddedjs/app/main.js"],

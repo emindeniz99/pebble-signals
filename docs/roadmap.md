@@ -103,15 +103,24 @@ notifications, device info.
 - **#27 importNow lazy screens:** screens as separate non-preloaded modules,
   loaded from flash on first push; measure heap before/after. Keep multilazy as
   the closure-swap variant.
-- **#29 swapped-screen reactive crash + richlist boot regression:** PARTIALLY
-  CONFIRMED (2026-07, consumer-e2e bring-up): `clock` — a previously-verified
-  example — now dies at boot with `fxAbort memory full` (instruments at abort:
-  slot 6816/8176 used, chunk 2096/8192), and NOT because of lowering
-  (`--no-lower` dies identically). A counter-class app (1 style, 1 label,
-  1 signal) boots and runs fine; clock-class (2 styles, 2 labels, interval)
-  does not. So the boot arena FLOOR has grown past what 2-label apps leave
-  free — bisect the runtime history (candidates: multi-word stride growth,
-  flow/jsx additions) against `APP=clock` on the emulator to find the commit.
+- **#29 boot regression: ROOT-CAUSED and FIXED (2026-07).** Bisect on the
+  emulator (screenshot-verdict probes, `APP=clock --no-lower` fixed): GOOD at
+  03bf022 (mc.xsa 14462) → BAD at the very next runtime commit 3e6be5f
+  (14991) → BAD at HEAD (15613). Mechanism: the boot arena floor tracks
+  RUNTIME SIZE — every shipped export costs archive bytes + boot slots even if
+  the app never imports it (confirmed by ablation: stripping strings +
+  createResource at HEAD moved the size but the threshold sits ~14.5-14.9KB);
+  the runtime simply outgrew what clock-class apps left free. FIX: per-app
+  EXPORT-level pruning (`tools/prune-exports.mts`, default ON in build.mts,
+  `--no-prune`/PRUNE=0 escape, self-disables with treeshake on dynamic
+  imports): the keep-set is scanned off the POST-lower main.js + shipped
+  sibling modules' imports; unused exports are demoted to module-locals and
+  esbuild's bundle-mode DCE drops them from runtime-min. Measured: clock mod
+  15613 → 9988 (-36%), and clock, counter, list AND richlist (the app that
+  named this issue) all boot and render on gabbro. Pay-for-what-you-use:
+  createResource/Store/context only cost apps that import them.
+  STILL OPEN from the original #29: the swapped-screen reactive crash
+  (Navigator/Show device flakiness) — untested by this pass.
 - **text-input example:** key-based char picker (Pebble has no keyboard) + a todo
   whose items are entered that way.
 - **Reactive position via Piu moveBy.** Position/size props are construction-time
