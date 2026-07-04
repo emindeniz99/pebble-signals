@@ -26,8 +26,10 @@ The 32KB XS arena ran out DURING boot. Checklist, in order:
 
 Steady-state leak or spike: usually a subtree swap allocating before the old
 side is freed (prefer `keepAlive` on Show), a collection kept as JS objects
-(use `createStore` — bytes not slots), or effects leaking (always
-`track(effect(...))` or use the hooks/flow components which own effects).
+(use `createStore` — bytes not slots), or effects leaking (since the 2026-07
+running-owner round, `effect()` auto-registers with the innermost owner —
+running effect or root — so nested effects no longer accumulate; a TOP-LEVEL
+effect with no owner is still yours to `dispose()`).
 
 ## App installs but never appears / bounces instantly with NO logs
 

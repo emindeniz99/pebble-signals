@@ -38,6 +38,21 @@ No registry releases yet; entries accumulate under Unreleased until the first
   inert data boots. `PRELOAD_PURE` stays OFF: extra modules ADD boot cost.
 
 ### Changed
+- **Core-reactivity round (glitch-free + running-owner, one pass).**
+  Computeds are now LAZY: `fn` runs on READ (first read included), validated
+  against a global write version, pulling sources first — a diamond sink runs
+  once, straight to the correct value (conformance law 12 = MATCH, verified
+  on real XS). All notifies coalesce into turns (batch semantics on every
+  write). Effects auto-register with the innermost owner (running effect or
+  root); nested effects are disposed before the parent re-runs (law 18 =
+  MATCH). Measured on gabbro: −2 archive symbols vs the old core, +767 B
+  bytecode; navmany/clock/coexist re-verified.
+  *Upgrading:* `track(effect(...))` is redundant — call `effect()` bare (the
+  explicit form still works but double-registers). `computed(fn)`/`useMemo`
+  no longer run `fn` at creation — the first `.value` read does; code that
+  relied on creation-time side effects of a computed must read it once.
+  Disposing a computed's owner now freezes it (reads return the last value,
+  `fn` never re-runs) — same observable value as before.
 - **JSXNode type split** (was `Node = any`): children/build thunks are typed
   `Content | string | number | boolean | null | undefined | JSXNode[]`.
   *Upgrading:* code that passed arbitrary placeholder objects as children now

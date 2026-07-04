@@ -1,7 +1,7 @@
 // JSX factory — Solid model, no virtual DOM. Components run ONCE; host
 // elements become real Piu nodes created once; function-valued props become
 // live effect bindings that assign single Piu properties on change.
-import { effect, track, createRoot } from "runtime/signals";
+import { effect, createRoot } from "runtime/signals";
 import type {
 	Application as PiuApplication,
 	ApplicationDictionary,
@@ -143,7 +143,8 @@ function createHost(type: any, props: Props): PiuContent {
 			// can be written reactively; a reactive position prop is the classic
 			// React-refugee surprise (Piu layout is construction-time).
 			if (REACTIVE_PROPS.indexOf(key) < 0) throw new Error(bindErr(key));
-			track(effect(() => setProp(node, key, thunk())));
+			// effect() auto-registers with the innermost owner (running-owner round)
+			effect(() => setProp(node, key, thunk()));
 		}
 	}
 	if (children !== undefined) appendChild(node, children);

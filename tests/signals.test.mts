@@ -25,6 +25,12 @@ import { makeChecker } from "./load-runtime.mts";
 
 const { check, done } = makeChecker("signals");
 
+// 0. a write before ANY graph exists (no effect/packed signal yet) is safe —
+// nothing to version-bump or notify (the lazy-G fast path)
+const pre = signal(0);
+pre.value = 1;
+check("write before graph exists is safe", pre.value === 1);
+
 // 1. signal -> effect fires on set
 const a = signal(1);
 let seen = [];
@@ -205,21 +211,26 @@ S.set(cbase, 4); // upstream change recomputes + re-notifies
 check("S.computed recomputes on dep change", S.get(cder) === 40 && cSeen.join(",") === "30,40");
 dispose(ce);
 
-// disposing a computed created inside a root stops its internal effect
+// disposing a computed created inside a root FREEZES it (2026-07 lazy
+// round): computeds recompute on READ, never on notify — so fn does not run
+// at creation, runs on first read, revalidates per read after writes, and a
+// disposed computed stops recomputing (frozen at its last value).
 let cRuns = 0;
 const rbase = S.sig(1);
-const [, rootDispose] = createRoot(() => {
+const [rcid, rootDispose] = createRoot(() =>
 	S.computed(() => {
 		cRuns++;
 		return S.get(rbase);
-	});
-});
-check("S.computed in root ran once", cRuns === 1);
+	}),
+);
+check("S.computed is lazy — no run before the first read", cRuns === 0);
+check("S.computed first read computes", S.get(rcid) === 1 && cRuns === 1);
+check("S.computed cached read does not recompute", S.get(rcid) === 1 && cRuns === 1);
 S.set(rbase, 2);
-check("S.computed in root tracked", cRuns === 2);
+check("S.computed read after write recomputes", S.get(rcid) === 2 && cRuns === 2);
 rootDispose();
 S.set(rbase, 3);
-check("S.computed dead after root dispose", cRuns === 2);
+check("S.computed frozen after root dispose", S.get(rcid) === 2 && cRuns === 2);
 
 // 14b. S.put — the Stage-3 target for direct `s.value = e`. Unlike S.set
 // (useState's functional-update contract), put stores a FUNCTION verbatim:
@@ -444,5 +455,55 @@ const outside = provide(Theme, "dark", () => {
 });
 check("provide scopes value during build", inside === "dark" && outside === "dark");
 check("provide restores after build", useContext(Theme) === "light");
+
+// 22. glitch-free, the ADVERSARIAL shape: the sink ALSO reads the source
+// directly. Version-validated lazy pull means the sink can never observe a
+// stale computed regardless of notification order — every observed value is
+// arithmetically consistent (may run more than once across turns, but each
+// run sees a coherent snapshot).
+{
+	const src = signal(1);
+	const dbl = computed(() => src.value * 2);
+	const glitches = [];
+	effect(() => {
+		// consistent iff dbl is exactly twice src AT THE MOMENT of the read
+		if (dbl.value !== src.value * 2) glitches.push([src.value, dbl.value]);
+	});
+	src.value = 5;
+	src.value = 9;
+	check("mixed direct+derived sink never sees a stale computed", glitches.length === 0);
+}
+
+// 23. running-owner: onCleanup inside an effect fires before every re-run and
+// once more at dispose; a second trackable in the same run shares the list
+{
+	const o = signal(0);
+	const log = [];
+	const e = effect(() => {
+		const v = o.value;
+		log.push("run" + v);
+		onCleanup(() => log.push("cleanA" + v));
+		onCleanup(() => log.push("cleanB" + v));
+	});
+	o.value = 1;
+	dispose(e);
+	check(
+		"running-owner cleanups fire per re-run and at dispose",
+		log.join(",") === "run0,cleanB0,cleanA0,run1,cleanB1,cleanA1",
+	);
+}
+
+// 24. coalescing dedupes the SAME row written twice in one batch, and the
+// effect still runs exactly once with the final value
+{
+	const x = signal(0);
+	const got = [];
+	effect(() => got.push(x.value));
+	batch(() => {
+		x.value = 1;
+		x.value = 2;
+	});
+	check("same-row double write in a batch notifies once", got.join(",") === "0,2");
+}
 
 done();

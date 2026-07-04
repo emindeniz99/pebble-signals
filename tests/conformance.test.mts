@@ -252,11 +252,12 @@ const law = (name, verdict, cond, refs) => {
 	});
 }
 
-// --- Law 12: push-based notify is NOT glitch-free (documented divergence) ---
-// Diamond: A -> B, A -> C, D reads B and C. On an A change our synchronous
-// push runs D once per changed input (twice), transiting a glitched value,
-// then settling correct. Solid & Preact are glitch-free (D runs once, final
-// value only). We pin OUR real behavior; the annotation owns the difference.
+// --- Law 12: GLITCH-FREE diamond (2026-07 lazy-computed round) --------------
+// Diamond: A -> B, A -> C, D reads B and C. Computeds are LAZY (recompute on
+// READ, validated against the global write version, pulling sources first)
+// and every notify coalesces into settle() turns — so D runs ONCE per write,
+// straight to the correct value, never observing a half-updated diamond.
+// This flipped from DIVERGE when the eager push core was replaced.
 {
 	const a = signal(1);
 	const b = computed(() => a.value + 1);
@@ -269,21 +270,18 @@ const law = (name, verdict, cond, refs) => {
 	});
 	const initRuns = dRuns; // 1, seen [4]
 	a.value = 10;
-	// D re-runs twice: intermediate 13 (b new, c old), then final 31.
+	// GLITCH-FREE: D ran exactly once more, no transient 13 ever observed.
 	law(
-		"diamond: push notify re-runs the sink (NOT glitch-free)",
-		"DIVERGE",
-		initRuns === 1 && dRuns === 3 && seen[seen.length - 1] === 31,
+		"diamond: sink runs ONCE, no glitch value (glitch-free)",
+		"MATCH",
+		initRuns === 1 && dRuns === 2 && seen.join(",") === "4,31",
 		{
 			solid: "glitch-free — D runs once, value 31 only",
 			preact: "glitch-free — deferred computed, D runs once",
 			react: "N/A — whole component re-renders once per state commit",
 		},
 	);
-	// The value CONVERGES correctly even though it isn't glitch-free — that's
-	// the tradeoff: on a 2-4-signal watch a transient extra run is invisible,
-	// and the topological scheduler Solid needs would cost slots we don't have.
-	check("diamond still converges to the correct final value", seen[seen.length - 1] === 31);
+	check("diamond never observes a glitched value", seen.indexOf(13) < 0);
 }
 
 // --- Law 13: writing the SAME value does not notify ------------------------
@@ -397,13 +395,10 @@ const law = (name, verdict, cond, refs) => {
 	});
 }
 
-// --- Law 18: nested RAW effects accumulate (caveat vs Solid ownership) -------
-// A raw effect() created inside another effect is NOT auto-owned, so when the
-// outer re-runs it creates a NEW inner without disposing the old one — they
-// accumulate. Solid owns nested computations and disposes them on parent
-// re-run. Our framework path avoids this: Show/For/Navigator wrap each subtree
-// in createRoot, and disposing that root tears the nested effects down. The
-// caveat is only for hand-rolled effect-in-effect; use an owner or the hooks.
+// --- Law 18: running-owner — nested effects are owned (2026-07, B9) ----------
+// An effect() created inside another effect registers with the RUNNING outer
+// effect; when the outer re-runs (or is disposed) the previous inner is
+// disposed first — Solid's ownership model, no accumulation.
 {
 	const o = signal(0);
 	const inner = signal(0);
@@ -422,15 +417,21 @@ const law = (name, verdict, cond, refs) => {
 		);
 	});
 	innerRuns = 0;
-	o.value = 1; // outer re-runs -> a SECOND inner effect now also listens
-	inner.value = 1; // BOTH inners run -> 2, not 1 (accumulation)
-	law("nested raw effects accumulate without an owner", "DIVERGE", innerRuns === 3, {
-		solid: "MATCH-by-ownership — outer re-run disposes the previous inner",
-		preact: "N/A — no built-in ownership tree",
-		react: "N/A — effects are per-render, cleaned on deps change",
-	});
-	// The guarded path (Show/For/createRoot) does NOT leak — that's the intended
-	// way to nest; this law documents the raw-primitive sharp edge, not a bug.
+	o.value = 1; // outer re-runs -> running-owner DISPOSES the previous inner
+	inner.value = 1; // exactly ONE live inner runs
+	law(
+		"nested effects are owned by the running effect (no accumulation)",
+		"MATCH",
+		innerRuns === 2,
+		{
+			solid: "MATCH — outer re-run disposes the previous inner (running owner)",
+			preact: "N/A — no built-in ownership tree",
+			react: "N/A — effects are per-render, cleaned on deps change",
+		},
+	);
+	// Since the 2026-07 running-owner round (B9), effect() auto-registers with
+	// the innermost context (running effect or root) — the old raw-primitive
+	// accumulation footgun is gone; explicit track(effect(...)) is redundant.
 }
 
 // --- Law 19: createRoot disposes partial effects when the build THROWS -------

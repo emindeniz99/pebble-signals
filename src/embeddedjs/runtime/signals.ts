@@ -28,10 +28,8 @@ type EffectFn = () => void;
 // this preloaded module, gotcha 13).
 interface Graph {
 	eff: (EffectFn | null)[]; // effect id -> reaction (null = disposed)
-	cln: (EffectFn | null)[] | null; // effect id -> useEffect cleanup
 	val: unknown[]; // packed signal id -> value
 	sub: Uint32Array; // subscription matrix, st words per signal row
-	cap: number; // rows allocated
 	st: number; // stride: words per row (= 1 + hi-word count)
 	n: number; // rows used
 	u: number; // word 0 of the live effect-id set
@@ -40,7 +38,21 @@ interface Graph {
 	qh: Uint32Array | null; // quarantine hi-words
 	dep: number; // notification cascade depth
 	bat: number; // batch() nesting depth
-	pend: number[] | null; // rows whose notify is deferred inside a batch
+	pend: number[] | null; // rows whose notify is deferred (settle turns)
+	// The three fields below use SINGLE-LETTER property names on purpose:
+	// every archive symbol interns at boot (playbook "The boot floor"), and
+	// a/z single letters are already in every build's symbol table via the
+	// minified runtime — so these cost ZERO new boot symbols.
+	y: number; // global write version — lazy computeds validate against it
+	// lazy-computed state (SoA triple, one property): x[0][row] fn,
+	// x[1][row] last-validated version (-1 = never), x[2][row]
+	// forward-effect id. null until the first computed exists.
+	x: [(() => unknown)[], number[], number[]] | null;
+	// running-owner: w[e] = disposables created while effect e ran — nested
+	// effects AND tracked cleanups (this subsumed the old separate cln
+	// array: a tracked cleanup closure has the exact same timing). null
+	// until some running effect tracks something — most never do.
+	w: (Disposable[] | null)[] | null;
 }
 
 let current = -1; // id of the running effect, -1 = none
@@ -49,7 +61,6 @@ let current = -1; // id of the running effect, -1 = none
 // An effect is an INTEGER ID, not an object. Tables live in ONE lazily
 // created state record (a preload-time buffer would be frozen into ROM):
 //   eff[id]  reaction fn (null = disposed — doubles as the zombie guard)
-//   cln[id]  optional useEffect cleanup
 //   sub      Uint32Array, `st` words per SIGNAL row (32 effect bits each);
 //            subscribe is one OR — and the old per-effect dependency
 //            array is GONE: reverse edges are implied by the forward
@@ -71,10 +82,8 @@ const gi = (): Graph => {
 		// lazy: a preload-time table would be frozen in ROM
 		G = g = {
 			eff: [],
-			cln: null,
 			val: [],
 			sub: new Uint32Array(8),
-			cap: 8,
 			st: 1,
 			n: 0,
 			u: 0,
@@ -84,20 +93,23 @@ const gi = (): Graph => {
 			dep: 0,
 			bat: 0,
 			pend: null,
+			y: 0,
+			x: null,
+			w: null,
 		};
 	return g;
 };
 
 const grow = (g: Graph): number => {
-	// allocate one subscription row (st words wide)
+	// allocate one subscription row (st words wide). Row capacity is DERIVED
+	// (sub.length / st) instead of stored — one division per grow buys back a
+	// Graph slot + a boot symbol (CPU for RAM, as always).
 	const i = g.n++;
-	if (i >= g.cap) {
+	if ((i + 1) * g.st > g.sub.length) {
 		// rows packed contiguously — a flat copy preserves layout
-		const nc = g.cap << 1;
-		const s2 = new Uint32Array(nc * g.st);
+		const s2 = new Uint32Array(g.sub.length << 1);
 		s2.set(g.sub);
 		g.sub = s2;
-		g.cap = nc;
 	}
 	return i;
 };
@@ -109,7 +121,7 @@ const grow = (g: Graph): number => {
 const growStride = (g: Graph): void => {
 	const os = g.st,
 		ns = os + 1;
-	const nsub = new Uint32Array(g.cap * ns);
+	const nsub = new Uint32Array((g.sub.length / os) * ns);
 	for (let r = 0; r < g.n; r++) for (let w = 0; w < os; w++) nsub[r * ns + w] = g.sub[r * os + w];
 	g.sub = nsub;
 	if (g.uh === null) {
@@ -127,8 +139,9 @@ const growStride = (g: Graph): void => {
 };
 
 const relQ = (g: Graph): void => {
-	// cascade over: release quarantined ids
-	if (g.dep > 0) return;
+	// cascade over: release quarantined ids. Sole caller is settle()'s
+	// finally, which only runs at depth 0 (nested settles bail up front) —
+	// so no depth guard is needed here anymore.
 	g.u &= ~g.q;
 	g.q = 0;
 	const uh = g.uh;
@@ -140,35 +153,47 @@ const relQ = (g: Graph): void => {
 		}
 };
 
-const flush = (g: Graph, i: number): void => {
-	// notify every subscriber of signal row i
-	if (g.bat > 0) {
-		// inside batch(): defer, dedupe rows, notify once
-		const p = g.pend || (g.pend = []);
-		if (p.indexOf(i) < 0)
-			// linear: batched rows are few (no Set — XS rule)
-			p.push(i);
-		return;
-	}
+// Drain deferred notifications in COALESCED TURNS (the glitch-free half of
+// the 2026-07 core round). Each turn unions the subscriber masks of every
+// row touched since the last turn, so an effect reached via several paths
+// (the diamond) runs ONCE per turn; writes made BY those effects queue the
+// next turn instead of cascading recursively. Skips when a batch() or an
+// outer settle is active — that drainer owns the queue.
+const settle = (g: Graph): void => {
+	if (g.bat > 0 || g.dep > 0) return;
 	g.dep++;
 	try {
-		const st = g.st,
-			base = i * st,
-			sub = g.sub;
-		for (let wi = 0; wi < st; wi++) {
-			// one iteration when st === 1
-			let w = sub[base + wi]; // snapshot this word by value
-			const off = wi << 5;
-			while (w) {
-				const b = w & -w;
-				w &= w - 1;
-				notify(off + 31 - Math.clz32(b));
+		while (g.pend !== null) {
+			const rows = g.pend;
+			g.pend = null; // writes during this turn queue the NEXT turn
+			const st = g.st,
+				sub = g.sub;
+			for (let wi = 0; wi < st; wi++) {
+				// union the touched rows' masks — effect-level dedupe (Solid
+				// batch semantics, now on EVERY write)
+				let acc = 0;
+				for (let k = 0; k < rows.length; k++) acc |= sub[rows[k] * st + wi];
+				const off = wi << 5;
+				while (acc) {
+					const b = acc & -acc;
+					acc &= acc - 1;
+					notify(off + 31 - Math.clz32(b));
+				}
 			}
 		}
 	} finally {
 		g.dep--;
 		relQ(g);
 	}
+};
+
+const flush = (g: Graph, i: number): void => {
+	// defer + dedupe the row, then drain unless a batch/turn already owns it
+	const p = g.pend || (g.pend = []);
+	if (p.indexOf(i) < 0)
+		// linear: turn queues are few rows (no Set — XS rule)
+		p.push(i);
+	settle(g);
 };
 
 // Signals keep the object API (`.value`) — Stage 1 packs only the graph.
@@ -196,11 +221,13 @@ class Signal<T> {
 	set value(value: T) {
 		if (value === this.v) return;
 		this.v = value;
+		const g = G;
+		if (g !== null) g.y++; // lazy computeds re-validate on read
 		const i = this.i;
 		if (i < 0)
 			// never subscribed
 			return;
-		flush(G!, i); // flush snapshots each subscriber word by value (see above)
+		flush(g!, i); // deferred + coalesced (see settle)
 	}
 }
 
@@ -231,11 +258,15 @@ const run = (e: number): void => {
 		return;
 	unsubscribe(e);
 	const prev = current;
+	const po = owner;
 	current = e;
+	owner = e; // running-owner (B9): trackables created during the run belong
+	// to THIS effect and are disposed before its next run / at its disposal
 	try {
 		fn();
 	} finally {
 		current = prev;
+		owner = po;
 	}
 };
 
@@ -246,10 +277,14 @@ const run = (e: number): void => {
 // next run and once more at dispose.
 function unsubscribe(e: number): void {
 	const g = G!;
-	const c = g.cln !== null && g.cln[e];
-	if (c) {
-		g.cln![e] = null;
-		c();
+	// running-owner: dispose everything the PREVIOUS run created — nested
+	// effects and tracked cleanups alike (this list replaced the old cln
+	// array: a tracked cleanup closure runs at exactly the same moments,
+	// before every re-run and once more at disposal)
+	const list = g.w !== null && g.w[e];
+	if (list) {
+		g.w![e] = null;
+		for (let i = list.length - 1; i >= 0; i--) dispose(list[i]);
 	}
 	// effect e lives in word (e>>5) of every row; clear just that word.
 	const sub = g.sub,
@@ -290,10 +325,35 @@ export const S = {
 		g.val[i] = v;
 		return i;
 	},
-	/** Read packed signal `i` (subscribes the current effect). */
+	/** Read packed signal `i` (subscribes the current effect; pulls a stale computed). */
 	get<T>(i: number): T {
-		if (current >= 0 && G!.eff[current]) G!.sub[i * G!.st + (current >> 5)] |= 1 << (current & 31);
-		return G!.val[i] as T;
+		const g = G!;
+		const cx = g.x;
+		if (cx !== null) {
+			// lazy computed pull (glitch-free): recompute on READ when any
+			// write happened since this row last validated — the recursion
+			// through the sources' own S.get reads IS the topological order.
+			// A disposed computed (forward effect gone) freezes at its last
+			// value instead of recomputing.
+			const fn = cx[0][i];
+			if (fn !== undefined && cx[1][i] !== g.y && g.eff[cx[2][i]]) {
+				cx[1][i] = g.y; // before fn: a re-entrant read sees "current"
+				const e = cx[2][i];
+				unsubscribe(e); // re-track sources on every recompute
+				const prev = current;
+				const po = owner;
+				current = e;
+				owner = e; // trackables created by fn belong to the computed
+				try {
+					g.val[i] = fn();
+				} finally {
+					current = prev;
+					owner = po;
+				}
+			}
+		}
+		if (current >= 0 && g.eff[current]) g.sub[i * g.st + (current >> 5)] |= 1 << (current & 31);
+		return g.val[i] as T;
 	},
 	/** Functional-update write (the `useState` setter contract). */
 	set<T>(i: number, v: T | ((prev: T) => T)): void {
@@ -301,6 +361,7 @@ export const S = {
 		if (typeof v === "function") v = (v as (prev: unknown) => unknown)(g.val[i]) as T;
 		if (v === g.val[i]) return;
 		g.val[i] = v;
+		g.y++;
 		flush(g, i);
 	},
 	// RAW write — no functional-update unwrap. The Stage-3 target for direct
@@ -312,23 +373,25 @@ export const S = {
 		const g = G!;
 		if (v === g.val[i]) return;
 		g.val[i] = v;
+		g.y++;
 		flush(g, i);
 	},
-	// Packed computed: one value slot + one effect that recomputes into it.
-	// Reads (S.get) track the slot; when fn's deps change the effect re-runs
-	// and S.set re-notifies the computed's own subscribers. Registered with
-	// the current owner so disposing its subtree stops it. The Signal object
-	// never exists — same read path as a packed signal, writes are caller
-	// error (the lowering bails on any `.value =` to a computed).
-	/** Packed memo: one value slot + one recomputing effect. */
+	// Packed LAZY computed (glitch-free core round, 2026-07): one value slot
+	// + a FORWARD effect that only propagates "something upstream changed" to
+	// the row's subscribers — it never recomputes. Recompute happens on READ
+	// (S.get above), validated against G.gv, pulling each source first. The
+	// forward effect is auto-registered with the current owner (running
+	// effect or root), so disposing the subtree freezes the computed.
+	/** Packed lazy memo: one value slot + one forward (mark) effect. */
 	computed(fn: () => unknown): number {
 		const g = gi();
 		const i = grow(g);
-		track(
-			effect(() => {
-				S.set(i, fn());
-			}),
-		);
+		const cx = g.x || (g.x = [[], [], []]);
+		cx[0][i] = fn;
+		cx[1][i] = -1; // never validated — first read computes
+		cx[2][i] = effect(() => {
+			flush(g, i);
+		});
 		return i;
 	},
 };
@@ -370,6 +433,11 @@ export function effect(fn: EffectFn): number {
 		}
 	}
 	g.eff[e] = fn;
+	// Running-owner (B9): auto-register with the innermost context — the
+	// running effect or the current root — BEFORE the first run, so a
+	// throwing initial run is still torn down by its root. A top-level
+	// effect (no context) stays manual, as before.
+	track(e);
 	run(e);
 	return e;
 }
@@ -398,22 +466,25 @@ export function dispose(d: number | EffectFn): void {
 	}
 }
 
-// Eager computed. The internal effect is registered with the current owner
-// so disposing the subtree that created the computed also stops it —
-// otherwise it would keep firing (and leaking) after its UI is gone.
+// LAZY computed (2026-07 core round) — a facade over the packed lazy memo:
+// recompute happens on READ (validated against the global write version,
+// pulling sources first), never on notify, which is what makes the diamond
+// glitch-free (conformance law 12 = MATCH). The forward effect registers
+// with the current owner via effect()'s auto-tracking, so disposing the
+// subtree that created the computed freezes it.
 /**
- * Memoized derived signal: `fn` re-runs only when a dependency changes, and
- * its value is cached across reads. Costs one internal effect — prefer a plain
- * thunk `() => a.value + b.value` unless the value is read in many places.
+ * Memoized derived signal, LAZY and glitch-free: `fn` re-runs on read when a
+ * dependency changed, and its value is cached across reads. Costs one internal
+ * effect — prefer a plain thunk `() => a.value + b.value` unless the value is
+ * read in many places.
  */
 export function computed<T>(fn: () => T): ReadonlySignal<T> {
-	const s = new Signal(undefined as T);
-	track(
-		effect(() => {
-			s.value = fn();
-		}),
-	);
-	return s; // its .value getter tracks; writing .value is a type error (ReadonlySignal)
+	const i = S.computed(fn);
+	return {
+		get value(): T {
+			return S.get(i);
+		},
+	};
 }
 
 // Batch writes: N sets inside fn produce ONE notification pass per touched
@@ -433,31 +504,11 @@ export function batch<T>(fn: () => T): T {
 	try {
 		return fn();
 	} finally {
-		if (--g.bat === 0 && g.pend !== null) {
-			const rows = g.pend;
-			g.pend = null; // re-entrant set()s during notify flush directly
-			// Coalesce at the EFFECT level (Solid semantics): union the
-			// subscriber masks of every touched row, so an effect watching
-			// several batched signals runs ONCE, not once per signal.
-			const st = g.st,
-				sub = g.sub;
-			g.dep++;
-			try {
-				for (let wi = 0; wi < st; wi++) {
-					let acc = 0;
-					for (let k = 0; k < rows.length; k++) acc |= sub[rows[k] * st + wi];
-					const off = wi << 5;
-					while (acc) {
-						const b = acc & -acc;
-						acc &= acc - 1;
-						notify(off + 31 - Math.clz32(b));
-					}
-				}
-			} finally {
-				g.dep--;
-				relQ(g);
-			}
-		}
+		--g.bat;
+		// settle() owns the coalescing (every write goes through the same
+		// union-of-masks turn since the glitch-free round); a batch just
+		// holds the turn open until it exits. No-op while nested.
+		if (g.pend !== null) settle(g);
 	}
 }
 
@@ -477,12 +528,16 @@ export function untrack<T>(fn: () => T): T {
 // current owner; disposing the owner disposes the subtree. Leaked effects
 // are the #1 correctness risk in this design.
 
-// An owner holds the disposables (effect ids or closures) created in its subtree.
+// An owner holds the disposables (effect ids or closures) created in its
+// subtree. Since the running-owner round (B9), the owner context is either a
+// root's Owner OBJECT or the NUMERIC id of the currently-running effect —
+// the numeric form costs nothing per run; its disposables list (G.own[e])
+// is only allocated when a run actually tracks something.
 type Disposable = number | EffectFn;
 interface Owner {
 	d: Disposable[];
 }
-let owner: Owner | null = null;
+let owner: Owner | number | null = null;
 
 /**
  * Run `fn` under a fresh owner; returns `[result, disposer]`. Calling the
@@ -512,14 +567,22 @@ export function createRoot<T>(fn: () => T): [T, () => void] {
 
 /** Register a cleanup to run when the current owner is disposed. */
 export function onCleanup(fn: EffectFn): void {
-	if (owner) owner.d.push(fn);
+	track(fn);
 }
 
-// Register a disposable (Effect instance or closure) with the current
-// owner so tearing down the subtree tears it down too.
+// Register a disposable (effect id or closure) with the innermost owner
+// context: a running effect (numeric — its list lives in G.own, disposed
+// before every re-run and at disposal) or a createRoot owner object.
 /** Register an effect id / disposer with the current owner; returns it. */
 export function track(disposable: Disposable): Disposable {
-	if (owner) owner.d.push(disposable);
+	const o = owner;
+	if (o !== null) {
+		if (typeof o === "number") {
+			const g = G!; // a numeric owner implies a running effect, so G exists
+			const own = g.w || (g.w = []);
+			(own[o] || (own[o] = [])).push(disposable);
+		} else o.d.push(disposable);
+	}
 	return disposable;
 }
 
@@ -552,15 +615,14 @@ export function useState<T>(init: T): [() => T, (v: T | ((prev: T) => T)) => voi
  * the cleanup: it runs before every re-run and once more at dispose.
  */
 export function useEffect(fn: () => void | EffectFn): void {
-	track(
-		effect(() => {
-			const out = fn();
-			if (typeof out === "function") {
-				if (G!.cln === null) G!.cln = [];
-				G!.cln![current] = out;
-			}
-		}),
-	);
+	// effect() auto-registers with the innermost owner (running-owner round);
+	// a returned cleanup is simply TRACKED on the running effect — the owned
+	// list runs it before the next re-run and once more at disposal, which is
+	// exactly the React contract the old dedicated cln array implemented.
+	effect(() => {
+		const out = fn();
+		if (typeof out === "function") track(out);
+	});
 }
 
 // PERF: like computed(), this allocates ONE internal effect to keep the

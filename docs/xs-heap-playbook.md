@@ -586,11 +586,19 @@ hundred bytes). The remaining unknown is the on-device HEAP delta and any
 notify-path perf cost — the emulator is currently too flaky to measure cleanly
 (flow-apps won't launch, #29).
 
-DECISION: **design proven + byte cost estimated; integration into the shipped
-core is deferred to a stable-emulator session** (it changes the reactivity hot
-path, so Rule 2 wants a device measurement, and the eager core is correct-on-
-converge + cheaper). The prototype + this spec are the ready-to-integrate
-artifact. When integrated, flip conformance law 12 to MATCH.
+DECISION → **SHIPPED (2026-07 core round).** Integrated into signals.ts with
+one refinement over this spec: validation is a GLOBAL write version (`G.y`)
+checked on every computed read, not just a dirty bit — a dirty-flag-only
+design can hand a stale computed to a sink that also reads the source
+directly (notify order is id order, not topo order). Costs: one version
+counter + one SoA triple (`G.x`) + per-effect owned lists (`G.w`), all under
+single-letter property names (zero new boot symbols — the letters are in
+every build's SYMB already); the old `cln` array and `cap` field were
+deleted to pay for the new Graph slots. Net: −2 archive symbols vs the old
+eager core, +767 B chunk bytecode. Law 12 = MATCH (V8 + real XS); navmany/
+clock/coexist re-verified on gabbro. The first integration attempt WITHOUT
+the symbol diet killed navmany at boot — the boot floor applies to our own
+runtime too.
 
 ## Emulator stability note (session finding)
 

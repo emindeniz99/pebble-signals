@@ -132,35 +132,31 @@ export function Show(props: ShowProps): PiuContainer {
 		const a = wrapSide(props, props.children);
 		const b = wrapSide(props, props.fallback);
 		let mounted: PiuContainer | null = null;
-		track(
-			effect(() => {
-				const next = props.when() ? a : b;
-				if (next === mounted) return;
-				if (mounted) host.replace(mounted, next);
-				else host.add(next);
-				mounted = next;
-			}),
-		);
+		effect(() => {
+			const next = props.when() ? a : b;
+			if (next === mounted) return;
+			if (mounted) host.replace(mounted, next);
+			else host.add(next);
+			mounted = next;
+		});
 		return host;
 	}
 	let dispose: Disposer | null = null;
-	track(
-		effect(() => {
-			const on = !!props.when();
-			untrack(() => {
-				if (dispose) {
-					dispose();
-					dispose = null;
-				}
-				// remove one-by-one instead of empty(): see For note below
-				while (host.first) host.remove(host.first);
-				const build = on ? props.children : props.fallback;
-				const [tree, d] = createRoot(() => wrapSide(props, build));
-				dispose = d;
-				host.add(tree);
-			});
-		}),
-	);
+	effect(() => {
+		const on = !!props.when();
+		untrack(() => {
+			if (dispose) {
+				dispose();
+				dispose = null;
+			}
+			// remove one-by-one instead of empty(): see For note below
+			while (host.first) host.remove(host.first);
+			const build = on ? props.children : props.fallback;
+			const [tree, d] = createRoot(() => wrapSide(props, build));
+			dispose = d;
+			host.add(tree);
+		});
+	});
 	track(() => {
 		if (dispose) {
 			dispose();
@@ -204,72 +200,70 @@ export function For<T>(props: ForProps<T>): PiuContainer {
 		rd: Disposer[] = [], // disposers
 		rs: number[] = []; // pass stamps
 	let stamp = 0;
-	track(
-		effect(() => {
-			const items = props.each();
-			untrack(() => {
-				const pass = ++stamp;
-				const order: Content[] = []; // nodes in expected order this pass
-				for (let i = 0; i < items.length; i++) {
-					const item = items[i],
-						k = keyOf(item, i);
-					let x = rk.indexOf(k);
-					if (x >= 0) {
-						if (rs[x] === pass)
-							// duplicate key: first occurrence wins
-							continue;
-					} else {
-						// `children` may legally return a primitive (JSXNode) for the
-						// type surface (see tests/types.test-d.tsx), but a reconcile
-						// slot is always a real mounted node in practice — the cast is
-						// type-only, matching the same boundary appendChild handles.
-						const [node, dispose] = createRoot(
-							() => asNode(() => props.children(item, i)) as Content,
-						);
-						x = rk.length;
-						rk.push(k);
-						rn.push(node);
-						rd.push(dispose);
-						rs.push(0);
-					}
-					rs[x] = pass;
-					order.push(rn[x]);
-				}
-				// Sweep departed keys: downward walk + swap-pop keeps the arrays
-				// dense with zero allocation (row array ORDER is irrelevant —
-				// screen order comes from the position pass below).
-				for (let x = rk.length - 1; x >= 0; x--) {
-					if (rs[x] !== pass) {
-						host.remove(rn[x]);
-						rd[x]();
-						const last = rk.length - 1;
-						if (x !== last) {
-							rk[x] = rk[last];
-							rn[x] = rn[last];
-							rd[x] = rd[last];
-							rs[x] = rs[last];
-						}
-						rk.pop();
-						rn.pop();
-						rd.pop();
-						rs.pop();
-					}
-				}
-				// Position pass: walk expected order with a cursor over the
-				// host's real children; move/insert only mismatched nodes.
-				let cursor = host.first;
-				for (const node of order) {
-					if (node === cursor) {
-						cursor = cursor.next;
+	effect(() => {
+		const items = props.each();
+		untrack(() => {
+			const pass = ++stamp;
+			const order: Content[] = []; // nodes in expected order this pass
+			for (let i = 0; i < items.length; i++) {
+				const item = items[i],
+					k = keyOf(item, i);
+				let x = rk.indexOf(k);
+				if (x >= 0) {
+					if (rs[x] === pass)
+						// duplicate key: first occurrence wins
 						continue;
-					}
-					if (node.container) host.remove(node);
-					if (cursor) host.insert(node, cursor);
-					else host.add(node);
+				} else {
+					// `children` may legally return a primitive (JSXNode) for the
+					// type surface (see tests/types.test-d.tsx), but a reconcile
+					// slot is always a real mounted node in practice — the cast is
+					// type-only, matching the same boundary appendChild handles.
+					const [node, dispose] = createRoot(
+						() => asNode(() => props.children(item, i)) as Content,
+					);
+					x = rk.length;
+					rk.push(k);
+					rn.push(node);
+					rd.push(dispose);
+					rs.push(0);
 				}
-			});
-		}),
-	);
+				rs[x] = pass;
+				order.push(rn[x]);
+			}
+			// Sweep departed keys: downward walk + swap-pop keeps the arrays
+			// dense with zero allocation (row array ORDER is irrelevant —
+			// screen order comes from the position pass below).
+			for (let x = rk.length - 1; x >= 0; x--) {
+				if (rs[x] !== pass) {
+					host.remove(rn[x]);
+					rd[x]();
+					const last = rk.length - 1;
+					if (x !== last) {
+						rk[x] = rk[last];
+						rn[x] = rn[last];
+						rd[x] = rd[last];
+						rs[x] = rs[last];
+					}
+					rk.pop();
+					rn.pop();
+					rd.pop();
+					rs.pop();
+				}
+			}
+			// Position pass: walk expected order with a cursor over the
+			// host's real children; move/insert only mismatched nodes.
+			let cursor = host.first;
+			for (const node of order) {
+				if (node === cursor) {
+					cursor = cursor.next;
+					continue;
+				}
+				if (node.container) host.remove(node);
+				if (cursor) host.insert(node, cursor);
+				else host.add(node);
+			}
+		});
+	});
 	track(() => {
 		for (let x = 0; x < rd.length; x++) rd[x]();
 		rk.length = rn.length = rd.length = rs.length = 0;
@@ -324,12 +318,10 @@ export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): PiuContainer => 
 	const fmt = props.format || ((v: T) => String(v));
 	for (let slot = 0; slot < rows; slot++) {
 		const label = new Label(null, {});
-		track(
-			effect(() => {
-				const i = (props.at ? props.at() : 0) + slot;
-				label.string = i >= 0 && i < data.count() ? fmt(data.get(i), i) : "";
-			}),
-		);
+		effect(() => {
+			const i = (props.at ? props.at() : 0) + slot;
+			label.string = i >= 0 && i < data.count() ? fmt(data.get(i), i) : "";
+		});
 		host.add(label);
 	}
 	return host;

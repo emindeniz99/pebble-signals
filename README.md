@@ -177,7 +177,7 @@ Full hook/primitive parity table (what we have, what we skip, and why) is in
 | `createResource` (async data) | SHIPPED — `createResource(fetcher)` → reactive `{loading, error, data, refetch}` thunks (two Signal objects total; stale responses dropped). On-device, `fetch()` proxies through the phone (gotcha 18) — keep fetch-using apps lean. |
 | `Suspense` / `ErrorBoundary` | No async render. Subscriber errors are already isolated per-effect via the `__spError` hook (a throwing effect can't kill the others). |
 | `useCallback` / `useMemo`-for-identity | Pointless — components run once, so closures are already stable. `useMemo` exists only for *value* caching. |
-| Glitch-free diamonds | Push notify re-runs a diamond sink twice through one transient value before converging (conformance law 12). Fine for a 2–4-signal watch; a lazy-computed fix is spec'd in the playbook. |
+| Glitch-free diamonds | SHIPPED (2026-07 core round) — computeds are LAZY (recompute on read, version-validated, pulling sources first) and every notify coalesces into turns, so a diamond sink runs ONCE, straight to the correct value (conformance law 12 = MATCH, verified on real XS). |
 | Reactive position/size props | Piu lays out at construction time — `left/top/width/height` are static. A reactive one is rejected at bind time with guidance; use `<Show>` to swap. |
 | Bare `{count}` reactivity | The reactivity signal is the **call** `{count()}` (or `sig.value`); a bare identifier can't be told apart from a static value. |
 

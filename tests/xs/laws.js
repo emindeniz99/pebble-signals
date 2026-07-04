@@ -177,10 +177,10 @@ const law = (name, cond) => {
 	law("owner disposal stops subtree effects", runs === 0);
 }
 
-// Law 12 (pinned DIVERGE): diamond re-runs the sink but CONVERGES. This pins
-// the eager-push behavior on XS exactly as the V8 suite pins it — if the two
-// engines ever disagree here, the packed-core bitmask walk differs on XS and
-// we want to know loudly.
+// Law 12 (MATCH since the 2026-07 lazy round): the diamond is GLITCH-FREE —
+// the sink runs ONCE per write, straight to the correct value. Pinned on XS
+// exactly as the V8 suite pins it — if the two engines ever disagree here,
+// the lazy pull/settle path differs on XS and we want to know loudly.
 {
 	const a = signal(1);
 	const b = computed(() => a.value + 1);
@@ -194,8 +194,8 @@ const law = (name, cond) => {
 	const initRuns = dRuns;
 	a.value = 10;
 	law(
-		"diamond: eager push re-runs sink, converges to 31",
-		initRuns === 1 && dRuns === 3 && seen[seen.length - 1] === 31,
+		"diamond: glitch-free — sink runs once, straight to 31",
+		initRuns === 1 && dRuns === 2 && seen.join(",") === "4,31",
 	);
 }
 
@@ -283,7 +283,8 @@ const law = (name, cond) => {
 	law("untrack inside an effect suppresses only its reads", afterY === 0 && runs === 1);
 }
 
-// Law 18 (pinned DIVERGE): nested raw effects accumulate without an owner
+// Law 18 (MATCH since the 2026-07 running-owner round): nested effects are
+// owned by the running effect — the outer re-run disposes the previous inner
 {
 	const o = signal(0);
 	const inner = signal(0);
@@ -304,7 +305,7 @@ const law = (name, cond) => {
 	innerRuns = 0;
 	o.value = 1;
 	inner.value = 1;
-	law("nested raw effects accumulate without an owner", innerRuns === 3);
+	law("nested effects owned by the running effect (no accumulation)", innerRuns === 2);
 }
 
 // Law 19: createRoot disposes partial effects on a throwing build

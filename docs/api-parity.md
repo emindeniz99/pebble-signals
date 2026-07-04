@@ -55,12 +55,13 @@ DIVERGE**:
 
 - **Components run exactly once** — the structural break from React (which
   re-renders). This is *why* `useState` is `[getter, setter]`.
-- **Push notify is NOT glitch-free** — a diamond (A→B, A→C, D reads B+C) re-runs
-  the sink D twice on an A change, transiting one glitched value before settling
-  correct. Solid and Preact are glitch-free (D runs once). The tradeoff is
-  deliberate: on a 2–4-signal watch the transient extra run is invisible, and
-  the topological scheduler glitch-freedom needs would cost slots the 32KB arena
-  doesn't have. The final value always converges (asserted).
+- ~~Push notify is NOT glitch-free~~ **FIXED (2026-07 core round): the diamond
+  is glitch-free** — computeds are lazy (recompute on read, validated against a
+  global write version, pulling each source first: the read recursion IS the
+  topological order) and every notify coalesces into settle() turns. The sink
+  runs once, straight to the correct value; no scheduler, no per-edge objects —
+  the whole scheme rides the existing bitmask core plus one version counter
+  (law 12 = MATCH on both V8 and real XS).
 
 React's own test-utils assume a React runtime + DOM and won't run against us,
 so React parity is documented, not executed.

@@ -17,9 +17,32 @@ device work is unblocked again.
   now `build.mts` (C14 done — verified byte-identical artifacts + successful
   `pebble build`). REMAINING: auto-generate the `globals.d.ts` runtime-API half
   (`tsc --declaration`) instead of hand-maintaining it (B6).
-- **Core-reactivity round (DECIDED 2026-07 — do it): glitch-free + running-owner
-  together.** Two core changes the owner wants shipped as ONE careful pass —
-  full test + byte-emit measurement + on-device verify (emulator is healthy) —
+- ~~**Core-reactivity round: glitch-free + running-owner together**~~
+  ✅ SHIPPED (2026-07), one pass as decided. What landed:
+  - **Glitch-free**: computeds are LAZY (recompute on read, validated against
+    a global write version in `G.y`, pulling sources first — the read
+    recursion is the topo order; the naive dirty-flag design was rejected
+    because a sink that ALSO reads the source directly could observe a stale
+    computed under adversarial notify order) + every notify coalesces into
+    `settle()` turns (union-of-masks per turn — the old batch machinery,
+    now on every write). Law 12 = MATCH on V8 AND real XS.
+  - **Running-owner (B9 FULL)**: while an effect runs, `owner` = its numeric
+    id; `effect()` auto-registers with the innermost context, nested
+    trackables live in `G.w[e]` and are disposed before every re-run and at
+    disposal. Law 18 = MATCH. `track(effect(...))` is now redundant (runtime
+    call sites cleaned); useEffect's cleanup is just a tracked closure — the
+    dedicated `cln` array is DELETED.
+  - **Boot-floor discipline** (the v1.5 finding applied to our own change):
+    first attempt cost +3 interned symbols and navmany DIED on-device;
+    compensated by single-letter Graph props (`y`/`x`/`w` — letters already
+    in every build's SYMB), deleting `cln`, and deriving row capacity from
+    `sub.length` (dropped `cap`). Net vs the old core: −2 archive symbols
+    (navmany 125 → 123), +767 B chunk-side bytecode. Verified on gabbro:
+    navmany boots + push/pop live, clock ticks, coexist dual-updates;
+    267 node tests, 100% line/branch/func coverage, 19 XS laws green.
+  Original decision text below for the record.
+- **(original decision)** Two core changes the owner wants shipped as ONE
+  careful pass — full test + byte-emit measurement + on-device verify —
   because both touch the reactive hot path and pairing them means one
   device-verification cycle, not two.
   - **Glitch-free reactivity (YES).** A library claiming Solid parity needs
