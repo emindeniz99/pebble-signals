@@ -1,5 +1,5 @@
 // LAZYAUTO — the WATCHFACE pattern (owner's 10ms idea): no buttons needed;
-// a 10ms timer fires AFTER the module body (= after boot pressure passes)
+// a 0ms timer fires AFTER the module body (= after boot pressure passes)
 // and importNow-loads the 40KB screen automatically. If this renders, both
 // "timer-deferred load" and "watchface-compatible trigger" are proven.
 import { render } from "runtime/jsx-runtime";
@@ -21,4 +21,4 @@ render(() => (
 	</Container>
 ), { skin: bg, style: base });
 
-setTimeout(() => { if (NAV) NAV.push(importNow("app/s1").default); }, 10);
+setTimeout(() => { if (NAV) NAV.push(importNow("app/s1").default); }, 0);

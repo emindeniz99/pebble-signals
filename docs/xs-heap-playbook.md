@@ -225,7 +225,11 @@ proportional load cost that kills by 24KB. Consequences:
   ("auto-loaded 40KB / sum(3) = 216286" renders by itself). The SAME app
   packaged as a real watchface (`watchapp.watchface: true`) installs,
   becomes the active face, and does the same. This is THE watchface
-  pattern for big lazy code, and the per-function law's precise scope:
+  pattern for big lazy code. ROUND 3 (owner asks): the timer works at
+  **0ms** too, and the lazy module can OWN live reactive state — a clock
+  (signal + setInterval started at lazy-load) ticks on the real-watchface
+  build ("21:42:46" → "21:42:51" across two shots). Also the per-function
+  law's precise scope:
   EVERY module-level function object costs at load (exported or not —
   lazymany's 70 arrows were unexported); closures created INSIDE a
   function at call time are transient and load-free.
