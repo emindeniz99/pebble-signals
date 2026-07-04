@@ -2,10 +2,42 @@
   "name": "signal-piu",
   "author": "MakeAwesomeHappen",
   "version": "1.0.0",
+  "description": "Fine-grained reactive UI (Solid-style signals + JSX, no VDOM) for Pebble watches on Moddable XS/Piu",
   "keywords": [
     "pebble-app"
   ],
   "private": true,
+  "exports": {
+    "./signals": {
+      "types": "./src/embeddedjs/runtime-types/signals.d.ts",
+      "default": "./src/embeddedjs/runtime/signals.ts"
+    },
+    "./jsx-runtime": {
+      "types": "./src/embeddedjs/runtime-types/jsx-runtime.d.ts",
+      "default": "./src/embeddedjs/runtime/jsx-runtime.ts"
+    },
+    "./flow": {
+      "types": "./src/embeddedjs/runtime-types/flow.d.ts",
+      "default": "./src/embeddedjs/runtime/flow.ts"
+    },
+    "./runtime/*": "./src/embeddedjs/runtime/*",
+    "./tools/*": "./tools/*",
+    "./build.mts": "./build.mts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/embeddedjs/runtime/",
+    "src/embeddedjs/runtime-types/",
+    "src/embeddedjs/manifest.base.json",
+    "src/tsx/globals.d.ts",
+    "tools/",
+    "types/moddable/",
+    "build.mts",
+    "tsconfig.runtime-build.json",
+    "docs/packaging.md",
+    "docs/xst-setup.md",
+    "docs/xs-heap-playbook.md"
+  ],
   "dependencies": {
     "@moddable/pebbleproxy": "^0.1.8"
   },
@@ -42,9 +74,10 @@
   "scripts": {
     "build:runtime": "tsc -p tsconfig.runtime-build.json",
     "build:types": "tsc -p tsconfig.runtime-build.json --declaration --emitDeclarationOnly --outDir src/embeddedjs/runtime-types",
+    "prepack": "npm run build:types",
     "test": "npm run build:runtime && node --test --experimental-vm-modules tests/*.test.mts",
     "test:xs": "npm run build:runtime && node tools/xstest.mts",
-    "typecheck": "tsc -p tsconfig.check.json && tsc -p tsconfig.runtime-build.json && tsc -p tsconfig.tools.json",
+    "typecheck": "tsc -p tsconfig.check.json && tsc -p tsconfig.runtime-build.json && tsc -p tsconfig.tools.json && tsc -p tsconfig.pkjs.json --noEmit",
     "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/ build.mts",
     "format:c": "clang-format -i src/c/*.c",
     "check:c": "clang-format --dry-run --Werror src/c/*.c",
