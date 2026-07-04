@@ -16,3 +16,10 @@ declare namespace JSX {
 		children: {};
 	}
 }
+
+// Pebble-host-injected globals the vendored Moddable typings cannot know
+// about: the boot host (build/devices/pebble/host/main.js) passes a
+// synchronous module loader into the app's ArchiveCompartment. It resolves
+// PRECOMPILED bytecode from the mod archive — there is no on-device source
+// compile. Used by the lazyscreen example (#27).
+declare function importNow(specifier: string): any;

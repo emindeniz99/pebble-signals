@@ -139,17 +139,46 @@ run(process.execPath, [join(TOOLS, `gen-manifest${EXT}`), appSrc, "src/embeddedj
 // dynamic import()/importNow() the static scan can't resolve, pruning could drop
 // a module reached at runtime (boot-crash), so SKIP and say why. TREESHAKE_FORCE=1
 // prunes anyway; TREESHAKE=0 forces the full runtime.
+// LAZY app modules (#27): a literal `importNow("app/<x>")` in the entry IS
+// resolvable statically — <x> maps to src/tsx/examples/<APP>/<x>.tsx|ts,
+// shipped later as a NON-preloaded manifest module (bytecode loads from
+// flash on the first call). Resolved literals don't defeat the scans, so
+// treeshake/prune stay ON; any OTHER dynamic import still self-disables.
+const lazySet = new Set<string>();
+let unresolvedDynamicImport = false;
+if (existsSync(appSrc)) {
+	// comments off first — the scan must see CODE only (a mention of
+	// importNow() in a doc comment is not a dynamic import)
+	const src = readFileSync(appSrc, "utf8")
+		.replace(/\/\*[\s\S]*?\*\//g, "")
+		.replace(/\/\/[^\n]*/g, "");
+	for (const m of src.matchAll(/import(?:Now)?\s*\(\s*([^)]*)\)/g)) {
+		const lit = /^"app\/([\w-]+)"\s*$/.exec(m[1]);
+		const base = lit?.[1];
+		if (base && existsSync(join("src/tsx/examples", APP, `${base}.tsx`))) lazySet.add(base);
+		else if (base && existsSync(join("src/tsx/examples", APP, `${base}.ts`))) lazySet.add(base);
+		else unresolvedDynamicImport = true;
+	}
+}
+const lazyBases = [...lazySet];
 let treeshake = flag(cli.treeshake, "TREESHAKE", "1", true);
 if (treeshake && !flag(cli["treeshake-force"], "TREESHAKE_FORCE", "1", false)) {
-	const usesDynamicImport =
-		existsSync(appSrc) && /import(Now)?\s*\(/.test(readFileSync(appSrc, "utf8"));
-	if (usesDynamicImport) {
+	if (unresolvedDynamicImport) {
 		err(`treeshake: SKIPPED — ${APP}.tsx uses a dynamic import() the static scan can't follow;`);
 		err("           pruning could drop a runtime module reached at runtime. TREESHAKE_FORCE=1 to override.");
 		treeshake = false;
 	}
 }
-if (treeshake) run(process.execPath, [join(TOOLS, `treeshake${EXT}`), appSrc, "src/embeddedjs/manifest.json"]);
+// lazy modules' own runtime imports count toward the treeshake keep-set
+const shakeSources = [
+	appSrc,
+	...lazyBases.map((b) => {
+		const tsx = join("src/tsx/examples", APP, `${b}.tsx`);
+		return existsSync(tsx) ? tsx : join("src/tsx/examples", APP, `${b}.ts`);
+	}),
+];
+if (treeshake)
+	run(process.execPath, [join(TOOLS, `treeshake${EXT}`), ...shakeSources, "src/embeddedjs/manifest.json"]);
 
 // Font sanity check (gotcha 20): an invalid font string renders NOTHING — blank
 // text, no error, hours lost. Validate every `font:` literal against the Pebble
@@ -286,6 +315,50 @@ esbuild.buildSync({
 if (flag(cli.lower, "LOWER", "1", true))
 	run(process.execPath, [join(TOOLS, "lower", `cli${EXT}`), "src/embeddedjs/app/main.js"]);
 
+// ---- LAZY app modules (#27): ship importNow("app/<x>") targets ------------
+// Each resolved literal becomes a manifest module WITHOUT preload: its
+// bytecode stays in flash until the first importNow() call. Boot still pays
+// the module's 2 ids + its new-to-host symbols (fxMapArchive interns the
+// whole SYMB atom eagerly — playbook "The boot floor"), so lazy modules
+// should export `default` only and keep their symbol surface near zero.
+// No lower/auto-thunk inside lazy modules (same v1 rule as PRELOAD_PURE:
+// JSX with explicit thunks only).
+const lazyFiles: string[] = [];
+if (lazyBases.length) {
+	const manifest = JSON.parse(readFileSync("src/embeddedjs/manifest.json", "utf8")) as {
+		modules: Record<string, string>;
+		preload: string[];
+	};
+	for (const base of lazyBases) {
+		const rel = `examples/${APP}/${base}`;
+		const file = `src/embeddedjs/app/${rel}.js`;
+		if (!existsSync(file)) {
+			err(`lazy: importNow("app/${base}") has no compiled module at ${file} — failing loud`);
+			process.exit(1);
+		}
+		const id = `app/${base}`;
+		if (manifest.modules[id]) {
+			err(`lazy: module id ${id} already taken — failing loud`);
+			process.exit(1);
+		}
+		manifest.modules[id] = `./app/${rel}`;
+		if (minify)
+			tryEsbuild({
+				entryPoints: [file],
+				bundle: true,
+				external: ["runtime/*", "app/*"],
+				treeShaking: true,
+				minify: true,
+				format: "esm",
+				outfile: file,
+				allowOverwrite: true,
+			});
+		lazyFiles.push(file);
+		console.log(`lazy: importNow("app/${base}") -> ${id} (flash, loads on first call)`);
+	}
+	writeFileSync("src/embeddedjs/manifest.json", JSON.stringify(manifest, null, "\t"));
+}
+
 // ---- runtime-min: per-app EXPORT pruning + minify (the #29 fix) -----------
 // Runs AFTER lower so the keep-set is read off the FINAL main.js (lowering
 // swaps `useState` for the packed `S`, so the pre-lower import list would keep
@@ -323,6 +396,8 @@ const shipped = (
 const keeps = new Map<string, Set<string> | "all">();
 if (prune) {
 	importScan("src/embeddedjs/app/main.js", keeps);
+	// lazy app modules import runtime exports the entry may not — keep those
+	for (const file of lazyFiles) importScan(file, keeps);
 	// sibling runtime modules that actually SHIP (per the possibly-treeshaken
 	// manifest) also pull exports from each other
 	for (const name of Object.keys(shipped ?? {})) {

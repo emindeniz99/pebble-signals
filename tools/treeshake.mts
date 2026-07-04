@@ -3,7 +3,9 @@
 // runtime/flow doesn't preload OR map it (every preloaded module costs a few XS
 // aliases at boot). Ported from build.mts's Python heredoc to a testable module.
 //
-// Usage (CLI): node tools/treeshake.mts <appSrc> <manifestPath>
+// Usage (CLI): node tools/treeshake.mts <appSrc> [moreSrc...] <manifestPath>
+// (extra sources: lazy `importNow("app/*")` modules — their runtime imports
+// must survive the prune even though the entry never imports them statically)
 import { readFileSync, writeFileSync } from "node:fs";
 
 interface Manifest {
@@ -48,8 +50,9 @@ export function pruneManifest(
 }
 
 if (import.meta.main) {
-	const [appSrc, manifestPath] = process.argv.slice(2);
-	const src = readFileSync(appSrc, "utf8");
+	const args = process.argv.slice(2);
+	const manifestPath = args.pop() as string;
+	const src = args.map((p) => readFileSync(p, "utf8")).join("\n");
 	const m = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
 	const { manifest, kept, dropped } = pruneManifest(m, neededModules(src));
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, "\t")}\n`);

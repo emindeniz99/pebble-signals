@@ -64,7 +64,7 @@ debugging) or *force* it past its self-disable.
 |------|:---:|--------------|
 | `APP=<name>` | `list` | which `src/tsx/examples/<name>.tsx` to build |
 | `MINIFY` | `1` | esbuild minify (DCE + identifier mangling) on the runtime and the bundled app. `MINIFY=0` ships **readable** modules for debugging — correctness is identical. Self-disables to a verbatim copy if esbuild is missing. |
-| `TREESHAKE` | `1` | prune the manifest to the runtime modules the app actually imports (a pure-signal watchface drops `runtime/flow` from preload). **Self-disables** when the app uses a dynamic `import()`/`importNow()` the static scan can't follow — pruning could drop a module reached at runtime. `TREESHAKE=0` forces the full runtime; `TREESHAKE_FORCE=1` prunes anyway. |
+| `TREESHAKE` | `1` | prune the manifest to the runtime modules the app actually imports (a pure-signal watchface drops `runtime/flow` from preload). **Self-disables** when the app uses a dynamic `import()`/`importNow()` the static scan can't follow — pruning could drop a module reached at runtime. A LITERAL `importNow("app/<x>")` does NOT self-disable: build.mts resolves it to `src/tsx/examples/<app>/<x>.tsx`, ships it as a non-preloaded manifest module, and counts its runtime imports in the keep-set (`lazyscreen` example). `TREESHAKE=0` forces the full runtime; `TREESHAKE_FORCE=1` prunes anyway. |
 | `BUNDLE` | `all` | app-submodule strategy. `all` inlines the app's own `./`-imports into `main.js` (loaded into the 32KB heap). `preload` targets a large static shared submodule frozen into ROM — its device-verified realization is the lazy-import path in `multilazy.tsx` (build.mts points there rather than ship an unmeasured eager-preload path, Rule 2). `runtime/*` is always left external/preloaded in both. |
 | `SKIP_FONTCHECK` | `0` | skip the compile-time Pebble system-font validation (gotcha 20). Set to `1` for custom/new fonts. |
 
@@ -91,6 +91,7 @@ square screenshots below come from identical `.tsx`.
 | `slothvec` | **VECTOR sloth watchface** 🦥 (2.8KB PDCS, drawn 2×/120px, SWINGS from the branch AND BLINKS) + one-line HH:MM:SS + date | `SVGImage` + PDC: free scaling, transform animation + native frame sequence, zero pixel RAM | ✅ `slothvec-gabbro.png` / `slothvec-gabbro-blink.png` | ✅ `slothvec-emery.png` / `slothvec-emery-blink.png` |
 | `multilazy` | **lazy multiscreen**: 3 screens, SELECT cycles, ONE built at a time (dispose + on-demand rebuild) | arena holds O(1 screen) — survives repeated full cycles with live bindings | — | ✅ verified (screens cycle, tick binding live after each rebuild) |
 | `multiscreen` | 4 PREBUILT screens in one mod | does NOT boot — kept as the arena-OOM artifact that motivated `multilazy` | ❌ by design | ❌ |
+| `lazyscreen` | **TRUE lazy screen** (#27): SELECT `importNow`s a NON-preloaded module from flash, BACK returns | screen 2's bytecode is not in main.js and loads on first push; module exports `default` only (symbol diet — the module still costs 2 ids + its symbols AT BOOT, gotcha 15 correction) | ✅ verified (boot → lazy s2 renders → back) | — |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
 83% on gabbro, 84% on emery; the 40-record ramp stays flat on both.

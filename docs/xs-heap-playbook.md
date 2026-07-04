@@ -457,9 +457,15 @@ Findings (evidence in the moddable toolchain sources):
 
 The `Navigator` primitive (runtime/flow.js) delivers the **arena** half today:
 a screen STACK where only the TOP screen is built, so the node/effect arena is
-O(1) at any depth (Node-verified, tests/flow.test.mjs). Layering `importNow`
-per screen (code lazy-loaded from flash on first push) is the natural next
-step; the bytecode already lives in flash regardless.
+O(1) at any depth (Node-verified, tests/flow.test.mjs).
+
+**2026-07: layered and DEVICE-VERIFIED — the `lazyscreen` example (#27).**
+SELECT calls the host's global `importNow("app/s2")`; the non-preloaded
+module's bytecode loads from flash on that first push and renders; BACK
+returns. Boot-floor discipline (see "The boot floor"): the module still
+costs 2 ids + its interned symbols AT BOOT, so the lazy module exports
+`default` only (host-known symbol) — measured whole-app cost: archive
+11,330 B / 120 symbols, below the probe baseline despite the extra module.
 
 ## #30 re-analysis — type-directed numeric storage (revive #17)
 

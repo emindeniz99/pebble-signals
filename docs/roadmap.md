@@ -100,12 +100,16 @@ notifications, device info.
 ## Device work — NOW UNBLOCKED (emulator healthy)
 - **Verify JSX auto-thunk on-device:** build the `autothunk` example, install,
   confirm the bare `string={"c"+count()}` binding updates live.
-- **#27 importNow lazy screens:** screens as separate non-preloaded modules,
-  loaded from flash on first push; measure heap before/after. Keep multilazy as
-  the closure-swap variant. CAVEAT from the v1.5 matrix: extra modules cost
-  boot slots (records + 2 ids + eagerly-interned symbols) even when never
-  imported — build this example on an app class with slot headroom
-  (counter-class, not navmany-class) and document the trade honestly.
+- ~~**#27 importNow lazy screens**~~ ✅ SHIPPED (2026-07): `lazyscreen` example
+  device-verified (boot → SELECT `importNow("app/s2")` loads + renders the
+  non-preloaded module from flash → BACK returns). build.mts resolves literal
+  `importNow("app/<x>")` calls (ships `src/tsx/examples/<app>/<x>.tsx` as a
+  non-preloaded manifest module; treeshake/prune stay ON, lazy module's
+  runtime imports join both keep-sets). Honest budget applied: the lazy
+  module exports `default` only and the entry is leaner than navmany-class —
+  archive 11330 / 120 symbols, UNDER the probe baseline despite +1 module,
+  because laziness saves arena bytecode but NOT boot ids/symbols. multilazy
+  stays as the closure-swap variant (zero extra modules).
 - **#29 boot regression: ROOT-CAUSED and FIXED (2026-07).** Bisect on the
   emulator (screenshot-verdict probes, `APP=clock --no-lower` fixed): GOOD at
   03bf022 (mc.xsa 14462) → BAD at the very next runtime commit 3e6be5f
