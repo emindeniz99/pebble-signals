@@ -19,21 +19,24 @@ import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as esbuild from "esbuild";
 
 // Resolve paths against this script's directory (build.sh's `cd $(dirname $0)`).
 process.chdir(dirname(fileURLToPath(import.meta.url)));
 
 const env = (k: string, d: string) => process.env[k] ?? d;
 const TSC = join("node_modules", ".bin", "tsc");
-const ESBUILD = join("node_modules", ".bin", "esbuild");
 
-// Run a command, inheriting stdio, and abort the build on nonzero exit.
+// Run a command, inheriting stdio, and abort the build on nonzero exit. Used for
+// tsc / pebble / node tools (no clean in-process API). esbuild, by contrast, is
+// driven through its programmatic API below — no subprocess per module, typed
+// options, structured errors (the CLI is just a thin wrapper over build()).
 const run = (cmd: string, args: string[]) => execFileSync(cmd, args, { stdio: "inherit" });
-// esbuild with a fallback: return false instead of throwing so a missing/erroring
-// esbuild can degrade to a verbatim copy (build.sh's `|| cp`).
-const tryEsbuild = (args: string[]): boolean => {
+// esbuild via its JS API, with a fallback: return false instead of throwing so a
+// missing/erroring esbuild can degrade to a verbatim copy (build.sh's `|| cp`).
+const tryEsbuild = (opts: esbuild.BuildOptions): boolean => {
 	try {
-		execFileSync(ESBUILD, args, { stdio: ["ignore", "ignore", "ignore"] });
+		esbuild.buildSync({ logLevel: "error", ...opts });
 		return true;
 	} catch {
 		return false;
@@ -104,7 +107,7 @@ for (const dir of ["src/embeddedjs/runtime", "src/embeddedjs/runtime-build"]) {
 		const f = join(dir, name);
 		const out = join("src/embeddedjs/runtime-min", name);
 		if (minify) {
-			if (!tryEsbuild([f, "--minify", "--format=esm", `--outfile=${out}`, "--log-level=error"]))
+			if (!tryEsbuild({ entryPoints: [f], minify: true, format: "esm", outfile: out }))
 				copyFileSync(f, out);
 		} else {
 			copyFileSync(f, out);
@@ -124,18 +127,19 @@ if (env("BUNDLE", "all") === "preload") {
 	err("bundle: 'preload' strategy — see src/tsx/examples/multilazy.tsx (device-verified");
 	err("        lazy-import of a preloaded screen). Falling back to BUNDLE=all for this build.");
 }
-// --tree-shaking=true is explicit (DCE unreferenced app exports/branches during
-// the bundle) even without --minify, so BUNDLE stays lean when MINIFY=0.
-run(ESBUILD, [
-	`src/embeddedjs/app/examples/${APP}.js`,
-	"--bundle",
-	"--external:runtime/*",
-	"--format=esm",
-	"--tree-shaking=true",
-	"--outfile=src/embeddedjs/app/main.js",
-	"--allow-overwrite",
-	"--log-level=error",
-]);
+// treeShaking:true is explicit (DCE unreferenced app exports/branches during the
+// bundle) even without minify, so BUNDLE stays lean when MINIFY=0. This one must
+// succeed — buildSync throws on error, aborting the build (no verbatim fallback).
+esbuild.buildSync({
+	entryPoints: [`src/embeddedjs/app/examples/${APP}.js`],
+	bundle: true,
+	external: ["runtime/*"],
+	format: "esm",
+	treeShaking: true,
+	outfile: "src/embeddedjs/app/main.js",
+	allowOverwrite: true,
+	logLevel: "error",
+});
 
 // Stage-2/3 lowering on the bundled entry: rewrite useState/signal/computed +
 // call sites to the packed API (S.sig/get/set/put/computed) so the per-state
@@ -144,14 +148,13 @@ run(ESBUILD, [
 // refuses to write if it is not a fixed point. Guarded by `--selftest`.
 run(process.execPath, ["tools/lower.mts", "src/embeddedjs/app/main.js"]);
 if (minify)
-	tryEsbuild([
-		"src/embeddedjs/app/main.js",
-		"--minify",
-		"--format=esm",
-		"--outfile=src/embeddedjs/app/main.js",
-		"--allow-overwrite",
-		"--log-level=error",
-	]);
+	tryEsbuild({
+		entryPoints: ["src/embeddedjs/app/main.js"],
+		minify: true,
+		format: "esm",
+		outfile: "src/embeddedjs/app/main.js",
+		allowOverwrite: true,
+	});
 
 // Native C clang-format gate — DEFAULT ON, self-disabling: if clang-format isn't
 // installed we skip with a note rather than fail. A misformatted src/c/*.c fails
