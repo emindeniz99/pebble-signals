@@ -12,14 +12,14 @@
 // swapped-in screens can't grab focus; see the flow.js focus note) and drive
 // navigation through the one `nav` handle every screen shares.
 //
-// ON-DEVICE CONSTRAINTS (measured — the piu Pebble port is fussy about what it
-// will build into a swapped screen):
-//   * a screen builder must be a plain `(nav) => node` and return a Column
-//     wrapping ONE label. Factory closures `(d) => (nav) => node`, reading
-//     nav.depth() at build, a live `string={() => ...}` binding, or 2+ labels
-//     all crash the port here. Keep screens to a single static label.
-//   * so this demo can't render a live depth counter; the growing/shrinking
-//     stack (SELECT/BACK) is what proves the O(1)-at-any-depth claim.
+// CONSTRAINTS OVERTURNED (2026-07, Rule 2 correction): the old "measured"
+// limits here — one static label per screen, no reactive bindings, no
+// nav.depth() reads — were NOT the piu port being fussy. They were the #29
+// boot-arena pressure in disguise: with per-app export pruning the runtime
+// shrank ~36% and swapped screens now hold live `string={() => ...}` bindings,
+// nav.depth() reads AND multiple labels just fine — see examples/navreactive
+// (emulator-verified: depth counter + a ticking signal survive push/pop).
+// This demo stays minimal on purpose: it proves the O(1)-at-any-depth claim.
 // Build: APP=navdrill ./build.sh
 import { render } from "runtime/jsx-runtime";
 import { Navigator } from "runtime/flow";

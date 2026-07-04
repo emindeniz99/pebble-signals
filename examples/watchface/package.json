@@ -1,0 +1,21 @@
+{
+	"name": "watchface",
+	"private": true,
+	"author": "MakeAwesomeHappen",
+	"version": "1.0.0",
+	"keywords": ["pebble-app"],
+	"pebble": {
+		"displayName": "watchface",
+		"uuid": "953e4a3b-a6f5-4981-93fb-d36c64e095b7",
+		"projectType": "moddable",
+		"sdkVersion": "3",
+		"enableMultiJS": true,
+		"targetPlatforms": ["gabbro"],
+		"watchapp": { "watchface": true },
+		"messageKeys": ["dummy"],
+		"resources": { "media": [] }
+	},
+	"scripts": {
+		"build": "node node_modules/signal-piu/dist/build.mjs --app main"
+	}
+}
