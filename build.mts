@@ -6,25 +6,43 @@
 // No npm RUNTIME dependencies; tsc + esbuild come from devDeps. If esbuild is
 // unavailable the runtime ships unminified — correctness is identical either way.
 //
-// Run: node build.mts     (npm run build). Flags are env vars, same as before:
-//   APP=<name>       example to build (default: list)
-//   MINIFY=0         ship readable modules (default 1)
-//   TREESHAKE=0      keep the full runtime preloaded (default 1, self-disables
-//                    on a dynamic import the static scan can't follow)
-//   TREESHAKE_FORCE=1  prune anyway despite a dynamic import
-//   SKIP_FONTCHECK=1 skip the compile-time Pebble-font validation
-//   BUNDLE=preload   pointer to the multilazy strategy (falls back to all)
-//   CHECK_C=0        skip the native-C clang-format gate
+// Run: node build.mts [flags]   (npm run build [-- flags]). Flags come as CLI
+// args (discoverable, typo-checked by parseArgs) with env vars as equivalents —
+// env stays supported because `APP=anim npm run build` composes better with npm
+// scripts than `npm run build -- --app anim`. CLI wins over env when both given.
+//   --app <name>        APP=<name>        example to build (default: list)
+//   --no-minify         MINIFY=0          ship readable modules
+//   --no-treeshake      TREESHAKE=0       keep the full runtime preloaded
+//   --treeshake-force   TREESHAKE_FORCE=1 prune despite a dynamic import
+//   --skip-fontcheck    SKIP_FONTCHECK=1  skip the Pebble-font validation
+//   --bundle <mode>     BUNDLE=<mode>     "preload" points at multilazy
+//   --no-check-c        CHECK_C=0         skip the clang-format gate
 import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 import * as esbuild from "esbuild";
 
 // Resolve paths against this script's directory (build.sh's `cd $(dirname $0)`).
 process.chdir(dirname(fileURLToPath(import.meta.url)));
 
+const cli = parseArgs({
+	options: {
+		app: { type: "string" },
+		minify: { type: "boolean" }, // parseArgs auto-provides --no-minify negation
+		treeshake: { type: "boolean" },
+		"treeshake-force": { type: "boolean" },
+		"skip-fontcheck": { type: "boolean" },
+		bundle: { type: "string" },
+		"check-c": { type: "boolean" },
+	},
+	allowNegative: true, // --no-minify / --no-treeshake / --no-check-c
+}).values;
 const env = (k: string, d: string) => process.env[k] ?? d;
+// boolean flag: CLI (if given) beats env (if set) beats the default
+const flag = (cliVal: boolean | undefined, envKey: string, on: string, dflt: boolean): boolean =>
+	cliVal ?? (process.env[envKey] !== undefined ? process.env[envKey] === on : dflt);
 const TSC = join("node_modules", ".bin", "tsc");
 
 // Run a command, inheriting stdio, and abort the build on nonzero exit. Used for
@@ -49,7 +67,7 @@ const err = (msg: string) => process.stderr.write(`${msg}\n`);
 // screens in ONE mod exceed the 32KB arena at boot (README, M11). tsc compiles
 // every example in place and esbuild --bundle stitches the chosen entry (with
 // its local ./imports) into app/main.js below, runtime/* left external.
-const APP = env("APP", "list");
+const APP = cli.app ?? env("APP", "list");
 const appSrc = `src/tsx/examples/${APP}.tsx`;
 
 // Generate the mod manifest from the base; image/vector resources are DERIVED
@@ -66,8 +84,8 @@ run(process.execPath, ["tools/gen-manifest.mts", appSrc, "src/embeddedjs/manifes
 // dynamic import()/importNow() the static scan can't resolve, pruning could drop
 // a module reached at runtime (boot-crash), so SKIP and say why. TREESHAKE_FORCE=1
 // prunes anyway; TREESHAKE=0 forces the full runtime.
-let treeshake = env("TREESHAKE", "1") === "1";
-if (treeshake && env("TREESHAKE_FORCE", "0") !== "1") {
+let treeshake = flag(cli.treeshake, "TREESHAKE", "1", true);
+if (treeshake && !flag(cli["treeshake-force"], "TREESHAKE_FORCE", "1", false)) {
 	const usesDynamicImport =
 		existsSync(appSrc) && /import(Now)?\s*\(/.test(readFileSync(appSrc, "utf8"));
 	if (usesDynamicImport) {
@@ -81,13 +99,14 @@ if (treeshake) run(process.execPath, ["tools/treeshake.mts", appSrc, "src/embedd
 // Font sanity check (gotcha 20): an invalid font string renders NOTHING — blank
 // text, no error, hours lost. Validate every `font:` literal against the Pebble
 // system-font table at COMPILE time and fail loud. SKIP_FONTCHECK=1 to escape.
-if (env("SKIP_FONTCHECK", "0") !== "1") run(process.execPath, ["tools/fontcheck.mts", appSrc]);
+if (!flag(cli["skip-fontcheck"], "SKIP_FONTCHECK", "1", false))
+	run(process.execPath, ["tools/fontcheck.mts", appSrc]);
 
 // Minify (DCE + identifier mangling) is DEFAULT ON — buys back ~370B of the
 // ~15.9KB startup ceiling (gotcha 15) and DCEs unused runtime branches. MINIFY=0
 // ships readable modules (correctness is identical either way). Self-disabling:
 // if esbuild is missing/errors, each file falls back to a verbatim copy.
-const minify = env("MINIFY", "1") === "1";
+const minify = flag(cli.minify, "MINIFY", "1", true);
 rmSync("src/embeddedjs/app", { recursive: true, force: true });
 rmSync("src/embeddedjs/runtime-min", { recursive: true, force: true });
 rmSync("src/embeddedjs/runtime-build", { recursive: true, force: true });
@@ -126,7 +145,7 @@ run(TSC, ["-p", "tsconfig.pkjs.json"]);
 // BUNDLE=preload is a pointer to the device-verified multilazy strategy (lazy
 // importNow of a preloaded screen); eager auto-preload of arbitrary app
 // submodules is UNVERIFIED on this XS build (Rule 2), so fall back to `all`.
-if (env("BUNDLE", "all") === "preload") {
+if ((cli.bundle ?? env("BUNDLE", "all")) === "preload") {
 	err("bundle: 'preload' strategy — see src/tsx/examples/multilazy.tsx (device-verified");
 	err("        lazy-import of a preloaded screen). Falling back to BUNDLE=all for this build.");
 }
@@ -162,7 +181,7 @@ if (minify)
 // Native C clang-format gate — DEFAULT ON, self-disabling: if clang-format isn't
 // installed we skip with a note rather than fail. A misformatted src/c/*.c fails
 // loud (CHECK_C=0 to override). Fix with `npm run format:c`.
-if (env("CHECK_C", "1") === "1") {
+if (flag(cli["check-c"], "CHECK_C", "1", true)) {
 	const cFiles = readdirSync("src/c")
 		.filter((f) => f.endsWith(".c"))
 		.map((f) => join("src/c", f));
