@@ -219,6 +219,16 @@ proportional load cost that kills by 24KB. Consequences:
   between 71KB and 131KB (bisect pending). Load speed: the 40KB and
   104KB modules loaded + rendered within the 3-4s driver step
   (no ms instrumentation yet).
+- **Timer-deferred load + TRUE WATCHFACE: both device-proven (`lazyauto`).**
+  A 10ms `setTimeout` importNow — firing right after the module body, i.e.
+  after boot pressure passes — auto-loads the 40KB module with no buttons
+  ("auto-loaded 40KB / sum(3) = 216286" renders by itself). The SAME app
+  packaged as a real watchface (`watchapp.watchface: true`) installs,
+  becomes the active face, and does the same. This is THE watchface
+  pattern for big lazy code, and the per-function law's precise scope:
+  EVERY module-level function object costs at load (exported or not —
+  lazymany's 70 arrows were unexported); closures created INSIDE a
+  function at call time are transient and load-free.
 - The road to BIG TOTAL code (40KB+) is LAZY modules: `importNow` screen
   modules keep bytecode in flash until pushed and only the ACTIVE
   screen's objects live in RAM (lazyscreen + multilazy O(1) principle) —

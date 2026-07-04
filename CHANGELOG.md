@@ -26,6 +26,10 @@ No registry releases yet; entries accumulate under Unreleased until the first
 - `tools/host-symbols.py`: extract the firmware host's full interned key
   list from the SDK debug ELF — with xsa-symbols this shows exactly which
   build symbols are new-to-host (the ones that cost boot slots).
+- **`lazyauto` — the watchface pattern (owner's 10ms idea), device-proven**:
+  a 10ms setTimeout importNow auto-loads 40KB after boot with no buttons;
+  the same app packaged as a TRUE watchface (watchapp.watchface=true)
+  installs and renders identically.
 - **`lazymany`/`lazypack` cells — the many-components answer**: 70 thin
   fns die even at runtime load; the same bodies switch-packed into ONE
   function work — compiler squash pass validated. `lazyone` scaled:
