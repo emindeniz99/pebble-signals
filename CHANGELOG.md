@@ -22,6 +22,9 @@ No registry releases yet; entries accumulate under Unreleased until the first
 - Boot-floor measurement kit: `tools/gen-boot-probe.mts` (one-variable boot
   probes: data bytes / extra modules / fresh symbol interning) and
   `tools/xsa-symbols.py` (count the symbols a mod archive interns at boot).
+- `coexist` example (device-verified): hand-written imperative Piu and
+  signal-piu JSX in one Application, updating independently — the
+  region-at-a-time migration pattern (see docs/migration.md "Coexistence").
 - Lazy app modules (#27): a literal `importNow("app/<x>")` in the entry ships
   `src/tsx/examples/<app>/<x>.tsx` as a NON-preloaded manifest module —
   bytecode loads from flash on first call; treeshake/prune stay ON (the

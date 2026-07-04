@@ -257,7 +257,13 @@ Rule-2 pass: Heap Usage log deltas (`process_manager` prints Total/Used on
 exit) across N-label apps -> bytes/node native. Low urgency (native pool is
 ~4x the arena and nodes are few) but the number belongs in the playbook table.
 
-## Hand-Piu + JSX coexistence example (owner ask 2026-07)
+## ~~Hand-Piu + JSX coexistence example~~ ✅ SHIPPED (owner ask 2026-07)
+
+`coexist` example, device-verified: JSX reactive label (signal tick) and a
+hand-built imperative Piu label (timer assigns `.string`) live in the same
+Application and update independently — screenshots show both lines counting
+in lockstep. Pattern: `render()` returns the Piu Application; `app.add(...)`
+mounts classic content next to the JSX tree. Original ask below.
 migration.md CLAIMS one-screen-at-a-time migration works because signal-piu
 nodes ARE Piu nodes. Prove it with an example: one app where a hand-built
 `new Column/Label` subtree and a JSX subtree live under the same Application,

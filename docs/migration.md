@@ -266,3 +266,14 @@ Crucially, **signal-piu nodes ARE Piu nodes** — `<Label>` returns the same
 `Label` instance `new Label(...)` gives you — so you can migrate one screen
 at a time: hand-Piu screens and JSX screens coexist in the same app, and your
 existing Behaviors/Skins/Styles are used as-is by JSX props.
+
+## Coexistence — you do not have to migrate everything
+
+`render()` returns the Piu `Application` it creates — a plain Piu Container.
+Existing hand-written Piu content (`new Label(...)`, Behaviors, timers that
+assign properties imperatively) can be `add()`ed right next to the JSX tree
+and keeps working untouched; the JSX region updates through signals, the
+hand region through your existing code. Device-verified example:
+`src/tsx/examples/coexist.tsx` (both halves tick independently). The reverse
+embedding also works — a hand-built Content instance is a legal JSX child —
+so a migration can move one screen (or one region) at a time.

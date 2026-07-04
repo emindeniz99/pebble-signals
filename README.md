@@ -92,6 +92,7 @@ square screenshots below come from identical `.tsx`.
 | `multilazy` | **lazy multiscreen**: 3 screens, SELECT cycles, ONE built at a time (dispose + on-demand rebuild) | arena holds O(1 screen) — survives repeated full cycles with live bindings | — | ✅ verified (screens cycle, tick binding live after each rebuild) |
 | `multiscreen` | 4 PREBUILT screens in one mod | does NOT boot — kept as the arena-OOM artifact that motivated `multilazy` | ❌ by design | ❌ |
 | `lazyscreen` | **TRUE lazy screen** (#27): SELECT `importNow`s a NON-preloaded module from flash, BACK returns | screen 2's bytecode is not in main.js and loads on first push; module exports `default` only (symbol diet — the module still costs 2 ids + its symbols AT BOOT, gotcha 15 correction) | ✅ verified (boot → lazy s2 renders → back) | — |
+| `coexist` | **hand-Piu + JSX in ONE app**: reactive JSX label on top, classic imperative `new Label` mutated by a timer below | migration is not all-or-nothing — `render()` returns a plain Piu Application; hand-built content `add()`s next to the JSX tree and both update independently | ✅ verified (both lines tick in lockstep) | — |
 
 The 32KB arena is firmware-fixed and screen-independent: audit floor
 83% on gabbro, 84% on emery; the 40-record ramp stays flat on both.
