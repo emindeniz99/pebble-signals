@@ -118,6 +118,33 @@ the QEMU emulator). The flow:
 - **Prebuilt runtime in the tarball** — wrong by design (see above): minify +
   manifest mapping are per-app, on-device concerns.
 
+## Upgrades: what a scaffolded project gets automatically — and what it owns
+
+When a consumer bumps signal-piu (`npm install signal-piu@next` /
+newer tarball), two very different things happen:
+
+**Upgrades automatically** (lives in `node_modules`, used at build time):
+the runtime (signals/jsx-runtime/flow — every fix and feature), the whole
+compile pipeline (`dist/build.mjs`, lowering, pruning, treeshake,
+fontcheck, manifest gen), the generated types, the vendored Piu typings.
+A rebuild after the bump IS the upgrade.
+
+**Frozen copies the project OWNS** (scaffolded once by `create-signal-piu`,
+never touched by an upgrade): `wscript`, `src/c/*` (mdbl.c and any native
+code they add), `manifest.base.json`, the two tsconfigs, `src/pkjs/`,
+package.json. This is the standard scaffold trade-off (create-react-app,
+create-vite — same deal): those files are the consumer's freedom surface,
+so we never overwrite them. If a future signal-piu needs a scaffold-file
+change, that's a documented migration note in the release, not magic.
+
+**The freedom guarantee**: the consumer is never boxed in. wscript is
+theirs (custom build steps), `src/c` compiles ALL their .c files (their
+native code beside mdbl.c — sensors, workers, FFI), `worker_src/` works
+(see examples/worker), resources/media/fonts are theirs, and every build
+gate has an escape flag (--no-lower, --no-prune, --no-check-c,
+--skip-fontcheck). signal-piu is helpers on top of a normal Pebble
+project, not a cage around one.
+
 ## Maintenance rules
 
 - `files` in package.json is the allowlist — check `npm pack --dry-run` when
