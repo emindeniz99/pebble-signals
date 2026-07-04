@@ -181,9 +181,11 @@ Full hook/primitive parity table (what we have, what we skip, and why) is in
 | Reactive position/size props | Piu lays out at construction time — `left/top/width/height` are static. A reactive one is rejected at bind time with guidance; use `<Show>` to swap. |
 | Bare `{count}` reactivity | The reactivity signal is the **call** `{count()}` (or `sig.value`); a bare identifier can't be told apart from a static value. |
 
-Conformance is CHECKED, not claimed: `tests/conformance.test.mjs` runs 18
-fine-grained-reactivity laws against the runtime (14 match Solid, 4 intentional
-divergences — see [`docs/api-parity.md`](docs/api-parity.md)).
+Conformance is CHECKED, not claimed: `tests/conformance.test.mts` runs 19
+fine-grained-reactivity laws against the runtime (17 match Solid, 2 intentional
+divergences: run-once components and per-effect error isolation — see
+[`docs/api-parity.md`](docs/api-parity.md)). Glitch-freedom and nested-effect
+ownership flipped to MATCH in the 2026-07 core round.
 
 ## Architecture
 

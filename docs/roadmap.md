@@ -66,7 +66,11 @@ device work is unblocked again.
     — never the half-measure. Closes the footgun; pairs with glitch-free above.
 
 ## Node / compile-time — ready to do
-- **Node/Content type split (from the 2026-07 any/unknown audit).** The audit
+- ~~**Node/Content type split**~~ ✅ SHIPPED (2026-07): the THREE aliases below
+  landed as designed (`JSXNode`/`Container`/`Content` across flow.ts +
+  jsx-runtime.ts; consumer placeholders fixed; `npm run verify` bundles all
+  gates so the consumer smoke can't be skipped again). Original analysis:
+- **(original analysis)** The audit
   (51 occurrences: 33 deliberate, 13 fixed, 5 deferred) proved `type Node = any`
   cannot become the vendored `Content` as a straight swap: (a) `For`'s children
   may legally return primitives (`children: (n, i) => n + i` is a passing type
