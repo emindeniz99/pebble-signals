@@ -970,3 +970,50 @@ const Store = class {
 
 /** Byte-record store: records live as BYTES in one Uint8Array, not as slots. */
 export const createStore = (size: number): ByteStore => new Store(size);
+
+// ---- ROM table — typed accessor over a packed flash-resource blob ----------
+// The v2 data path, DEVICE-PROVEN (playbook "v2: data-to-Resource"): big
+// static string tables ship as ONE binary blob in the 256KB resource area
+// and cost ZERO boot RAM; each get() builds one transient string. Blob
+// format (written by tools/pack-table.mts): [u16le count][u16le cumulative
+// END offset per entry][latin-1 payload]. Access pattern is the measured
+// safe one — ranged resource.slice() + String.fromArrayBuffer (whole-blob
+// Uint8Array wraps and fromCharCode.apply both fxAbort on this port).
+// `Resource` is the Pebble-host-injected global; looked up lazily so this
+// module still loads in Node/V8 test sandboxes that lack it.
+
+/** What {@link romTable} returns — a read-only view over a packed table. */
+export interface RomTable {
+	/** Number of entries in the table. */
+	count: number;
+	/** Decode entry `i` (wraps modulo {@link count}); "" on an empty table. */
+	get(i: number): string;
+}
+
+/**
+ * Open a packed string table from the flash resource area (zero boot RAM;
+ * one transient string per read). Pack with `tools/pack-table.mts`; the
+ * build's manifest derivation ships any `romTable("<name>")` literal's blob
+ * automatically.
+ */
+export function romTable(name: string): RomTable {
+	const r = new (globalThis as unknown as { Resource: new (n: string) => unknown }).Resource(
+		name,
+	) as { slice(b: number, e: number): ArrayBuffer };
+	const S2 = String as unknown as { fromArrayBuffer(b: ArrayBuffer): string };
+	const u16 = (o: number): number => {
+		const b = new Uint8Array(r.slice(o, o + 2));
+		return b[0] | (b[1] << 8);
+	};
+	const count = u16(0);
+	const base = 2 + 2 * count;
+	return {
+		count,
+		get(i: number): string {
+			if (!count) return "";
+			const k = i % count;
+			const s = k ? u16(2 * k) : 0;
+			return S2.fromArrayBuffer(r.slice(base + s, base + u16(2 * k + 2)));
+		},
+	};
+}

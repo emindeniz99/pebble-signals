@@ -20,6 +20,7 @@ import {
 	provide,
 	batch,
 	S,
+	romTable,
 } from "../src/embeddedjs/runtime-build/signals.js";
 import { makeChecker } from "./load-runtime.mts";
 
@@ -504,6 +505,52 @@ check("provide restores after build", useContext(Theme) === "light");
 		x.value = 2;
 	});
 	check("same-row double write in a batch notifies once", got.join(",") === "0,2");
+}
+
+// 25. romTable — typed accessor over a packed resource blob. The DEVICE
+// path (real Resource + XS String.fromArrayBuffer) is proven on gabbro
+// (playbook "v2: data-to-Resource"); here the host pieces are stubbed so
+// the decode logic itself is under the coverage gate.
+{
+	const pack = (texts: string[]): ArrayBuffer => {
+		const payload = texts.join("");
+		const buf = new ArrayBuffer(2 + 2 * texts.length + payload.length);
+		const v = new DataView(buf);
+		v.setUint16(0, texts.length, true);
+		let end = 0;
+		texts.forEach((t, k) => {
+			end += t.length;
+			v.setUint16(2 + 2 * k, end, true);
+		});
+		const b = new Uint8Array(buf);
+		for (let i = 0; i < payload.length; i++) b[2 + 2 * texts.length + i] = payload.charCodeAt(i);
+		return buf;
+	};
+	const blobs: Record<string, ArrayBuffer> = {
+		"t.tbl": pack(["alpha", "bravo", "charlie"]),
+		"empty.tbl": pack([]),
+	};
+	(globalThis as { Resource?: unknown }).Resource = class {
+		b: ArrayBuffer;
+		constructor(n: string) {
+			this.b = blobs[n];
+		}
+		slice(a: number, e: number): ArrayBuffer {
+			return this.b.slice(a, e);
+		}
+	};
+	// V8 lacks Moddable's String.fromArrayBuffer — polyfill for the test only
+	const S3 = String as unknown as { fromArrayBuffer?: (ab: ArrayBuffer) => string };
+	if (!S3.fromArrayBuffer)
+		S3.fromArrayBuffer = (ab: ArrayBuffer) =>
+			Array.from(new Uint8Array(ab), (c) => String.fromCharCode(c)).join("");
+	const t = romTable("t.tbl");
+	check("romTable count", t.count === 3);
+	check("romTable first entry (offset-0 branch)", t.get(0) === "alpha");
+	check("romTable middle entry", t.get(1) === "bravo");
+	check("romTable wraps modulo count", t.get(5) === "charlie");
+	const e = romTable("empty.tbl");
+	check("romTable empty table", e.count === 0 && e.get(7) === "");
 }
 
 done();

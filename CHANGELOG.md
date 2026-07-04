@@ -10,6 +10,13 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **`romTable(name)`** — typed read-only access to packed string tables in
+  the flash resource area (zero boot RAM; one transient string per read).
+  Pack with `tools/pack-table.mts <name> <strings.json>`; the manifest
+  ships any `romTable("<name>")` literal's blob automatically. Example:
+  `romtable` (200 entries live from flash, device-verified).
+- Build **squash advisory**: lazy modules creating >16 function objects at
+  load get a warning pointing at the switch-pack pattern.
 - `createResource(fetcher)` async primitive; typed `ByteStore`; generic public
   API (`signal<T>`, `ReadonlySignal<T>`, flow prop contracts).
 - Per-app **export pruning** (`--no-prune` to disable) — unused runtime exports

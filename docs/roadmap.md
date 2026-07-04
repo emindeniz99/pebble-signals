@@ -271,6 +271,13 @@ notifications, device info.
   = lazy importNow modules (only the active screen's objects in RAM); true
   mod freeze = upstream ask (upstream-issue.md #5). Compiler direction
   updated: split screens into LAZY modules (not merge into one frozen lib).
+  #48 SHIPPED (2026-07): romTable() + pack-table.mts + manifest
+  auto-ship + romtable example (200 entries live from flash) + squash
+  advisory in build.mts; limit bisect narrowed to the 112-131KB archive
+  band; lazyklass cell corrected the class verdict (fine when lazy; cost
+  = method-name symbols). Remaining conveniences: automated squash pass
+  (advisory only today), folder-convention auto screen splitting,
+  romscreens white-screen quirk.
   ROUND 2 (owner Q&A, device-proven): lazymany (70 thin fns, runtime
   load) DIES -> lazypack (same bodies, ONE switch-packed fn) WORKS — the
   compiler needs a SQUASH/inline pass for many-component screens; lazyone

@@ -27,9 +27,12 @@ export function deriveResources(src: string, manifest: Manifest): Manifest {
 	// `new Texture("x.png")` or `new Texture('x')` — .png optional
 	const tex = [...src.matchAll(/new\s+Texture\(\s*["']([^"']+?)(?:\.png)?["']/g)].map((x) => x[1]);
 	if (tex.length) m.resources = { "*": uniq(tex).map((n) => `../../assets/${n}`) };
-	// any referenced `*.pdc` file
+	// any referenced `*.pdc` file, plus any romTable("<name>") blob (the
+	// packed string tables written by tools/pack-table.mts)
 	const pdc = [...src.matchAll(/["']([^"']+?\.pdc)["']/g)].map((x) => x[1]);
-	if (pdc.length) m.data = { "*": uniq(pdc).map((n) => `../../assets/${n}`) };
+	const tbl = [...src.matchAll(/romTable\(\s*["']([^"']+)["']/g)].map((x) => x[1]);
+	const data = uniq([...pdc, ...tbl]);
+	if (data.length) m.data = { "*": data.map((n) => `../../assets/${n}`) };
 	return m;
 }
 

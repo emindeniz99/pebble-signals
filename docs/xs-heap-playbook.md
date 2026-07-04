@@ -233,6 +233,29 @@ proportional load cost that kills by 24KB. Consequences:
   EVERY module-level function object costs at load (exported or not —
   lazymany's 70 arrows were unexported); closures created INSIDE a
   function at call time are transient and load-free.
+- **#48 conveniences SHIPPED (2026-07):** `romTable(name)` in
+  runtime/signals — typed accessor over a packed resource blob
+  (`tools/pack-table.mts` packs a JSON string array; gen-manifest ships
+  any `romTable("<name>")` literal's blob automatically; the `romtable`
+  example renders a 200-entry ~10KB table live from flash, zero boot RAM;
+  covered by node tests with stubbed host pieces). Plus a **squash
+  advisory** in the build: a lazy module creating >16 function objects at
+  load prints a warning pointing at the lazypack pattern.
+- **Limit bisect (round 2):** 152KB source / 98,685B archive WORKS;
+  176KB source / 112,495B archive WORKS; 208KB source / 130,892B archive
+  dies at launch — measured-good up to ~112KB archive, ceiling in the
+  112-131KB band (suspect: the internal-flash mod AREA size, since
+  install succeeds and death is at map/launch).
+- **Class correction (lazyklass cell):** a 40-METHOD class in a LAZY
+  module works ("sum = 2719" renders) — methods share ONE prototype
+  object, so classes are fine ROM tenants when lazy-loaded; the real
+  costs are the 40 method-name SYMBOLS (interned at boot: 158 in that
+  build) and module-scope `new` (classifier keeps it in main). The
+  earlier "classes are poor tenants" verdict applied to the all-in-main
+  cell, not to lazy modules.
+- KNOWN QUIRK (open): `romscreens` runs healthily (instruments: 0 aborts,
+  5 modules) but its screen shows WHITE in the emulator — the render
+  dict's black skin appears unapplied on that app; investigate.
 - The road to BIG TOTAL code (40KB+) is LAZY modules: `importNow` screen
   modules keep bytecode in flash until pushed and only the ACTIVE
   screen's objects live in RAM (lazyscreen + multilazy O(1) principle) —

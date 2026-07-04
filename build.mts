@@ -355,6 +355,15 @@ if (lazyBases.length) {
 				allowOverwrite: true,
 			});
 		lazyFiles.push(file);
+		// squash advisory: loading a module builds EVERY module-level function
+		// object in RAM (~5-6 slots each; measured safe band ≤16 — playbook
+		// "Code in ROM"). The count below is rough (nested arrows included).
+		const fnCount = (readFileSync(file, "utf8").match(/=>|\bfunction\b/g) || []).length;
+		if (fnCount > 16)
+			err(
+				`lazy: app/${base} creates ~${fnCount} function objects at load (safe band ~16) — ` +
+					"consider switch-packing thin helpers (playbook \"Code in ROM\", lazypack example)",
+			);
 		console.log(`lazy: importNow("app/${base}") -> ${id} (flash, loads on first call)`);
 	}
 	writeFileSync("src/embeddedjs/manifest.json", JSON.stringify(manifest, null, "\t"));
