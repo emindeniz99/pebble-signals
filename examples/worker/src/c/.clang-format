@@ -1,0 +1,13 @@
+# C style for the native shim (src/c/*.c). Copied VERBATIM from the upstream
+# Pebble firmware repo (coredevices/PebbleOS `main` → .clang-format) so our
+# native code matches Pebble's own conventions exactly, not an approximation.
+# Source: https://raw.githubusercontent.com/coredevices/PebbleOS/main/.clang-format
+---
+BasedOnStyle: Google
+IndentWidth: 2
+UseTab: Never
+PointerAlignment: Right
+ColumnLimit: 100
+SortIncludes: Never
+AllowShortFunctionsOnASingleLine: Empty
+---
