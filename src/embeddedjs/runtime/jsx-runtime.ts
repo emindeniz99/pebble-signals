@@ -5,12 +5,14 @@ import { effect, track, createRoot } from "runtime/signals";
 import type {
 	Application as PiuApplication,
 	ApplicationDictionary,
+	Container as PiuContainer,
+	Content as PiuContent,
 } from "../../../types/moddable/piu/MC-types";
 
 // A JSX result: a Piu node, a primitive child, an array of them, or nullish.
+export type JSXNode = PiuContent | string | number | boolean | null | undefined | JSXNode[];
 // The factory is inherently dynamic (host class OR component fn), so the
 // dispatch boundary is loosely typed — like React's own jsx-runtime.
-type Node = any;
 type Props = Record<string, any>;
 
 // Piu content classes are compartment globals provided by the Alloy host.
@@ -30,12 +32,12 @@ function isPiu(type: unknown): boolean {
 }
 
 /** `<>...</>` — returns its children unchanged. */
-export function Fragment(props: Props): Node {
+export function Fragment(props: Props): JSXNode {
 	return props.children;
 }
 
 /** JSX factory (automatic runtime). Host Piu type → real node; function → component call. */
-export function jsx(type: any, props: Props): Node {
+export function jsx(type: any, props: Props): JSXNode {
 	if (isPiu(type)) return createHost(type, props);
 	if (typeof type === "function") return type(props || {});
 	throw new Error("jsx:type");
@@ -58,7 +60,7 @@ const BUTTON_EVENTS = Object.freeze([
 	"onReleaseBack",
 ]);
 
-let pendingFocus: Node = null;
+let pendingFocus: PiuContent | null = null;
 
 // One shared behavior class; handlers live in instance fields. piu stops
 // button bubbling when the method returns truthy — consume by default,
@@ -69,16 +71,16 @@ let pendingFocus: Node = null;
 // prototype + 9 methods inside the 32KB arena at runtime.
 class HandlerBehavior {
 	// `declare` = type-only, no field initializer emitted (constructor sets them)
-	declare t: ((content: Node, x: number, y: number) => void) | null;
-	declare b: Record<string, (content: Node) => unknown> | null;
+	declare t: ((content: PiuContent, x: number, y: number) => void) | null;
+	declare b: Record<string, (content: PiuContent) => unknown> | null;
 	constructor(
-		tap: ((content: Node, x: number, y: number) => void) | null,
-		buttons: Record<string, (content: Node) => unknown> | null,
+		tap: ((content: PiuContent, x: number, y: number) => void) | null,
+		buttons: Record<string, (content: PiuContent) => unknown> | null,
 	) {
 		this.t = tap;
 		this.b = buttons;
 	}
-	onTouchEnded(content: Node, _id: number, x: number, y: number) {
+	onTouchEnded(content: PiuContent, _id: number, x: number, y: number) {
 		if (this.t) this.t(content, x, y);
 	}
 }
@@ -87,17 +89,17 @@ class HandlerBehavior {
 // the closures land in flash and the prototype is written before it
 // freezes. ~300B of archive saved over the literal methods.
 for (const n of BUTTON_EVENTS)
-	(HandlerBehavior.prototype as any)[n] = function (this: HandlerBehavior, content: Node) {
+	(HandlerBehavior.prototype as any)[n] = function (this: HandlerBehavior, content: PiuContent) {
 		const h = this.b && this.b[n];
 		return h ? h(content) !== false : false;
 	};
 
-function createHost(type: any, props: Props): Node {
+function createHost(type: any, props: Props): PiuContent {
 	const dict: Record<string, any> = {};
 	let bindings: (string | (() => unknown))[] | null = null,
-		tap: ((content: Node, x: number, y: number) => void) | null = null,
-		buttons: Record<string, (content: Node) => unknown> | null = null,
-		children: Node,
+		tap: ((content: PiuContent, x: number, y: number) => void) | null = null,
+		buttons: Record<string, (content: PiuContent) => unknown> | null = null,
+		children: JSXNode,
 		focus = false;
 	for (const k in props) {
 		const v = props[k];
@@ -185,12 +187,14 @@ function bindErr(key: string): string {
 
 // createHost guarantees `key` is in REACTIVE_PROPS before it ever calls this, so
 // this is just the write. Kept as a named step so the binding effect reads well.
-function setProp(node: any, key: string, value: unknown) {
-	node[key] = value;
+function setProp(node: PiuContent, key: string, value: unknown) {
+	// Piu content types have no index signature for this dynamic key — the
+	// cast is type-only (erases in emit); the write stays `node[key] = value`.
+	(node as unknown as Record<string, unknown>)[key] = value;
 }
 
 /** Append a child (node / string / number / array) to a parent Piu node. */
-export function appendChild(parent: any, child: Node) {
+export function appendChild(parent: PiuContainer, child: JSXNode) {
 	if (child === undefined || child === null || child === false || child === true) return;
 	if (Array.isArray(child)) {
 		for (const c of child) appendChild(parent, c);
@@ -202,7 +206,10 @@ export function appendChild(parent: any, child: Node) {
 		return;
 	}
 	if (t === "function") throw new Error("jsx:fn-child"); // use Show/For or a string-prop thunk
-	parent.add(child);
+	// `t` (not `child` directly) drove the typeof narrowing above, so TS still
+	// sees `child` as `string | number | Content` here — a type-only cast (the
+	// string/number cases already returned) narrows it without touching emit.
+	parent.add(child as PiuContent);
 }
 
 // Apply a pending `focus` request now that its node is mounted (focus()
@@ -229,7 +236,7 @@ export const screen = { width: 0, height: 0 };
 // Mount a JSX tree as the Piu application. `build` runs under a root owner;
 // the returned disposer is kept alive for the app's lifetime.
 /** Mount a JSX tree as the Piu Application. `build` runs under a root owner. */
-export function render(build: () => Node, dict?: ApplicationDictionary): PiuApplication {
+export function render(build: () => JSXNode, dict?: ApplicationDictionary): PiuApplication {
 	const app = new Application(null, dict || {});
 	screen.width = app.width; // screen size is known once the app exists,
 	screen.height = app.height; // before build() runs so it can read it

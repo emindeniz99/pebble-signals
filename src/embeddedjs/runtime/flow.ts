@@ -3,23 +3,25 @@
 // compiler making them lazy), each subtree runs under its own root so
 // removal disposes every effect created inside it.
 import { signal, effect, untrack, track, createRoot } from "runtime/signals";
-import { appendChild, screen } from "runtime/jsx-runtime";
+import { appendChild, screen, type JSXNode } from "runtime/jsx-runtime";
 import type {
 	Skin,
 	SkinDictionary,
 	Style,
 	StyleDictionary,
 	ColumnConstructor,
+	Container as PiuContainer,
+	Content,
 } from "../../../types/moddable/piu/MC-types";
 
 // Control-flow works with Piu nodes and caller-supplied builder thunks — the
-// dynamic boundary of the library. A `Node` is a Piu Content instance (typed
-// `any`: Piu classes are host globals). The prop contracts below are the
+// dynamic boundary of the library. Children/build thunks return `JSXNode`
+// (defined in jsx-runtime); hosts are the vendored `Container`, and per-row
+// reconcile slots are the vendored `Content`. The prop contracts below are the
 // PUBLIC types — `npm run typecheck` resolves `runtime/flow` straight to this
 // file, so misuse (e.g. passing both `format` and `renderRow`) is a compile
 // error in app code. They are `type` aliases, not interfaces, so they stay
 // assignable to the loose internal `Props` (implicit index signature).
-type Node = any;
 type Props = Record<string, any>;
 type Disposer = () => void;
 type Thunk<T> = () => T;
@@ -45,15 +47,15 @@ export type BoxProps = {
 
 export type ShowProps = BoxProps & {
 	when: Thunk<boolean>;
-	children: Thunk<Node>;
-	fallback?: Thunk<Node>;
+	children: Thunk<JSXNode>;
+	fallback?: Thunk<JSXNode>;
 	keepAlive?: boolean;
 };
 
 export type ForProps<T> = BoxProps & {
 	each: Thunk<T[]>;
 	key?: (item: T, i: number) => unknown;
-	children: (item: T, i: number) => Node;
+	children: (item: T, i: number) => JSXNode;
 };
 
 /** Anything with `count()` and `get(i)` — an array wrapper, the byte store, a lazy fetcher. */
@@ -73,18 +75,18 @@ export type VLSimple<T> = VLBase<T> & {
 };
 // rich mode: a recycled subtree per slot via `renderRow`. `format` forbidden.
 export type VLRich<T> = VLBase<T> & {
-	renderRow: (indexThunk: Thunk<number>, data: DataSource<T>) => Node;
+	renderRow: (indexThunk: Thunk<number>, data: DataSource<T>) => JSXNode;
 	format?: never;
 };
 
 export type NavHandle = {
-	push(build: (nav: NavHandle) => Node): void;
+	push(build: (nav: NavHandle) => JSXNode): void;
 	pop(): void;
 	depth(): number;
 	canPop(): boolean;
 };
 export type NavigatorProps = BoxProps & {
-	root: (nav: NavHandle) => Node;
+	root: (nav: NavHandle) => JSXNode;
 };
 // NOTE: flow deliberately does NOT import consumePendingFocus — calling a
 // preloaded module's function that WRITES another preloaded module's
@@ -124,12 +126,12 @@ export type NavigatorProps = BoxProps & {
 // the same two sides toggle often (builds both once, swaps by reference — zero
 // allocation per toggle) and for the default rebuild mode when memory is
 // tighter than update cost (only one side is ever allocated).
-export function Show(props: ShowProps): Node {
+export function Show(props: ShowProps): PiuContainer {
 	const host = makeHost(props, Column);
 	if (props.keepAlive) {
 		const a = wrapSide(props, props.children);
 		const b = wrapSide(props, props.fallback);
-		let mounted: Node = null;
+		let mounted: PiuContainer | null = null;
 		track(
 			effect(() => {
 				const next = props.when() ? a : b;
@@ -172,7 +174,7 @@ export function Show(props: ShowProps): Node {
 // (see the bare-Label port bug above; width/height-sized wrappers are the
 // on-device-proven shape). A missing side yields an EMPTY wrapper — never
 // null — so keepAlive swaps always use replace().
-function wrapSide(props: Props, build: (() => Node) | undefined): Node {
+function wrapSide(props: Props, build: (() => JSXNode) | undefined): PiuContainer {
 	const wrapper = new Container(null, { width: props.width, height: props.height });
 	if (build) appendChild(wrapper, asNode(build));
 	return wrapper;
@@ -187,7 +189,7 @@ function wrapSide(props: Props, build: (() => Node) | undefined): Node {
 // nodes) — a full empty()+re-add per update destabilizes the piu Pebble
 // port and costs native churn per row (measured: app death after ~15-25
 // cycles).
-export function For<T>(props: ForProps<T>): Node {
+export function For<T>(props: ForProps<T>): PiuContainer {
 	const host = makeHost(props, Column);
 	const keyOf = props.key || ((item: T) => item);
 	// Rows live in FOUR index-aligned parallel arrays (keys/nodes/disposers/
@@ -198,7 +200,7 @@ export function For<T>(props: ForProps<T>): Node {
 	// rebuilding a key map (a fresh map per pass was pure transient
 	// allocation at exactly the moment the arena is fullest).
 	const rk: unknown[] = [], // keys
-		rn: Node[] = [], // nodes
+		rn: Content[] = [], // nodes
 		rd: Disposer[] = [], // disposers
 		rs: number[] = []; // pass stamps
 	let stamp = 0;
@@ -207,7 +209,7 @@ export function For<T>(props: ForProps<T>): Node {
 			const items = props.each();
 			untrack(() => {
 				const pass = ++stamp;
-				const order: Node[] = []; // nodes in expected order this pass
+				const order: Content[] = []; // nodes in expected order this pass
 				for (let i = 0; i < items.length; i++) {
 					const item = items[i],
 						k = keyOf(item, i);
@@ -217,7 +219,13 @@ export function For<T>(props: ForProps<T>): Node {
 							// duplicate key: first occurrence wins
 							continue;
 					} else {
-						const [node, dispose] = createRoot(() => asNode(() => props.children(item, i)));
+						// `children` may legally return a primitive (JSXNode) for the
+						// type surface (see tests/types.test-d.tsx), but a reconcile
+						// slot is always a real mounted node in practice — the cast is
+						// type-only, matching the same boundary appendChild handles.
+						const [node, dispose] = createRoot(
+							() => asNode(() => props.children(item, i)) as Content,
+						);
 						x = rk.length;
 						rk.push(k);
 						rn.push(node);
@@ -290,7 +298,7 @@ export function For<T>(props: ForProps<T>): Node {
 // gotcha 13). Overscan is intentionally omitted: this port redraws text
 // instantly with no pixel/momentum scroll, so pre-mounting off-screen rows
 // buys nothing (there is no lazy mount to warm) — we render exactly `rows`.
-export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): Node => {
+export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): PiuContainer => {
 	const host = makeHost(props, Column);
 	const rows = props.rows || 3;
 	const data = props.data;
@@ -305,7 +313,10 @@ export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): Node => {
 	if (props.renderRow) {
 		for (let slot = 0; slot < rows; slot++) {
 			const at = props.at;
-			host.add(props.renderRow(() => (at ? at() : 0) + slot, data));
+			// renderRow's return is JSXNode (may be a primitive per the type
+			// surface); in practice it always builds a real node — same
+			// type-only boundary cast as For's reconcile slot above.
+			host.add(props.renderRow(() => (at ? at() : 0) + slot, data) as Content);
 		}
 		return host;
 	}
@@ -355,9 +366,9 @@ export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): Node => {
 //    crashes laying it out (measured — 1 label survived, 2+ died).
 // Buttons go on the outer focused Container and drive nav via the handle
 // screens hand back.
-export const Navigator = (props: NavigatorProps): Node => {
+export const Navigator = (props: NavigatorProps): PiuContainer => {
 	const host = makeHost(props, Column);
-	const stack: ((nav: NavHandle) => Node)[] = [props.root];
+	const stack: ((nav: NavHandle) => JSXNode)[] = [props.root];
 	const depth = signal(1); // reactive; drives depth()/canPop()
 	let disposeTop: Disposer | null = null;
 	const swap = () =>
@@ -387,7 +398,7 @@ export const Navigator = (props: NavigatorProps): Node => {
 			host.add(tree);
 		});
 	const nav: NavHandle = {
-		push(build: (nav: NavHandle) => Node) {
+		push(build: (nav: NavHandle) => JSXNode) {
 			stack.push(build);
 			depth.value = stack.length;
 			swap();
@@ -499,7 +510,7 @@ export function animate(
 	return get;
 }
 
-function makeHost(props: Props, Type: ColumnConstructor): Node {
+function makeHost(props: Props, Type: ColumnConstructor): PiuContainer {
 	const dict: Record<string, number | Skin | SkinDictionary | Style | StyleDictionary | undefined> =
 		{};
 	for (const k in props) {
@@ -523,7 +534,10 @@ function makeHost(props: Props, Type: ColumnConstructor): Node {
 	return new Type(null, dict); // every caller passes a Type (Column/Container)
 }
 
-function asNode(build: unknown): Node {
+function asNode(build: unknown): JSXNode {
 	const result = (build as () => unknown)();
-	return typeof result === "function" ? (result as () => unknown)() : result;
+	// `result` is `unknown` (the auto-thunk unwrap is a genuinely dynamic
+	// boundary); the cast is type-only and matches jsx-runtime's setProp/
+	// appendChild casts at the same kind of boundary.
+	return (typeof result === "function" ? (result as () => unknown)() : result) as JSXNode;
 }
