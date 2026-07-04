@@ -51,15 +51,12 @@ device work is unblocked again.
   glitch-free lands.
 - **#30 type-directed storage:** analyzed net-negative; revisit only behind
   `NUMERIC_STORAGE=1` if a float-heavy app appears.
-- **Higher-fidelity tests on real XS (supplement, not replace).** The suite runs
-  the runtime in a Node `vm.SourceTextModule` sandbox (Piu classes stubbed) — fast
-  and V8-coverage-visible, but it's V8, not XS, so XS-only quirks (freeze
-  semantics, ROM aliasing, number/bigint edges) can't surface. Moddable ships
-  `xst`, a CLI XS engine; a SMALL conformance subset run under `xst` would catch
-  engine-specific divergence the V8 sandbox can't. Keep node:test as the primary
-  fast suite; add xst as a slow, high-fidelity gate. (Alternatives considered for
-  the sandbox itself — vm.Script, a worker + custom loader, esbuild-bundle-then-
-  import — all stay on V8, so none add XS fidelity; only xst does.)
+- ~~**Higher-fidelity tests on real XS**~~ ✅ SHIPPED: `npm run test:xs` runs the
+  19 pure-signal conformance laws on the real XS engine (verified on XS 17.9.1).
+  `tests/xs/laws.js` + `tools/xstest.mts` (binary auto-detect: XS_BIN → jsvu →
+  PATH); install is a one-liner (`npx jsvu --engines=xs --os=linux64`), fully
+  documented in `docs/xst-setup.md` including WHY the Piu suites deliberately
+  stay Node-only. node:test remains the primary fast suite.
 
 ## Phone side — PebbleKit JS (`src/pkjs/`)
 `src/pkjs/index.js` is 4 lines wiring `@moddable/pebbleproxy` to the phone's
