@@ -1,7 +1,9 @@
 // Auto-thunk scope, DERIVED from the runtime source (single source of truth).
 import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { packageRoot } from "../pkg-root.mts";
 
 // auto-thunk is scoped to HOST (Piu) elements and their REACTIVE props ONLY: a
 // component (VirtualList, user fn) is NOT a host, so its props (rows, data, each,
@@ -21,7 +23,12 @@ import ts from "typescript";
 // (nothing gets wrapped) rather than silently mis-compiling.
 function extractRuntimeMeta(): { hosts: Set<string>; props: Set<string> } {
 	const src = readFileSync(
-		fileURLToPath(new URL("../../src/embeddedjs/runtime/jsx-runtime.ts", import.meta.url)),
+		// package-root walk, not a fixed "../..": this file runs both as
+		// tools/lower/runtime-meta.mts (repo) and dist/tools/lower/*.mjs (tarball).
+		join(
+			packageRoot(dirname(fileURLToPath(import.meta.url))),
+			"src/embeddedjs/runtime/jsx-runtime.ts",
+		),
 		"utf8",
 	);
 	const sf = ts.createSourceFile("jsx-runtime.ts", src, ts.ScriptTarget.ES2025, true);

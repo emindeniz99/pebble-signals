@@ -1,31 +1,19 @@
 {
-	// Typecheck-only config for the consumer example (docs/packaging.md).
-	// jsxImportSource "signal-piu" resolves the JSX factory via the package's
-	// exports map ("signal-piu/jsx-runtime") exactly like a real external
-	// consumer would — no `paths` back into this repo's source tree.
-	//
-	// Verified empirically (see tools/consumer-smoke.mts / the repo history):
-	// TSX typechecks fine here even though jsx-runtime.d.ts does not export a
-	// `JSX` namespace (the namespace is only declared globally, in the app
-	// TEMPLATE's src/tsx/globals.d.ts — out of scope for a library consumer,
-	// see docs/packaging.md "Not in v1"). That's because this example never
-	// references a real Piu host element (Label/Container/...) as a lowercase
-	// JSX intrinsic — it only uses signal-piu's own components (Show,
-	// VirtualList) as capitalized JSX elements, which resolve through the
-	// automatic-runtime factory without needing JSX.IntrinsicElements. Prop
-	// types are still fully checked (confirmed by intentionally breaking a
-	// prop type and seeing tsc reject it before writing this comment).
+	// DEVICE transpile (what `npm run build` / build.mts uses): src/tsx ->
+	// src/embeddedjs/app, JSX via the automatic runtime with import specifier
+	// "runtime/jsx-runtime" — the mod manifest maps runtime/* on the watch.
+	// noCheck: transpile-only; the strict pass is tsconfig.check.json.
 	"compilerOptions": {
 		"target": "es2022",
 		"module": "esnext",
 		"moduleResolution": "bundler",
 		"jsx": "react-jsx",
-		"jsxImportSource": "signal-piu",
-		"strict": true,
-		"noEmit": true,
+		"jsxImportSource": "runtime",
+		"outDir": "src/embeddedjs/app",
+		"rootDir": "src/tsx",
+		"noCheck": true,
 		"types": [],
-		"lib": ["es2022"],
-		"skipLibCheck": true
+		"isolatedModules": true
 	},
-	"include": ["src"]
+	"include": ["src/tsx/**/*"]
 }

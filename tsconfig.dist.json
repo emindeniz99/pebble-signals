@@ -1,0 +1,23 @@
+{
+	// DIST build for the npm tarball (prepack): compile build.mts + tools/ to
+	// plain .mjs under dist/, because Node REFUSES to type-strip .mts inside
+	// node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING) — a consumer
+	// literally cannot run node_modules/signal-piu/build.mts. In-repo dev keeps
+	// running the .mts sources directly; consumers run dist/build.mjs.
+	// rewriteRelativeImportExtensions rewrites the .mts import specifiers the
+	// sources use (node type-stripping requires them) to .mjs in the emit.
+	"compilerOptions": {
+		"target": "es2025",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"types": ["node"],
+		"lib": ["es2025"],
+		"skipLibCheck": true,
+		"rewriteRelativeImportExtensions": true,
+		"newLine": "lf",
+		"outDir": "dist",
+		"rootDir": "."
+	},
+	"include": ["build.mts", "tools/**/*.mts"]
+}

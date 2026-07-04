@@ -67,21 +67,40 @@ So: correctness never depends on lower; the 32KB budget usually does.
   (`require is not defined in ES module scope`) and `pebble build` fails.
   Tried and reverted here (commit ece030f). The library exports don't need it —
   they point at `.ts` sources consumed by the consumer's own tooling.
+- **Node refuses to type-strip `.mts` under node_modules**
+  (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`, a deliberate Node policy) —
+  a consumer literally cannot run `node_modules/signal-piu/build.mts`. That is
+  WHY the tarball ships a compiled `dist/` (prepack → `tsconfig.dist.json`,
+  with `rewriteRelativeImportExtensions` turning the `.mts` import specifiers
+  into `.mjs`): consumers run `dist/build.mjs`; in-repo dev keeps running the
+  `.mts` sources directly. The same scripts serve both layouts by resolving
+  the package root with a walk-up (`tools/pkg-root.mts`) and their sibling
+  tools SCRIPT-relatively — never with hard-coded `../..` depths.
 
-## What a consuming app project looks like
+## What a consuming app project looks like — E2E VERIFIED
 
-Today (v1 packaging), a watch app still needs the Pebble project scaffold
-(`package.json` `pebble` field, `manifest.base.json`, `src/c/mdbl.c`, wscript
-glue) — that part is TEMPLATE, not library. The flow:
+`examples/consumer/` is the living, DEVICE-VERIFIED reference: a standalone
+project that installs the tarball and builds a running watch app from it
+(screenshots/consumer-e2e-t0.png → -t5.png show the reactive tick advancing on
+the QEMU emulator). The flow:
 
-1. Scaffold a Pebble Moddable app (copy this repo's shape, or `pebble new` +
-   the `pebble.projectType: "moddable"` field).
-2. `npm install signal-piu` (tarball or registry once published).
-3. Author `src/tsx/*.tsx` importing from `signal-piu/signals` etc. — full types.
-4. Build with the packaged orchestrator/tools: point the build at
-   `node_modules/signal-piu/build.mts` (or copy it) — it transpiles JSX, runs
-   the lowering (`tools/lower/cli.mts`), minifies the runtime from
-   `node_modules/signal-piu/src/embeddedjs/runtime/`, and maps the manifest.
+1. Scaffold a Pebble Moddable app — copy `examples/consumer/`'s shape: the
+   `pebble` field in package.json, `wscript`, `src/c/mdbl.c`,
+   `src/embeddedjs/manifest.base.json`, a device `tsconfig.json`, `src/pkjs/`.
+   (The scaffold is still template-shaped; `create-signal-piu` is the
+   roadmapped fix.)
+2. `npm install signal-piu typescript esbuild` (tarball or registry once
+   published; tsc + esbuild are the build's tools, brought by the consumer).
+3. Author `src/tsx/examples/<app>.tsx` with DEVICE specifiers
+   (`import { render } from "runtime/jsx-runtime"` — the mod manifest maps
+   `runtime/*` on the watch). Editor/typecheck resolves the same names into
+   the installed package via `paths` (see `examples/consumer/
+   tsconfig.check.json`), including real Piu host JSX typed by the vendored
+   Moddable typings that ship in the tarball.
+4. Build: `node node_modules/signal-piu/dist/build.mjs --app <app>` — the
+   COMPILED orchestrator detects the consumer project by its `pebble` field,
+   takes app sources/manifest/scaffold from the PROJECT and the runtime/tools
+   from the PACKAGE, and drives `pebble build` to a `.pbw`.
 
 ## Not in v1 (explicit non-goals, so nobody assumes)
 

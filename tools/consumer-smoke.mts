@@ -59,23 +59,20 @@ try {
 console.log("test:consumer: typecheck examples/consumer...");
 try {
 	const tsc = join(ROOT, "node_modules", ".bin", "tsc");
-	execFileSync(tsc, ["-p", join(EXAMPLE, "tsconfig.json")], { stdio: "inherit" });
+	// tsconfig.check.json is the STRICT pass (the example's tsconfig.json is the
+	// device transpile config, noCheck — pointing tsc at it would check nothing).
+	execFileSync(tsc, ["-p", join(EXAMPLE, "tsconfig.check.json")], { stdio: "inherit" });
 } catch (e) {
 	fail("typecheck example", e);
 }
 
 // ---- d. prove the PACKAGED lowering tool runs from node_modules ------------
-// Node refuses its own type-stripping for ANY file whose path contains
-// `node_modules` (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING — a deliberate
-// safety default, not something this repo can opt out of globally: it applies
-// to every dependency, not just this one). Running `node .../cli.mts` straight
-// would hit that wall on the very first line. The fix is a tiny loader hook —
-// registered only for this one subprocess — that strips `.mts` files under
-// node_modules using the SAME public primitive Node's own default loader uses
-// (`node:module`'s `stripTypeScriptTypes`), so the packaged tool still runs as
-// real, unmodified TypeScript from node_modules; we're just supplying the
-// opt-in Node withholds by default.
-console.log("test:consumer: packaged lowering tool (from node_modules)...");
+// Consumers run the COMPILED dist (dist/tools/lower/cli.mjs): Node refuses its
+// own type-stripping for any file under node_modules
+// (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), so the tarball ships plain
+// .mjs compiled by prepack (tsconfig.dist.json) — running it here IS the real
+// consumer path, plain `node`, no loader hooks.
+console.log("test:consumer: packaged lowering tool (dist, from node_modules)...");
 const scratchDir = mkdtempSync(join(tmpdir(), "signal-piu-lower-"));
 const scratchFile = join(scratchDir, "lower-smoke.js");
 try {
@@ -83,30 +80,8 @@ try {
 		scratchFile,
 		'import { useState } from "runtime/signals";\nconst [c, setC] = useState(0);\nsetC(c() + 1);\n',
 	);
-	const cli = join(EXAMPLE, "node_modules", "signal-piu", "tools", "lower", "cli.mts");
-	const hooksSrc = `
-		import { readFileSync } from "node:fs";
-		import { fileURLToPath } from "node:url";
-		import { stripTypeScriptTypes } from "node:module";
-		export async function load(url, context, nextLoad) {
-			if (url.endsWith(".mts") && url.includes("/node_modules/")) {
-				const source = readFileSync(fileURLToPath(url), "utf8");
-				return {
-					format: "module",
-					source: stripTypeScriptTypes(source, { mode: "strip", sourceUrl: url }),
-					shortCircuit: true,
-				};
-			}
-			return nextLoad(url, context);
-		}
-	`;
-	const hooksUrl = `data:text/javascript,${encodeURIComponent(hooksSrc)}`;
-	const preloadSrc = `
-		import { register } from "node:module";
-		register(${JSON.stringify(hooksUrl)}, import.meta.url);
-	`;
-	const preloadUrl = `data:text/javascript,${encodeURIComponent(preloadSrc)}`;
-	execFileSync("node", ["--import", preloadUrl, cli, scratchFile], { stdio: "inherit" });
+	const cli = join(EXAMPLE, "node_modules", "signal-piu", "dist", "tools", "lower", "cli.mjs");
+	execFileSync("node", [cli, scratchFile], { stdio: "inherit" });
 	const lowered = readFileSync(scratchFile, "utf8");
 	if (!lowered.includes("__sp.get(c)") || !lowered.includes("__sp.set(c,"))
 		throw new Error(
@@ -122,5 +97,5 @@ rmSync(packDir, { recursive: true, force: true });
 
 // ---- e. success --------------------------------------------------------------
 console.log(
-	"test:consumer: OK — packed tarball installs, typechecks, and its lowering tool runs from node_modules",
+	"test:consumer: OK — packed tarball installs, typechecks, and its dist lowering tool runs from node_modules",
 );

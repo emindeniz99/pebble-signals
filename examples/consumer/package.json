@@ -1,4 +1,21 @@
 {
-  "name": "signal-piu-consumer-example",
-  "private": true
+	"name": "signal-piu-consumer-example",
+	"private": true,
+	"author": "MakeAwesomeHappen",
+	"version": "1.0.0",
+	"keywords": ["pebble-app"],
+	"pebble": {
+		"displayName": "consumer",
+		"uuid": "23ec5cc8-7b5b-4fa0-ae1c-4b5a823621ff",
+		"projectType": "moddable",
+		"sdkVersion": "3",
+		"enableMultiJS": true,
+		"targetPlatforms": ["gabbro"],
+		"watchapp": { "watchface": false },
+		"messageKeys": ["dummy"],
+		"resources": { "media": [] }
+	},
+	"scripts": {
+		"build": "node node_modules/signal-piu/dist/build.mjs --app main"
+	}
 }

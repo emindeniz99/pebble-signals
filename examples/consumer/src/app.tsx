@@ -1,3 +1,4 @@
+/* @jsxImportSource signal-piu */
 // Dogfooding example (C11 packaging, docs/packaging.md): this file typechecks
 // against signal-piu as an INSTALLED library — the package installed here is
 // the tarball `npm pack` produces from the repo root, not the in-repo source

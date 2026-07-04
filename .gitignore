@@ -10,3 +10,10 @@ src/embeddedjs/runtime-types/
 src/pkjs/index.js
 examples/consumer/node_modules/
 examples/consumer/package-lock.json
+dist/
+examples/consumer/build/
+examples/consumer/src/embeddedjs/app/
+examples/consumer/src/embeddedjs/runtime-min/
+examples/consumer/src/embeddedjs/runtime-build/
+examples/consumer/src/embeddedjs/runtime-types/
+examples/consumer/src/embeddedjs/manifest.json

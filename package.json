@@ -23,9 +23,11 @@
     "./runtime/*": "./src/embeddedjs/runtime/*",
     "./tools/*": "./tools/*",
     "./build.mts": "./build.mts",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./build.mjs": "./dist/build.mjs"
   },
   "files": [
+    "dist/",
     "src/embeddedjs/runtime/",
     "src/embeddedjs/runtime-types/",
     "src/embeddedjs/manifest.base.json",
@@ -74,7 +76,7 @@
   "scripts": {
     "build:runtime": "tsc -p tsconfig.runtime-build.json",
     "build:types": "tsc -p tsconfig.runtime-build.json --declaration --emitDeclarationOnly --outDir src/embeddedjs/runtime-types",
-    "prepack": "npm run build:types",
+    "prepack": "npm run build:types && npm run build:dist",
     "test": "npm run build:runtime && node --test --experimental-vm-modules tests/*.test.mts",
     "test:xs": "npm run build:runtime && node tools/xstest.mts",
     "test:consumer": "node tools/consumer-smoke.mts",
@@ -88,6 +90,7 @@
     "coverage": "npm run build:runtime && node --test --experimental-vm-modules --experimental-test-coverage --test-coverage-include='src/embeddedjs/runtime-build/**' --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 tests/*.test.mts",
     "build": "node build.mts",
     "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",
-    "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20"
+    "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20",
+    "build:dist": "tsc -p tsconfig.dist.json"
   }
 }

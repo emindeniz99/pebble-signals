@@ -23,13 +23,45 @@
 //                                         props need hand-written thunks
 import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import * as esbuild from "esbuild";
+import { packageRoot } from "./tools/pkg-root.mts";
 
-// Resolve paths against this script's directory (build.sh's `cd $(dirname $0)`).
-process.chdir(dirname(fileURLToPath(import.meta.url)));
+// PACKAGE root (where signal-piu lives — the repo itself, or
+// node_modules/signal-piu inside a consumer project) vs PROJECT root (the app
+// being built). In-repo they are the SAME directory and behavior is unchanged.
+// A CONSUMER project runs `node node_modules/signal-piu/build.mts` from its own
+// root: the project is detected by a package.json carrying a `pebble` field,
+// app sources / manifest / scaffold come from the PROJECT, while the runtime
+// sources, tsconfig.runtime-build and the compile tools come from the PACKAGE.
+// This script runs from TWO layouts: the repo root (build.mts, tools/ beside
+// it) and the packed tarball's dist/ (build.mjs, dist/tools/ beside it —
+// compiled because Node refuses to type-strip .mts under node_modules). So the
+// package root is found by walking UP, the tools dir is SCRIPT-relative, and
+// tool file extensions follow this script's own compiled-ness.
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const PKG = packageRoot(SCRIPT_DIR);
+const TOOLS = join(SCRIPT_DIR, "tools");
+const EXT = import.meta.url.endsWith(".mjs") ? ".mjs" : ".mts";
+const PROJ = (() => {
+	const cwd = process.cwd();
+	if (resolve(cwd) === resolve(PKG)) return PKG;
+	try {
+		const pj = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8")) as Record<
+			string,
+			unknown
+		>;
+		if ("pebble" in pj) return cwd;
+	} catch {
+		/* no package.json here — fall through to the package root */
+	}
+	return PKG;
+})();
+process.chdir(PROJ);
+const consumer = PROJ !== PKG;
+if (consumer) console.log(`build: consumer project ${PROJ}\nbuild: signal-piu package ${PKG}`);
 
 const cli = parseArgs({
 	options: {
@@ -48,7 +80,11 @@ const env = (k: string, d: string) => process.env[k] ?? d;
 // boolean flag: CLI (if given) beats env (if set) beats the default
 const flag = (cliVal: boolean | undefined, envKey: string, on: string, dflt: boolean): boolean =>
 	cliVal ?? (process.env[envKey] !== undefined ? process.env[envKey] === on : dflt);
-const TSC = join("node_modules", ".bin", "tsc");
+// tsc binary: the package's devDep in-repo; a consumer brings its own
+// typescript (devDep) — resolve theirs, else fall back to PATH.
+const TSC = [join(PKG, "node_modules", ".bin", "tsc"), join(PROJ, "node_modules", ".bin", "tsc")]
+	.concat("tsc")
+	.find((p) => p === "tsc" || existsSync(p))!;
 
 // Run a command, inheriting stdio, and abort the build on nonzero exit. Used for
 // tsc / pebble / node tools (no clean in-process API). esbuild, by contrast, is
@@ -78,8 +114,11 @@ const appSrc = `src/tsx/examples/${APP}.tsx`;
 // Generate the mod manifest from the base; image/vector resources are DERIVED
 // from the app's own `new Texture("x.png")` refs (each mapped to assets/x), so
 // an app bundles exactly the bitmaps it names. manifest.json is gitignored.
-copyFileSync("src/embeddedjs/manifest.base.json", "src/embeddedjs/manifest.json");
-run(process.execPath, ["tools/gen-manifest.mts", appSrc, "src/embeddedjs/manifest.json"]);
+const manifestBase = existsSync("src/embeddedjs/manifest.base.json")
+	? "src/embeddedjs/manifest.base.json" // the project's own
+	: join(PKG, "src/embeddedjs/manifest.base.json"); // package default
+copyFileSync(manifestBase, "src/embeddedjs/manifest.json");
+run(process.execPath, [join(TOOLS, `gen-manifest${EXT}`), appSrc, "src/embeddedjs/manifest.json"]);
 
 // Per-app runtime tree-shaking. Runtime modules are frozen into ROM by
 // `preload`, and each preloaded module still costs a few XS aliases at boot. An
@@ -99,13 +138,13 @@ if (treeshake && !flag(cli["treeshake-force"], "TREESHAKE_FORCE", "1", false)) {
 		treeshake = false;
 	}
 }
-if (treeshake) run(process.execPath, ["tools/treeshake.mts", appSrc, "src/embeddedjs/manifest.json"]);
+if (treeshake) run(process.execPath, [join(TOOLS, `treeshake${EXT}`), appSrc, "src/embeddedjs/manifest.json"]);
 
 // Font sanity check (gotcha 20): an invalid font string renders NOTHING — blank
 // text, no error, hours lost. Validate every `font:` literal against the Pebble
 // system-font table at COMPILE time and fail loud. SKIP_FONTCHECK=1 to escape.
 if (!flag(cli["skip-fontcheck"], "SKIP_FONTCHECK", "1", false))
-	run(process.execPath, ["tools/fontcheck.mts", appSrc]);
+	run(process.execPath, [join(TOOLS, `fontcheck${EXT}`), appSrc]);
 
 // Minify (DCE + identifier mangling) is DEFAULT ON — buys back ~370B of the
 // ~15.9KB startup ceiling (gotcha 15) and DCEs unused runtime branches. MINIFY=0
@@ -121,10 +160,17 @@ rmSync("src/embeddedjs/runtime-types", { recursive: true, force: true });
 // behavior-identical to the old hand-written .js, verified emit-diff); files
 // still in .js are used as-is. The minify input for each module is
 // runtime-build/X.js if converted, else runtime/X.js.
-if (readdirSync("src/embeddedjs/runtime").some((f) => f.endsWith(".ts")))
-	run(TSC, ["-p", "tsconfig.runtime-build.json"]);
+if (readdirSync(join(PKG, "src/embeddedjs/runtime")).some((f) => f.endsWith(".ts")))
+	run(
+		TSC,
+		["-p", join(PKG, "tsconfig.runtime-build.json")].concat(
+			// consumer: emit into the PROJECT tree (the manifest's ./runtime-min
+			// sibling), not into node_modules
+			consumer ? ["--outDir", join(PROJ, "src/embeddedjs/runtime-build")] : [],
+		),
+	);
 mkdirSync("src/embeddedjs/runtime-min", { recursive: true });
-for (const dir of ["src/embeddedjs/runtime", "src/embeddedjs/runtime-build"]) {
+for (const dir of [join(PKG, "src/embeddedjs/runtime"), "src/embeddedjs/runtime-build"]) {
 	if (!existsSync(dir)) continue;
 	for (const name of readdirSync(dir)) {
 		if (!name.endsWith(".js")) continue;
@@ -141,7 +187,7 @@ for (const dir of ["src/embeddedjs/runtime", "src/embeddedjs/runtime-build"]) {
 run(TSC, ["-p", "tsconfig.json"]);
 // PKJS (phone-side) glue: index.ts -> index.js for `pebble build` to bundle
 // into the mobile app (separate engine/config — see tsconfig.pkjs.json).
-run(TSC, ["-p", "tsconfig.pkjs.json"]);
+if (existsSync("tsconfig.pkjs.json")) run(TSC, ["-p", "tsconfig.pkjs.json"]);
 
 // Bundle the chosen entry into ONE app/main.js — this makes MULTI-FILE apps
 // work: the entry's local imports are inlined so the manifest only maps `main`,
@@ -176,7 +222,7 @@ esbuild.buildSync({
 // OPTIONAL (--no-lower / LOWER=0): the object API works unlowered — it just
 // costs ~2x slots per state and loses the auto-thunk sugar (docs/packaging.md).
 if (flag(cli.lower, "LOWER", "1", true))
-	run(process.execPath, ["tools/lower/cli.mts", "src/embeddedjs/app/main.js"]);
+	run(process.execPath, [join(TOOLS, "lower", `cli${EXT}`), "src/embeddedjs/app/main.js"]);
 if (minify)
 	tryEsbuild({
 		entryPoints: ["src/embeddedjs/app/main.js"],

@@ -43,6 +43,18 @@ device work is unblocked again.
     — never the half-measure. Closes the footgun; pairs with glitch-free above.
 
 ## Node / compile-time — ready to do
+- **Node/Content type split (from the 2026-07 any/unknown audit).** The audit
+  (51 occurrences: 33 deliberate, 13 fixed, 5 deferred) proved `type Node = any`
+  cannot become the vendored `Content` as a straight swap: (a) `For`'s children
+  may legally return primitives (`children: (n, i) => n + i` is a passing type
+  test — appendChild special-cases string/number/array/nullish), (b) hosts use
+  Container-only members (add/remove/replace/insert/first) that `Content`
+  lacks, (c) setProp's dynamic `node[key] =` needs an index signature no Piu
+  type has. The real fix is THREE aliases: `JSXNode` (Content | primitive |
+  array | nullish — for children/build returns), `Container` (makeHost
+  products), `Content` (per-row slots in For's reconcile, where the surface
+  matches exactly). Do it in one pass across flow.ts + jsx-runtime.ts with the
+  byte-identical-emit gate; until then `Node = any` stays deliberately.
 - ~~**createResource**~~ ✅ SHIPPED: `createResource(fetcher)` in signals.ts —
   reactive `{loading,error,data,refetch}` over TWO Signal objects (tagged state
   slot), stale settlements dropped by generation counter. 19 node tests, 100%
@@ -91,8 +103,15 @@ notifications, device info.
 - **#27 importNow lazy screens:** screens as separate non-preloaded modules,
   loaded from flash on first push; measure heap before/after. Keep multilazy as
   the closure-swap variant.
-- **#29 swapped-screen reactive crash + richlist boot regression:** UNCONFIRMED —
-  settle with a single clean reactive-Navigator test on the now-healthy emulator.
+- **#29 swapped-screen reactive crash + richlist boot regression:** PARTIALLY
+  CONFIRMED (2026-07, consumer-e2e bring-up): `clock` — a previously-verified
+  example — now dies at boot with `fxAbort memory full` (instruments at abort:
+  slot 6816/8176 used, chunk 2096/8192), and NOT because of lowering
+  (`--no-lower` dies identically). A counter-class app (1 style, 1 label,
+  1 signal) boots and runs fine; clock-class (2 styles, 2 labels, interval)
+  does not. So the boot arena FLOOR has grown past what 2-label apps leave
+  free — bisect the runtime history (candidates: multi-word stride growth,
+  flow/jsx additions) against `APP=clock` on the emulator to find the commit.
 - **text-input example:** key-based char picker (Pebble has no keyboard) + a todo
   whose items are entered that way.
 - **Reactive position via Piu moveBy.** Position/size props are construction-time

@@ -1,47 +1,49 @@
-# signal-piu consumer example
+# signal-piu consumer example — a FULL, device-verified app
 
-Dogfoods the C11 packaging (`docs/packaging.md`): proves signal-piu works as
-an **installed npm library**, not just as an in-repo source tree.
+Dogfoods the packaging (`docs/packaging.md`): a standalone Pebble app project
+that consumes signal-piu as an **installed npm library** (the tarball `npm
+pack` produces — never this repo's source tree via relative imports) all the
+way to a **running watch app on the QEMU emulator**. Proof:
+`screenshots/consumer-e2e-t0.png` → `-t5.png` (the reactive tick advancing).
 
-## What this proves
+## Layout — the consumer scaffold
 
-- `npm pack` at the repo root produces a tarball that installs cleanly
-  outside the repo (`npm install --no-save`, no workspace/`paths` trickery).
-- The exports map (`signal-piu/signals`, `signal-piu/flow`, `signal-piu/jsx-runtime`,
-  …) resolves to real, generated `.d.ts` files (`npm run build:types` via the
-  package's `prepack` hook) — `src/app.tsx` typechecks with full generics
-  (`useState`, `computed`, `createResource`, `Show`, `VirtualList`) exactly
-  like an external consumer would see them.
-- The packaged build tool (`signal-piu/tools/lower/cli.mts`) runs correctly
-  from inside `node_modules` — not just from the repo's own `tools/` — proving
-  `"./tools/*"` in the exports map ships a working, standalone tool.
+| File | Role |
+|---|---|
+| `package.json` | `pebble` field (Moddable project) + `npm run build` |
+| `wscript`, `src/c/mdbl.c` | Pebble build glue + XS machine bootstrap |
+| `src/embeddedjs/manifest.base.json` | mod manifest (maps `runtime/*`) |
+| `tsconfig.json` | DEVICE transpile (src/tsx → src/embeddedjs/app, noCheck) |
+| `tsconfig.check.json` | STRICT typecheck against `node_modules/signal-piu` |
+| `src/tsx/examples/main.tsx` | the app — device `runtime/*` imports + Piu JSX |
+| `src/app.tsx` | typecheck-only demo of the `signal-piu/*` exports-map style |
+| `src/pkjs/index.js` | phone-side fetch proxy glue |
 
-This package has no `dependencies` entry for `signal-piu` on purpose: the
-smoke script installs whatever tarball `npm pack` *currently* produces, so
-this example always tests the real, current packaging — not a stale pinned
-version.
+## Run it
 
-## How to run
+From the signal-piu root, `npm run test:consumer` packs a fresh tarball,
+installs it here, strict-typechecks both import styles, and runs the packaged
+`dist/tools/lower/cli.mjs` on a scratch file (CI-safe — no emulator needed).
 
-From the `signal-piu` repo root:
+For the full device path (needs the Pebble SDK + emulator):
 
 ```sh
-npm run test:consumer
+cd examples/consumer
+npm install --no-save <path-to>/signal-piu-1.0.0.tgz typescript esbuild @moddable/pebbleproxy
+npm run build            # = node node_modules/signal-piu/dist/build.mjs --app main
+pebble install --emulator gabbro
 ```
 
-This packs the repo, installs the tarball into `examples/consumer/node_modules`,
-typechecks `src/app.tsx` against it, and runs the packaged lowering tool
-against a throwaway snippet to confirm it rewrites `useState` correctly.
+`build.mjs` (the COMPILED orchestrator — Node refuses to type-strip `.mts`
+under node_modules, see docs/packaging.md pitfall log) detects this project by
+its `pebble` field: app sources/manifest/scaffold come from HERE, the runtime
+and compile tools from the package. Artifacts were verified byte-identical to
+an in-repo build of the same source.
 
-## What this does NOT cover
+## Notes
 
-- **A full device build.** A real watch app also needs the Pebble/Moddable
-  project scaffold (the `pebble` field in `package.json`, `manifest.base.json`,
-  `src/c/mdbl.c`, wscript glue) and the vendored Piu host typings
-  (`types/moddable/`) wired into its own tsconfig — that's the "app template"
-  half of packaging, explicitly out of scope for v1 packaging (see
-  `docs/packaging.md`, "Not in v1"). The roadmapped `create-signal-piu`
-  scaffold CLI is the intended fix for that gap; until then, copy this repo's
-  shape as the starting template.
-- Because of the above, `src/app.tsx` never touches a real Piu host element
-  (`Label`/`Container`/…) — it only typechecks signal-piu's own API surface.
+- `main.tsx` is deliberately counter-class LEAN (one style, one label): the
+  32KB arena currently OOMs at boot for clock-class apps — measured during
+  this example's bring-up, tracked as issue #29 in `docs/roadmap.md`.
+- The scaffold is still copy-the-shape; `create-signal-piu` (roadmapped) turns
+  it into `npm create`.
