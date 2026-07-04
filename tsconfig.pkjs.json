@@ -1,0 +1,21 @@
+{
+	// PKJS (phone-side) build: src/pkjs/index.ts -> src/pkjs/index.js (the file
+	// `pebble build` bundles into the mobile app). A SEPARATE config because the
+	// PKJS sandbox is nothing like XS or Node: the mobile app's JS engine with
+	// CommonJS require and browser-ish globals (XMLHttpRequest/localStorage) —
+	// so es2017 + commonjs here (es5 is deprecated in TS 6; the modern Pebble
+	// app engines are well past es2017) while the watch runtime is es2025 ESM.
+	// No outDir: tsc emits index.js NEXT TO index.ts (an outDir equal to the
+	// source dir would be auto-excluded and find no inputs). index.js is
+	// build-generated (gitignored); the typed source is index.ts + pkjs.d.ts.
+	"compilerOptions": {
+		"target": "es2017",
+		"module": "commonjs",
+		"strict": true,
+		"lib": ["es2017"],
+		"types": [],
+		"skipLibCheck": true,
+		"newLine": "lf"
+	},
+	"include": ["src/pkjs/index.ts", "src/pkjs/pkjs.d.ts"]
+}

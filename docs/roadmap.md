@@ -43,8 +43,12 @@ device work is unblocked again.
     — never the half-measure. Closes the footgun; pairs with glitch-free above.
 
 ## Node / compile-time — ready to do
-- **createResource:** the one real hook gap — async `fetch → {loading,error,data}`
-  paired with VirtualList. Everything else in api-parity.md is covered or N/A.
+- ~~**createResource**~~ ✅ SHIPPED: `createResource(fetcher)` in signals.ts —
+  reactive `{loading,error,data,refetch}` over TWO Signal objects (tagged state
+  slot), stale settlements dropped by generation counter. 19 node tests, 100%
+  coverage held. Device fetch path = pkjs/pebbleproxy (gotcha 18); a live
+  round-trip still wants steadier emulator networking. pkjs is TypeScript now
+  (index.ts + pkjs.d.ts + tsconfig.pkjs.json; build.mts emits the .js).
 - **Conformance suite expansion:** add laws for same-value-no-notify, nested
   effect ownership, effect-in-effect disposal, memo-of-memo, error isolation
   (`__spError`), batch nesting, untrack-in-effect. Flip law 12 to MATCH once

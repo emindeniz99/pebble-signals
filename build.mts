@@ -115,6 +115,9 @@ for (const dir of ["src/embeddedjs/runtime", "src/embeddedjs/runtime-build"]) {
 	}
 }
 run(TSC, ["-p", "tsconfig.json"]);
+// PKJS (phone-side) glue: index.ts -> index.js for `pebble build` to bundle
+// into the mobile app (separate engine/config — see tsconfig.pkjs.json).
+run(TSC, ["-p", "tsconfig.pkjs.json"]);
 
 // Bundle the chosen entry into ONE app/main.js — this makes MULTI-FILE apps
 // work: the entry's local imports are inlined so the manifest only maps `main`,

@@ -7,3 +7,4 @@ src/embeddedjs/manifest.json
 coverage/
 src/embeddedjs/runtime-build/
 src/embeddedjs/runtime-types/
+src/pkjs/index.js

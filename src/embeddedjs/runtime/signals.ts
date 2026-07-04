@@ -621,6 +621,68 @@ export function provide<T, R>(ctx: { v: T }, value: T, build: () => R): R {
 	}
 }
 
+// ---- async resource -------------------------------------------------------
+// The RN/Solid "fetch → {loading,error,data}" primitive, sized for 32KB: TWO
+// Signal objects total. `v` holds the data; `st` is a TAGGED slot — 0 while
+// loading, 1 when ready, and otherwise the error value itself (no third
+// signal, no per-transition state records). loading()/error() derive from st
+// reactively, so a binding like `string={() => r.loading() ? "…" : r.data()}`
+// re-renders exactly on transitions.
+
+/** What {@link createResource} returns — reactive thunks over one in-flight fetch. */
+export interface Resource<T> {
+	/** Latest fetched value; `undefined` until the first success. Reactive. */
+	data: () => T | undefined;
+	/** True while a fetch is in flight. Reactive. */
+	loading: () => boolean;
+	/** Rejection value of the LAST fetch, or `undefined`. Reactive. */
+	error: () => unknown;
+	/** Start the fetcher again (stale responses from older calls are dropped). */
+	refetch: () => void;
+}
+
+/**
+ * Async data: run `fetcher` now, expose `{loading, error, data, refetch}` as
+ * reactive thunks. Out-of-order completions are dropped (only the newest call
+ * may settle the resource). On Pebble, `fetch()` proxies through the phone
+ * (`@moddable/pebbleproxy`, README gotcha 18) and its Response allocations are
+ * heavy for the 32KB arena — keep fetch-using apps lean and prefer decoding
+ * into a byte {@link createStore} over retaining parsed objects.
+ */
+export function createResource<T>(fetcher: () => Promise<T>): Resource<T> {
+	const v = new Signal<T | undefined>(undefined);
+	// 0 = loading, 1 = ready, anything else = the rejection value. (A fetcher
+	// that REJECTS with literal 0 or 1 would be misread — rejections are Error
+	// values in practice; two slots instead of three signals is the 32KB trade.)
+	const st = new Signal<unknown>(0);
+	let gen = 0; // drops stale settlements from superseded refetches
+	const start = () => {
+		const id = ++gen;
+		st.value = 0;
+		fetcher().then(
+			(value) => {
+				if (id !== gen) return; // a newer refetch superseded this one
+				v.value = value;
+				st.value = 1;
+			},
+			(err) => {
+				if (id !== gen) return;
+				st.value = err;
+			},
+		);
+	};
+	start();
+	return {
+		data: () => v.value,
+		loading: () => st.value === 0,
+		error: () => {
+			const s = st.value;
+			return s === 0 || s === 1 ? undefined : s;
+		},
+		refetch: start,
+	};
+}
+
 // ---- typed byte-record store ---------------------------------------------
 // Collections kept as plain JS objects cost ~450B of slots per row and kill
 // the arena at 4-5 rows (measured; README). A Store keeps records as BYTES

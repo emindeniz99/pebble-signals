@@ -172,7 +172,7 @@ Full hook/primitive parity table (what we have, what we skip, and why) is in
 | Not here | Why / what to do instead |
 |---|---|
 | React re-render model | Components run **once**. State updates flow through bindings, not re-invocation. `useState` returns `[getter, setter]` — read with `count()`. |
-| `createResource` (async data) | The one real gap — no `fetch → {loading,error,data}` helper yet. Roadmapped; today fetch by hand into a signal. |
+| `createResource` (async data) | SHIPPED — `createResource(fetcher)` → reactive `{loading, error, data, refetch}` thunks (two Signal objects total; stale responses dropped). On-device, `fetch()` proxies through the phone (gotcha 18) — keep fetch-using apps lean. |
 | `Suspense` / `ErrorBoundary` | No async render. Subscriber errors are already isolated per-effect via the `__spError` hook (a throwing effect can't kill the others). |
 | `useCallback` / `useMemo`-for-identity | Pointless — components run once, so closures are already stable. `useMemo` exists only for *value* caching. |
 | Glitch-free diamonds | Push notify re-runs a diamond sink twice through one transient value before converging (conformance law 12). Fine for a 2–4-signal watch; a lazy-computed fix is spec'd in the playbook. |
