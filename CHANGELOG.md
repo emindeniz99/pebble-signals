@@ -26,6 +26,11 @@ No registry releases yet; entries accumulate under Unreleased until the first
 - `tools/host-symbols.py`: extract the firmware host's full interned key
   list from the SDK debug ELF — with xsa-symbols this shows exactly which
   build symbols are new-to-host (the ones that cost boot slots).
+- **`lazyfat` example — 40KB total code, device-proven**: five ~8KB lazy
+  screen modules; all load on demand (instruments: modules 4→9, slot use
+  +~64B) and render. Mechanism pinned: mods have NO real preload (mcrun
+  ignores the list) — bytecode is XIP flash, module OBJECTS build at
+  load; so few-fat-functions per module + lazy importNow is THE pattern.
 - **Code-in-ROM campaign (owner's smart-split goal)**: per-FUNCTION boot
   cost discovered (4KB dies as 46 fns, boots as 8 fat fns); **16KB of
   frozen code boots** (archive 29KB); `romscreens` example — screen

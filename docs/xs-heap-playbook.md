@@ -193,6 +193,12 @@ proportional load cost that kills by 24KB. Consequences:
 - "preload-pure vs main" gains are about MODULE SEPARATION and class
   leanness, not freezing; some earlier pre-vs-main deltas were partly
   skeleton-class differences.
+- **40KB TOTAL CODE: DEVICE-PROVEN (`lazyfat` example).** Five ~8KB
+  arithmetic-fat lazy screen modules (archive 35,873B, main.js 709B):
+  boots with modules=4; five SELECTs later instruments show **modules=9
+  (all five loaded) with slot use up only ~64B** (17088→17152) and the
+  fifth screen renders its computed value on-screen ("f(3) = 41065").
+  Bytecode never enters RAM; only each screen's few function objects do.
 - The road to BIG TOTAL code (40KB+) is LAZY modules: `importNow` screen
   modules keep bytecode in flash until pushed and only the ACTIVE
   screen's objects live in RAM (lazyscreen + multilazy O(1) principle) —
