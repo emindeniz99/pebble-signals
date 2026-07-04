@@ -266,7 +266,12 @@ notifications, device info.
   (xsa 29KB); ceiling 16-24KB in that form; name-symbol diet alone did NOT
   save thin functions; classes are poor ROM tenants; `romscreens` example
   ships (screens frozen via --preload-pure, instruments-verified).
-  STILL OPEN from the campaign: (a) pin the per-function mechanism in xsl
+  MECHANISM PINNED (mcrun source): mods have NO preload — "preloaded"
+  modules execute at boot (objects in RAM, bytecode XIP). 40KB+ TOTAL code
+  = lazy importNow modules (only the active screen's objects in RAM); true
+  mod freeze = upstream ask (upstream-issue.md #5). Compiler direction
+  updated: split screens into LAZY modules (not merge into one frozen lib).
+  STILL OPEN from the campaign: (a) ~~pin the per-function mechanism in xsl~~
   source; (b) smart-split BUILD stage (merge many pure files into ONE
   frozen module + export-mangle to host-known names — the DX half);
   (c) romTable()/defineTable() data helper; (d) klass-pure cell (class

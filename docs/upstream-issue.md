@@ -130,3 +130,17 @@ All numbers come from XS instrumentation logs
 (`kModdableCreationFlagLogInstrumentation`) driven by a deterministic
 QEMU harness; repro projects and the measurement scripts are available
 on request.
+
+## 5. Mods cannot preload — the single biggest RAM lever is host-only
+
+`mcrun.js` warns "preload is unavailable in mods" and nulls the preload
+list. Host builds freeze preloaded modules into the ROM prep (xsl), but a
+mod's modules ALL execute at boot, building every module-level function
+object and structure in the 32KB machine. On a firmware-fixed 32KB
+machine this is the dominant constraint (measured: ~5-6 slots per
+module-level function at boot; 4KB of helpers dies as 46 functions,
+boots as 8).
+
+**Ask:** support preload for mod archives (xsl already implements the
+freeze for hosts), or document the intended alternative for RAM-tight
+mod code.

@@ -180,6 +180,28 @@ Diagnostic receipts for the debugging that got here (now standing tools):
 
 ## Code in ROM — the smart-split campaign (2026-07, owner's goal)
 
+**FINAL MECHANISM (mcrun source, closes the campaign's open question):
+mods have NO real preload.** `$SDK/toolchain/moddable/tools/mcrun.js`
+prints "Warning: preload is unavailable in mods" and sets
+`this.preloads = null` — the manifest preload list is IGNORED. Everything
+we called "frozen" (runtime modules, app/data) actually EXECUTES at boot;
+its objects are built in RAM. This unifies every measurement in one
+model: boot cost = per-function-OBJECT slots (~5-6 each) + array elements
+in chunk + symbols + module records, while BYTECODE stays in XIP flash
+(why 16KB of code boots: bodies never enter RAM) with a chunk-side
+proportional load cost that kills by 24KB. Consequences:
+- "preload-pure vs main" gains are about MODULE SEPARATION and class
+  leanness, not freezing; some earlier pre-vs-main deltas were partly
+  skeleton-class differences.
+- The road to BIG TOTAL code (40KB+) is LAZY modules: `importNow` screen
+  modules keep bytecode in flash until pushed and only the ACTIVE
+  screen's objects live in RAM (lazyscreen + multilazy O(1) principle) —
+  total code scales far past the boot ceiling because it never all loads
+  at once.
+- TRUE ROM-freeze for mods is an UPSTREAM feature request (xsl supports
+  it for hosts; mcrun refuses) — filed in docs/upstream-issue.md.
+
+
 Can helpers/classes/screens live in flash without paying the 32KB arena?
 MEASURED (gabbro, `gen-boot-probe --code/--diet/--fat/--klass`, lean
 skeleton, fresh-emulator verdicts):
