@@ -5,13 +5,13 @@
 	// the tools need @types/node (process/console/fs) and the DOM-free runtime
 	// check must NOT (Piu's Text/Image globals collide with lib.dom).
 	"compilerOptions": {
-		"target": "es2022",
+		"target": "es2025",
 		"module": "esnext",
 		"moduleResolution": "bundler",
 		"strict": true,
 		"noEmit": true,
 		"types": ["node"],
-		"lib": ["es2022"],
+		"lib": ["es2025"],
 		"skipLibCheck": true
 	},
 	"include": ["tools/**/*.mts"]

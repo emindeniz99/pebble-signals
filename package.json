@@ -16,8 +16,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.2",
     "@types/node": "^24.13.2",
-    "esbuild": "^0.25.0",
-    "typescript": "^5.5.0"
+    "esbuild": "^0.28.1",
+    "typescript": "^6.0.3"
   },
   "pebble": {
     "displayName": "signal-piu",

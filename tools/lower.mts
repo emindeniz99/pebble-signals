@@ -54,7 +54,7 @@ interface Edit {
 
 function program(text: string): { checker: ts.TypeChecker; sf: ts.SourceFile } {
 	const fileName = "app.js";
-	const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.ES2022, true, ts.ScriptKind.JS);
+	const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.ES2025, true, ts.ScriptKind.JS);
 	const host: ts.CompilerHost = {
 		getSourceFile: (fn) => (fn === fileName ? sf : undefined),
 		getDefaultLibFileName: () => "lib.d.ts",
@@ -74,7 +74,7 @@ function program(text: string): { checker: ts.TypeChecker; sf: ts.SourceFile } {
 			noLib: true,
 			noResolve: true,
 			types: [],
-			target: ts.ScriptTarget.ES2022,
+			target: ts.ScriptTarget.ES2025,
 			module: ts.ModuleKind.ESNext,
 		},
 		host,

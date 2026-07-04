@@ -3,9 +3,11 @@
 	// -> plain .js into src/embeddedjs/runtime-build/ (gitignored), which build.sh
 	// then minifies into runtime-min/ (what the manifest ships). Types ERASE —
 	// the emitted .js is behavior-identical to the hand-written .js it replaces
-	// (verified by an emit-diff in build.sh). target es2022 = no downleveling, no
-	// injected helpers, so top-level class/function declarations are preserved
-	// exactly (gotcha 13 alias budget unchanged).
+	// (verified by an emit-diff in build.sh). target es2025 (XS is ~ES2025): the
+	// runtime uses no post-es2022 syntax, so this emits byte-for-byte the same
+	// .js as es2022 (measured — zero diff) — no downleveling, no injected
+	// helpers, top-level class/function declarations preserved exactly (gotcha
+	// 13 alias budget unchanged). es2025 is future headroom, not a behavior change.
 	//
 	// Cross-runtime imports (`from "runtime/signals"`) resolve against the
 	// `declare module "runtime/*"` blocks in globals.d.ts, so each runtime .ts
@@ -13,11 +15,11 @@
 	// is what lets the conversion proceed one file at a time. Piu host classes
 	// come from the vendored Moddable typings.
 	"compilerOptions": {
-		"target": "es2022",
+		"target": "es2025",
 		"module": "esnext",
 		"moduleResolution": "bundler",
 		"strict": true,
-		"lib": ["es2022"],
+		"lib": ["es2025"],
 		"skipLibCheck": true,
 		"types": [],
 		"importHelpers": false,
