@@ -1,0 +1,8 @@
+build/
+node_modules/
+package-lock.json
+src/embeddedjs/app/
+src/embeddedjs/runtime-min/
+src/embeddedjs/runtime-build/
+src/embeddedjs/runtime-types/
+src/embeddedjs/manifest.json

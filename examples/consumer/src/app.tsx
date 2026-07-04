@@ -12,9 +12,9 @@
 // template" half of packaging, explicitly out of v1's scope (see
 // docs/packaging.md, "Not in v1": the create-signal-piu scaffold CLI is
 // roadmapped to fill this gap). So nothing here touches a real Piu host
-// element (Label/Container/...) — Show/VirtualList's `Node` type is `any` by
-// design, so a plain tagged object stands in for what would be real JSX host
-// elements in a device build.
+// element (Label/Container/...) — children return JSXNode (Content | string |
+// number | … since the Node/Content type split), so plain STRINGS stand in
+// for what would be real JSX host elements in a device build.
 import { useState, computed, createResource } from "signal-piu/signals";
 import { Show, VirtualList, type DataSource } from "signal-piu/flow";
 
@@ -29,8 +29,8 @@ function increment(): void {
 // ---- conditional --------------------------------------------------------------
 function CounterPanel() {
 	return (
-		<Show when={() => count() > 0} fallback={() => ({ tag: "empty" })}>
-			{() => ({ tag: "count", value: doubled.value })}
+		<Show when={() => count() > 0} fallback={() => "empty"}>
+			{() => "count: " + doubled.value}
 		</Show>
 	);
 }
@@ -61,8 +61,8 @@ const releases = createResource(() =>
 
 function ReleaseLabel() {
 	return (
-		<Show when={() => !releases.loading()} fallback={() => ({ tag: "loading" })}>
-			{() => ({ tag: "release", version: releases.data()?.version })}
+		<Show when={() => !releases.loading()} fallback={() => "loading"}>
+			{() => "release: " + releases.data()?.version}
 		</Show>
 	);
 }

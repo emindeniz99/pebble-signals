@@ -40,6 +40,29 @@ its `pebble` field: app sources/manifest/scaffold come from HERE, the runtime
 and compile tools from the package. Artifacts were verified byte-identical to
 an in-repo build of the same source.
 
+## Third-party npm packages work
+
+`main.tsx` imports [`just-capitalize`](https://www.npmjs.com/package/just-capitalize)
+(a tiny, zero-dependency, pure-JS registry package — no DOM/node APIs, so it
+runs fine on XS) and runs the label text through it. `npm install --no-save
+just-capitalize` here, then it Just Works as a normal `node_modules` import —
+no signal-piu-specific glue needed. This proves the general case: **any**
+zero/small-dependency, XS-safe (no DOM, no Node builtins) npm package can be
+used in app code the same way.
+
+Bundling-wise, esbuild only externalizes `runtime/*` (the preloaded signal-piu
+runtime) — a `node_modules` import like this one INLINES straight into the
+built `src/embeddedjs/app/main.js`. Verified: after `npm run build`, `main.js`
+contains the package's own source, e.g. its error string:
+
+```sh
+grep -o "just-capitalize expects a string argument" src/embeddedjs/app/main.js
+```
+
+They bundle into `main.js` and count against the app's ~32KB heap budget the
+same as your own code — keep them small and XS-safe (no DOM, no Node
+builtins, no big dependency trees).
+
 ## Notes
 
 - `main.tsx` is deliberately counter-class LEAN (one style, one label): the

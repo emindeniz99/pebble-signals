@@ -10,8 +10,16 @@
 // issue #29 in docs/roadmap.md. Auto-renders and ticks on its own (no buttons
 // needed), so an emulator install alone proves the e2e path: packaged runtime
 // + JSX + reactive binding + timer.
+//
+// Also proves a THIRD-PARTY npm package works in app code (README "third-party
+// npm packages" section): `just-capitalize` is a tiny, zero-dependency, pure-JS
+// registry package — no DOM/node APIs, so it runs fine on XS. esbuild only
+// externalizes `runtime/*`; a `node_modules` import like this one INLINES into
+// the bundled `main.js` (grep for its error string as proof — see the section
+// in the README).
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";
+import capitalize from "just-capitalize";
 
 const bg = new Skin({ fill: "black" });
 const base = new Style({ font: "28px Gothic", color: "white" });
@@ -23,7 +31,7 @@ render(
 	() => (
 		<Container left={0} right={0} top={0} bottom={0}>
 			<Column>
-				<Label string={() => "signal-piu " + ticks()} />
+				<Label string={() => capitalize("SIGNAL-PIU " + ticks())} />
 			</Column>
 		</Container>
 	),
