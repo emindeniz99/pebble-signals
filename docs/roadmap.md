@@ -246,6 +246,27 @@ notifications, device info.
   full). VERDICT: PRELOAD_PURE stays OPT-IN; use it for big STRUCTURED
   data on apps with slot margin (check with host-symbols/xsa-symbols);
   use data-to-Resource when margin is tight or data exceeds ~8KB scale.
+- **CODE-in-ROM curve (owner's real goal — smart splitting for CODE) —
+  FIRST CELLS MEASURED (2026-07), campaign continues.** `gen-boot-probe
+  --code N` generates N bytes of distinct pure const-arrow helpers + a
+  dispatch table (DCE-proof); lean skeleton; `--preload-pure` freezes.
+  Measured on gabbro (screenshot verdicts, fresh-emulator installs):
+  - 2KB code ALL-IN-MAIN: **boots** (xsa 13584 / main 1714 / 125 syms) —
+    code in main is cheaper than data in main (bytecode is XIP; only
+    function objects + the dispatch array materialize).
+  - 4KB code all-in-main: dies (memory full; main 2740 / 140 syms).
+  - 4KB code PRELOADED: **died in the first cell** (xsa 15591 / 133 syms;
+    manual launch re-verified) — while 4KB frozen DATA at the same class
+    boots. Working hypothesis: CODE brings ~1 new-to-host SYMBOL per
+    helper (name survives even minified: 119→133 syms vs the data module)
+    plus per-function frozen-object costs the data table doesn't pay.
+  NEXT CELLS (the campaign): symbol-dieted code module (helpers behind a
+  single dispatch export, names mangled to reused letters — the generator
+  currently emits h0..hN which minify to DISTINCT names), then re-run
+  4/8/16/32KB preloaded; classes (`const C = class` + N methods); screens
+  from ROM (preloaded builder closures + Navigator). Goal: a measured
+  budget table for "unlimited helpers/screens from ROM" and the
+  smart-split (split source-wise, MERGE+freeze build-wise) design.
 - **v2 MECHANISM PROVEN (2026-07 deep dive): data-to-Resource.** The 4KB
   table that dies all-in-main at +1.5KB boots and live-renders from the
   flash resource area (playbook "v2: data-to-Resource — DEVICE-PROVEN";
