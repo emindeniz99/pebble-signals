@@ -344,15 +344,54 @@ export const Navigator = (props: Props): Node => {
 	return host;
 };
 
+// Shared ~30fps ticker: EVERY live tween advances on ONE native timer, not one
+// setInterval per tween. Concurrent tweens then cost one native timer + one tick
+// closure total instead of N of each — the cheaper shape on the 32KB heap, and
+// the one the animate() doc promises ("a single timer"). The ticker state is
+// created LAZILY at runtime and never at preload: a module-scope object mutated
+// after preload freezes into ROM and dies on the first `.push()` (the same
+// reason signals.ts builds its graph through gi(), playbook gotcha). `tickAll`
+// is a const arrow, not a `function` (preloaded-module alias rule, gotcha 13).
+interface TweenRec {
+	sig: ReturnType<typeof signal>;
+	from: number;
+	to: number;
+	dur: number;
+	ease: (t: number) => number;
+	elapsed: number;
+}
+let ticker: { timer: number; active: TweenRec[] } | null = null;
+const STEP = 33; // ~30fps
+const tickAll = () => {
+	// tickAll is ONLY ever this timer's callback and the timer is cleared the
+	// instant `ticker` goes null (below and in stop()), so it never fires with
+	// a null ticker — assert non-null like signals.ts's G! rather than guard a
+	// branch that can't be taken.
+	const t = ticker!;
+	const a = t.active;
+	// walk downward so splicing a finished tween doesn't skip its neighbor
+	for (let i = a.length - 1; i >= 0; i--) {
+		const r = a[i];
+		r.elapsed += STEP;
+		const p = r.elapsed >= r.dur ? 1 : r.elapsed / r.dur;
+		r.sig.value = r.from + (r.to - r.from) * r.ease(p);
+		if (p >= 1) a.splice(i, 1);
+	}
+	if (a.length === 0) {
+		clearInterval(t.timer); // last tween done — release the native timer
+		ticker = null;
+	}
+};
+
 // animate(from, to, ms, easing?) — a Reanimated-style tween. Returns a getter
-// thunk backed by a signal; a single ~30fps timer eases the value from -> to
-// over `ms` and stops itself. Read it in a binding to drive UI:
+// thunk backed by a signal; the shared ~30fps ticker eases the value from -> to
+// over `ms` and drops it when it lands. Read it in a binding to drive UI:
 //   const x = animate(0, 100, 400);
 //   <Label string={() => "x " + Math.round(x())} />
-// `easing` maps progress 0..1 -> 0..1 (default linear). The timer is registered
-// with the current owner, so disposing the subtree that created it stops the
-// tween; `.stop()` cancels manually. Degrades to an instant jump where no timer
-// global exists (e.g. the Node test env).
+// `easing` maps progress 0..1 -> 0..1 (default linear). The tween is registered
+// with the current owner, so disposing the subtree that created it stops it;
+// `.stop()` cancels manually. Degrades to an instant jump where no timer global
+// exists (e.g. the Node test env).
 export function animate(
 	from: number,
 	to: number,
@@ -366,18 +405,28 @@ export function animate(
 		get.stop = () => {};
 		return get;
 	}
-	const dur = ms > 0 ? ms : 1;
-	const step = 33; // ~30fps
-	const ease = easing || ((t: number) => t);
-	let elapsed = 0;
-	const timer = setInterval(() => {
-		elapsed += step;
-		const p = elapsed >= dur ? 1 : elapsed / dur;
-		s.value = from + (to - from) * ease(p);
-		if (p >= 1) clearInterval(timer);
-	}, step);
-	track(() => clearInterval(timer)); // stop on owner dispose
-	get.stop = () => clearInterval(timer);
+	const rec: TweenRec = {
+		sig: s,
+		from,
+		to,
+		dur: ms > 0 ? ms : 1,
+		ease: easing || ((t: number) => t),
+		elapsed: 0,
+	};
+	if (!ticker) ticker = { timer: setInterval(tickAll, STEP), active: [] };
+	ticker.active.push(rec);
+	const stop = () => {
+		if (!ticker) return; // already released (natural completion or prior stop)
+		const a = ticker.active;
+		const i = a.indexOf(rec);
+		if (i >= 0) a.splice(i, 1);
+		if (a.length === 0) {
+			clearInterval(ticker.timer);
+			ticker = null;
+		}
+	};
+	track(stop); // stop on owner dispose
+	get.stop = stop;
 	return get;
 }
 
