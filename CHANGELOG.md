@@ -26,6 +26,11 @@ No registry releases yet; entries accumulate under Unreleased until the first
 - `tools/host-symbols.py`: extract the firmware host's full interned key
   list from the SDK debug ELF — with xsa-symbols this shows exactly which
   build symbols are new-to-host (the ones that cost boot slots).
+- **Lean-preload measured (v1 mechanism vindicated with headroom)**: a
+  4KB/8KB pure data module under `--preload-pure` boots + reads on a lean
+  app class with IDENTICAL slot usage at both sizes — frozen structure is
+  truly ROM; only the module's fixed cost gates it (fatal at zero margin).
+  PRELOAD_PURE stays opt-in; decision table in the playbook.
 - **v2 data-to-Resource, device-proven**: big static tables ship as ONE
   resource blob and live-decode from flash (ranged `resource.slice` +
   `String.fromArrayBuffer`); the same 4KB that dies in main.js renders

@@ -231,6 +231,21 @@ notifications, device info.
   boot-slot cost instead of removing it. #42's earlier "both die =
   total-archive ceiling" reading was wrong: A died of main-size (chunk),
   B died of module+symbol slots. Two separate budgets, not one ceiling.
+- **CORRECTION (owner pushback, measured): PRELOAD (v1's mechanism) is NOT
+  dead — it works WITH HEADROOM, and frozen data costs ZERO slots.** The
+  owner asked "kesin çalışmayacak mı?" and the missing experiment answered:
+  a LEAN skeleton + 4KB pure data module built with --preload-pure BOOTS,
+  READS (screenshot: pick(3) renders "station 0003 …"), and Navigator still
+  pushes; 8KB frozen data ALSO boots. Instruments receipt: slot used is
+  IDENTICAL at 4KB and 8KB (17104/18416) — the frozen array structure lives
+  in flash, exactly the original v1 dream; chunk grows ~0.32×payload
+  (partial materialization, 6528→7824 for +4KB). What v1 actually got wrong
+  was shipping this as a default-on free lunch: the module's FIXED cost
+  (2 ids + record + new export symbols) kills at zero-margin classes (the
+  same 4KB module dies on the ticker skeleton — PRE4K, fxAbort memory
+  full). VERDICT: PRELOAD_PURE stays OPT-IN; use it for big STRUCTURED
+  data on apps with slot margin (check with host-symbols/xsa-symbols);
+  use data-to-Resource when margin is tight or data exceeds ~8KB scale.
 - **v2 MECHANISM PROVEN (2026-07 deep dive): data-to-Resource.** The 4KB
   table that dies all-in-main at +1.5KB boots and live-renders from the
   flash resource area (playbook "v2: data-to-Resource — DEVICE-PROVEN";

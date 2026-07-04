@@ -65,7 +65,7 @@ PHONE ────────────────────────�
 | **ByteStore** | handful (the view objects) | ALL payload bytes | | | | |
 | **JSX render / hosts** | thin JS wrapper per node | | jsx-runtime code | | native struct per Content/Label (the *second ledger*) | |
 | **Export pruning (#29 fix)** | fewer boot slots | | −36% archive on clock | | | |
-| **PRELOAD_PURE (v1, OFF — dead end)** | ADDS boot slots (module records + interned symbols; v1.5 matrix) | | +1 module in the archive | | | |
+| **PRELOAD_PURE (v1, OFF — opt-in with headroom)** | FIXED cost only (records + 2 ids + export symbols); frozen data itself = ZERO slots (measured: slot use identical at 4KB and 8KB) | ~0.32×payload | +1 module; data frozen in flash | | | |
 | **importNow lazy screens (#27)** | saves ARENA bytecode only — archive symbols still intern at boot | | screen modules still cost records + symbols at map time | | | |
 | **`Resource()` data** | | | | payload mapped in place | | |
 | **createResource + PKJS** | tiny state machine | | | | | fetch/parse on the phone |

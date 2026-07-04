@@ -106,7 +106,10 @@ Mechanism (source receipts: `fxMapArchive` in the SDK toolchain's
   saturated, richlist's isn't).
 - **Modules are never free.** +2 ids + records per module, ANY placement
   — which is why PRELOAD_PURE v1 (move pure data to a preloaded module)
-  is a dead end at saturated classes, and why merging 5 runtime modules
+  cannot be default-on: at saturated classes the FIXED module cost alone
+  is fatal. (With slot HEADROOM the mechanism works and frozen data costs
+  zero slots — see the lean-preload receipt in the v2 section below.)
+  It is also why merging 5 runtime modules
   into 3 once fixed a boot death.
 - **Chunk is the cheap direction.** Inert string/bytecode data costs
   chunk, which had ~1.2KB slack on this skeleton. Data-as-strings/bytes
@@ -145,6 +148,18 @@ Why this wins where v1 lost: fxMapArchive interns MODULE symbols and charges
 module records at boot, but the archive's RESOURCES atoms are only walked
 and skipped — resource payloads cost nothing until sliced. Same reason
 imgwatch's 24.6KB archive boots.
+
+**And the lean-preload counterpart (owner pushback, measured same day):
+v1's preload mechanism DOES work when the app class has slot margin.** A
+lean skeleton (no ticker) + `--preload-pure` data module: 4KB boots and
+reads on-screen; 8KB boots too; slot used is IDENTICAL at both sizes
+(17104/18416 — the frozen array structure is genuinely in flash) while
+chunk grows ~0.32×payload. The same 4KB module dies on the ticker skeleton
+(fxAbort memory full) — the module's FIXED cost is what kills at zero
+margin, not the data. So the data ladder is now: structured data + slot
+margin → preloaded pure module (plain JS access, zero slot growth);
+tight margin or bigger data → Resource blob (zero symbols, slice+decode);
+truly huge or mutable → phone/persist.
 
 Diagnostic receipts for the debugging that got here (now standing tools):
 - `tools/host-symbols.py <sdk debug elf>` extracts the firmware host's FULL
