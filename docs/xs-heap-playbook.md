@@ -178,6 +178,45 @@ Diagnostic receipts for the debugging that got here (now standing tools):
   TimeoutError instead). This replaces blind screenshot-only verdicts for
   boot deaths.
 
+## Code in ROM — the smart-split campaign (2026-07, owner's goal)
+
+Can helpers/classes/screens live in flash without paying the 32KB arena?
+MEASURED (gabbro, `gen-boot-probe --code/--diet/--fat/--klass`, lean
+skeleton, fresh-emulator verdicts):
+
+| Cell | Verdict |
+|---|---|
+| 2KB code all-in-main (23 fns) | **BOOTS** — code in main is cheaper than data (bytecode is XIP; only function objects + dispatch materialize) |
+| 4KB code all-in-main (46 fns) | dies (memory full) |
+| 4KB code PRELOADED, 46 named fns (133 syms) | dies |
+| 4KB code PRELOADED, 46 inline fns, DIET (118 syms) | dies — name symbols were NOT the killer |
+| 4KB code PRELOADED, **8 FAT fns** | **BOOTS** |
+| 4KB code PRELOADED, 16 fns | **BOOTS** |
+| **16KB code PRELOADED, 8 fat fns (xsa 29,034B!)** | **BOOTS** — 4x past main's ceiling, and the final nail for the old "15.9KB archive ceiling" myth |
+| 24KB / 32KB code preloaded | die — code ceiling between 16 and 24KB in this form |
+| 4KB of class METHODS (44) | classifier keeps `new C()` in main (right call); 163 syms; dies — classes are POOR ROM tenants (per-method property symbols + per-function cost) |
+
+The law this adds: **frozen code pays per FUNCTION OBJECT, not per byte.**
+Same 4KB dies as 46 functions and boots as 8 — bodies are ~free (XIP
+bytecode), function objects are not (mechanism — alias/record per frozen
+function — still to be pinned in xsl source). Screens fit this perfectly:
+a screen builder is naturally ONE big function — see the `romscreens`
+example (screens module frozen via `--preload-pure`; instruments-verified
+on device: 0 aborts, 5 modules loaded, healthy heartbeat).
+
+Practical recipe for "lots of code from ROM" today:
+1. Put big, pure, const-only functions in a preload-pure module — FEW and
+   FAT (≤~16 per module measured safe at the lean class), up to ~16KB.
+2. Screens: one builder per screen in a frozen screens module
+   (`romscreens`); Navigator pushes them; no lower/auto-thunk inside pure
+   modules, so explicit thunks only; no module-scope `new Style/Skin`
+   (classifier rejects — inherit the render dict's style or create inside
+   the builder).
+3. Avoid classes in ROM modules; avoid many small helpers (either inline
+   them into their callers — esbuild does this in main — or group them
+   behind fewer fat entry points).
+4. `build.mts` now prints `symbols: N` on every build — watch it.
+
 ## Firmware heap ceiling — you cannot grow the 32KB (mdbl.c finding)
 
 The single most important constraint, and the most counter-intuitive:

@@ -260,7 +260,20 @@ notifications, device info.
     boots. Working hypothesis: CODE brings ~1 new-to-host SYMBOL per
     helper (name survives even minified: 119→133 syms vs the data module)
     plus per-function frozen-object costs the data table doesn't pay.
-  NEXT CELLS (the campaign): symbol-dieted code module (helpers behind a
+  CAMPAIGN RAN (2026-07, owner mandate) — see playbook "Code in ROM" for
+  the full table. Headlines: per-FUNCTION cost (not per-byte) is the law —
+  4KB dies as 46 fns, boots as 8 fat fns; **16KB of code boots from ROM**
+  (xsa 29KB); ceiling 16-24KB in that form; name-symbol diet alone did NOT
+  save thin functions; classes are poor ROM tenants; `romscreens` example
+  ships (screens frozen via --preload-pure, instruments-verified).
+  STILL OPEN from the campaign: (a) pin the per-function mechanism in xsl
+  source; (b) smart-split BUILD stage (merge many pure files into ONE
+  frozen module + export-mangle to host-known names — the DX half);
+  (c) romTable()/defineTable() data helper; (d) klass-pure cell (class
+  without module-scope `new`); (e) a foregrounded romscreens screenshot
+  (blocked by fresh-emulator tutorial state this session; boot itself is
+  instruments-verified).
+  ORIGINAL next-cells note: symbol-dieted code module (helpers behind a
   single dispatch export, names mangled to reused letters — the generator
   currently emits h0..hN which minify to DISTINCT names), then re-run
   4/8/16/32KB preloaded; classes (`const C = class` + N methods); screens

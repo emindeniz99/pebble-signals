@@ -29,6 +29,7 @@ import {
 	readdirSync,
 	readFileSync,
 	rmSync,
+	statSync,
 	writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -468,3 +469,30 @@ if (flag(cli["check-c"], "CHECK_C", "1", true)) {
 }
 
 run("pebble", ["build"]);
+
+// ---- symbol budget report (the boot-floor currency) ------------------------
+// Every archive symbol interns at boot; new-to-host ones cost a slot each
+// (playbook "The boot floor"). Print the count so a symbol regression is
+// visible on every build; tools/host-symbols.py gives the precise
+// new-to-host split when the SDK debug ELF is available.
+try {
+	const xsa = "build/mods/gabbro/mc.xsa";
+	if (existsSync(xsa)) {
+		const buf = readFileSync(xsa);
+		let off = 8;
+		const size = buf.readUInt32BE(0);
+		while (off < size - 8) {
+			const atomSize = buf.readUInt32BE(off);
+			if (buf.toString("latin1", off + 4, off + 8) === "SYMB") {
+				console.log(
+					`symbols: ${buf.readUInt16LE(off + 8)} in ${xsa} (${statSync(xsa).size}B) — ` +
+						"each new-to-host name costs a boot slot; see tools/host-symbols.py",
+				);
+				break;
+			}
+			off += atomSize;
+		}
+	}
+} catch {
+	// report only — never fail the build over it
+}

@@ -26,6 +26,12 @@ No registry releases yet; entries accumulate under Unreleased until the first
 - `tools/host-symbols.py`: extract the firmware host's full interned key
   list from the SDK debug ELF — with xsa-symbols this shows exactly which
   build symbols are new-to-host (the ones that cost boot slots).
+- **Code-in-ROM campaign (owner's smart-split goal)**: per-FUNCTION boot
+  cost discovered (4KB dies as 46 fns, boots as 8 fat fns); **16KB of
+  frozen code boots** (archive 29KB); `romscreens` example — screen
+  builders frozen into ROM via `--preload-pure` (instruments-verified);
+  `gen-boot-probe` gains `--code/--diet/--fat/--klass`; every build now
+  prints its archive `symbols:` count.
 - **Lean-preload measured (v1 mechanism vindicated with headroom)**: a
   4KB/8KB pure data module under `--preload-pure` boots + reads on a lean
   app class with IDENTICAL slot usage at both sizes — frozen structure is
