@@ -361,7 +361,11 @@ interface TweenRec {
 	elapsed: number;
 }
 let ticker: { timer: number; active: TweenRec[] } | null = null;
-const STEP = 33; // ~30fps
+// ~30fps. The SF32LB52J (240MHz) could afford 60fps, but the memory-LCD panel
+// flush rate — not the CPU — is the real limiter, and it isn't documented; 30fps
+// is the classic Pebble animation cadence and halves signal writes vs 60fps for
+// a glanceable watch tween. Revisit only with an on-device flush-rate measurement.
+const STEP = 33;
 const tickAll = () => {
 	// tickAll is ONLY ever this timer's callback and the timer is cleared the
 	// instant `ticker` goes null (below and in stop()), so it never fires with
@@ -390,8 +394,10 @@ const tickAll = () => {
 //   <Label string={() => "x " + Math.round(x())} />
 // `easing` maps progress 0..1 -> 0..1 (default linear). The tween is registered
 // with the current owner, so disposing the subtree that created it stops it;
-// `.stop()` cancels manually. Degrades to an instant jump where no timer global
-// exists (e.g. the Node test env).
+// `.stop()` cancels manually. setInterval is always present on device (the base
+// mod manifest provides the timer module) — no no-timer fallback: if it is ever
+// absent the throw is the correct fail-loud signal (a missing timer module),
+// not a silently frozen tween.
 export function animate(
 	from: number,
 	to: number,
@@ -400,11 +406,6 @@ export function animate(
 ): Tween {
 	const s = signal(from);
 	const get = (() => s.value as number) as Tween;
-	if (typeof setInterval !== "function") {
-		s.value = to; // no timer here — settle immediately
-		get.stop = () => {};
-		return get;
-	}
 	const rec: TweenRec = {
 		sig: s,
 		from,

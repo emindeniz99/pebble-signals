@@ -4,7 +4,7 @@
 // look through one wrapper layer via inner().
 import { loadRuntime, StubContent, makeChecker } from "./load-runtime.mts";
 
-const { signals, jsx: jsxM, flow, tick, sandbox, liveTimers } = await loadRuntime();
+const { signals, jsx: jsxM, flow, tick, liveTimers } = await loadRuntime();
 const { signal } = signals;
 const { createRoot } = signals;
 const { jsx } = jsxM;
@@ -413,17 +413,5 @@ const [, dStop] = createRoot(() => {
 	return 0;
 });
 dStop();
-
-// animate degrades to an instant jump when no timer global exists
-const savedSI = sandbox.setInterval;
-sandbox.setInterval = undefined;
-const [, dJump] = createRoot(() => {
-	const z = animate(5, 42, 100);
-	check("animate settles instantly without a timer", z() === 42);
-	z.stop(); // no-timer stop() is a no-op
-	return 0;
-});
-dJump();
-sandbox.setInterval = savedSI;
 
 done();
