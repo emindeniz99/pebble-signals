@@ -1,4 +1,4 @@
-// Unit tests for the build tools (ported from build.sh's Python heredocs).
+// Unit tests for the build tools (ported from build.mts's Python heredocs).
 // Uses Node's BUILT-IN test runner + assert — zero dependencies, runs .mts
 // natively (Node >=22.18 type-stripping). Run: node --test tests/tools.test.mts
 import assert from "node:assert/strict";

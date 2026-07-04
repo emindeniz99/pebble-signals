@@ -5,7 +5,7 @@ Where every piece lives and when it runs, for a signal-piu app on Pebble
 **flash** (256KB resource area + the mod archive — cheap, persistent, ROM)
 and the **32KB JS heap** (the "arena" — the scarce one).
 
-## Build time (on your machine, `./build.sh`)
+## Build time (on your machine, `./build.mts`)
 1. **tsc** compiles `src/tsx/**` → `src/embeddedjs/app/**.js` (JSX → `jsx()`
    calls; types erased, `noCheck`).
 2. **esbuild --bundle** stitches the chosen entry + its local `./imports` into

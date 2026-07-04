@@ -258,7 +258,7 @@ export function signal(value: unknown): Signal {
 // ---- packed signals — the Stage 2 lowering target -------------------------
 // A packed signal is an INTEGER: the id doubles as its subscription row and
 // indexes G.val (ONE slot per value instead of a ~4-slot Signal object).
-// build.sh lowers `const [x, setX] = useState(v)` to this API at compile
+// build.mts lowers `const [x, setX] = useState(v)` to this API at compile
 // time (tools/lower.py): x() -> S.get(x), setX(e) -> S.set(x, e). Authoring
 // DX is unchanged and the per-state getter/setter closures never exist at
 // runtime. set() keeps useState's functional-update contract.

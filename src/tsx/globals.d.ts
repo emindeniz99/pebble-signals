@@ -93,7 +93,7 @@ declare module "runtime/signals" {
 	export function useMemo<T>(fn: () => T): () => T;
 	/**
 	 * Packed lowering target — integer-id signals with zero per-signal objects.
-	 * `build.sh` rewrites `useState`/`signal`/`computed` to this at compile time;
+	 * `build.mts` rewrites `useState`/`signal`/`computed` to this at compile time;
 	 * you rarely call it by hand.
 	 */
 	export const S: {

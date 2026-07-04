@@ -1,9 +1,9 @@
 {
 	// EMIT pass for the TypeScript runtime: compiles src/embeddedjs/runtime/*.ts
-	// -> plain .js into src/embeddedjs/runtime-build/ (gitignored), which build.sh
+	// -> plain .js into src/embeddedjs/runtime-build/ (gitignored), which build.mts
 	// then minifies into runtime-min/ (what the manifest ships). Types ERASE —
 	// the emitted .js is behavior-identical to the hand-written .js it replaces
-	// (verified by an emit-diff in build.sh). target es2025 (XS is ~ES2025): the
+	// (verified by an emit-diff in build.mts). target es2025 (XS is ~ES2025): the
 	// runtime uses no post-es2022 syntax, so this emits byte-for-byte the same
 	// .js as es2022 (measured — zero diff) — no downleveling, no injected
 	// helpers, top-level class/function declarations preserved exactly (gotcha

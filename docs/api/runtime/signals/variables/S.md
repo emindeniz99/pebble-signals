@@ -11,7 +11,7 @@
 Defined in: src/tsx/globals.d.ts:113
 
 Packed lowering target — integer-id signals with zero per-signal objects.
-`build.sh` rewrites `useState`/`signal`/`computed` to this at compile time;
+`build.mts` rewrites `useState`/`signal`/`computed` to this at compile time;
 you rarely call it by hand.
 
 ## Type Declaration

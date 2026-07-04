@@ -1,7 +1,7 @@
 // Per-app runtime tree-shaking: prune the manifest to the transitive closure of
 // the runtime modules the app actually imports, so an app that never imports
 // runtime/flow doesn't preload OR map it (every preloaded module costs a few XS
-// aliases at boot). Ported from build.sh's Python heredoc to a testable module.
+// aliases at boot). Ported from build.mts's Python heredoc to a testable module.
 //
 // Usage (CLI): node tools/treeshake.mts <appSrc> <manifestPath>
 import { readFileSync, writeFileSync } from "node:fs";

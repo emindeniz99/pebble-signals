@@ -207,7 +207,7 @@ Integration status — **BOTH STAGES SHIPPED and verified on-device**:
 
 ## Code-review pass (post Stage 1+2) — findings
 
-Reviewed: signals.js, flow.js, jsx-runtime.js, tools/lower.py, build.sh.
+Reviewed: signals.js, flow.js, jsx-runtime.js, tools/lower.py, build.mts.
 
 - **signals.js**: bit-31 arithmetic verified safe end to end (JS bitwise ops
   coerce to int32; `Math.clz32` coerces ToUint32 — `1 << 31` masks round-trip

@@ -1,6 +1,6 @@
 // Derive the mod manifest's image/vector resources from the app source, so an
 // app bundles exactly the assets it names and nothing else. Ported from the
-// Python heredoc in build.sh to a testable TypeScript module (Node runs .mts
+// Python heredoc in build.mts to a testable TypeScript module (Node runs .mts
 // natively via type-stripping — no compile step).
 //
 //  - bitmaps: every `new Texture("x.png")` -> resources["*"] += ../../assets/x

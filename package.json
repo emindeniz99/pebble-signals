@@ -43,14 +43,14 @@
     "build:runtime": "tsc -p tsconfig.runtime-build.json",
     "test": "npm run build:runtime && node --test --experimental-vm-modules tests/*.test.mts",
     "typecheck": "tsc -p tsconfig.check.json && tsc -p tsconfig.runtime-build.json && tsc -p tsconfig.tools.json",
-    "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/",
+    "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/ build.mts",
     "format:c": "clang-format -i src/c/*.c",
     "check:c": "clang-format --dry-run --Werror src/c/*.c",
-    "lint": "biome lint src/embeddedjs/runtime/ tools/ tests/",
-    "check": "biome check src/embeddedjs/runtime/ tools/ tests/",
+    "lint": "biome lint src/embeddedjs/runtime/ tools/ tests/ build.mts",
+    "check": "biome check src/embeddedjs/runtime/ tools/ tests/ build.mts",
     "docs": "npx -y -p typedoc@0.28 -p typedoc-plugin-markdown@4 typedoc",
     "coverage": "npm run build:runtime && node --test --experimental-vm-modules --experimental-test-coverage --test-coverage-include='src/embeddedjs/runtime-build/**' --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 tests/*.test.mts",
-    "build": "./build.sh",
+    "build": "node build.mts",
     "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",
     "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20"
   }

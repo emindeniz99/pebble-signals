@@ -14,5 +14,5 @@
 		"lib": ["es2025"],
 		"skipLibCheck": true
 	},
-	"include": ["tools/**/*.mts"]
+	"include": ["tools/**/*.mts", "build.mts"]
 }

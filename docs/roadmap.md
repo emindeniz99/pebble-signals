@@ -13,10 +13,10 @@ device work is unblocked again.
   runner + isolate-wide V8 coverage that SEES the vm sandbox — vitest-v8 reports
   0% for vm code, so node:test won over vitest; c8 dropped). Tools are `.mts`
   (manifest gen / fontcheck / treeshake / lower / classify), strict-typechecked
-  via `tsconfig.tools.json`. Toolchain on TS 6 + target/lib es2025. REMAINING:
-  auto-generate the `globals.d.ts` runtime-API half (`tsc --declaration`) instead
-  of hand-maintaining it (B6); optionally fold `build.sh` into a `build.mts`
-  orchestrator (C14).
+  via `tsconfig.tools.json`. Toolchain on TS 6 + target/lib es2025. `build.sh` is
+  now `build.mts` (C14 done — verified byte-identical artifacts + successful
+  `pebble build`). REMAINING: auto-generate the `globals.d.ts` runtime-API half
+  (`tsc --declaration`) instead of hand-maintaining it (B6).
 - **Core-reactivity round (DECIDED 2026-07 — do it): glitch-free + running-owner
   together.** Two core changes the owner wants shipped as ONE careful pass —
   full test + byte-emit measurement + on-device verify (emulator is healthy) —
@@ -102,7 +102,7 @@ device work is unblocked again.
   a diagnostic: it flags that even `hint.tsx` is impure ONLY because of a module-
   scope `new Style` — the "smart module splitting" hint.
 - **v1 wiring (TODO, behind `PRELOAD_PURE=1`, default off until measured):**
-  build.sh runs the classifier over each app submodule; PURE ones get added to
+  build.mts runs the classifier over each app submodule; PURE ones get added to
   the manifest `modules` + `preload` (ROM) instead of being bundled into main;
   IMPURE ones bundle into main as today. Measure the heap delta on a healthy
   emulator before flipping the default (Rule 2) — a watchface with a big static

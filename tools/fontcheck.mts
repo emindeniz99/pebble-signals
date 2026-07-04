@@ -1,8 +1,8 @@
 // Font sanity check (gotcha 20): an invalid font string renders NOTHING — blank
 // text, no error, hours lost. Validate every `font:` literal in the app source
 // against the Pebble system-font table at COMPILE time and fail loud. Ported
-// from build.sh's Python heredoc to a testable module. SKIP_FONTCHECK=1 (in
-// build.sh) bypasses it for custom/new fonts.
+// from build.mts's Python heredoc to a testable module. SKIP_FONTCHECK=1 (in
+// build.mts) bypasses it for custom/new fonts.
 //
 // Usage (CLI): node tools/fontcheck.mts <appSrc>   (exit 1 on a bad font)
 import { readFileSync } from "node:fs";
