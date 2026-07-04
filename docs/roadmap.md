@@ -276,8 +276,11 @@ notifications, device info.
   advisory in build.mts; limit bisect narrowed to the 112-131KB archive
   band; lazyklass cell corrected the class verdict (fine when lazy; cost
   = method-name symbols). Remaining conveniences: automated squash pass
-  (advisory only today), folder-convention auto screen splitting,
-  romscreens white-screen quirk.
+  (advisory only today), folder-convention auto screen splitting.
+  romscreens white-screen quirk SOLVED (2026-07): the prune keep-set
+  missed preload-pure module files, so `jsxs` was pruned out of
+  jsx-runtime; build.mts now scans pureFiles like lazyFiles —
+  screens 1/2/3 device-verified rendering + nav.
   ROUND 2 (owner Q&A, device-proven): lazymany (70 thin fns, runtime
   load) DIES -> lazypack (same bodies, ONE switch-packed fn) WORKS — the
   compiler needs a SQUASH/inline pass for many-component screens; lazyone

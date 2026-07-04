@@ -253,9 +253,18 @@ proportional load cost that kills by 24KB. Consequences:
   build) and module-scope `new` (classifier keeps it in main). The
   earlier "classes are poor tenants" verdict applied to the all-in-main
   cell, not to lazy modules.
-- KNOWN QUIRK (open): `romscreens` runs healthily (instruments: 0 aborts,
-  5 modules) but its screen shows WHITE in the emulator — the render
-  dict's black skin appears unapplied on that app; investigate.
+- SOLVED QUIRK: `romscreens` ran healthily (0 aborts, 5 modules) but
+  showed WHITE — bisect proved the bug lived in the `--preload-pure` path
+  (same app without the flag rendered black/fine). Root cause: the
+  runtime-min prune keep-set scanned main.js + lazy modules + shipped
+  runtime siblings but NOT preload-pure module files, so `jsxs` (imported
+  only by app/screens.js — main.js uses just `jsx`) was demoted out of
+  jsx-runtime and the frozen builders failed silently at render. Fix:
+  build.mts now importScans `pureFiles` into the keep-set exactly like
+  lazyFiles. Verified on gabbro: screens 1→2→3 render with text, back
+  pops to 2. Lesson: EVERY shipped module — lazy, pure, sibling — must
+  feed the prune keep-set; a module the scan can't see is a module the
+  prune will break.
 - The road to BIG TOTAL code (40KB+) is LAZY modules: `importNow` screen
   modules keep bytecode in flash until pushed and only the ACTIVE
   screen's objects live in RAM (lazyscreen + multilazy O(1) principle) —

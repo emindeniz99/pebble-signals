@@ -104,5 +104,10 @@ No registry releases yet; entries accumulate under Unreleased until the first
   Node refuses type-stripping under node_modules).
 
 ### Fixed
+- romscreens white screen: the runtime-min prune keep-set never scanned
+  preload-pure module files, so `jsxs` (imported only by the frozen
+  screens module) was demoted out of jsx-runtime and render failed
+  silently. build.mts now importScans pureFiles like lazyFiles;
+  device-verified (screens 1/2/3 render + select/back nav).
 - #29 boot regression (arena floor vs runtime size) via export pruning;
   the "swapped-screen reactive crash" was the same pressure — overturned.

@@ -229,6 +229,7 @@ if (existsSync("tsconfig.pkjs.json")) run(TSC, ["-p", "tsconfig.pkjs.json"]);
 const preloadPure = flag(cli["preload-pure"], "PRELOAD_PURE", "1", false) && treeshake;
 const entryJs = `src/embeddedjs/app/examples/${APP}.js`;
 const pureIds: string[] = [];
+const pureFiles: string[] = [];
 if (preloadPure && existsSync(entryJs)) {
 	let entrySrc = readFileSync(entryJs, "utf8");
 	const manifest = JSON.parse(readFileSync("src/embeddedjs/manifest.json", "utf8")) as {
@@ -260,6 +261,7 @@ if (preloadPure && existsSync(entryJs)) {
 		manifest.preload.push(id);
 		entrySrc = entrySrc.replaceAll(`"${spec}"`, `"${id}"`);
 		pureIds.push(id);
+		pureFiles.push(file);
 		// ship the module minified like the runtime (bundle-mode for DCE;
 		// runtime/* and app/* stay external)
 		if (minify)
@@ -408,6 +410,9 @@ if (prune) {
 	importScan("src/embeddedjs/app/main.js", keeps);
 	// lazy app modules import runtime exports the entry may not — keep those
 	for (const file of lazyFiles) importScan(file, keeps);
+	// preload-pure app modules likewise (romscreens white-screen: screens.js
+	// needed jsxs, main.js didn't — pruning it broke render silently)
+	for (const file of pureFiles) importScan(file, keeps);
 	// sibling runtime modules that actually SHIP (per the possibly-treeshaken
 	// manifest) also pull exports from each other
 	for (const name of Object.keys(shipped ?? {})) {
