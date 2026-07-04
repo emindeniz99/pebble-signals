@@ -114,6 +114,55 @@ Mechanism (source receipts: `fxMapArchive` in the SDK toolchain's
 - **The export-pruning #29 fix worked mostly as a SYMBOL diet**: every
   demoted export removes an archive symbol (a boot slot), not just bytes.
 
+## v2: data-to-Resource — DEVICE-PROVEN (2026-07 deep dive)
+
+The working successor to PRELOAD_PURE for DATA, proven end-to-end on gabbro:
+the SAME 4KB station table that kills the probe class all-in-main at +1.5KB
+**boots and live-decodes from the flash resource area** (screenshot receipt:
+the probe label ticking through "station 0004 — sector 2 relay uplink…").
+`tools/gen-boot-probe.mts --bytes 4096 --res` regenerates the whole probe.
+
+Recipe (every step earned by a measured death):
+- Pack the table as ONE binary blob — `[u16 count][u16 end-offsets][payload]`
+  — bundled via the manifest `data` bucket. Boot cost: ~the decoder's ~220 B
+  of bytecode; ZERO new-to-host symbols (verified — identical 47-symbol set
+  as booting navmany); no module, no array structure.
+- `new Resource("blob")` is a petrified HOST BUFFER viewing flash in place
+  (Resource.c: `xsSetHostBuffer` + petrify). The pebble host injects the
+  `Resource` global (host/main.js) — works from mods.
+- **DO NOT wrap the whole resource**: `new Uint8Array(resource)` dies at
+  boot with `fxAbort memory full` even for a 2-BYTE blob (measured).
+- **DO NOT decode with `String.fromCharCode.apply`** at render depth: it
+  spreads one argument per byte onto the 6KB JS stack — `fxAbort JavaScript
+  stack overflow` (measured; the label thunk runs deep inside
+  render→effect→pick).
+- DO use ranged `resource.slice(a, b)` (native, returns a small transient
+  ArrayBuffer copy of just the range) + **`String.fromArrayBuffer`** (the
+  Moddable XS extension — ONE call, no stack spreading; host-verified
+  symbol). Per-read cost = the entry's bytes, transient.
+
+Why this wins where v1 lost: fxMapArchive interns MODULE symbols and charges
+module records at boot, but the archive's RESOURCES atoms are only walked
+and skipped — resource payloads cost nothing until sliced. Same reason
+imgwatch's 24.6KB archive boots.
+
+Diagnostic receipts for the debugging that got here (now standing tools):
+- `tools/host-symbols.py <sdk debug elf>` extracts the firmware host's FULL
+  interned key list (1423 keys on gabbro 4.17) straight from
+  `gxPreparation`; `comm -23` against `tools/xsa-symbols.py … list` shows
+  exactly which of a build's symbols are new-to-host (navmany: 47 of 123 —
+  including ALL Graph property names and every kept runtime export: the
+  precise symbol-diet shopping list).
+- The mod area is the MCU's INTERNAL flash, directly addressable (XIP):
+  `kModulesStart` pointers are dereferenced raw (`xsHost.c`), so archive
+  BYTES are true ROM — only structure (symbols/modules/records) costs boot.
+- Live abort reasons ARE capturable: run `pebble logs --emulator gabbro` in
+  the background and REINSTALL (auto-launch) — `fxAbort <reason>` lines and
+  periodic `instruments:` heartbeats arrive on that channel (verify the
+  capture is alive first: it intermittently loses the race and prints a
+  TimeoutError instead). This replaces blind screenshot-only verdicts for
+  boot deaths.
+
 ## Firmware heap ceiling — you cannot grow the 32KB (mdbl.c finding)
 
 The single most important constraint, and the most counter-intuitive:

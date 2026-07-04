@@ -49,7 +49,7 @@ PHONE ────────────────────────�
 | **XS chunk heap** | 8,192 B initial (grows in arena) | Variable-size blocks, GC-compacted: TypedArray contents, string chars | Bulk data at 1 byte/byte — ByteStore, packed-core tables, bitmasks | Arena pressure (shares the 32KB with slots) |
 | **XS stack** | 6,144 B fixed | JS call stack | — | Deep recursion (keep trees shallow) |
 | **Mod archive (flash ROM)** | no byte ceiling — costs boot SLOTS (every symbol interns at map time; every module = records + 2 ids) + CHUNK (bytecode) | The `.xsa`: main.js bytecode + preloaded (frozen) modules | Code + frozen constants that never mutate | At a saturated class +1 symbol or +1 module = silent boot death (playbook "The boot floor") |
-| **Resource area (flash RO)** | 256 KB | Read-only files bundled via manifest resources | Big static data: fonts, images, tables — `Resource()` maps it with ZERO arena copy | Read-only; 256 KB total |
+| **Resource area (flash RO)** | 256 KB | Read-only files bundled via manifest resources | Big static data: fonts, images, tables — `Resource()` maps it with ZERO arena copy. JS access DEVICE-VERIFIED: ranged `resource.slice(a,b)` + `String.fromArrayBuffer` (whole-blob `new Uint8Array(resource)` and `fromCharCode.apply` both abort — playbook "v2: data-to-Resource") | Read-only; 256 KB total |
 | **Native app heap** | ~122 KB | The C heap (the `Heap Usage … <122600B>` log) | Piu's native halves of every content/skin/style live here for free (from the arena's view) | Not ours to allocate from JS directly |
 | **Worker pool** | 10.5 KB | Separate background-worker RAM | C-only logic that outlives the app | NO XS machine (compile-error receipt) and no resource access |
 | **Persist KV** | cap unmeasured — probe before relying | `persist_*` key-value flash, shared app ↔ worker | Small durable state: settings, counters, last-known values | Rule 2: don't assume the classic 4 KB cap without measuring |
@@ -77,7 +77,7 @@ PHONE ────────────────────────�
 |---|---|---|---|
 | Mutable app state (counters, flags) | Signals (slot heap) | Plain object graphs | Packed core makes a signal an integer index |
 | Bulk mutable bytes (lists, buffers) | ByteStore / TypedArray (chunk) | Arrays of objects/strings | 1 byte costs 1 byte; objects cost 16 B/slot ×N |
-| Static tables, big constants | Flash **resources** via `Resource()` | main.js or preloaded modules | Resources map in place: zero arena, zero boot symbols; archive data costs chunk and archive structure costs boot slots |
+| Static tables, big constants | Flash **resources** via `Resource()` | main.js or preloaded modules | DEVICE-PROVEN (v2): a 4KB table dead all-in-main live-renders from a resource blob; zero boot symbols, per-read transient slice |
 | Code every screen needs (runtime, nav) | Mod archive, preloaded + pruned | — | Frozen code; export pruning keeps only what the app imports |
 | Code for rarely-visited screens | Separate non-preloaded modules via `importNow` (#27) | main.js | Bytecode loads on first push, not at boot — but the module's SYMBOLS still intern at boot (playbook "The boot floor"), so this needs slot headroom |
 | Derived values | Recompute (plain function) | `computed` | CPU is free, RAM is not — `computed` caches, i.e. spends RAM to save CPU |

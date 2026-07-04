@@ -20,8 +20,16 @@ No registry releases yet; entries accumulate under Unreleased until the first
 - Examples: consumer (npm-package proof), watchface, worker, migration
   (before/after), navreactive, navmany.
 - Boot-floor measurement kit: `tools/gen-boot-probe.mts` (one-variable boot
-  probes: data bytes / extra modules / fresh symbol interning) and
-  `tools/xsa-symbols.py` (count the symbols a mod archive interns at boot).
+  probes: data bytes / extra modules / fresh symbol interning / `--res`
+  data-to-Resource variant) and `tools/xsa-symbols.py` (count the symbols a
+  mod archive interns at boot).
+- `tools/host-symbols.py`: extract the firmware host's full interned key
+  list from the SDK debug ELF — with xsa-symbols this shows exactly which
+  build symbols are new-to-host (the ones that cost boot slots).
+- **v2 data-to-Resource, device-proven**: big static tables ship as ONE
+  resource blob and live-decode from flash (ranged `resource.slice` +
+  `String.fromArrayBuffer`); the same 4KB that dies in main.js renders
+  live. See playbook "v2: data-to-Resource — DEVICE-PROVEN".
 - `coexist` example (device-verified): hand-written imperative Piu and
   signal-piu JSX in one Application, updating independently — the
   region-at-a-time migration pattern (see docs/migration.md "Coexistence").

@@ -231,13 +231,20 @@ notifications, device info.
   boot-slot cost instead of removing it. #42's earlier "both die =
   total-archive ceiling" reading was wrong: A died of main-size (chunk),
   B died of module+symbol slots. Two separate budgets, not one ceiling.
-- **v2 REDIRECTED: the real levers are the SYMBOL DIET and the slot
-  floor** — fewer new-to-host symbols (export pruning already does this;
-  the true reason the #29 fix worked), fewer top-level bindings, fewer
-  modules, data as strings/bytes (chunk) not structure (slots).
-  `importNow` lazy screens (#27) save chunk-side bytecode but NOT boot
-  slots (symbols intern at map time regardless) — design that example on
-  an app class with slot headroom, and say so in it.
+- **v2 MECHANISM PROVEN (2026-07 deep dive): data-to-Resource.** The 4KB
+  table that dies all-in-main at +1.5KB boots and live-renders from the
+  flash resource area (playbook "v2: data-to-Resource — DEVICE-PROVEN";
+  `gen-boot-probe --res` regenerates). Two port gotchas earned on the way:
+  whole-blob `new Uint8Array(resource)` = memory-full abort; per-char
+  `fromCharCode.apply` at render depth = stack-overflow abort — use ranged
+  `resource.slice()` + `String.fromArrayBuffer`. REMAINING to productize:
+  (a) a `defineTable()`-style runtime/build helper (blob packer + typed
+  accessor) so apps get this without hand-rolling the decoder; (b) the
+  SYMBOL DIET with the new precision tooling — `tools/host-symbols.py`
+  shows navmany pays for exactly 47 new-to-host symbols, ~10 of them Graph
+  property names and ~17 kept runtime-export names (an export-rename pass
+  to host-known names in prune-exports could reclaim most); (c) `importNow`
+  caveat stands (saves bytecode, not boot slots).
 
 ## Product ideas (RN-parity, evaluated in api-parity.md)
 - react-compat shim (cosmetic — decided against; we stay honestly Solid-flavored),
