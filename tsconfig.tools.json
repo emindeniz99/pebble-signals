@@ -12,7 +12,10 @@
 		"noEmit": true,
 		"types": ["node"],
 		"lib": ["es2025"],
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		// tools import each other WITH the .mts extension (node type-stripping
+		// requires it in the specifier); safe here because this config is noEmit.
+		"allowImportingTsExtensions": true
 	},
 	"include": ["tools/**/*.mts", "build.mts"]
 }

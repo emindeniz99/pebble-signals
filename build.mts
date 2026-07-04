@@ -168,7 +168,7 @@ esbuild.buildSync({
 // closures and the Signal object never exist at runtime. AST-based; anything
 // ambiguous bails to the object API. A prod run re-lowers its own output and
 // refuses to write if it is not a fixed point. Guarded by `--selftest`.
-run(process.execPath, ["tools/lower.mts", "src/embeddedjs/app/main.js"]);
+run(process.execPath, ["tools/lower/cli.mts", "src/embeddedjs/app/main.js"]);
 if (minify)
 	tryEsbuild({
 		entryPoints: ["src/embeddedjs/app/main.js"],

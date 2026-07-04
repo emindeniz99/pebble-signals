@@ -230,7 +230,7 @@ Reviewed: signals.js, flow.js, jsx-runtime.js, tools/lower.py, build.mts.
   (`checker.getSymbolAtLocation`), so shadowing, property access
   (`st.count()` vs a state `count`), and aliasing are correct by
   construction, not by heuristic. Ambiguous pairs bail to the object API.
-  Guarded by `node tools/lower.mts --selftest`.
+  Guarded by `node tools/lower/cli.mts --selftest`.
 - **Gap found and fixed during this pass**: For kept rows in a Map — now
   parallel arrays (commit 6bdf174).
 
@@ -248,7 +248,7 @@ Reviewed: signals.js, flow.js, jsx-runtime.js, tools/lower.py, build.mts.
 3. **Owner packing**: each createRoot allocates `{d:[]}` (~4 slots) — For
    rows each carry one. Parallel-array owner table keyed by root id:
    ~60 B/root. Effort M.
-4. ~~esbuild-plugin lowering~~ **DONE** (tools/lower.mts): the useState
+4. ~~esbuild-plugin lowering~~ **DONE** (tools/lower/cli.mts): the useState
    transform is now AST-based on the TypeScript compiler API — python is
    out of the pipeline, rewrites are binding-symbol-exact. RAM-neutral;
    the tooling-robustness win is banked.
@@ -348,7 +348,7 @@ useState lowering (RAM + smaller archive), lazy multiscreen (O(1 screen)).
 
 ## #20 ts-morph vs raw TS Compiler API — DECISION: keep raw API
 
-tools/lower.mts uses the raw TypeScript Compiler API. ts-morph wraps the
+tools/lower/cli.mts uses the raw TypeScript Compiler API. ts-morph wraps the
 SAME engine with nicer ergonomics. Decision: KEEP the raw API. Rationale:
 (1) zero new dependency — typescript is already required for tsc; ts-morph
 would need a real install, at odds with the repo's `npx -y esbuild` /

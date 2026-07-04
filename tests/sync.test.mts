@@ -7,7 +7,7 @@
 // it surfaces as a loud, readable diff instead of lower silently wrapping nothing.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { PIU_HOSTS, REACTIVE_PROPS } from "../tools/lower.mts";
+import { PIU_HOSTS, REACTIVE_PROPS } from "../tools/lower/runtime-meta.mts";
 
 test("sync: lower derives the full Piu host set from jsx-runtime", () => {
 	assert.deepEqual(

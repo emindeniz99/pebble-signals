@@ -42,7 +42,7 @@ glue) — that part is TEMPLATE, not library. The flow:
 3. Author `src/tsx/*.tsx` importing from `signal-piu/signals` etc. — full types.
 4. Build with the packaged orchestrator/tools: point the build at
    `node_modules/signal-piu/build.mts` (or copy it) — it transpiles JSX, runs
-   the lowering (`tools/lower.mts`), minifies the runtime from
+   the lowering (`tools/lower/cli.mts`), minifies the runtime from
    `node_modules/signal-piu/src/embeddedjs/runtime/`, and maps the manifest.
 
 ## Not in v1 (explicit non-goals, so nobody assumes)
