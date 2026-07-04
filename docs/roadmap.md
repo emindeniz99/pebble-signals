@@ -184,7 +184,7 @@ notifications, device info.
 - react-compat shim (cosmetic — decided against; we stay honestly Solid-flavored),
   gesture/scroll polish, BUNDLE=preload for pure shared submodules (measure).
 
-## Web IDE / CloudPebble angle (2026-07 idea, unscoped)
+## Web IDE / CloudPebble — DECIDED 2026-07: tiers 1+2 committed, tier 3 evaluate
 - coredevices/cloudpebble (the revived web IDE) runs builds AND the QEMU
   emulator SERVER-side, streaming the screen to the browser — so "React-style
   Pebble apps in the browser" does NOT require QEMU-in-browser. Three tiers to
@@ -195,4 +195,38 @@ notifications, device info.
   2. **Browser-only preview** — typecheck/lower run fine in a browser (plain
      TS); our vm-sandbox Piu stubs could back a canvas "layout preview" for
      instant feedback (not device-accurate — QEMU stays the truth).
-  3. **QEMU-in-WASM** — research-grade; park unless someone else builds it.
+  3. **QEMU-in-WASM** — evaluate after 1+2 (research-grade; adopt only if
+     someone else has done the heavy lifting).
+  Owner decision: tiers 1 and 2 WILL be built; scope tier 1 by deep-diving
+  coredevices/cloudpebble (build-server plugin surface, project-type registry).
+
+
+## Machine restart from C (owner idea, 2026-07 — research)
+The XS module registry can't unload modules and the machine is created once
+per app. The owner's angle: `mdbl.c` OWNS the machine — so kill it from C and
+create a FRESH one (a JS "process restart"): frees every JS allocation at
+once, resets all module state, and re-runs main. Potential uses: hard mode
+switches (utility app <-> watchface half), leak/OOM recovery, phased apps too
+big for one arena lifetime. To research (in order):
+1. Does the applib expose deletion (`moddable_deleteMachine`/equivalent in
+   coredevices/PebbleOS `moddable.c`)? XS itself has `xsDeleteMachine`.
+2. Can the same mod archive re-attach to a second machine in one app run?
+3. Cost: machine creation is ~boot (measured boot is fast); UI must be
+   rebuilt from scratch after — acceptable for mode switches.
+4. Trigger path: JS asks C to restart (AppMessage-to-self? a persist flag +
+   exit? an FFI hook?) — the FFI gotcha (#17, slot budget) applies.
+
+## Piu native node halves — measure the SECOND ledger (owner ask, tracked late)
+Every Piu node costs TWICE: XS arena slots for the JS half AND native app-heap
+bytes (~122-130KB pool) for the C half (layout box, draw state). We budget the
+arena carefully but have never measured per-node NATIVE cost — if a big app
+ever exhausts the native pool, symptoms would blame the wrong ledger. Do a
+Rule-2 pass: Heap Usage log deltas (`process_manager` prints Total/Used on
+exit) across N-label apps -> bytes/node native. Low urgency (native pool is
+~4x the arena and nodes are few) but the number belongs in the playbook table.
+
+## Hand-Piu + JSX coexistence example (owner ask 2026-07)
+migration.md CLAIMS one-screen-at-a-time migration works because signal-piu
+nodes ARE Piu nodes. Prove it with an example: one app where a hand-built
+`new Column/Label` subtree and a JSX subtree live under the same Application,
+sharing a Skin/Style — the migration story's load-bearing demo.

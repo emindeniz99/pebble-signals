@@ -526,6 +526,11 @@ resources → the phone). It includes the MEASURED packed-core experiment
 (273 → 144 B/pair, capacity 20 → 32+ pairs; benches `slotbench` /
 `slotbenchp`).
 
+[`docs/memory-map.md`](docs/memory-map.md) is the companion map: every
+memory space on the watch+phone (arena, mod archive, resources, native
+heap, worker pool, persist KV, PKJS), which signal-piu feature uses which,
+and a decision table for where a given kind of data belongs.
+
 ## XS / Piu gotchas actually hit
 
 1. **Every fatal error looks identical**: `fxAbort` (memory full, unhandled
