@@ -35,7 +35,8 @@ a separate project can install and get the **typed runtime + the build tools**.
 The tarball deliberately ships readable `.ts` source, **never** a minified
 bundle. Minification is a per-app DEVICE-BUILD step, not a library format:
 `build.mts` minifies the runtime into `runtime-min/` for each app because the
-mod archive rides a ~15.9KB startup ceiling (gotcha 15) and per-app
+mod archive rides a hard boot slot/symbol floor (README gotcha 15
+correction; playbook "The boot floor") and per-app
 tree-shaking decides which modules ship at all. A pre-minified library would
 be un-tree-shakeable, un-debuggable, and would still have to be re-processed
 per app — all cost, no benefit. (Property names in the source ARE kept short —

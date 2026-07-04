@@ -341,7 +341,7 @@ of Row + reactively-bound Label + static Content) at N=4 and N=16:
   construction statements vs one generic jsx() call) — but the ~7KB
   fixed win (jsx-runtime + flow leave the archive) dominates: crossover
   at N≈280 elements, ~6x beyond what the 32KB arena can hold anyway.
-- Practical ceilings under the ~15.9KB archive limit: interpreted ~19
+- Practical ceilings under the boot-floor budget (gotcha 15 correction): interpreted ~19
   bound elements, hybrid ~47.
 - "All component types included" is NOT a hybrid worst case: Piu classes
   are host globals (zero archive cost); the interpreter carries its
@@ -452,8 +452,9 @@ resource area. `build.mts` DERIVES the `resources` list from the app's own
 app bundles exactly the bitmaps it names and image-free apps stay small;
 the manifest is generated from `manifest.base.json` (gitignored, like
 main.tsx). Resources bundle into the archive but do NOT count against
-the ~15.9KB boot ceiling (imgwatch's 24.6KB archive boots fine —
-resources aren't preloaded/executed).
+the boot slot floor (imgwatch's 24.6KB archive boots fine —
+resources aren't preloaded/executed and add no symbols; gotcha 15
+correction).
 
 ## Vector images (SVGImage / PDC) — SOLVED, measured
 
@@ -635,6 +636,27 @@ and a decision table for where a given kind of data belongs.
    table, so the real savings come from mangling module-scope
    identifiers. Property and export names are part of the API and
    survive minification untouched.
+   **CORRECTION (2026-07): "archive size" was a CORRELATE, not the
+   mechanism — there is no single ~15.9KB ceiling.** The v1.5 boot-cost
+   matrix (`tools/gen-boot-probe.mts`, one variable per probe, boundaries
+   replicated) plus the firmware's own creation struct (read out of
+   `gabbro_sdk_debug.elf`: chunk 8192 +1024 incr · heap 512 slots +64
+   incr · stack 384 · keys 32 +32 incr) shows TWO independent budgets:
+   (a) a **boot slot floor** — at a saturated app class ONE extra
+   interned symbol (`"zk0" in bg` dies; the 1-byte control `"fill" in bg`
+   boots), one extra top-level binding, or one extra archive module (any
+   placement — `fxMapArchive` interns every archive symbol eagerly and
+   each module costs records + 2 ids) is fatal, because the slot heap
+   can no longer grow inside the fully-committed arena; and (b) a
+   **chunk budget** — inert string/bytecode data is comparatively cheap
+   (+1057B booted, +1536B died on the same skeleton). The old 15.9KB
+   numbers were real deaths, but of mixed causes; a 24.6KB archive with
+   resources boots fine, and richlist boots at 14,641B with 149 archive
+   symbols while a 12,304B probe dies. Budget SYMBOLS and top-level
+   bindings, not archive kilobytes: `python3 tools/xsa-symbols.py
+   build/mods/gabbro/mc.xsa` prints the count; the deadly ones are the
+   new-to-host names (export pruning cuts exactly those — the real
+   reason the #29 fix worked).
 16. **Reactive bindings inside `For` rows WORK — but they are expensive,
    and that expense was originally mis-diagnosed as a fatal rule.** The
    M11-era claim ("a binding inside a For row kills startup") was WRONG:

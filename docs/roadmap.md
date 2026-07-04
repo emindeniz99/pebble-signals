@@ -69,7 +69,7 @@ device work is unblocked again.
   `NUMERIC_STORAGE=1` if a float-heavy app appears.
 - **Minifier byte A/B (esbuild vs oxc-minifier):** 2026-07 research — Rolldown
   1.0 / Vite 8's Oxc minifier is 30-90x faster than terser but compresses
-  0.5-2% WORSE; our builds are already ms and the 15.9KB mod ceiling values
+  0.5-2% WORSE; our builds are already ms and the boot-floor budget values
   compression over speed, so esbuild stays. Cheap experiment if ever curious:
   minify runtime-min A/B with oxc-minify and diff byte counts (Rule 2 —
   measure before switching anything).
@@ -102,7 +102,10 @@ notifications, device info.
   confirm the bare `string={"c"+count()}` binding updates live.
 - **#27 importNow lazy screens:** screens as separate non-preloaded modules,
   loaded from flash on first push; measure heap before/after. Keep multilazy as
-  the closure-swap variant.
+  the closure-swap variant. CAVEAT from the v1.5 matrix: extra modules cost
+  boot slots (records + 2 ids + eagerly-interned symbols) even when never
+  imported — build this example on an app class with slot headroom
+  (counter-class, not navmany-class) and document the trade honestly.
 - **#29 boot regression: ROOT-CAUSED and FIXED (2026-07).** Bisect on the
   emulator (screenshot-verdict probes, `APP=clock --no-lower` fixed): GOOD at
   03bf022 (mc.xsa 14462) → BAD at the very next runtime commit 3e6be5f
@@ -172,13 +175,38 @@ notifications, device info.
   (12840, main.js as lean as navmany's) died too — so module COUNT/records
   and archive bytes both eat boot budget, with coefficients we have NOT
   isolated yet.
-- **Next (the real v1.5): a controlled matrix** from the known-good navmany
-  baseline, varying ONE variable per probe: +1KB in main vs +1KB preloaded
-  vs +1 empty preloaded module vs +N exports — to get per-unit boot costs
-  (Rule 2). Only after that: decide the default, and whether v2 (smart
-  split of mixed modules) is worth building. The flag stays OFF until then.
-- **v2 "smart module splitting"** (auto-split mixed modules): unchanged,
-  gated on the matrix results.
+- **v1.5 matrix RAN (2026-07) — MECHANISM FOUND; see README gotcha 15
+  correction + xs-heap-playbook "The boot floor".** One-variable probes off
+  a navmany-class skeleton (`tools/gen-boot-probe.mts`, `--app probe`),
+  binary screenshot verdicts, boundaries replicated:
+  - baseline (xsa 12235 / main 777): BOOTS 4/4;
+  - +1057B pure string data in main (13502/1938): BOOTS — chunk-side data
+    is CHEAP; +1536B (14177/2531) and up: DIES → ~1.2KB chunk slack here;
+  - +1 top-level binding (`g={}` + dead loop, +37B main): DIES 3/3;
+  - `"zk0" in bg` (ONE new-to-host symbol, main 799): DIES — while the
+    1-byte-different control `"fill" in bg` (host-known symbol, main 800)
+    BOOTS. One interned symbol is the whole margin at this class;
+  - +1 extra module: DIES in EVERY placement (preloaded, non-preloaded,
+    id `app/data`/`pdata`/`runtime/data`, even merged-exports-into-flow) —
+    module records + eagerly-interned archive symbols cost boot slots.
+  - Firmware receipt (gabbro_sdk_debug.elf, gxPreparation): creation =
+    chunk 8192(+1024 incr), heap 512 slots(+64 incr), stack 384 slots,
+    keys initial=32 incremental=32. Keys GROW (no hard key cap) — but each
+    new key allocates slot-side, and at a saturated app class the slot
+    heap cannot grow (arena fully committed), so +1 key = silent fxAbort.
+  **VERDICT: PRELOAD_PURE v1 stays OFF and is a dead end as designed** —
+  `fxMapArchive` interns EVERY archive symbol at boot and each module
+  costs records + 2 ids, so "move data to a preloaded module" ADDS
+  boot-slot cost instead of removing it. #42's earlier "both die =
+  total-archive ceiling" reading was wrong: A died of main-size (chunk),
+  B died of module+symbol slots. Two separate budgets, not one ceiling.
+- **v2 REDIRECTED: the real levers are the SYMBOL DIET and the slot
+  floor** — fewer new-to-host symbols (export pruning already does this;
+  the true reason the #29 fix worked), fewer top-level bindings, fewer
+  modules, data as strings/bytes (chunk) not structure (slots).
+  `importNow` lazy screens (#27) save chunk-side bytecode but NOT boot
+  slots (symbols intern at map time regardless) — design that example on
+  an app class with slot headroom, and say so in it.
 
 ## Product ideas (RN-parity, evaluated in api-parity.md)
 - react-compat shim (cosmetic — decided against; we stay honestly Solid-flavored),

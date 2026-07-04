@@ -17,7 +17,7 @@ WATCH ────────────────────────�
 │  │ XS arena  32,768 B      │          │ mod archive (mc.xsa)       │  │
 │  │  ├ slot heap ~8,176 B*  │◄─loads───│  main.js bytecode + all    │  │
 │  │  ├ chunk heap 8,192 B*  │   boot   │  preloaded modules (frozen)│  │
-│  │  └ stack 6,144 B        │          │  ceiling ~15.9 KB at boot  │  │
+│  │  └ stack 6,144 B        │          │  symbols intern AT BOOT    │  │
 │  │  (firmware-fixed; the   │          ├────────────────────────────┤  │
 │  │   scarce resource)      │          │ resource area  256 KB RO   │  │
 │  ├─────────────────────────┤          │  Resource() views IN PLACE │  │
@@ -48,7 +48,7 @@ PHONE ────────────────────────�
 | **XS slot heap** | ~8,176 B initial (grows in arena) | 16 B slots: every JS object, closure, array header, module record, export | Live program state you cannot avoid: signal cores, effect closures, JSX wrappers | `fxAbort` boot death — THE limit that kills apps (#29) |
 | **XS chunk heap** | 8,192 B initial (grows in arena) | Variable-size blocks, GC-compacted: TypedArray contents, string chars | Bulk data at 1 byte/byte — ByteStore, packed-core tables, bitmasks | Arena pressure (shares the 32KB with slots) |
 | **XS stack** | 6,144 B fixed | JS call stack | — | Deep recursion (keep trees shallow) |
-| **Mod archive (flash ROM)** | ~15.9 KB boot ceiling | The `.xsa`: main.js bytecode + preloaded (frozen) modules | Code + frozen constants that never mutate | Over the ceiling → boot death REGARDLESS of heap-vs-ROM split (gotcha 15) |
+| **Mod archive (flash ROM)** | no byte ceiling — costs boot SLOTS (every symbol interns at map time; every module = records + 2 ids) + CHUNK (bytecode) | The `.xsa`: main.js bytecode + preloaded (frozen) modules | Code + frozen constants that never mutate | At a saturated class +1 symbol or +1 module = silent boot death (playbook "The boot floor") |
 | **Resource area (flash RO)** | 256 KB | Read-only files bundled via manifest resources | Big static data: fonts, images, tables — `Resource()` maps it with ZERO arena copy | Read-only; 256 KB total |
 | **Native app heap** | ~122 KB | The C heap (the `Heap Usage … <122600B>` log) | Piu's native halves of every content/skin/style live here for free (from the arena's view) | Not ours to allocate from JS directly |
 | **Worker pool** | 10.5 KB | Separate background-worker RAM | C-only logic that outlives the app | NO XS machine (compile-error receipt) and no resource access |
@@ -65,8 +65,8 @@ PHONE ────────────────────────�
 | **ByteStore** | handful (the view objects) | ALL payload bytes | | | | |
 | **JSX render / hosts** | thin JS wrapper per node | | jsx-runtime code | | native struct per Content/Label (the *second ledger*) | |
 | **Export pruning (#29 fix)** | fewer boot slots | | −36% archive on clock | | | |
-| **PRELOAD_PURE (v1, OFF)** | moves entry-module slots… | | …into frozen preloads — but the TOTAL archive ceiling still gates (v1.5 matrix quantifies) | | | |
-| **importNow lazy screens (#27)** | screen code enters arena only on first push | | screen modules stay OUT of the boot archive | | | |
+| **PRELOAD_PURE (v1, OFF — dead end)** | ADDS boot slots (module records + interned symbols; v1.5 matrix) | | +1 module in the archive | | | |
+| **importNow lazy screens (#27)** | saves ARENA bytecode only — archive symbols still intern at boot | | screen modules still cost records + symbols at map time | | | |
 | **`Resource()` data** | | | | payload mapped in place | | |
 | **createResource + PKJS** | tiny state machine | | | | | fetch/parse on the phone |
 | **Background worker example** | | | | | | C heartbeat + persist KV shared with app |
@@ -77,9 +77,9 @@ PHONE ────────────────────────�
 |---|---|---|---|
 | Mutable app state (counters, flags) | Signals (slot heap) | Plain object graphs | Packed core makes a signal an integer index |
 | Bulk mutable bytes (lists, buffers) | ByteStore / TypedArray (chunk) | Arrays of objects/strings | 1 byte costs 1 byte; objects cost 16 B/slot ×N |
-| Static tables, big constants | Flash **resources** via `Resource()` | main.js or preloaded modules | Resources map in place, cost ZERO arena and ZERO archive-ceiling bytes; anything in the archive counts against ~15.9 KB |
+| Static tables, big constants | Flash **resources** via `Resource()` | main.js or preloaded modules | Resources map in place: zero arena, zero boot symbols; archive data costs chunk and archive structure costs boot slots |
 | Code every screen needs (runtime, nav) | Mod archive, preloaded + pruned | — | Frozen code; export pruning keeps only what the app imports |
-| Code for rarely-visited screens | Separate non-preloaded modules via `importNow` (#27) | The boot archive | Boot ceiling only counts what loads at boot |
+| Code for rarely-visited screens | Separate non-preloaded modules via `importNow` (#27) | main.js | Bytecode loads on first push, not at boot — but the module's SYMBOLS still intern at boot (playbook "The boot floor"), so this needs slot headroom |
 | Derived values | Recompute (plain function) | `computed` | CPU is free, RAM is not — `computed` caches, i.e. spends RAM to save CPU |
 | Strings for display | Derive on read / bytes in chunk | Stored JS strings | Strings cost slot + chunk; derive at render |
 | Durable small state | Persist KV | XS arena (lost on exit) | Survives restarts; shared with the worker |
@@ -93,4 +93,5 @@ heap** (ours to shrink — recycle nodes, VirtualList) and a native struct in
 the **~122 KB native heap** (Piu's, roomy today, but unmeasured per node —
 the roadmap's "Piu native node halves" task is the Rule-2 pass over that
 second ledger). When a screen dies at boot it is almost always ledger one
-(slots) or the archive ceiling — check those before suspecting Piu.
+(slots — including the boot symbol/module costs) — check those before
+suspecting Piu.

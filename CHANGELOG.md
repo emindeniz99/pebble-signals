@@ -19,6 +19,16 @@ No registry releases yet; entries accumulate under Unreleased until the first
 - `npm run test:xs` — conformance laws on the real XS engine.
 - Examples: consumer (npm-package proof), watchface, worker, migration
   (before/after), navreactive, navmany.
+- Boot-floor measurement kit: `tools/gen-boot-probe.mts` (one-variable boot
+  probes: data bytes / extra modules / fresh symbol interning) and
+  `tools/xsa-symbols.py` (count the symbols a mod archive interns at boot).
+
+### Fixed (knowledge)
+- The "~15.9KB mod archive boot ceiling" model is **overturned** (README
+  gotcha 15 correction; playbook "The boot floor"): boot deaths are a slot
+  floor (interned symbols, module records, top-level bindings) plus a chunk
+  budget (bytecode/data) — one new-to-host symbol can be fatal where +1KB of
+  inert data boots. `PRELOAD_PURE` stays OFF: extra modules ADD boot cost.
 
 ### Changed
 - **JSXNode type split** (was `Node = any`): children/build thunks are typed

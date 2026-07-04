@@ -56,15 +56,20 @@ budget), and log the reconfiguration. FFI is otherwise the natural
 escape valve for the 32KB arena (data in the ~122KB app heap), which
 is why this matters double.
 
-## 3. A ~15.9KB mod archive ceiling kills startup silently
+## 3. Mod boot deaths are silent, and the budget is slots/symbols, not bytes
 
-Measured with inert padding on a known-good build: `mc.xsa` = 15,859B
-boots; 15,948B dies at startup with no output. All content between
-those sizes behaves by size alone (padding was a string constant).
-Nothing in the toolchain warns; `mcrun` and `pebble build` succeed.
+Originally measured as an archive-size ceiling (15,859B boots, 15,948B
+dies, inert padding); a later one-variable matrix (2026-07) showed the
+real budget: `fxMapArchive` interns EVERY archive symbol at map time and
+each module costs records + 2 ids, so at a saturated app one extra
+new-to-host symbol flips boot→death (`"zk0" in skin` dies while the
+1-byte-different `"fill" in skin` boots), while +1KB of inert string
+data still boots. Nothing in the toolchain warns; `mcrun` and
+`pebble build` succeed; the on-device abort produces no output on the
+app-log transport.
 
-**Ask:** document/raise the limit and fail the BUILD (or log at
-install) when the archive exceeds it.
+**Ask:** surface `fxAbort` reasons at install/launch, and document the
+mod symbol/module boot cost so toolchains can budget it.
 
 ## 4. Preload alias/key budget has ~zero headroom
 

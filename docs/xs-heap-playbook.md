@@ -50,7 +50,7 @@ ran; "firmware" = fixed by the Moddable/Pebble build, not ours to change.
 | XS **slot heap** | ~8176 B initial, grows within the arena | measured | yes | THIS is the scarce one |
 | XS **chunk heap** | 8192 B initial, GC-compacted, grows within the arena | measured | yes | bytes here (typed arrays) |
 | XS machine **total** | **32768 B** (slot+chunk+stack, firmware-cloned) | measured, firmware | yes | the whole budget |
-| Mod archive **boot ceiling** | ~15.9 KB (the `.xsa` that loads at boot) | measured (gotcha 15) | ROM | no (flash), but caps app size |
+| Mod archive **boot cost** | no fixed byte ceiling — costs SLOTS (symbols, modules) + CHUNK (bytecode/data), see "The boot floor" below | measured (2026-07 matrix; supersedes the old "~15.9KB ceiling" — README gotcha 15 correction) | ROM | yes, indirectly: every archive symbol interns at boot; every module costs records + 2 ids |
 | Native **app heap** | ~122–130 KB | measured (this project) | yes | no (separate heap) |
 | Flash **resource area** | 256 KB, read-only | firmware (device manifest) | ROM | no — `Resource` views it in place |
 | **localStorage** (PKJS bridge) | per-key/-app cap **UNVERIFIED** — measure before relying on a size | needs a probe | persistent | no (native/phone side) |
@@ -64,6 +64,55 @@ ceiling, and Rule 2 forbids quoting a limit we didn't measure. If an app needs
 to know, write a probe (grow a stored blob until write fails) and record the
 number here. Do not assume the classic-SDK 4 KB persist cap applies to the
 Moddable localStorage path without checking.
+
+## The boot floor — slots and symbols, not archive bytes (2026-07 matrix)
+
+What actually kills an app at boot. Found by the v1.5 one-variable probe
+matrix (`tools/gen-boot-probe.mts` → `--app probe`; screenshot verdicts on
+gabbro; boundaries replicated) after the "~15.9KB archive ceiling" model
+failed to survive controlled probes. All probes share the same
+navmany-class skeleton (2 labels, Navigator, ticking signal):
+
+| Probe (ONE variable each) | xsa | main.js | Verdict |
+|---|---|---|---|
+| baseline | 12235 | 777 | **BOOTS** (4/4) |
+| +1057 B inert string table in main | 13502 | 1938 | **BOOTS** |
+| +1536 B same table | 14177 | 2531 | dies |
+| +2069 B / +4 KB same table | 14781/17263 | 3085/5362 | dies |
+| +1 top-level binding (`g={}` + dead loop) | 12304 | 814 | dies (3/3) |
+| `"zk0" in bg` — ONE new-to-host symbol | 12264 | 799 | dies |
+| `"fill" in bg` — host-known symbol (control) | 12265 | 800 | **BOOTS** |
+| +1 module, preloaded (`app/data`) | 12347 | 764 | dies |
+| +1 module, NOT preloaded | 12347 | 764 | dies |
+| +1 module, id `pdata` / `runtime/data` | ~12340 | 764 | dies |
+| +2 exports merged into an EXISTING module | 12304 | 764 | dies |
+
+Mechanism (source receipts: `fxMapArchive` in the SDK toolchain's
+`xs/sources/xsAPI.c`; creation struct read out of `gabbro_sdk_debug.elf`
+`gxPreparation` = chunk 8192 +1024 incr · heap 512 slots +64 incr · stack
+384 slots · keys initial 32, incremental 32):
+
+- **Slot floor.** At a saturated app class the slot heap cannot grow (the
+  32KB arena is fully committed), so anything that needs even ONE more
+  boot slot dies silently (`fxAbort`, no log on our transport): a new
+  interned symbol (keys grow 32-at-a-time but allocate slot-side), a
+  top-level binding, a module record.
+- **Symbols intern EAGERLY.** `fxMapArchive` interns every name in the
+  archive's SYMB atom at map time — including symbols of modules that are
+  never imported. Lazy `importNow` therefore saves chunk-side bytecode,
+  NOT boot slots. Count yours: `python3 tools/xsa-symbols.py
+  build/mods/gabbro/mc.xsa` (only new-to-host names cost; richlist boots
+  at 149 total symbols while a smaller probe dies — the probe class is
+  saturated, richlist's isn't).
+- **Modules are never free.** +2 ids + records per module, ANY placement
+  — which is why PRELOAD_PURE v1 (move pure data to a preloaded module)
+  is a dead end at saturated classes, and why merging 5 runtime modules
+  into 3 once fixed a boot death.
+- **Chunk is the cheap direction.** Inert string/bytecode data costs
+  chunk, which had ~1.2KB slack on this skeleton. Data-as-strings/bytes
+  beats data-as-structure at boot exactly like it does in steady state.
+- **The export-pruning #29 fix worked mostly as a SYMBOL diet**: every
+  demoted export removes an archive symbol (a boot slot), not just bytes.
 
 ## Firmware heap ceiling — you cannot grow the 32KB (mdbl.c finding)
 
@@ -195,7 +244,7 @@ Integration status — **BOTH STAGES SHIPPED and verified on-device**:
 - **CPU for RAM, always**: derive in thunks; `computed` only when it saves
   more subscriptions than it costs.
 - Preload everything preloadable (code+consts → flash); watch gotcha 13
-  (const-only at module top level) and the ~15.9KB mod boot ceiling.
+  (const-only at module top level) and the boot slot/symbol floor (see "The boot floor").
 - One shared behavior class, handlers as fields (done in jsx-runtime).
 - Inline subscriber storage: null → single ref → array-on-demand (done).
 - Recycle Piu nodes; never churn node objects per frame (VirtualList).
@@ -461,7 +510,7 @@ was answered with a measurement, not a preference:
   the `globalThis.__spError` hook index). Turn `noImplicitAny` and
   `strictNullChecks` off and the count is **ZERO real type bugs**.
 - So a full `.ts` conversion would add ~163 annotations of ceremony to
-  device-shipped files tuned to the ~15.9 KB boot ceiling, catch zero bugs, and
+  device-shipped files tuned to the boot floor, catch zero bugs, and
   ship a new transpile step we can't re-verify on device while the emulator is
   wedged (Rule 2).
 
