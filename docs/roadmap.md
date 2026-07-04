@@ -275,8 +275,11 @@ notifications, device info.
   auto-ship + romtable example (200 entries live from flash) + squash
   advisory in build.mts; limit bisect narrowed to the 112-131KB archive
   band; lazyklass cell corrected the class verdict (fine when lazy; cost
-  = method-name symbols). Remaining conveniences: automated squash pass
-  (advisory only today), folder-convention auto screen splitting.
+  = method-name symbols). Automated squash pass SHIPPED (2026-07):
+  tools/squash.mts packs array-of-arrows into one dispatch fn on lazy
+  modules (default ON, --no-squash escape) — lazymany now BOOTS with
+  zero source changes (device receipt). Remaining convenience:
+  folder-convention auto screen splitting.
   romscreens white-screen quirk SOLVED (2026-07): the prune keep-set
   missed preload-pure module files, so `jsxs` was pruned out of
   jsx-runtime; build.mts now scans pureFiles like lazyFiles —

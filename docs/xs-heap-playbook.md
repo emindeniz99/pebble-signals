@@ -241,6 +241,17 @@ proportional load cost that kills by 24KB. Consequences:
   covered by node tests with stubbed host pieces). Plus a **squash
   advisory** in the build: a lazy module creating >16 function objects at
   load prints a warning pointing at the lazypack pattern.
+- **Automated SQUASH pass (tools/squash.mts, default ON for lazy
+  modules; --no-squash / SQUASH=0):** the lazymany→lazypack fix applied
+  mechanically. A module-level `const H = [arrow, arrow, …]` whose every
+  use is `H[i](args)` or `H.length` is rewritten to ONE dispatch
+  function with a switch (call sites become `H(i, args)`, `.length`
+  folds to the literal count). Deliberately narrow, bail-safe: exports,
+  bare `H[0]`, escaping `H`, destructured/default/rest params, async
+  arrows and `var` in bodies are all left untouched (the >16-fn advisory
+  still fires for those). DEVICE RECEIPT: lazymany — 70 thin arrows that
+  DIED at runtime load — boots and renders "h3(5) = h3[72]" with the
+  pass on, zero source changes.
 - **Limit bisect (round 2):** 152KB source / 98,685B archive WORKS;
   176KB source / 112,495B archive WORKS; 208KB source / 130,892B archive
   dies at launch — measured-good up to ~112KB archive, ceiling in the

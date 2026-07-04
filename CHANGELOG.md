@@ -15,8 +15,15 @@ No registry releases yet; entries accumulate under Unreleased until the first
   Pack with `tools/pack-table.mts <name> <strings.json>`; the manifest
   ships any `romTable("<name>")` literal's blob automatically. Example:
   `romtable` (200 entries live from flash, device-verified).
+- Automated **SQUASH pass** (`tools/squash.mts`, default ON for lazy
+  modules, `--no-squash`/`SQUASH=0`): a module-level array-of-arrows used
+  only as `H[i](args)`/`H.length` packs into ONE dispatch function — the
+  device-proven lazymany→lazypack fix, applied mechanically (bail-safe on
+  any other shape). lazymany (70 thin arrows, previously fatal at runtime
+  load) now boots with zero source changes.
 - Build **squash advisory**: lazy modules creating >16 function objects at
-  load get a warning pointing at the switch-pack pattern.
+  load (that the pass could not pack) get a warning pointing at the
+  switch-pack pattern.
 - `createResource(fetcher)` async primitive; typed `ByteStore`; generic public
   API (`signal<T>`, `ReadonlySignal<T>`, flow prop contracts).
 - Per-app **export pruning** (`--no-prune` to disable) — unused runtime exports

@@ -7,6 +7,7 @@ import { deriveResources } from "../tools/gen-manifest.mts";
 import { badFonts } from "../tools/fontcheck.mts";
 import { neededModules, pruneManifest } from "../tools/treeshake.mts";
 import { classify } from "../tools/classify-module.mts";
+import { squash } from "../tools/squash.mts";
 
 const BASE = {
 	modules: {
@@ -112,4 +113,98 @@ test("classify: imports and nested new/call (inside fn bodies) stay PURE", () =>
 
 test("classify: top-level control flow is IMPURE", () => {
 	assert.equal(classify("for (let i = 0; i < 3; i++) doThing(i);").pure, false);
+});
+
+// ---- squash: array-of-arrows -> ONE dispatch fn (lazymany->lazypack fix) ----
+
+// evaluate a squashed module body and hand back a named binding
+const evalGrab = (src: string, name: string): unknown =>
+	new Function(`${src.replace(/export default[\s\S]*$/, "")}; return ${name};`)();
+
+test("squash: packs expression-body arrows and rewrites call sites", () => {
+	const src = `const H = [
+		(x) => "a" + x,
+		(x) => "b" + (x * 2),
+	];
+	export default () => H[1](21) + "/" + H.length;`;
+	const res = squash(src);
+	assert.ok(res);
+	assert.deepEqual(res.packed, [{ name: "H", count: 2 }]);
+	assert.match(res.out, /const H = \(\$qi, \$qa0\) => \{ switch \(\$qi\)/);
+	assert.match(res.out, /H\(1, 21\)/); // call site rewritten
+	assert.match(res.out, /"\/" \+ 2;/); // .length folded to the literal count
+	const H = evalGrab(res.out, "H") as (i: number, x: number) => string;
+	assert.equal(H(0, 5), "a5");
+	assert.equal(H(1, 21), "b42");
+});
+
+test("squash: block bodies inline with param aliasing; zero-param arrows skip the alias", () => {
+	const src = `const F = [
+		(x, y) => { const s = x + y; return s * 2; },
+		() => 7,
+	];
+	const r = F[0](1, 2) + F[1]();`;
+	const res = squash(src);
+	assert.ok(res);
+	const F = evalGrab(res.out, "F") as (i: number, x?: number, y?: number) => number;
+	assert.equal(F(0, 1, 2), 6);
+	assert.equal(F(1), 7);
+	assert.match(res.out, /F\(0, 1, 2\) \+ F\(1\)/);
+	// out-of-range index: documented deviation — undefined, not a throw
+	assert.equal(F(9), undefined);
+});
+
+test("squash: bails on unprovable uses (bare index, argument, export)", () => {
+	// bare element access without a call — H could escape
+	assert.equal(squash("const H = [(x) => x, (x) => x];\nconst f = H[0];"), null);
+	// the array itself passed as a value
+	assert.equal(squash("const H = [(x) => x, (x) => x];\nuse(H);"), null);
+	// exported — external importers expect an array
+	assert.equal(squash("export const H = [(x) => x, (x) => x];\nH[0](1);"), null);
+});
+
+test("squash: bails on shapes it cannot prove safe", () => {
+	// a non-arrow element
+	assert.equal(squash("const H = [(x) => x, 42];\nH[0](1);"), null);
+	// destructured / default / rest params
+	assert.equal(squash("const H = [({ a }) => a, (x) => x];\nH[0]({ a: 1 });"), null);
+	assert.equal(squash("const H = [(x = 1) => x, (x) => x];\nH[0]();"), null);
+	assert.equal(squash("const H = [(...x) => x, (x) => x];\nH[0](1);"), null);
+	// async arrow
+	assert.equal(squash("const H = [async (x) => x, (x) => x];\nH[0](1);"), null);
+	// `var` in a block body would hoist into the shared dispatch fn
+	assert.equal(squash("const H = [(x) => { var v = x; return v; }, (x) => x];\nH[0](1);"), null);
+	// single element, let-declared, no initializer, non-array — all skipped
+	assert.equal(squash("const H = [(x) => x];\nH[0](1);"), null);
+	assert.equal(squash("let H = [(x) => x, (x) => x];\nH[0](1);"), null);
+	assert.equal(squash("const H = notAnArray;\nH[0](1);"), null);
+	assert.equal(squash("const A = 1, H = [(x) => x, (x) => x];\nH[0](1);"), null);
+});
+
+test("squash: nested fns inside a block body keep their own `var`s (still packs)", () => {
+	const src =
+		"const H = [(x) => { const f = function () { var v = x; return v; }; return f(); }, (x) => x + 1];\nconst r = H[0](3) + H[1](3);";
+	const res = squash(src);
+	assert.ok(res);
+	const H = evalGrab(res.out, "H") as (i: number, x: number) => number;
+	assert.equal(H(0, 3), 3);
+	assert.equal(H(1, 3), 4);
+});
+
+test("squash: picks a fresh prefix when $q is taken and packs multiple arrays", () => {
+	const src = `const $qi = "taken";
+	const A = [(x) => x + 1, (x) => x + 2];
+	const B = [() => "u", () => "v"];
+	const r = A[0](1) + B[1]();`;
+	const res = squash(src);
+	assert.ok(res);
+	assert.deepEqual(
+		res.packed.map((p) => p.name),
+		["A", "B"],
+	);
+	assert.match(res.out, /\$q0_i/); // $q collided with the existing $qi text
+	const A = evalGrab(res.out, "A") as (i: number, x: number) => number;
+	const B = evalGrab(res.out, "B") as (i: number) => string;
+	assert.equal(A(1, 1), 3);
+	assert.equal(B(0), "u");
 });

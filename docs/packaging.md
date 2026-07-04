@@ -142,8 +142,8 @@ change, that's a documented migration note in the release, not magic.
 theirs (custom build steps), `src/c` compiles ALL their .c files (their
 native code beside mdbl.c — sensors, workers, FFI), `worker_src/` works
 (see examples/worker), resources/media/fonts are theirs, and every build
-gate has an escape flag (--no-lower, --no-prune, --no-check-c,
---skip-fontcheck). signal-piu is helpers on top of a normal Pebble
+gate has an escape flag (--no-lower, --no-prune, --no-squash,
+--no-check-c, --skip-fontcheck). signal-piu is helpers on top of a normal Pebble
 project, not a cage around one.
 
 ## Maintenance rules

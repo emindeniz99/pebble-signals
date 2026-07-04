@@ -85,6 +85,7 @@ const cli = parseArgs({
 		lower: { type: "boolean" },
 		prune: { type: "boolean" },
 		"preload-pure": { type: "boolean" },
+		squash: { type: "boolean" },
 	},
 	allowNegative: true, // --no-minify / --no-treeshake / --no-check-c / --no-lower
 }).values;
@@ -345,6 +346,11 @@ if (lazyBases.length) {
 			process.exit(1);
 		}
 		manifest.modules[id] = `./app/${rel}`;
+		// SQUASH pass (default ON): array-of-arrows -> ONE dispatch fn — the
+		// device-proven lazymany->lazypack fix, applied mechanically. Narrow
+		// and bail-safe; whatever it can't prove stays for the advisory below.
+		if (flag(cli.squash, "SQUASH", "1", true))
+			run(process.execPath, [join(TOOLS, `squash${EXT}`), file]);
 		if (minify)
 			tryEsbuild({
 				entryPoints: [file],
@@ -364,7 +370,8 @@ if (lazyBases.length) {
 		if (fnCount > 16)
 			err(
 				`lazy: app/${base} creates ~${fnCount} function objects at load (safe band ~16) — ` +
-					"consider switch-packing thin helpers (playbook \"Code in ROM\", lazypack example)",
+					"the squash pass couldn't pack these; switch-pack by hand " +
+					'(playbook "Code in ROM", lazypack example)',
 			);
 		console.log(`lazy: importNow("app/${base}") -> ${id} (flash, loads on first call)`);
 	}
