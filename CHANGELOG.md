@@ -24,6 +24,12 @@ No registry releases yet; entries accumulate under Unreleased until the first
 - Build **squash advisory**: lazy modules creating >16 function objects at
   load (that the pass could not pack) get a warning pointing at the
   switch-pack pattern.
+- **Folder-convention screen splitting**: every
+  `src/tsx/examples/<app>/screens/*.tsx|ts` auto-ships as a lazy module
+  `app/screens/<name>` — the imported name may be COMPUTED
+  (`importNow("app/screens/" + n)`) without disabling treeshake/prune,
+  because the whole folder ships and feeds both keep-sets. Example:
+  `autoscreens` (device-verified).
 - `createResource(fetcher)` async primitive; typed `ByteStore`; generic public
   API (`signal<T>`, `ReadonlySignal<T>`, flow prop contracts).
 - Per-app **export pruning** (`--no-prune` to disable) — unused runtime exports

@@ -252,6 +252,16 @@ proportional load cost that kills by 24KB. Consequences:
   still fires for those). DEVICE RECEIPT: lazymany — 70 thin arrows that
   DIED at runtime load — boots and renders "h3(5) = h3[72]" with the
   pass on, zero source changes.
+- **Folder-convention screen splitting (`autoscreens` example):** every
+  `src/tsx/examples/<app>/screens/*.tsx|ts` auto-ships as a lazy module
+  `app/screens/<name>` — no per-screen importNow literal needed, and the
+  imported NAME MAY BE COMPUTED (`importNow("app/screens/" + name)`):
+  because the whole folder ships and every file feeds the treeshake +
+  prune keep-sets, the dynamic import can only reach shipped-and-scanned
+  modules, so both scans stay ON. Each screen goes through the squash
+  pass and the fn-count advisory individually. DEVICE RECEIPT: root →
+  select loads screens/alpha, back, select loads screens/beta — both
+  names computed at runtime from an array.
 - **Limit bisect (round 2):** 152KB source / 98,685B archive WORKS;
   176KB source / 112,495B archive WORKS; 208KB source / 130,892B archive
   dies at launch — measured-good up to ~112KB archive, ceiling in the

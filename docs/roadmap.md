@@ -278,8 +278,11 @@ notifications, device info.
   = method-name symbols). Automated squash pass SHIPPED (2026-07):
   tools/squash.mts packs array-of-arrows into one dispatch fn on lazy
   modules (default ON, --no-squash escape) — lazymany now BOOTS with
-  zero source changes (device receipt). Remaining convenience:
-  folder-convention auto screen splitting.
+  zero source changes (device receipt). Folder-convention auto screen
+  splitting SHIPPED (2026-07): <app>/screens/*.tsx auto-ship as lazy
+  modules app/screens/<name>; computed importNow("app/screens/" + n)
+  stays treeshake/prune-safe; autoscreens example device-verified.
+  The convenience campaign is COMPLETE — no remaining items.
   romscreens white-screen quirk SOLVED (2026-07): the prune keep-set
   missed preload-pure module files, so `jsxs` was pruned out of
   jsx-runtime; build.mts now scans pureFiles like lazyFiles —

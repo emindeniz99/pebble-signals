@@ -155,13 +155,25 @@ if (existsSync(appSrc)) {
 		.replace(/\/\*[\s\S]*?\*\//g, "")
 		.replace(/\/\/[^\n]*/g, "");
 	for (const m of src.matchAll(/import(?:Now)?\s*\(\s*([^)]*)\)/g)) {
-		const lit = /^"app\/([\w-]+)"\s*$/.exec(m[1]);
+		const lit = /^"app\/((?:screens\/)?[\w-]+)"\s*$/.exec(m[1]);
 		const base = lit?.[1];
 		if (base && existsSync(join("src/tsx/examples", APP, `${base}.tsx`))) lazySet.add(base);
 		else if (base && existsSync(join("src/tsx/examples", APP, `${base}.ts`))) lazySet.add(base);
-		else unresolvedDynamicImport = true;
+		// a COMPUTED name under the screens/ folder convention is still
+		// resolvable: EVERY screens/* file ships (enumerated below), so the
+		// dynamic import can only reach shipped-and-scanned modules
+		else if (/^"app\/screens\/"\s*\+/.test(m[1]) && existsSync(join("src/tsx/examples", APP, "screens"))) {
+			/* covered by the folder convention */
+		} else unresolvedDynamicImport = true;
 	}
 }
+// Folder convention: every src/tsx/examples/<APP>/screens/*.tsx|ts ships as
+// a lazy module `app/screens/<name>` — no per-screen importNow literal
+// needed, and the imported name may be computed at runtime (see above).
+const screensDir = join("src/tsx/examples", APP, "screens");
+if (existsSync(screensDir))
+	for (const f of readdirSync(screensDir))
+		if (/\.tsx?$/.test(f)) lazySet.add(`screens/${f.replace(/\.tsx?$/, "")}`);
 const lazyBases = [...lazySet];
 let treeshake = flag(cli.treeshake, "TREESHAKE", "1", true);
 if (treeshake && !flag(cli["treeshake-force"], "TREESHAKE_FORCE", "1", false)) {
