@@ -225,12 +225,12 @@ Reviewed: signals.js, flow.js, jsx-runtime.js, tools/lower.py, build.sh.
 - **jsx-runtime.js**: no heap regressions; per-binding cost is now thunk
   closure + reaction closure + packed id (the closures are entries 1-2 on
   the marginal list below).
-- **lower.mjs** (replaced the regex lower.py): AST-based via the TypeScript
+- **lower.mts** (replaced the regex lower.py): AST-based via the TypeScript
   compiler API — every rewrite is decided on the resolved binding SYMBOL
   (`checker.getSymbolAtLocation`), so shadowing, property access
   (`st.count()` vs a state `count`), and aliasing are correct by
   construction, not by heuristic. Ambiguous pairs bail to the object API.
-  Guarded by `node tools/lower.mjs --selftest`.
+  Guarded by `node tools/lower.mts --selftest`.
 - **Gap found and fixed during this pass**: For kept rows in a Map — now
   parallel arrays (commit 6bdf174).
 
@@ -248,7 +248,7 @@ Reviewed: signals.js, flow.js, jsx-runtime.js, tools/lower.py, build.sh.
 3. **Owner packing**: each createRoot allocates `{d:[]}` (~4 slots) — For
    rows each carry one. Parallel-array owner table keyed by root id:
    ~60 B/root. Effort M.
-4. ~~esbuild-plugin lowering~~ **DONE** (tools/lower.mjs): the useState
+4. ~~esbuild-plugin lowering~~ **DONE** (tools/lower.mts): the useState
    transform is now AST-based on the TypeScript compiler API — python is
    out of the pipeline, rewrites are binding-symbol-exact. RAM-neutral;
    the tooling-robustness win is banked.
@@ -330,7 +330,7 @@ is NET-NEGATIVE, the same reason #17 failed.
   object→index win (no fixed table, same as the shipped useState lowering)
   — but ZERO current benefit: every example uses useState, none call
   signal() directly, and computed() is inherently runtime. SPEC'd for when
-  direct signal() usage appears (extend lower.mjs: `const s = signal(v)` →
+  direct signal() usage appears (extend lower.mts: `const s = signal(v)` →
   `S.sig`, `s.value` read → `S.get(s)`, `s.value = e` statement → `S.set(s,
   e)`, bail on any non-.value use). Not implemented to avoid adding
   untested-in-practice complexity to a working tool for no current gain.
@@ -348,7 +348,7 @@ useState lowering (RAM + smaller archive), lazy multiscreen (O(1 screen)).
 
 ## #20 ts-morph vs raw TS Compiler API — DECISION: keep raw API
 
-tools/lower.mjs uses the raw TypeScript Compiler API. ts-morph wraps the
+tools/lower.mts uses the raw TypeScript Compiler API. ts-morph wraps the
 SAME engine with nicer ergonomics. Decision: KEEP the raw API. Rationale:
 (1) zero new dependency — typescript is already required for tsc; ts-morph
 would need a real install, at odds with the repo's `npx -y esbuild` /

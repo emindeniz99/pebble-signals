@@ -46,7 +46,7 @@ are complementary: compile-away for static faces, runtime signals for apps.
   runtime — it can't "defer an expression", only defer a *function*. (Solid
   gets `{count()}` without the arrow because its **compiler** rewrites the
   expression into an effect; we do the equivalent for `useState`/`signal` in
-  `lower.mjs`, and could extend it to auto-wrap JSX expressions.)
+  `lower.mts`, and could extend it to auto-wrap JSX expressions.)
 
 Three concrete differences from React (getter reads, run-once, thunk props)
 are in the README; the full hook/primitive parity table is in
@@ -62,7 +62,7 @@ inventory lives in [`xs-heap-playbook.md`](xs-heap-playbook.md)):
   object; subscriptions are **bitmasks** in a shared `Uint32Array`; the
   per-effect dependency array is gone (reverse edges implied by the forward
   masks). Measured ~2× cheaper than the object graph.
-- **Compile-time lowering** (`lower.mjs`, Stage 2/3): `useState`/`signal`/
+- **Compile-time lowering** (`lower.mts`, Stage 2/3): `useState`/`signal`/
   `computed` are rewritten to the packed `S.sig/get/set/put/computed` integer
   API at build time — the per-state closures and the `Signal` object never
   exist at runtime. Decided on the resolved TS **symbol**, so shadowing/

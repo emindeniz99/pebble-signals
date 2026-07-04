@@ -123,8 +123,8 @@ npx -y esbuild@0.25 "src/embeddedjs/app/examples/$APP.js" --bundle \
 # SYMBOL, so shadowing / aliasing are correct by construction and only genuine
 # call sites change; anything ambiguous bails to the object API. A prod run
 # re-lowers its own output and refuses to write if it is not a fixed point.
-# Guarded by `node tools/lower.mjs --selftest`.
-node tools/lower.mjs src/embeddedjs/app/main.js
+# Guarded by `node tools/lower.mts --selftest`.
+node tools/lower.mts src/embeddedjs/app/main.js
 if [ "$MINIFY" = "1" ]; then
 	npx -y esbuild@0.25 src/embeddedjs/app/main.js --minify --format=esm \
 		--outfile=src/embeddedjs/app/main.js --allow-overwrite --log-level=error 2>/dev/null || true

@@ -158,7 +158,7 @@ concrete differences:
    returns `[getter, setter]`.
 3. **Reactive values are thunks — but the build auto-wraps them.** A binding is
    `string={() => "c" + count()}`. As of JSX auto-thunk, you can also write it
-   BARE — `string={"c" + count()}` — and `lower.mjs` wraps the reactive read
+   BARE — `string={"c" + count()}` — and `lower.mts` wraps the reactive read
    into a thunk at compile time (Solid-compiler style). The reactivity signal is
    the CALL (`count()`) or `sig.value`; a truly static value (no reactive read)
    stays static. Bare `{count}` (no call) is deliberately NOT reactive.

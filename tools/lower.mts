@@ -19,20 +19,9 @@
 // shadow — leaves that pair on the object-API useState. Semantics never
 // change, only representation. The runtime alias is unique per file.
 //
-// Usage: node lower.mjs FILE...    |    node lower.mjs --selftest
+// Usage: node lower.mts FILE...    |    node lower.mts --selftest
 import { readFileSync, writeFileSync } from "node:fs";
-import { execSync } from "node:child_process";
-
-async function loadTS() {
-	try {
-		return (await import("typescript")).default;
-	} catch {
-		/* fall back */
-	}
-	const root = execSync("npm root -g").toString().trim();
-	return (await import(`${root}/typescript/lib/typescript.js`)).default;
-}
-const ts = await loadTS();
+import ts from "typescript";
 
 const SRC_MODULE = "runtime/signals";
 const JSX_MODULE = "runtime/jsx-runtime";
@@ -57,10 +46,16 @@ const PIU_HOSTS = new Set([
 ]);
 const REACTIVE_PROPS = new Set(["string", "state", "variant", "skin", "style", "active"]);
 
-function program(text) {
+interface Edit {
+	start: number;
+	end: number;
+	text: string;
+}
+
+function program(text: string): { checker: ts.TypeChecker; sf: ts.SourceFile } {
 	const fileName = "app.js";
 	const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.ES2022, true, ts.ScriptKind.JS);
-	const host = {
+	const host: ts.CompilerHost = {
 		getSourceFile: (fn) => (fn === fileName ? sf : undefined),
 		getDefaultLibFileName: () => "lib.d.ts",
 		writeFile: () => {},
@@ -84,13 +79,18 @@ function program(text) {
 		},
 		host,
 	);
-	return { checker: prog.getTypeChecker(), sf: prog.getSourceFile(fileName) };
+	return { checker: prog.getTypeChecker(), sf: prog.getSourceFile(fileName)! };
 }
 
 // symbol of a local binding imported by `name` from `module` (default:
 // runtime/signals), resolved by the checker so aliased imports still match.
-function importSymbol(checker, sf, name, module = SRC_MODULE) {
-	let sym = null;
+function importSymbol(
+	checker: ts.TypeChecker,
+	sf: ts.SourceFile,
+	name: string,
+	module = SRC_MODULE,
+): ts.Symbol | undefined {
+	let sym: ts.Symbol | undefined;
 	for (const st of sf.statements) {
 		if (
 			ts.isImportDeclaration(st) &&
@@ -107,9 +107,9 @@ function importSymbol(checker, sf, name, module = SRC_MODULE) {
 	return sym;
 }
 
-function collectIdentifiers(sf) {
-	const ids = [];
-	(function walk(n) {
+function collectIdentifiers(sf: ts.SourceFile): ts.Identifier[] {
+	const ids: ts.Identifier[] = [];
+	(function walk(n: ts.Node) {
 		if (ts.isIdentifier(n)) ids.push(n);
 		ts.forEachChild(n, walk);
 	})(sf);
@@ -119,9 +119,9 @@ function collectIdentifiers(sf) {
 // Is `node` (an expression) part of a destructuring ASSIGNMENT TARGET?
 // Walks up through array/object literal layers; true when the chain ends as
 // the left side of an `=` or a for-of/for-in initializer.
-function isDestructuringTarget(ts, node) {
-	let c = node,
-		p = node.parent;
+function isDestructuringTarget(node: ts.Node): boolean {
+	let c: ts.Node = node,
+		p: ts.Node = node.parent;
 	while (
 		p &&
 		(ts.isArrayLiteralExpression(p) ||
@@ -142,7 +142,7 @@ function isDestructuringTarget(ts, node) {
 	return (ts.isForOfStatement(p) || ts.isForInStatement(p)) && p.initializer === c;
 }
 
-function freshAlias(sf) {
+function freshAlias(sf: ts.SourceFile): string {
 	const used = new Set(collectIdentifiers(sf).map((i) => i.text));
 	let a = "__sp";
 	for (let k = 2; used.has(a); k++) a = "__sp" + k;
@@ -168,7 +168,7 @@ function freshAlias(sf) {
 //     call to a useState getter, or `sig.value` on a signal/computed/useMemo
 //     binding. A static `left={40}` or `x={props.n}` is never touched.
 // Idempotent: a wrapped value is an arrow on the next pass, so it is skipped.
-export function autoThunk(text) {
+export function autoThunk(text: string): { code: string; wrapped: number } {
 	const { checker, sf } = program(text);
 	const jsxSym = importSymbol(checker, sf, "jsx", JSX_MODULE);
 	const jsxsSym = importSymbol(checker, sf, "jsxs", JSX_MODULE);
@@ -180,9 +180,9 @@ export function autoThunk(text) {
 	const sigSym = importSymbol(checker, sf, "signal");
 	const compSym = importSymbol(checker, sf, "computed");
 	const memoSym = importSymbol(checker, sf, "useMemo");
-	const getterSyms = new Set(); // read as g()
-	const valueSyms = new Set(); // read as x.value
-	(function walk(n) {
+	const getterSyms = new Set<ts.Symbol>(); // read as g()
+	const valueSyms = new Set<ts.Symbol>(); // read as x.value
+	(function walk(n: ts.Node) {
 		if (
 			ts.isVariableDeclaration(n) &&
 			n.initializer &&
@@ -190,15 +190,17 @@ export function autoThunk(text) {
 			ts.isIdentifier(n.initializer.expression)
 		) {
 			const callee = checker.getSymbolAtLocation(n.initializer.expression);
+			const el0 = ts.isArrayBindingPattern(n.name) ? n.name.elements[0] : undefined;
 			if (
 				useSym &&
 				callee === useSym &&
 				ts.isArrayBindingPattern(n.name) &&
 				n.name.elements.length === 2 &&
-				!ts.isOmittedExpression(n.name.elements[0]) &&
-				ts.isIdentifier(n.name.elements[0].name)
+				el0 &&
+				!ts.isOmittedExpression(el0) &&
+				ts.isIdentifier(el0.name)
 			) {
-				const s = checker.getSymbolAtLocation(n.name.elements[0].name);
+				const s = checker.getSymbolAtLocation(el0.name);
 				if (s) getterSyms.add(s);
 			} else if (
 				((sigSym && callee === sigSym) ||
@@ -215,9 +217,9 @@ export function autoThunk(text) {
 	if (!getterSyms.size && !valueSyms.size) return { code: text, wrapped: 0 };
 
 	// does an expression subtree contain a reactive read?
-	function hasReactiveRead(node) {
+	function hasReactiveRead(node: ts.Node): boolean {
 		let found = false;
-		(function scan(n) {
+		(function scan(n: ts.Node) {
 			if (found) return;
 			if (ts.isIdentifier(n)) {
 				const s = checker.getSymbolAtLocation(n);
@@ -245,24 +247,23 @@ export function autoThunk(text) {
 		return found;
 	}
 
-	const isJsxCall = (call) => {
+	const isJsxCall = (call: ts.CallExpression): boolean => {
 		if (!ts.isIdentifier(call.expression)) return false;
 		const s = checker.getSymbolAtLocation(call.expression);
-		return s && (s === jsxSym || s === jsxsSym);
+		return !!s && (s === jsxSym || s === jsxsSym);
 	};
 
 	// Is the jsx type a Piu HOST element? A host is a FREE global — a bare
 	// identifier in the Piu set with NO resolvable declaration (host-injected at
 	// runtime). A component (imported/local) resolves to a symbol, and a shadowed
 	// `const Label = …` also resolves — so symbol-resolution handles shadowing.
-	const isPiuHostType = (typeNode) =>
-		typeNode &&
+	const isPiuHostType = (typeNode: ts.Node): boolean =>
 		ts.isIdentifier(typeNode) &&
 		PIU_HOSTS.has(typeNode.text) &&
 		!checker.getSymbolAtLocation(typeNode);
 
-	const edits = [];
-	(function walk(n) {
+	const edits: Edit[] = [];
+	(function walk(n: ts.Node) {
 		if (
 			ts.isCallExpression(n) &&
 			isJsxCall(n) &&
@@ -295,7 +296,22 @@ export function autoThunk(text) {
 	return { code: out, wrapped: edits.length / 2 };
 }
 
-export function lower(text) {
+interface Pair {
+	decl: ts.VariableDeclaration;
+	gName: string;
+	initText: string;
+	gSym: ts.Symbol | undefined;
+	sSym: ts.Symbol | undefined;
+}
+interface Sig {
+	call: ts.CallExpression;
+	name: string;
+	initText: string;
+	kind: "sig" | "computed";
+	sym: ts.Symbol | undefined;
+}
+
+export function lower(text: string): { code: string; lowered: number; bailed: number } {
 	// JSX auto-thunk first: `string={count()}` -> `string={() => count()}`, so
 	// the wrapped read lowers to `() => __sp.get(count)` in the same pass below.
 	text = autoThunk(text).code;
@@ -306,14 +322,14 @@ export function lower(text) {
 	const memoSym = importSymbol(checker, sf, "useMemo");
 	if (!useSym && !sigSym && !compSym && !memoSym) return { code: text, lowered: 0, bailed: 0 };
 
-	const declIds = new Set();
-	const txt = (n) => text.slice(n.getStart(sf), n.getEnd());
+	const declIds = new Set<ts.Node>();
+	const txt = (n: ts.Node) => text.slice(n.getStart(sf), n.getEnd());
 
 	// candidate useState pairs: const [g, s] = useState(init) whose useState is OURS
-	const pairs = [];
+	const pairs: Pair[] = [];
 	// candidate signal bindings: const s = signal(init) whose signal is OURS
-	const sigs = [];
-	(function walk(n) {
+	const sigs: Sig[] = [];
+	(function walk(n: ts.Node) {
 		if (
 			ts.isVariableDeclaration(n) &&
 			n.initializer &&
@@ -378,7 +394,7 @@ export function lower(text) {
 	if (!pairs.length && !sigs.length) return { code: text, lowered: 0, bailed: 0 };
 
 	// classify every reference by resolved symbol (not by name)
-	const refs = new Map();
+	const refs = new Map<ts.Symbol | undefined, ts.Identifier[]>();
 	for (const p of pairs) {
 		refs.set(p.gSym, []);
 		refs.set(p.sSym, []);
@@ -387,19 +403,25 @@ export function lower(text) {
 	for (const id of collectIdentifiers(sf)) {
 		if (declIds.has(id)) continue;
 		const s = checker.getSymbolAtLocation(id);
-		if (s && refs.has(s)) refs.get(s).push(id);
+		if (s && refs.has(s)) refs.get(s)!.push(id);
 	}
-	const isCallTarget = (id) => ts.isCallExpression(id.parent) && id.parent.expression === id;
+	const isCallTarget = (id: ts.Identifier) =>
+		ts.isCallExpression(id.parent) && id.parent.expression === id;
 
-	const edits = [];
+	const edits: Edit[] = [];
 	let lowered = 0,
 		bailed = 0;
 	for (const p of pairs) {
 		let ok = true;
-		for (const id of refs.get(p.gSym)) // getter: 0-arg call only
-			if (!(isCallTarget(id) && id.parent.arguments.length === 0)) ok = false;
-		for (const id of refs.get(p.sSym)) // setter: call target only
+		for (const id of refs.get(p.gSym)!) {
+			// getter: 0-arg call only
+			if (!(isCallTarget(id) && ts.isCallExpression(id.parent) && id.parent.arguments.length === 0))
+				ok = false;
+		}
+		for (const id of refs.get(p.sSym)!) {
+			// setter: call target only
 			if (!isCallTarget(id)) ok = false;
+		}
 		if (!ok) {
 			bailed++;
 			continue;
@@ -410,14 +432,14 @@ export function lower(text) {
 			end: p.decl.getEnd(),
 			text: `${p.gName} = __ALIAS__.sig(${p.initText})`,
 		});
-		for (const id of refs.get(p.gSym))
+		for (const id of refs.get(p.gSym)!)
 			edits.push({
 				start: id.parent.getStart(sf),
 				end: id.parent.getEnd(),
 				text: `__ALIAS__.get(${p.gName})`,
 			});
-		for (const id of refs.get(p.sSym)) {
-			const c = id.parent;
+		for (const id of refs.get(p.sSym)!) {
+			const c = id.parent as ts.CallExpression;
 			if (c.arguments.length === 0)
 				// setX()
 				edits.push({
@@ -439,8 +461,8 @@ export function lower(text) {
 	// write); anything else bails. A computed is read-only, so any write to
 	// it bails (and stays the object API, where it is still caller error).
 	for (const s of sigs) {
-		const uses = refs.get(s.sym);
-		const plan = [];
+		const uses = refs.get(s.sym)!;
+		const plan: Edit[] = [];
 		let ok = true;
 		for (const id of uses) {
 			const pae = id.parent;
@@ -470,7 +492,7 @@ export function lower(text) {
 				// function the user meant to store.
 				plan.push({
 					start: pae.getStart(sf),
-					end: asn.operatorToken.getEnd(),
+					end: (asn as ts.BinaryExpression).operatorToken.getEnd(),
 					text: `__ALIAS__.put(${s.name},`,
 				});
 				plan.push({ start: asn.getEnd(), end: asn.getEnd(), text: ")" });
@@ -502,7 +524,7 @@ export function lower(text) {
 			// destructuring write target (`[s.value] = arr`, `({x: s.value} = o)`)
 			// — a get() there is a syntax error; walk up through literal layers
 			// and bail if the chain ends on the LEFT of an `=`.
-			else if (isDestructuringTarget(ts, pae)) {
+			else if (isDestructuringTarget(pae)) {
 				ok = false;
 				break;
 			} else
@@ -542,9 +564,9 @@ export function lower(text) {
 	return { code: out, lowered, bailed };
 }
 
-function selftest() {
+function selftest(): void {
 	const IMP = 'import { useState } from "runtime/signals";\n';
-	const eq = (c, cond, m) => {
+	const eq = (c: string, cond: boolean, m: string) => {
 		if (!cond) {
 			console.error("FAIL:", m, "\n", c);
 			process.exit(1);
@@ -763,7 +785,7 @@ function selftest() {
 	// idempotent end-to-end
 	const twice = lower(JSXIMP + "const s = signal(0);\njsx(Label, { string: s.value });\n").code;
 	eq(twice, lower(twice).code === twice, "auto-thunk + lowering idempotent");
-	console.log("lower.mjs selftest OK");
+	console.log("lower.mts selftest OK");
 }
 
 const argv = process.argv.slice(2);

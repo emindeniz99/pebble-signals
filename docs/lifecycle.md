@@ -12,7 +12,7 @@ and the **32KB JS heap** (the "arena" — the scarce one).
    ONE `app/main.js`; `runtime/*` is left **external** (so it stays a separate
    preloaded module, not pulled into main). ← this is what makes multi-file
    apps work.
-3. **lower.mjs** rewrites `useState`/`signal`/`computed` in `main.js` to the
+3. **lower.mts** rewrites `useState`/`signal`/`computed` in `main.js` to the
    packed `S.*` integer API (or bails to the object API where unsafe).
 4. **esbuild --minify** shrinks `main.js`.
 5. **pebble build** (Moddable `mcconfig`) reads `manifest.json`:

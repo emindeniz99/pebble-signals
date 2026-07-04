@@ -14,9 +14,10 @@
     "node": ">=24"
   },
   "devDependencies": {
-    "typescript": "^5.5.0",
+    "@biomejs/biome": "2.5.2",
+    "@types/node": "^24.13.2",
     "esbuild": "^0.25.0",
-    "@biomejs/biome": "2.5.2"
+    "typescript": "^5.5.0"
   },
   "pebble": {
     "displayName": "signal-piu",
@@ -41,7 +42,7 @@
   "scripts": {
     "build:runtime": "tsc -p tsconfig.runtime-build.json",
     "test": "npm run build:runtime && node --test --experimental-vm-modules tests/*.test.mts",
-    "typecheck": "tsc -p tsconfig.check.json && tsc -p tsconfig.runtime-build.json",
+    "typecheck": "tsc -p tsconfig.check.json && tsc -p tsconfig.runtime-build.json && tsc -p tsconfig.tools.json",
     "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/",
     "format:c": "clang-format -i src/c/*.c",
     "check:c": "clang-format --dry-run --Werror src/c/*.c",

@@ -1,0 +1,18 @@
+{
+	// Type-CHECK pass for the build/dev tools (tools/*.mts). These run on Node
+	// via native type-stripping (no emit), so this config only type-checks —
+	// it never produces output. Kept separate from tsconfig.check.json because
+	// the tools need @types/node (process/console/fs) and the DOM-free runtime
+	// check must NOT (Piu's Text/Image globals collide with lib.dom).
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"noEmit": true,
+		"types": ["node"],
+		"lib": ["es2022"],
+		"skipLibCheck": true
+	},
+	"include": ["tools/**/*.mts"]
+}

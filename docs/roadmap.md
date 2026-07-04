@@ -26,7 +26,7 @@ device work is unblocked again.
   cheaper). DESIGN READY, decision pending.
 
 ## Node / compile-time — ready to do
-- **lower.mjs coverage:** currently ~93% branch; close to 100% like the runtime.
+- **lower.mts coverage:** currently ~93% branch; close to 100% like the runtime.
 - **createResource:** the one real hook gap — async `fetch → {loading,error,data}`
   paired with VirtualList. Everything else in api-parity.md is covered or N/A.
 - **Conformance suite expansion:** add laws for same-value-no-notify, nested
