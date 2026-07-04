@@ -7,26 +7,42 @@ device work is unblocked again.
 
 ## Big in-flight tracks
 
-- **Runtime → strict TypeScript.** Convert `src/embeddedjs/runtime/*.js` to
-  `.ts` (strict, `noImplicitAny`), replacing the `any` Piu globals in
-  `globals.d.ts` with the real Moddable/Piu typings. tsc EMITS the shipped `.js`
-  (types erase — zero runtime cost); the only real risk is that the emit must
-  preserve the gotcha-13 alias budget (top-level function/class count) — verify
-  by diffing the emit AND device-installing. `globals.d.ts` runtime-API half
-  becomes auto-generated (`tsc --declaration`); Piu host globals stay hand-typed.
-  Also move `build.sh`'s Python blocks (manifest gen / fontcheck / treeshake)
-  into `tools/*.ts`, and migrate tests to `.ts` + **vitest** (test+coverage+watch
-  in one tool; today it's plain-node + c8).
-- **Glitch-free reactivity.** Our push notify re-runs a diamond sink twice
-  through a transient glitch (conformance law 12). Full design spec'd in
-  `docs/xs-heap-playbook.md` "Glitch-free reactivity" — lazy pull-based computeds
-  + per-node `Uint32 version` + shared `dirtySet` bitmask (~+4 B/node, no
-  per-edge objects). Cheapest known scheme, drops onto our masks. Measure the
-  slot delta on-device before committing (eager core is correct-on-converge and
-  cheaper). DESIGN READY, decision pending.
+- **Runtime → strict TypeScript — LARGELY DONE.** `signals/jsx-runtime/flow` are
+  strict `.ts`; tsc emits the shipped `.js` (verified byte-identical, gotcha-13
+  alias budget intact). Tests migrated to `.mts` on **node:test** (built-in
+  runner + isolate-wide V8 coverage that SEES the vm sandbox — vitest-v8 reports
+  0% for vm code, so node:test won over vitest; c8 dropped). Tools are `.mts`
+  (manifest gen / fontcheck / treeshake / lower / classify), strict-typechecked
+  via `tsconfig.tools.json`. Toolchain on TS 6 + target/lib es2025. REMAINING:
+  auto-generate the `globals.d.ts` runtime-API half (`tsc --declaration`) instead
+  of hand-maintaining it (B6); optionally fold `build.sh` into a `build.mts`
+  orchestrator (C14).
+- **Core-reactivity round (DECIDED 2026-07 — do it): glitch-free + running-owner
+  together.** Two core changes the owner wants shipped as ONE careful pass —
+  full test + byte-emit measurement + on-device verify (emulator is healthy) —
+  because both touch the reactive hot path and pairing them means one
+  device-verification cycle, not two.
+  - **Glitch-free reactivity (YES).** A library claiming Solid parity needs
+    glitch-freedom as a real correctness guarantee, not a documented DIVERGE.
+    Today push notify re-runs a diamond sink twice through a transient glitch
+    (conformance law 12 = DIVERGE). Scope is limited to computed + notify; the
+    prototype (`tools/glitch-prototype.mts`) proved the diamond runs the sink
+    ONCE. Full design in `docs/xs-heap-playbook.md` "Glitch-free reactivity" —
+    lazy pull-based computeds + per-node `Uint32 version` + shared `dirtySet`
+    bitmask (~+4 B/node, no per-edge objects), drops onto our masks. On landing,
+    flip conformance law 12 → MATCH. Measure the slot delta on-device first
+    (Rule 2 — eager core is correct-on-converge and cheaper).
+  - **Running-owner effect ownership (B9 — FULL, no half-measure).** RECONSIDERED
+    and the half-solution is REJECTED: binding an effect to the owner only at
+    CREATE time rescues build-time effects but still leaks effects a running
+    effect spawns on RE-RUN (the law-18 footgun — nested effects get owner=null).
+    The correct fix is Solid's running-owner: while an effect runs, `owner =
+    that effect`, so nested effects register with it and are disposed on the
+    parent's re-run/dispose. Cost is lazy (most effects spawn no nested effects).
+    Ship EITHER full running-owner OR keep today's explicit `track(effect(...))`
+    — never the half-measure. Closes the footgun; pairs with glitch-free above.
 
 ## Node / compile-time — ready to do
-- **lower.mts coverage:** currently ~93% branch; close to 100% like the runtime.
 - **createResource:** the one real hook gap — async `fetch → {loading,error,data}`
   paired with VirtualList. Everything else in api-parity.md is covered or N/A.
 - **Conformance suite expansion:** add laws for same-value-no-notify, nested
