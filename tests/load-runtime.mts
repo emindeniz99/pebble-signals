@@ -130,12 +130,16 @@ export async function loadRuntime() {
 	const tick = (n) => {
 		for (let i = 0; i < n; i++) for (const fn of [...timers.values()]) fn();
 	};
+	// how many intervals are live right now — lets the animate suite prove the
+	// shared ticker registers ONE timer for N concurrent tweens (the A2 fix).
+	const liveTimers = () => timers.size;
 	return {
 		signals: cache["runtime/signals"].namespace,
 		jsx: cache["runtime/jsx-runtime"].namespace,
 		flow: flow.namespace,
 		sandbox,
 		tick,
+		liveTimers,
 	};
 }
 

@@ -33,7 +33,9 @@ const JSX_MODULE = "runtime/jsx-runtime";
 // into a thunk would break the component that reads it as a number. A non-
 // reactive host prop (width/left/top…) is also left alone — it's a static
 // construction read, and wrapping it would trip jsx-runtime's bind-time reject.
-const PIU_HOSTS = new Set([
+// Exported so tests/sync.test.mts can assert they never drift from
+// jsx-runtime.ts's authoritative isPiu class list / REACTIVE_PROPS array.
+export const PIU_HOSTS = new Set([
 	"Label",
 	"Text",
 	"Content",
@@ -44,7 +46,7 @@ const PIU_HOSTS = new Set([
 	"Port",
 	"Layout",
 ]);
-const REACTIVE_PROPS = new Set(["string", "state", "variant", "skin", "style", "active"]);
+export const REACTIVE_PROPS = new Set(["string", "state", "variant", "skin", "style", "active"]);
 
 interface Edit {
 	start: number;
@@ -788,27 +790,32 @@ function selftest(): void {
 	console.log("lower.mts selftest OK");
 }
 
-const argv = process.argv.slice(2);
-if (argv[0] === "--selftest") {
-	selftest();
-} else {
-	for (const path of argv) {
-		const src = readFileSync(path, "utf8");
-		const { code, lowered, bailed } = lower(src);
-		if (code !== src) {
-			// Idempotency guard, every prod build: lowering its own output must
-			// be a fixed point. If a second pass would change the code again,
-			// pass one missed or double-applied something — fail LOUD, don't
-			// ship a possibly-corrupt lower.
-			const second = lower(code);
-			if (second.code !== code) {
-				console.error(
-					`lower: ${path} NOT IDEMPOTENT — second pass changed the output; refusing to write`,
-				);
-				process.exit(1);
+// CLI entry only when run directly (`node lower.mts …`) — guarded so the
+// module can be imported (tests/sync.test.mts) without running the CLI, like
+// every other tool here.
+if (import.meta.main) {
+	const argv = process.argv.slice(2);
+	if (argv[0] === "--selftest") {
+		selftest();
+	} else {
+		for (const path of argv) {
+			const src = readFileSync(path, "utf8");
+			const { code, lowered, bailed } = lower(src);
+			if (code !== src) {
+				// Idempotency guard, every prod build: lowering its own output must
+				// be a fixed point. If a second pass would change the code again,
+				// pass one missed or double-applied something — fail LOUD, don't
+				// ship a possibly-corrupt lower.
+				const second = lower(code);
+				if (second.code !== code) {
+					console.error(
+						`lower: ${path} NOT IDEMPOTENT — second pass changed the output; refusing to write`,
+					);
+					process.exit(1);
+				}
+				writeFileSync(path, code);
 			}
-			writeFileSync(path, code);
+			console.log(`lower: ${path}  ${lowered} lowered, ${bailed} bailed`);
 		}
-		console.log(`lower: ${path}  ${lowered} lowered, ${bailed} bailed`);
 	}
 }

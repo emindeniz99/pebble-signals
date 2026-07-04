@@ -4,7 +4,7 @@
 // look through one wrapper layer via inner().
 import { loadRuntime, StubContent, makeChecker } from "./load-runtime.mts";
 
-const { signals, jsx: jsxM, flow, tick, sandbox } = await loadRuntime();
+const { signals, jsx: jsxM, flow, tick, sandbox, liveTimers } = await loadRuntime();
 const { signal } = signals;
 const { createRoot } = signals;
 const { jsx } = jsxM;
@@ -383,6 +383,24 @@ const [, disposeAnim] = createRoot(() => {
 	return 0;
 });
 disposeAnim();
+
+// A2 regression: N concurrent tweens share ONE native timer (not one per
+// tween). Two live tweens -> exactly one interval; both advance on a single
+// tick; when the last stops, the timer is released.
+const [, dShared] = createRoot(() => {
+	check("no timer before any tween", liveTimers() === 0);
+	const a = animate(0, 100, 9999);
+	const b = animate(0, 50, 9999);
+	check("two tweens share ONE timer", liveTimers() === 1);
+	tick(1);
+	check("both tweens advanced on the single tick", a() > 0 && b() > 0);
+	a.stop();
+	check("timer stays live while one tween remains", liveTimers() === 1);
+	b.stop();
+	check("timer released when the last tween stops", liveTimers() === 0);
+	return 0;
+});
+dShared();
 
 // animate .stop() halts before completion
 const [, dStop] = createRoot(() => {
