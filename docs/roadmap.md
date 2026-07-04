@@ -51,6 +51,32 @@ device work is unblocked again.
   glitch-free lands.
 - **#30 type-directed storage:** analyzed net-negative; revisit only behind
   `NUMERIC_STORAGE=1` if a float-heavy app appears.
+- **Higher-fidelity tests on real XS (supplement, not replace).** The suite runs
+  the runtime in a Node `vm.SourceTextModule` sandbox (Piu classes stubbed) — fast
+  and V8-coverage-visible, but it's V8, not XS, so XS-only quirks (freeze
+  semantics, ROM aliasing, number/bigint edges) can't surface. Moddable ships
+  `xst`, a CLI XS engine; a SMALL conformance subset run under `xst` would catch
+  engine-specific divergence the V8 sandbox can't. Keep node:test as the primary
+  fast suite; add xst as a slow, high-fidelity gate. (Alternatives considered for
+  the sandbox itself — vm.Script, a worker + custom loader, esbuild-bundle-then-
+  import — all stay on V8, so none add XS fidelity; only xst does.)
+
+## Phone side — PebbleKit JS (`src/pkjs/`)
+`src/pkjs/index.js` is 4 lines wiring `@moddable/pebbleproxy` to the phone's
+`ready`/`appmessage` events. PebbleKit JS runs in the **Pebble mobile app**
+(iOS/Android) sandbox — NOT on the watch, and NOT UI (the watch UI is our XS/Piu
+runtime). It's the phone-side bridge: `XMLHttpRequest` (network), `navigator.
+geolocation`, `localStorage`, AppMessage to/from the watch, config pages,
+notifications, device info.
+- **This is where network lands.** The watch can't do HTTP; `createResource`
+  (async `fetch → {loading,error,data}`, roadmap above) must go THROUGH pkjs:
+  phone fetches via XMLHttpRequest and bridges results over AppMessage. So pkjs
+  becomes real code the moment we ship data-driven apps.
+- **pkjs → TS when that happens.** Convert `index.js` to `.ts` with a BROWSER-ish
+  lib (it has XMLHttpRequest/localStorage/geolocation, a different engine than
+  XS — its own tsconfig + lib, NOT es2025/no-DOM), and type the AppMessage
+  key contract (keys must be declared in package.json up-front or they're
+  dropped). Not now — 4 lines of glue, no logic to type yet.
 
 ## Device work — NOW UNBLOCKED (emulator healthy)
 - **Verify JSX auto-thunk on-device:** build the `autothunk` example, install,
