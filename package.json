@@ -92,7 +92,8 @@
     "build": "node build.mts",
     "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",
     "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20",
-    "build:dist": "tsc -p tsconfig.dist.json"
+    "build:dist": "tsc -p tsconfig.dist.json",
+    "dev": "node tools/dev.mts"
   },
   "bin": {
     "create-signal-piu": "dist/tools/create-app.mjs"

@@ -108,9 +108,13 @@ the QEMU emulator). The flow:
 ## Not in v1 (explicit non-goals, so nobody assumes)
 
 - **Registry publish** — `private: true` stays; `npm pack` is the
-  distribution unit. The `create-signal-piu` scaffold CLI (shipped, above)
-  works the same against a packed tarball as it would against a registry
-  install — publishing to the registry is a separate, still-unplanned step.
+  distribution unit. The package is otherwise PUBLISH-READY: `prepack`
+  already builds the generated types + compiled dist, `files` is a curated
+  allowlist, and the consumer smoke gates the exact artifact a registry
+  install would deliver. When the owner wants it public, the entire remaining
+  work is: pick/confirm the npm name, `npm login`, delete `"private": true`,
+  `npm publish` — nothing in the artifact itself needs to change. Until then
+  `create-signal-piu` + the tarball behave identically to a registry install.
 - **Prebuilt runtime in the tarball** — wrong by design (see above): minify +
   manifest mapping are per-app, on-device concerns.
 
