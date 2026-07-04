@@ -1,53 +1,26 @@
-// Drift guard: lower.mts hard-codes the Piu HOST element names and the set of
-// REACTIVE props so it can auto-thunk `string={count()}` on hosts only (the A1
-// fix). jsx-runtime.ts is the AUTHORITY — its isPiu() class list and its
-// REACTIVE_PROPS array are what actually run on device. The two MUST agree, or
-// the compiler (lower) and the runtime (jsx) disagree about what is reactive:
-// exactly the A1 bug. There is no shared module (the runtime holds CLASS refs,
-// the tool holds NAME strings — different representations), so this test reads
-// jsx-runtime's source and asserts lower's copies match it. Zero runtime cost;
-// drift fails CI loudly instead of silently mis-compiling an app.
+// Extraction pin for lower.mts. lower DERIVES its auto-thunk host set + reactive-
+// prop whitelist from jsx-runtime.ts (the runtime authority) via the TS AST —
+// there is no second hard-coded copy to drift (that drift was the A1 bug). This
+// test pins the DERIVED output to the known-good canonical sets, so if the
+// extraction breaks (jsx-runtime refactors isPiu's `PIU = [...]` or REACTIVE_PROPS
+// out of the shape the AST walk expects) or the host set legitimately changes,
+// it surfaces as a loud, readable diff instead of lower silently wrapping nothing.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 import { PIU_HOSTS, REACTIVE_PROPS } from "../tools/lower.mts";
 
-const jsxSrc = readFileSync(
-	fileURLToPath(new URL("../src/embeddedjs/runtime/jsx-runtime.ts", import.meta.url)),
-	"utf8",
-);
-
-// Pull the bare identifiers out of isPiu's `PIU = [Label, Text, …].filter(`.
-const hostMatch = jsxSrc.match(/PIU\s*=\s*\[([^\]]*)\]\.filter/);
-// Pull the string literals out of `REACTIVE_PROPS = Object.freeze([…])`.
-const propMatch = jsxSrc.match(/REACTIVE_PROPS\s*=\s*Object\.freeze\(\[([^\]]*)\]\)/);
-
-test("sync: jsx-runtime host + reactive-prop lists were found in source", () => {
-	assert.ok(hostMatch, "could not locate isPiu's PIU=[…] host list in jsx-runtime.ts");
-	assert.ok(propMatch, "could not locate REACTIVE_PROPS=[…] in jsx-runtime.ts");
-});
-
-test("sync: lower.mts PIU_HOSTS matches jsx-runtime isPiu class list", () => {
-	const jsxHosts = hostMatch![1]
-		.split(",")
-		.map((s) => s.trim())
-		.filter(Boolean);
+test("sync: lower derives the full Piu host set from jsx-runtime", () => {
 	assert.deepEqual(
 		[...PIU_HOSTS].sort(),
-		jsxHosts.sort(),
-		"lower.mts PIU_HOSTS drifted from jsx-runtime isPiu — auto-thunk host scope is wrong",
+		["Column", "Container", "Content", "Label", "Layout", "Port", "Row", "Scroller", "Text"],
+		"lower's derived PIU_HOSTS changed — jsx-runtime isPiu host list moved, or the AST extraction broke",
 	);
 });
 
-test("sync: lower.mts REACTIVE_PROPS matches jsx-runtime REACTIVE_PROPS", () => {
-	const jsxProps = propMatch![1]
-		.split(",")
-		.map((s) => s.trim().replace(/^["']|["']$/g, ""))
-		.filter(Boolean);
+test("sync: lower derives the reactive-prop whitelist from jsx-runtime", () => {
 	assert.deepEqual(
 		[...REACTIVE_PROPS].sort(),
-		jsxProps.sort(),
-		"lower.mts REACTIVE_PROPS drifted from jsx-runtime REACTIVE_PROPS — auto-thunk whitelist is wrong",
+		["active", "skin", "state", "string", "style", "variant"],
+		"lower's derived REACTIVE_PROPS changed — jsx-runtime REACTIVE_PROPS moved, or the AST extraction broke",
 	);
 });
