@@ -199,6 +199,12 @@ proportional load cost that kills by 24KB. Consequences:
   (all five loaded) with slot use up only ~64B** (17088→17152) and the
   fifth screen renders its computed value on-screen ("f(3) = 41065").
   Bytecode never enters RAM; only each screen's few function objects do.
+- **ONE 40KB module ALSO works when loaded lazily (`lazyone` example,
+  device-proven):** the same ~40KB as a SINGLE module (5 fat fns, archive
+  34,394B / main 573B) importNow-loads at runtime and renders its computed
+  value ("sum(3) = 216286"). The 16-24KB single-shot ceiling measured
+  earlier applies to BOOT-time loading; a lazy runtime load of one big
+  module clears it. Keep the function COUNT low either way.
 - The road to BIG TOTAL code (40KB+) is LAZY modules: `importNow` screen
   modules keep bytecode in flash until pushed and only the ACTIVE
   screen's objects live in RAM (lazyscreen + multilazy O(1) principle) —

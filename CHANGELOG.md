@@ -26,6 +26,9 @@ No registry releases yet; entries accumulate under Unreleased until the first
 - `tools/host-symbols.py`: extract the firmware host's full interned key
   list from the SDK debug ELF — with xsa-symbols this shows exactly which
   build symbols are new-to-host (the ones that cost boot slots).
+- **`lazyone` example — ONE 40KB module, device-proven**: a single lazy
+  module of ~40KB (5 fat fns) importNow-loads at runtime and renders; the
+  16-24KB ceiling is a BOOT-load limit, not a module-size limit.
 - **`lazyfat` example — 40KB total code, device-proven**: five ~8KB lazy
   screen modules; all load on demand (instruments: modules 4→9, slot use
   +~64B) and render. Mechanism pinned: mods have NO real preload (mcrun
