@@ -37,6 +37,26 @@ const ts = await loadTS();
 const SRC_MODULE = "runtime/signals";
 const JSX_MODULE = "runtime/jsx-runtime";
 
+// auto-thunk is scoped to HOST (Piu) elements and their REACTIVE props ONLY —
+// these two sets MUST stay in sync with jsx-runtime.ts (isPiu / REACTIVE_PROPS).
+// A component (VirtualList, user fn) is NOT a host, so its props (rows, data,
+// each, value…) are left ALONE — wrapping a plain-value prop like `rows={n()}`
+// into a thunk would break the component that reads it as a number. A non-
+// reactive host prop (width/left/top…) is also left alone — it's a static
+// construction read, and wrapping it would trip jsx-runtime's bind-time reject.
+const PIU_HOSTS = new Set([
+	"Label",
+	"Text",
+	"Content",
+	"Container",
+	"Column",
+	"Row",
+	"Scroller",
+	"Port",
+	"Layout",
+]);
+const REACTIVE_PROPS = new Set(["string", "state", "variant", "skin", "style", "active"]);
+
 function program(text) {
 	const fileName = "app.js";
 	const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.ES2022, true, ts.ScriptKind.JS);
@@ -231,13 +251,24 @@ export function autoThunk(text) {
 		return s && (s === jsxSym || s === jsxsSym);
 	};
 
+	// Is the jsx type a Piu HOST element? A host is a FREE global — a bare
+	// identifier in the Piu set with NO resolvable declaration (host-injected at
+	// runtime). A component (imported/local) resolves to a symbol, and a shadowed
+	// `const Label = …` also resolves — so symbol-resolution handles shadowing.
+	const isPiuHostType = (typeNode) =>
+		typeNode &&
+		ts.isIdentifier(typeNode) &&
+		PIU_HOSTS.has(typeNode.text) &&
+		!checker.getSymbolAtLocation(typeNode);
+
 	const edits = [];
 	(function walk(n) {
 		if (
 			ts.isCallExpression(n) &&
 			isJsxCall(n) &&
 			n.arguments.length >= 2 &&
-			ts.isObjectLiteralExpression(n.arguments[1])
+			ts.isObjectLiteralExpression(n.arguments[1]) &&
+			isPiuHostType(n.arguments[0]) // ONLY host elements — never components
 		) {
 			for (const prop of n.arguments[1].properties) {
 				if (!ts.isPropertyAssignment(prop)) continue; // skip spreads/shorthand
@@ -246,7 +277,7 @@ export function autoThunk(text) {
 					: ts.isStringLiteral(prop.name)
 						? prop.name.text
 						: null;
-				if (key === "children" || key === null) continue;
+				if (key === null || !REACTIVE_PROPS.has(key)) continue; // whitelist only
 				const v = prop.initializer;
 				if (ts.isArrowFunction(v) || ts.isFunctionExpression(v)) continue; // already a thunk
 				if (!hasReactiveRead(v)) continue;
@@ -705,6 +736,30 @@ function selftest() {
 	// children prop with a reactive read is NOT auto-wrapped (fn-child path)
 	r = lower(JSXIMP + "const s = signal(0);\n" + "jsx(Box, { children: s.value });\n");
 	eq(r.code, !r.code.includes("children: () =>"), "children not auto-wrapped");
+
+	// A1 regression 1: a COMPONENT prop is NEVER auto-thunked. VirtualList is an
+	// imported function (resolves to a symbol), so `rows={count()}` — a plain
+	// NUMBER the component reads directly — is lowered but NOT wrapped (wrapping
+	// would hand the component a function and silently render nothing).
+	r = lower(
+		'import { useState } from "runtime/signals";\n' +
+			'import { jsx } from "runtime/jsx-runtime";\n' +
+			'import { VirtualList } from "runtime/flow";\n' +
+			"const [count, setCount] = useState(0);\n" +
+			"jsx(VirtualList, { rows: count() });\n",
+	);
+	eq(r.code, r.code.includes("rows: __sp.get(count)"), "component prop lowered but NOT thunked");
+	eq(r.code, !r.code.includes("rows: () =>"), "component prop not wrapped");
+
+	// A1 regression 2: a host NON-whitelist (position/size) prop is NOT auto-
+	// thunked. `width={count()}` on a Label reads once statically (lowered but not
+	// wrapped) — wrapping it would trip jsx-runtime's bind-time position reject.
+	r = lower(
+		JSXIMP + "const [count, setCount] = useState(0);\n" + "jsx(Label, { width: count() });\n",
+	);
+	eq(r.code, r.code.includes("width: __sp.get(count)"), "host non-whitelist prop lowered");
+	eq(r.code, !r.code.includes("width: () =>"), "host position prop not wrapped");
+
 	// idempotent end-to-end
 	const twice = lower(JSXIMP + "const s = signal(0);\njsx(Label, { string: s.value });\n").code;
 	eq(twice, lower(twice).code === twice, "auto-thunk + lowering idempotent");
