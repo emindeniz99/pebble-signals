@@ -4,6 +4,13 @@
 // removal disposes every effect created inside it.
 import { signal, effect, untrack, track, createRoot } from "runtime/signals";
 import { appendChild, screen } from "runtime/jsx-runtime";
+import type {
+	Skin,
+	SkinDictionary,
+	Style,
+	StyleDictionary,
+	ColumnConstructor,
+} from "../../../types/moddable/piu/MC-types";
 
 // Control-flow works with Piu nodes and caller-supplied builder thunks — the
 // dynamic boundary of the library. A `Node` is a Piu Content instance (typed
@@ -32,8 +39,8 @@ export type BoxProps = {
 	right?: number;
 	top?: number;
 	bottom?: number;
-	skin?: any;
-	style?: any;
+	skin?: Skin | SkinDictionary;
+	style?: Style | StyleDictionary;
 };
 
 export type ShowProps = BoxProps & {
@@ -165,7 +172,7 @@ export function Show(props: ShowProps): Node {
 // (see the bare-Label port bug above; width/height-sized wrappers are the
 // on-device-proven shape). A missing side yields an EMPTY wrapper — never
 // null — so keepAlive swaps always use replace().
-function wrapSide(props: Props, build: unknown): Node {
+function wrapSide(props: Props, build: (() => Node) | undefined): Node {
 	const wrapper = new Container(null, { width: props.width, height: props.height });
 	if (build) appendChild(wrapper, asNode(build));
 	return wrapper;
@@ -182,7 +189,7 @@ function wrapSide(props: Props, build: unknown): Node {
 // cycles).
 export function For<T>(props: ForProps<T>): Node {
 	const host = makeHost(props, Column);
-	const keyOf = props.key || ((item: unknown) => item);
+	const keyOf = props.key || ((item: T) => item);
 	// Rows live in FOUR index-aligned parallel arrays (keys/nodes/disposers/
 	// stamps). A row is an INDEX: the previous Map (~10 slots + hash chunk)
 	// and its per-row {n,d,s} record (~5 slots each) are gone — playbook
@@ -303,7 +310,7 @@ export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): Node => {
 		return host;
 	}
 	// simple rows: one recycled Label per slot, string via `format`
-	const fmt = props.format || ((v: unknown) => String(v));
+	const fmt = props.format || ((v: T) => String(v));
 	for (let slot = 0; slot < rows; slot++) {
 		const label = new Label(null, {});
 		track(
@@ -350,7 +357,7 @@ export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): Node => {
 // screens hand back.
 export const Navigator = (props: NavigatorProps): Node => {
 	const host = makeHost(props, Column);
-	const stack: any[] = [props.root];
+	const stack: ((nav: NavHandle) => Node)[] = [props.root];
 	const depth = signal(1); // reactive; drives depth()/canPop()
 	let disposeTop: Disposer | null = null;
 	const swap = () =>
@@ -492,8 +499,9 @@ export function animate(
 	return get;
 }
 
-function makeHost(props: Props, Type: any): Node {
-	const dict: Record<string, any> = {};
+function makeHost(props: Props, Type: ColumnConstructor): Node {
+	const dict: Record<string, number | Skin | SkinDictionary | Style | StyleDictionary | undefined> =
+		{};
 	for (const k in props) {
 		if (
 			k === "left" ||

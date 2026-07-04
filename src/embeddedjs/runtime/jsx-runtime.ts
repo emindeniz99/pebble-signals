@@ -2,6 +2,10 @@
 // elements become real Piu nodes created once; function-valued props become
 // live effect bindings that assign single Piu properties on change.
 import { effect, track, createRoot } from "runtime/signals";
+import type {
+	Application as PiuApplication,
+	ApplicationDictionary,
+} from "../../../types/moddable/piu/MC-types";
 
 // A JSX result: a Piu node, a primitive child, an array of them, or nullish.
 // The factory is inherently dynamic (host class OR component fn), so the
@@ -90,9 +94,9 @@ for (const n of BUTTON_EVENTS)
 
 function createHost(type: any, props: Props): Node {
 	const dict: Record<string, any> = {};
-	let bindings: any[] | null = null,
-		tap: any = null,
-		buttons: Record<string, any> | null = null,
+	let bindings: (string | (() => unknown))[] | null = null,
+		tap: ((content: Node, x: number, y: number) => void) | null = null,
+		buttons: Record<string, (content: Node) => unknown> | null = null,
 		children: Node,
 		focus = false;
 	for (const k in props) {
@@ -130,8 +134,8 @@ function createHost(type: any, props: Props): Node {
 	if (focus) pendingFocus = node; // applied after mount; focus() needs a bound node
 	if (bindings) {
 		for (let i = 0; i < bindings.length; i += 2) {
-			const key = bindings[i],
-				thunk = bindings[i + 1];
+			const key = bindings[i] as string,
+				thunk = bindings[i + 1] as () => unknown;
 			// Reject an illegal reactive prop ONCE, HERE (bind time), with an
 			// actionable message — not on every effect run. Only the whitelist
 			// can be written reactively; a reactive position prop is the classic
@@ -225,7 +229,7 @@ export const screen = { width: 0, height: 0 };
 // Mount a JSX tree as the Piu application. `build` runs under a root owner;
 // the returned disposer is kept alive for the app's lifetime.
 /** Mount a JSX tree as the Piu Application. `build` runs under a root owner. */
-export function render(build: () => Node, dict?: any): any {
+export function render(build: () => Node, dict?: ApplicationDictionary): PiuApplication {
 	const app = new Application(null, dict || {});
 	screen.width = app.width; // screen size is known once the app exists,
 	screen.height = app.height; // before build() runs so it can read it
