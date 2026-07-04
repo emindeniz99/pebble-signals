@@ -271,6 +271,15 @@ notifications, device info.
   = lazy importNow modules (only the active screen's objects in RAM); true
   mod freeze = upstream ask (upstream-issue.md #5). Compiler direction
   updated: split screens into LAZY modules (not merge into one frozen lib).
+  ROUND 2 (owner Q&A, device-proven): lazymany (70 thin fns, runtime
+  load) DIES -> lazypack (same bodies, ONE switch-packed fn) WORKS — the
+  compiler needs a SQUASH/inline pass for many-component screens; lazyone
+  scaled to 104KB source (71KB archive) WORKING, 208KB (131KB archive)
+  dies at launch — bisect the 71-131KB archive limit. NOT yet done:
+  romTable() helper (#48), true-WATCHFACE-packaged lazy test (our
+  watchface examples run as apps; flip watchapp.watchface and trigger
+  importNow from a timer — buttons don't exist on watchfaces), load-time
+  ms instrumentation, class-pure cell, romscreens foreground shot.
   STILL OPEN from the campaign: (a) ~~pin the per-function mechanism in xsl~~
   source; (b) smart-split BUILD stage (merge many pure files into ONE
   frozen module + export-mangle to host-known names — the DX half);

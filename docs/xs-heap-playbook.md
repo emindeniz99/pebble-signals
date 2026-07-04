@@ -205,6 +205,20 @@ proportional load cost that kills by 24KB. Consequences:
   value ("sum(3) = 216286"). The 16-24KB single-shot ceiling measured
   earlier applies to BOOT-time loading; a lazy runtime load of one big
   module clears it. Keep the function COUNT low either way.
+- **The many-thin-components hazard + the compiler fix (both device-
+  proven):** 70 thin arrows in ONE lazy module die at RUNTIME load too
+  (fxAbort memory full) — the per-function cost is universal, so a screen
+  built from ~40 tiny arrow components WILL blow up. Fix proven by the
+  `lazypack` cell: the SAME bodies switch-PACKED into ONE dispatch
+  function load and run ("70 bodies, 1 fn / H(3,5) = h3[72]"). The
+  smart-split compiler therefore needs a SQUASH pass (inline small
+  components / pack helpers into dispatch functions), not just splitting.
+- **Size limit hunt (single lazy module, runtime load):** ~104KB source /
+  71,069B archive WORKS ("sum(3) = 492831"); ~208KB source / 130,892B
+  archive INSTALLS but dies at launch — practical archive limit is
+  between 71KB and 131KB (bisect pending). Load speed: the 40KB and
+  104KB modules loaded + rendered within the 3-4s driver step
+  (no ms instrumentation yet).
 - The road to BIG TOTAL code (40KB+) is LAZY modules: `importNow` screen
   modules keep bytecode in flash until pushed and only the ACTIVE
   screen's objects live in RAM (lazyscreen + multilazy O(1) principle) —

@@ -26,6 +26,10 @@ No registry releases yet; entries accumulate under Unreleased until the first
 - `tools/host-symbols.py`: extract the firmware host's full interned key
   list from the SDK debug ELF — with xsa-symbols this shows exactly which
   build symbols are new-to-host (the ones that cost boot slots).
+- **`lazymany`/`lazypack` cells — the many-components answer**: 70 thin
+  fns die even at runtime load; the same bodies switch-packed into ONE
+  function work — compiler squash pass validated. `lazyone` scaled:
+  104KB source works, 208KB dies at launch (archive limit 71-131KB).
 - **`lazyone` example — ONE 40KB module, device-proven**: a single lazy
   module of ~40KB (5 fat fns) importNow-loads at runtime and renders; the
   16-24KB ceiling is a BOOT-load limit, not a module-size limit.
