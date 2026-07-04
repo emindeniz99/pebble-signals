@@ -17,7 +17,13 @@
 		// actually has. No DOM — Piu's global `Text`/`Image` otherwise collide
 		// with lib.dom.d.ts, and XS is not a browser.
 		"lib": ["es2025"],
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		// `runtime/*` imports resolve STRAIGHT to the runtime .ts sources (B6):
+		// the source is the single typed truth — generics, prop contracts and
+		// JSDoc live there, so there is no hand-maintained .d.ts to drift.
+		// (Package consumers get generated .d.ts via `npm run build:types`.)
+		// No baseUrl (deprecated in TS 6) — paths are tsconfig-relative.
+		"paths": { "runtime/*": ["./src/embeddedjs/runtime/*"] }
 	},
 	// Vendor's package.json `types` field is broken (an array), so there is no
 	// auto-resolution — the Piu/Pebble host-global .d.ts must be listed here by

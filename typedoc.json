@@ -1,6 +1,11 @@
 {
-  "entryPoints": ["src/tsx/globals.d.ts"],
+  "entryPoints": [
+    "src/embeddedjs/runtime/signals.ts",
+    "src/embeddedjs/runtime/jsx-runtime.ts",
+    "src/embeddedjs/runtime/flow.ts"
+  ],
   "entryPointStrategy": "expand",
+  "tsconfig": "tsconfig.check.json",
   "plugin": ["typedoc-plugin-markdown"],
   "out": "docs/api",
   "readme": "none",

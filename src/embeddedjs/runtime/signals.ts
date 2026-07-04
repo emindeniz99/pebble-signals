@@ -174,14 +174,14 @@ const flush = (g: Graph, i: number): void => {
 // Signals keep the object API (`.value`) — Stage 1 packs only the graph.
 // `i` is the signal's row in G.sub, allocated LAZILY on first subscribe:
 // never-watched signals own no row at all.
-class Signal {
-	v: unknown;
+class Signal<T> {
+	v: T;
 	i: number;
-	constructor(value: unknown) {
+	constructor(value: T) {
 		this.v = value;
 		this.i = -1;
 	}
-	get value(): unknown {
+	get value(): T {
 		// eff[current] check: an effect disposed WHILE RUNNING (its subtree
 		// torn down by an outer effect it triggered) must not re-subscribe
 		// as a permanent zombie.
@@ -193,7 +193,7 @@ class Signal {
 		}
 		return this.v;
 	}
-	set value(value: unknown) {
+	set value(value: T) {
 		if (value === this.v) return;
 		this.v = value;
 		const i = this.i;
@@ -202,6 +202,15 @@ class Signal {
 			return;
 		flush(G!, i); // flush snapshots each subscriber word by value (see above)
 	}
+}
+
+/**
+ * A derived, read-only reactive value — what {@link computed} returns. Reading
+ * `.value` inside an effect subscribes; writing it is a type error (a computed
+ * is recomputed from its dependencies, never assigned).
+ */
+export interface ReadonlySignal<T> {
+	readonly value: T;
 }
 
 // diagnostic hook: surface subscriber exceptions instead of letting them
@@ -251,7 +260,13 @@ function unsubscribe(e: number): void {
 	for (let s = 0; s < rows; s++) sub[s * st + word] &= m;
 }
 
-export function signal(value: unknown): Signal {
+/**
+ * Create a reactive value. Reading `.value` inside an {@link effect} (or a JSX
+ * binding thunk) subscribes to it; writing `.value` notifies subscribers. The
+ * build lowers `const s = signal(v)` to the packed integer {@link S} API.
+ * @param value initial value
+ */
+export function signal<T>(value: T): Signal<T> {
 	return new Signal(value);
 }
 
@@ -262,20 +277,28 @@ export function signal(value: unknown): Signal {
 // time (tools/lower.py): x() -> S.get(x), setX(e) -> S.set(x, e). Authoring
 // DX is unchanged and the per-state getter/setter closures never exist at
 // runtime. set() keeps useState's functional-update contract.
+/**
+ * Packed lowering target — integer-id signals with zero per-signal objects.
+ * `build.mts` rewrites `useState`/`signal`/`computed` to this at compile time;
+ * you rarely call it by hand.
+ */
 export const S = {
+	/** Allocate a packed signal, return its integer id. */
 	sig(v: unknown): number {
 		const g = gi();
 		const i = grow(g);
 		g.val[i] = v;
 		return i;
 	},
-	get(i: number): unknown {
+	/** Read packed signal `i` (subscribes the current effect). */
+	get<T>(i: number): T {
 		if (current >= 0 && G!.eff[current]) G!.sub[i * G!.st + (current >> 5)] |= 1 << (current & 31);
-		return G!.val[i];
+		return G!.val[i] as T;
 	},
-	set(i: number, v: unknown): void {
+	/** Functional-update write (the `useState` setter contract). */
+	set<T>(i: number, v: T | ((prev: T) => T)): void {
 		const g = G!;
-		if (typeof v === "function") v = (v as (prev: unknown) => unknown)(g.val[i]);
+		if (typeof v === "function") v = (v as (prev: unknown) => unknown)(g.val[i]) as T;
 		if (v === g.val[i]) return;
 		g.val[i] = v;
 		flush(g, i);
@@ -284,7 +307,8 @@ export const S = {
 	// `s.value = e`: the object API stores a function value verbatim, so the
 	// lowered form must too (S.set would CALL it as an updater — measured
 	// semantic drift, not a theoretical one).
-	put(i: number, v: unknown): void {
+	/** RAW write — stores a function verbatim (the `signal.value =` contract). */
+	put<T>(i: number, v: T): void {
 		const g = G!;
 		if (v === g.val[i]) return;
 		g.val[i] = v;
@@ -296,6 +320,7 @@ export const S = {
 	// the current owner so disposing its subtree stops it. The Signal object
 	// never exists — same read path as a packed signal, writes are caller
 	// error (the lowering bails on any `.value =` to a computed).
+	/** Packed memo: one value slot + one recomputing effect. */
 	computed(fn: () => unknown): number {
 		const g = gi();
 		const i = grow(g);
@@ -311,6 +336,12 @@ export const S = {
 // Returns the effect ID (an integer — costs ZERO slots), not an object or
 // a disposer closure. Dispose with dispose(id) (or register with track(),
 // whose owner terminates closures and ids alike).
+/**
+ * Run `fn` now and re-run it whenever a signal it READ changes. Dependencies
+ * are re-tracked every run (conditional deps work). Returns an integer effect
+ * id — dispose with {@link dispose}, or {@link track} it to an owner. A bare
+ * `effect()` is NOT auto-owned; the hooks ({@link useEffect}) track for you.
+ */
 export function effect(fn: EffectFn): number {
 	const g = gi();
 	let e!: number; // every branch below assigns it before use (definite-assign)
@@ -345,6 +376,7 @@ export function effect(fn: EffectFn): number {
 
 // Terminal disposal for anything an owner can hold: a plain closure (root
 // disposers, onCleanup callbacks) or a packed effect id.
+/** Terminal disposal for a closure disposer or a packed effect id. */
 export function dispose(d: number | EffectFn): void {
 	if (typeof d === "function") {
 		d();
@@ -369,14 +401,19 @@ export function dispose(d: number | EffectFn): void {
 // Eager computed. The internal effect is registered with the current owner
 // so disposing the subtree that created the computed also stops it —
 // otherwise it would keep firing (and leaking) after its UI is gone.
-export function computed(fn: () => unknown): Signal {
-	const s = new Signal(undefined);
+/**
+ * Memoized derived signal: `fn` re-runs only when a dependency changes, and
+ * its value is cached across reads. Costs one internal effect — prefer a plain
+ * thunk `() => a.value + b.value` unless the value is read in many places.
+ */
+export function computed<T>(fn: () => T): ReadonlySignal<T> {
+	const s = new Signal(undefined as T);
 	track(
 		effect(() => {
 			s.value = fn();
 		}),
 	);
-	return s; // its .value getter tracks; writing .value is caller error
+	return s; // its .value getter tracks; writing .value is a type error (ReadonlySignal)
 }
 
 // Batch writes: N sets inside fn produce ONE notification pass per touched
@@ -385,6 +422,11 @@ export function computed(fn: () => unknown): Signal {
 // without re-running shared effects N times. Nests; exception-safe (the
 // deferred flushes still run). Values are written eagerly (reads inside the
 // batch see the new value); only NOTIFICATION is deferred — Solid's contract.
+/**
+ * Coalesce writes: N `.value` sets inside `fn` produce ONE notification per
+ * subscriber (union of touched signals), after `fn` returns. Reads inside the
+ * batch see new values eagerly; only notification defers (Solid semantics).
+ */
 export function batch<T>(fn: () => T): T {
 	const g = gi();
 	g.bat++;
@@ -419,7 +461,7 @@ export function batch<T>(fn: () => T): T {
 	}
 }
 
-// Read a value without creating a dependency.
+/** Read signals inside `fn` WITHOUT subscribing to them. */
 export function untrack<T>(fn: () => T): T {
 	const prev = current;
 	current = -1;
@@ -442,6 +484,10 @@ interface Owner {
 }
 let owner: Owner | null = null;
 
+/**
+ * Run `fn` under a fresh owner; returns `[result, disposer]`. Calling the
+ * disposer tears down every effect/cleanup {@link track}ed during `fn`.
+ */
 export function createRoot<T>(fn: () => T): [T, () => void] {
 	const o: Owner = { d: [] };
 	const prev = owner;
@@ -464,12 +510,14 @@ export function createRoot<T>(fn: () => T): [T, () => void] {
 	return [result, disposer];
 }
 
+/** Register a cleanup to run when the current owner is disposed. */
 export function onCleanup(fn: EffectFn): void {
 	if (owner) owner.d.push(fn);
 }
 
 // Register a disposable (Effect instance or closure) with the current
 // owner so tearing down the subtree tears it down too.
+/** Register an effect id / disposer with the current owner; returns it. */
 export function track(disposable: Disposable): Disposable {
 	if (owner) owner.d.push(disposable);
 	return disposable;
@@ -479,6 +527,11 @@ export function track(disposable: Disposable): Disposable {
 // Differences from React (see README): components run once; read state by
 // CALLING the getter (count()); pass reactive props as thunks.
 
+/**
+ * React-style state, Solid semantics: returns `[getter, setter]` where the
+ * getter is a CALL — `count()`, not `count`. The setter takes a value or a
+ * functional update `setCount(c => c + 1)`. Lowered to the packed {@link S} API.
+ */
 export function useState<T>(init: T): [() => T, (v: T | ((prev: T) => T)) => void] {
 	const s = new Signal(init);
 	return [
@@ -494,6 +547,10 @@ export function useState<T>(init: T): [() => T, (v: T | ((prev: T) => T)) => voi
 // and once more when the owning subtree is disposed (stored on the Effect
 // itself — registering with the owner would only capture the FIRST run's
 // cleanup, since re-runs happen outside any owner context).
+/**
+ * Auto-tracked effect (no dependency array). An optional returned function is
+ * the cleanup: it runs before every re-run and once more at dispose.
+ */
 export function useEffect(fn: () => void | EffectFn): void {
 	track(
 		effect(() => {
@@ -511,9 +568,10 @@ export function useEffect(fn: () => void | EffectFn): void {
 // unlimited — #21), but a screen with dozens of useMemo/computed pays one
 // effect each; prefer a plain thunk `() => a() + b()` when you don't need the
 // value cached across reads.
+/** Memoized getter over {@link computed}: `const total = useMemo(() => a() + b())`. */
 export function useMemo<T>(fn: () => T): () => T {
 	const c = computed(fn);
-	return () => c.value as T;
+	return () => c.value;
 }
 
 // Mutable box that never notifies — React's useRef. (useCallback is
@@ -587,8 +645,30 @@ const T_I32 = 0,
 
 // Custom codec: encode writes the payload (returns its byte length, or -1 if it
 // needs more than `max`); decode reads it back.
-type Encode = (value: unknown, bytes: Uint8Array, offset: number, max: number) => number;
-type Decode = (bytes: Uint8Array, offset: number, length: number) => unknown;
+export type Encode = (value: unknown, bytes: Uint8Array, offset: number, max: number) => number;
+export type Decode = (bytes: Uint8Array, offset: number, length: number) => unknown;
+
+/**
+ * The public surface of a byte-record store — what {@link createStore} returns.
+ * Values move in and out BY COPY (serialization store, not an object heap), so
+ * `get` is honestly `unknown`: the record's runtime tag decides the type.
+ */
+export interface ByteStore {
+	/** Number of records currently stored. */
+	count(): number;
+	/** Register a custom codec under tag 8..255 (see {@link Encode}/{@link Decode}). */
+	def(tag: number, encode: Encode, decode: Decode): void;
+	/** Append a value (pass `tag` for custom types). New count, or -1 if it doesn't fit. */
+	push(v: unknown, tag?: number): number;
+	/** Decode record `i` by copy; `undefined` when out of range. */
+	get(i: number): unknown;
+	/** Remove record `i` (tail shifts down). New count, or -1 when out of range. */
+	remove(i: number): number;
+	/** Persist the raw record bytes under `k` in the host's localStorage. */
+	save(k: string): void;
+	/** Restore records saved under `k`; false on missing/oversize/corrupt data. */
+	load(k: string): boolean;
+}
 
 const Store = class {
 	b: Uint8Array;
@@ -764,4 +844,5 @@ const Store = class {
 	}
 };
 
-export const createStore = (size: number) => new Store(size);
+/** Byte-record store: records live as BYTES in one Uint8Array, not as slots. */
+export const createStore = (size: number): ByteStore => new Store(size);

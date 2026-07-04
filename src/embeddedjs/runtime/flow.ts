@@ -6,18 +6,79 @@ import { signal, effect, untrack, track, createRoot } from "runtime/signals";
 import { appendChild, screen } from "runtime/jsx-runtime";
 
 // Control-flow works with Piu nodes and caller-supplied builder thunks — the
-// dynamic boundary of the library. Like the JSX factory, nodes and props are
-// loosely typed here; the precise prop contracts live in src/tsx/globals.d.ts
-// (checked at app compile time). A `Node` is a Piu Content instance.
+// dynamic boundary of the library. A `Node` is a Piu Content instance (typed
+// `any`: Piu classes are host globals). The prop contracts below are the
+// PUBLIC types — `npm run typecheck` resolves `runtime/flow` straight to this
+// file, so misuse (e.g. passing both `format` and `renderRow`) is a compile
+// error in app code. They are `type` aliases, not interfaces, so they stay
+// assignable to the loose internal `Props` (implicit index signature).
 type Node = any;
 type Props = Record<string, any>;
 type Disposer = () => void;
+type Thunk<T> = () => T;
 // animate()'s return: a getter you can call for the current value, with a
 // .stop() to cancel the tween.
 interface Tween {
 	(): number;
 	stop: () => void;
 }
+
+// Host-box coordinates shared by every control-flow component (construction-
+// time statics — Piu lays out at construction; see jsx-runtime's bind reject).
+export type BoxProps = {
+	width?: number;
+	height?: number;
+	left?: number;
+	right?: number;
+	top?: number;
+	bottom?: number;
+	skin?: any;
+	style?: any;
+};
+
+export type ShowProps = BoxProps & {
+	when: Thunk<boolean>;
+	children: Thunk<Node>;
+	fallback?: Thunk<Node>;
+	keepAlive?: boolean;
+};
+
+export type ForProps<T> = BoxProps & {
+	each: Thunk<T[]>;
+	key?: (item: T, i: number) => unknown;
+	children: (item: T, i: number) => Node;
+};
+
+/** Anything with `count()` and `get(i)` — an array wrapper, the byte store, a lazy fetcher. */
+export type DataSource<T> = {
+	count(): number;
+	get(i: number): T;
+};
+type VLBase<T> = BoxProps & {
+	data: DataSource<T>;
+	rows?: number;
+	at?: Thunk<number>;
+};
+// simple mode: recycled Labels via `format`. `renderRow` forbidden.
+export type VLSimple<T> = VLBase<T> & {
+	format?: (v: T, i: number) => string;
+	renderRow?: never;
+};
+// rich mode: a recycled subtree per slot via `renderRow`. `format` forbidden.
+export type VLRich<T> = VLBase<T> & {
+	renderRow: (indexThunk: Thunk<number>, data: DataSource<T>) => Node;
+	format?: never;
+};
+
+export type NavHandle = {
+	push(build: (nav: NavHandle) => Node): void;
+	pop(): void;
+	depth(): number;
+	canPop(): boolean;
+};
+export type NavigatorProps = BoxProps & {
+	root: (nav: NavHandle) => Node;
+};
 // NOTE: flow deliberately does NOT import consumePendingFocus — calling a
 // preloaded module's function that WRITES another preloaded module's
 // aliased variable kills the firmware at startup (measured by bisection;
@@ -56,7 +117,7 @@ interface Tween {
 // the same two sides toggle often (builds both once, swaps by reference — zero
 // allocation per toggle) and for the default rebuild mode when memory is
 // tighter than update cost (only one side is ever allocated).
-export function Show(props: Props): Node {
+export function Show(props: ShowProps): Node {
 	const host = makeHost(props, Column);
 	if (props.keepAlive) {
 		const a = wrapSide(props, props.children);
@@ -119,7 +180,7 @@ function wrapSide(props: Props, build: unknown): Node {
 // nodes) — a full empty()+re-add per update destabilizes the piu Pebble
 // port and costs native churn per row (measured: app death after ~15-25
 // cycles).
-export function For(props: Props): Node {
+export function For<T>(props: ForProps<T>): Node {
 	const host = makeHost(props, Column);
 	const keyOf = props.key || ((item: unknown) => item);
 	// Rows live in FOUR index-aligned parallel arrays (keys/nodes/disposers/
@@ -222,7 +283,7 @@ export function For(props: Props): Node {
 // gotcha 13). Overscan is intentionally omitted: this port redraws text
 // instantly with no pixel/momentum scroll, so pre-mounting off-screen rows
 // buys nothing (there is no lazy mount to warm) — we render exactly `rows`.
-export const VirtualList = (props: Props): Node => {
+export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): Node => {
 	const host = makeHost(props, Column);
 	const rows = props.rows || 3;
 	const data = props.data;
@@ -287,7 +348,7 @@ export const VirtualList = (props: Props): Node => {
 //    crashes laying it out (measured — 1 label survived, 2+ died).
 // Buttons go on the outer focused Container and drive nav via the handle
 // screens hand back.
-export const Navigator = (props: Props): Node => {
+export const Navigator = (props: NavigatorProps): Node => {
 	const host = makeHost(props, Column);
 	const stack: any[] = [props.root];
 	const depth = signal(1); // reactive; drives depth()/canPop()
@@ -318,8 +379,8 @@ export const Navigator = (props: Props): Node => {
 			disposeTop = d;
 			host.add(tree);
 		});
-	const nav = {
-		push(build: (nav: unknown) => Node) {
+	const nav: NavHandle = {
+		push(build: (nav: NavHandle) => Node) {
 			stack.push(build);
 			depth.value = stack.length;
 			swap();

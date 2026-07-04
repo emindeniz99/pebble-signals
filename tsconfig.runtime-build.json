@@ -9,11 +9,11 @@
 	// helpers, top-level class/function declarations preserved exactly (gotcha
 	// 13 alias budget unchanged). es2025 is future headroom, not a behavior change.
 	//
-	// Cross-runtime imports (`from "runtime/signals"`) resolve against the
-	// `declare module "runtime/*"` blocks in globals.d.ts, so each runtime .ts
-	// type-checks independently of whether its siblings are .ts or .js yet — this
-	// is what lets the conversion proceed one file at a time. Piu host classes
-	// come from the vendored Moddable typings.
+	// Cross-runtime imports (`from "runtime/signals"`) resolve via `paths`
+	// straight to the sibling .ts SOURCE (B6) — real generic types, not ambient
+	// shims. `paths` affects resolution only; the emitted import specifier stays
+	// `runtime/signals` (what the mod manifest maps). Piu host classes come from
+	// the vendored Moddable typings.
 	"compilerOptions": {
 		"target": "es2025",
 		"module": "esnext",
@@ -29,12 +29,12 @@
 		// not [[Define]]d — so tsc must NOT emit field initializers (which would
 		// change semantics AND the emit-diff / gotcha-13 alias budget).
 		"useDefineForClassFields": false,
+		"paths": { "runtime/*": ["./src/embeddedjs/runtime/*"] },
 		"outDir": "src/embeddedjs/runtime-build",
 		"rootDir": "src/embeddedjs/runtime"
 	},
 	"include": ["src/embeddedjs/runtime/**/*.ts"],
 	"files": [
-		"src/tsx/globals.d.ts",
 		"types/moddable/piu/MC.d.ts",
 		"types/moddable/pebble/global.d.ts",
 		"types/moddable/pebble/piu.d.ts"

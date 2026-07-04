@@ -37,3 +37,24 @@ const flag = signal(false);
 flag.value = true;
 const dbl = computed(() => n * 2);
 const _d: number = dbl.value;
+
+// B6 guards: generics now come from the runtime SOURCE (tsconfig paths), so
+// these prove the derived types actually bite, not just exist.
+// @ts-expect-error — a computed is ReadonlySignal: writing .value is a type error
+dbl.value = 5;
+// @ts-expect-error — signal<boolean> rejects a number write
+flag.value = 42;
+// For<T> infers the item type from `each`; children sees it
+For({ each: () => ["a", "b"], children: (s2, i) => s2.toUpperCase() + i });
+// @ts-expect-error — children item type mismatches the each() element type
+For({ each: () => [1, 2], children: (s2: string) => s2 });
+
+// the byte store surface is typed (was `any` in the hand-written decls)
+import { createStore } from "runtime/signals";
+const store = createStore(64);
+const cnt: number = store.push(42);
+const back: unknown = store.get(0);
+void cnt;
+void back;
+// @ts-expect-error — save() takes a string key
+store.save(123);

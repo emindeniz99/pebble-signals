@@ -25,16 +25,19 @@ function isPiu(type: unknown): boolean {
 	return PIU.indexOf(type) >= 0;
 }
 
+/** `<>...</>` — returns its children unchanged. */
 export function Fragment(props: Props): Node {
 	return props.children;
 }
 
+/** JSX factory (automatic runtime). Host Piu type → real node; function → component call. */
 export function jsx(type: any, props: Props): Node {
 	if (isPiu(type)) return createHost(type, props);
 	if (typeof type === "function") return type(props || {});
 	throw new Error("jsx:type");
 }
 
+/** JSX factory for elements with static children (same behavior as {@link jsx}). */
 export const jsxs = jsx;
 
 // Event props -> piu Behavior methods. onTap needs active:true; the
@@ -182,6 +185,7 @@ function setProp(node: any, key: string, value: unknown) {
 	node[key] = value;
 }
 
+/** Append a child (node / string / number / array) to a parent Piu node. */
 export function appendChild(parent: any, child: Node) {
 	if (child === undefined || child === null || child === false || child === true) return;
 	if (Array.isArray(child)) {
@@ -215,10 +219,12 @@ function consumePendingFocus() {
 // RN's "after layout" caveat) — read it inside the build callback / component
 // bodies, not at module top level. Lets components size to the real screen
 // (200x228 emery, 260x260 gabbro) instead of a hardcoded width.
+/** RN-Dimensions-style screen size; valid once {@link render} has started. */
 export const screen = { width: 0, height: 0 };
 
 // Mount a JSX tree as the Piu application. `build` runs under a root owner;
 // the returned disposer is kept alive for the app's lifetime.
+/** Mount a JSX tree as the Piu Application. `build` runs under a root owner. */
 export function render(build: () => Node, dict?: any): any {
 	const app = new Application(null, dict || {});
 	screen.width = app.width; // screen size is known once the app exists,
