@@ -54,6 +54,7 @@ ran; "firmware" = fixed by the Moddable/Pebble build, not ours to change.
 | Native **app heap** | ~122–130 KB | measured (this project) | yes | no (separate heap) |
 | Flash **resource area** | 256 KB, read-only | firmware (device manifest) | ROM | no — `Resource` views it in place |
 | **localStorage** (PKJS bridge) | per-key/-app cap **UNVERIFIED** — measure before relying on a size | needs a probe | persistent | no (native/phone side) |
+| **Background worker** (C only) | 10.5KB, separate pool | measured via examples/worker | no (no XS: `pebble_worker.h` lacks the Moddable API — compile-error receipt; and workers can't read resources, where XS bytecode lives) | persists via shared `persist_*` KV |
 | **Phone** (PKJS + AppMessage/fetch) | effectively unlimited | — | persistent | no |
 
 Two rows are deliberately not given a number: localStorage's per-app cap and

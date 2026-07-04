@@ -241,3 +241,28 @@ A migration doesn't hand your project shell to the package:
   boot, and steady state on the watch.
 - [`examples/consumer/`](../examples/consumer/) — the reference scaffold this
   guide's steps 2–6 are lifted from (a fresh app, not a migration).
+
+## Coming from something other than the classic C SDK?
+
+The guide above is the CLASSIC C SDK path (the most common). Two other
+starting points differ enough to call out:
+
+### From Rocky.js (the old JS watchface API)
+
+Same overall shape as the C path — Rocky's `rocky.on('draw', …)` canvas
+callbacks have no equivalent here (signal-piu is retained UI, not immediate-
+mode drawing): re-express each draw callback as JSX with reactive bindings
+(`<Label string={() => time()} />` instead of redrawing text per frame).
+Rocky's `postMessage` phone channel maps to our pkjs/AppMessage setup. The
+project shell migration is identical (projectType `"moddable"`, scaffold
+files, npm install).
+
+### From a hand-written Moddable/Piu project (projectType already "moddable")
+
+The EASY one — you're already on the same engine and UI framework. Keep your
+manifest and project shell; `npm install` signal-piu + tools; adopt the build
+(`dist/build.mjs`) or keep yours and add our runtime modules to your manifest.
+Crucially, **signal-piu nodes ARE Piu nodes** — `<Label>` returns the same
+`Label` instance `new Label(...)` gives you — so you can migrate one screen
+at a time: hand-Piu screens and JSX screens coexist in the same app, and your
+existing Behaviors/Skins/Styles are used as-is by JSX props.

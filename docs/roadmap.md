@@ -178,3 +178,16 @@ notifications, device info.
 ## Product ideas (RN-parity, evaluated in api-parity.md)
 - react-compat shim (cosmetic — decided against; we stay honestly Solid-flavored),
   gesture/scroll polish, BUNDLE=preload for pure shared submodules (measure).
+
+## Web IDE / CloudPebble angle (2026-07 idea, unscoped)
+- coredevices/cloudpebble (the revived web IDE) runs builds AND the QEMU
+  emulator SERVER-side, streaming the screen to the browser — so "React-style
+  Pebble apps in the browser" does NOT require QEMU-in-browser. Three tiers to
+  explore, cheapest first:
+  1. **PR a project type into cloudpebble** — its build servers learn our
+     toolchain (node + the signal-piu npm package); editor + emulator streaming
+     come for free. Best effort/benefit if upstream is receptive.
+  2. **Browser-only preview** — typecheck/lower run fine in a browser (plain
+     TS); our vm-sandbox Piu stubs could back a canvas "layout preview" for
+     instant feedback (not device-accurate — QEMU stays the truth).
+  3. **QEMU-in-WASM** — research-grade; park unless someone else builds it.
