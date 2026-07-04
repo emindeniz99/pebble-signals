@@ -1,0 +1,19 @@
+{
+	// DEVICE transpile (what `npm run build` / build.mts uses): src/tsx ->
+	// src/embeddedjs/app, JSX via the automatic runtime with import specifier
+	// "runtime/jsx-runtime" — the mod manifest maps runtime/* on the watch.
+	// noCheck: transpile-only; the strict pass is tsconfig.check.json.
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
+		"jsxImportSource": "runtime",
+		"outDir": "src/embeddedjs/app",
+		"rootDir": "src/tsx",
+		"noCheck": true,
+		"types": [],
+		"isolatedModules": true
+	},
+	"include": ["src/tsx/**/*"]
+}

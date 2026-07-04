@@ -28,6 +28,7 @@
   },
   "files": [
     "dist/",
+    "templates/",
     "src/embeddedjs/runtime/",
     "src/embeddedjs/runtime-types/",
     "src/embeddedjs/manifest.base.json",
@@ -92,5 +93,8 @@
     "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",
     "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20",
     "build:dist": "tsc -p tsconfig.dist.json"
+  },
+  "bin": {
+    "create-signal-piu": "dist/tools/create-app.mjs"
   }
 }

@@ -84,11 +84,14 @@ project that installs the tarball and builds a running watch app from it
 (screenshots/consumer-e2e-t0.png → -t5.png show the reactive tick advancing on
 the QEMU emulator). The flow:
 
-1. Scaffold a Pebble Moddable app — copy `examples/consumer/`'s shape: the
-   `pebble` field in package.json, `wscript`, `src/c/mdbl.c`,
-   `src/embeddedjs/manifest.base.json`, a device `tsconfig.json`, `src/pkjs/`.
-   (The scaffold is still template-shaped; `create-signal-piu` is the
-   roadmapped fix.)
+1. Scaffold a Pebble Moddable app — run the `create-signal-piu` CLI, which
+   generates `examples/consumer/`'s shape (the `pebble` field in
+   package.json, `wscript`, `src/c/mdbl.c`, `src/embeddedjs/manifest.base.json`,
+   a device `tsconfig.json`, `src/pkjs/`) into a fresh directory:
+   `npx -p signal-piu create-signal-piu my-watch`, or, once the package is
+   installed, `node node_modules/signal-piu/dist/tools/create-app.mjs
+   my-watch`. In-repo, `node tools/create-app.mts my-watch` runs the same
+   scaffold from source.
 2. `npm install signal-piu typescript esbuild` (tarball or registry once
    published; tsc + esbuild are the build's tools, brought by the consumer).
 3. Author `src/tsx/examples/<app>.tsx` with DEVICE specifiers
@@ -104,10 +107,10 @@ the QEMU emulator). The flow:
 
 ## Not in v1 (explicit non-goals, so nobody assumes)
 
-- **`create-signal-piu` scaffold CLI** — the real fix for step 1. Roadmapped;
-  it turns "copy the template" into `npm create signal-piu@latest my-watch`.
-- **Registry publish** — `private: true` stays until the scaffold story exists;
-  `npm pack` is the distribution unit meanwhile.
+- **Registry publish** — `private: true` stays; `npm pack` is the
+  distribution unit. The `create-signal-piu` scaffold CLI (shipped, above)
+  works the same against a packed tarball as it would against a registry
+  install — publishing to the registry is a separate, still-unplanned step.
 - **Prebuilt runtime in the tarball** — wrong by design (see above): minify +
   manifest mapping are per-app, on-device concerns.
 
