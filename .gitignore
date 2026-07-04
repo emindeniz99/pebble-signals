@@ -8,3 +8,5 @@ coverage/
 src/embeddedjs/runtime-build/
 src/embeddedjs/runtime-types/
 src/pkjs/index.js
+examples/consumer/node_modules/
+examples/consumer/package-lock.json
