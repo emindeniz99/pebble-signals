@@ -17,6 +17,10 @@
 //   --skip-fontcheck    SKIP_FONTCHECK=1  skip the Pebble-font validation
 //   --bundle <mode>     BUNDLE=<mode>     "preload" points at multilazy
 //   --no-check-c        CHECK_C=0         skip the clang-format gate
+//   --no-lower          LOWER=0           skip the packed-API lowering — SAFE
+//                                         (object API still works) but costs
+//                                         ~2x slots per state and bare reactive
+//                                         props need hand-written thunks
 import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -36,8 +40,9 @@ const cli = parseArgs({
 		"skip-fontcheck": { type: "boolean" },
 		bundle: { type: "string" },
 		"check-c": { type: "boolean" },
+		lower: { type: "boolean" },
 	},
-	allowNegative: true, // --no-minify / --no-treeshake / --no-check-c
+	allowNegative: true, // --no-minify / --no-treeshake / --no-check-c / --no-lower
 }).values;
 const env = (k: string, d: string) => process.env[k] ?? d;
 // boolean flag: CLI (if given) beats env (if set) beats the default
@@ -168,7 +173,10 @@ esbuild.buildSync({
 // closures and the Signal object never exist at runtime. AST-based; anything
 // ambiguous bails to the object API. A prod run re-lowers its own output and
 // refuses to write if it is not a fixed point. Guarded by `--selftest`.
-run(process.execPath, ["tools/lower/cli.mts", "src/embeddedjs/app/main.js"]);
+// OPTIONAL (--no-lower / LOWER=0): the object API works unlowered — it just
+// costs ~2x slots per state and loses the auto-thunk sugar (docs/packaging.md).
+if (flag(cli.lower, "LOWER", "1", true))
+	run(process.execPath, ["tools/lower/cli.mts", "src/embeddedjs/app/main.js"]);
 if (minify)
 	tryEsbuild({
 		entryPoints: ["src/embeddedjs/app/main.js"],

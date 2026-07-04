@@ -30,6 +30,44 @@ a separate project can install and get the **typed runtime + the build tools**.
   and `// @ts-expect-error` on a computed write still bites (the consumer smoke
   in this repo's history).
 
+## Distribution model: SOURCE, not minified
+
+The tarball deliberately ships readable `.ts` source, **never** a minified
+bundle. Minification is a per-app DEVICE-BUILD step, not a library format:
+`build.mts` minifies the runtime into `runtime-min/` for each app because the
+mod archive rides a ~15.9KB startup ceiling (gotcha 15) and per-app
+tree-shaking decides which modules ship at all. A pre-minified library would
+be un-tree-shakeable, un-debuggable, and would still have to be re-processed
+per app — all cost, no benefit. (Property names in the source ARE kept short —
+`S.sig`, `store.b` — because esbuild's minifier mangles locals but NOT property
+names; a property name survives verbatim into the shipped bytes and becomes an
+XS ID + ROM string on device. Short properties are the source-level part of the
+size budget that minify cannot do for us.)
+
+## The lowering tool is a consumer feature — and it's OPTIONAL
+
+`tools/lower/cli.mts` ships in the tarball (`signal-piu/tools/*`) and runs on
+the CONSUMER's app code — that is its whole purpose: rewriting *their*
+`useState`/`signal`/`computed` call sites to the packed `S` API and
+auto-thunking *their* JSX props. `build.mts` runs it by default;
+`--no-lower` / `LOWER=0` skips it. Skipping is SAFE but costs:
+
+| Without lower | Effect |
+|---|---|
+| object API stays | each useState/signal keeps its closures/Signal object (~4 slots each — measured 2x cost of packed) |
+| no auto-thunk | bare reactive props (`string={count()}`) bind as static values — write thunks by hand (`string={() => count()}`) |
+
+So: correctness never depends on lower; the 32KB budget usually does.
+
+## Pitfall log (learned the hard way)
+
+- **Do not add `"type": "module"` to a consuming app's package.json** (or this
+  one). The Pebble SDK's waf generates a CommonJS `webpack.config.js` under
+  `build/` at build time; a root ESM package type makes Node reject it
+  (`require is not defined in ES module scope`) and `pebble build` fails.
+  Tried and reverted here (commit ece030f). The library exports don't need it —
+  they point at `.ts` sources consumed by the consumer's own tooling.
+
 ## What a consuming app project looks like
 
 Today (v1 packaging), a watch app still needs the Pebble project scaffold

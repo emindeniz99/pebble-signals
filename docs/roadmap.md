@@ -55,6 +55,12 @@ device work is unblocked again.
   glitch-free lands.
 - **#30 type-directed storage:** analyzed net-negative; revisit only behind
   `NUMERIC_STORAGE=1` if a float-heavy app appears.
+- **Minifier byte A/B (esbuild vs oxc-minifier):** 2026-07 research — Rolldown
+  1.0 / Vite 8's Oxc minifier is 30-90x faster than terser but compresses
+  0.5-2% WORSE; our builds are already ms and the 15.9KB mod ceiling values
+  compression over speed, so esbuild stays. Cheap experiment if ever curious:
+  minify runtime-min A/B with oxc-minify and diff byte counts (Rule 2 —
+  measure before switching anything).
 - ~~**Higher-fidelity tests on real XS**~~ ✅ SHIPPED: `npm run test:xs` runs the
   19 pure-signal conformance laws on the real XS engine (verified on XS 17.9.1).
   `tests/xs/laws.js` + `tools/xstest.mts` (binary auto-detect: XS_BIN → jsvu →
