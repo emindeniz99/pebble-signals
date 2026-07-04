@@ -22,11 +22,20 @@
 //                                         ~2x slots per state and bare reactive
 //                                         props need hand-written thunks
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import {
+	copyFileSync,
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import * as esbuild from "esbuild";
+import { classify } from "./tools/classify-module.mts";
 import { packageRoot } from "./tools/pkg-root.mts";
 
 // PACKAGE root (where signal-piu lives — the repo itself, or
@@ -74,6 +83,7 @@ const cli = parseArgs({
 		"check-c": { type: "boolean" },
 		lower: { type: "boolean" },
 		prune: { type: "boolean" },
+		"preload-pure": { type: "boolean" },
 	},
 	allowNegative: true, // --no-minify / --no-treeshake / --no-check-c / --no-lower
 }).values;
@@ -175,6 +185,72 @@ run(TSC, ["-p", "tsconfig.json"]);
 // into the mobile app (separate engine/config — see tsconfig.pkjs.json).
 if (existsSync("tsconfig.pkjs.json")) run(TSC, ["-p", "tsconfig.pkjs.json"]);
 
+// ---- PRELOAD_PURE v1: route PURE app submodules to ROM (the smart split) --
+// App code normally bundles into main.js, which loads INTO the 32KB arena —
+// every app byte is heap (measured: navfat's 3-label screens die at boot when
+// all-in-main). A PURE submodule (only const data + pure declarations — the
+// classifier proves it) can instead ship like the runtime: a preloaded module
+// FROZEN into the mod archive at build time, costing ROM instead of main.js
+// heap. v1 scope: direct relative imports of the entry, no nested local
+// imports, no lowering/auto-thunk inside the pure module (keep JSX + reactive
+// reads in the entry; pure modules are data/logic). Default OFF until broadly
+// measured; enable with --preload-pure / PRELOAD_PURE=1. Self-disables with
+// treeshake (a dynamic import defeats the same static scan).
+const preloadPure = flag(cli["preload-pure"], "PRELOAD_PURE", "1", false) && treeshake;
+const entryJs = `src/embeddedjs/app/examples/${APP}.js`;
+const pureIds: string[] = [];
+if (preloadPure && existsSync(entryJs)) {
+	let entrySrc = readFileSync(entryJs, "utf8");
+	const manifest = JSON.parse(readFileSync("src/embeddedjs/manifest.json", "utf8")) as {
+		modules: Record<string, string>;
+		preload: string[];
+	};
+	for (const m of [...entrySrc.matchAll(/from\s*"(\.\/[^"]+)"/g)]) {
+		const spec = m[1];
+		const rel = `examples/${spec.slice(2)}`; // entry lives in app/examples/
+		const file = `src/embeddedjs/app/${rel}.js`;
+		if (!existsSync(file)) continue;
+		const sub = readFileSync(file, "utf8");
+		if (/from\s*"\.\.?\//.test(sub)) {
+			err(`preload-pure: ${spec} imports other local modules — v1 keeps it in main`);
+			continue;
+		}
+		const verdict = classify(sub);
+		if (!verdict.pure) {
+			err(`preload-pure: ${spec} is IMPURE (${verdict.reasons[0] ?? "?"}) — stays in main`);
+			continue;
+		}
+		const base = spec.split("/").pop()!;
+		const id = `app/${base}`;
+		if (manifest.modules[id]) {
+			err(`preload-pure: module id ${id} already taken — ${spec} stays in main`);
+			continue;
+		}
+		manifest.modules[id] = `./app/${rel}`;
+		manifest.preload.push(id);
+		entrySrc = entrySrc.replaceAll(`"${spec}"`, `"${id}"`);
+		pureIds.push(id);
+		// ship the module minified like the runtime (bundle-mode for DCE;
+		// runtime/* and app/* stay external)
+		if (minify)
+			tryEsbuild({
+				entryPoints: [file],
+				bundle: true,
+				external: ["runtime/*", "app/*"],
+				treeShaking: true,
+				minify: true,
+				format: "esm",
+				outfile: file,
+				allowOverwrite: true,
+			});
+		console.log(`preload-pure: ${spec} -> ${id} (ROM)`);
+	}
+	if (pureIds.length) {
+		writeFileSync("src/embeddedjs/manifest.json", JSON.stringify(manifest, null, "\t"));
+		writeFileSync(entryJs, entrySrc);
+	}
+}
+
 // Bundle the chosen entry into ONE app/main.js — this makes MULTI-FILE apps
 // work: the entry's local imports are inlined so the manifest only maps `main`,
 // while `runtime/*` is left EXTERNAL so those modules stay preloaded (ROM, ~free)
@@ -192,7 +268,7 @@ if ((cli.bundle ?? env("BUNDLE", "all")) === "preload") {
 esbuild.buildSync({
 	entryPoints: [`src/embeddedjs/app/examples/${APP}.js`],
 	bundle: true,
-	external: ["runtime/*"],
+	external: ["runtime/*", "app/*"],
 	format: "esm",
 	treeShaking: true,
 	outfile: "src/embeddedjs/app/main.js",

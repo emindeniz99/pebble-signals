@@ -154,26 +154,31 @@ notifications, device info.
   pipeline first, then retest sizing; if a newer SDK/emulator appears, retest
   there. See mdbl.c + xs-heap-playbook "Firmware heap ceiling".
 
-## Auto pure-module preload (classifier SHIPPED; wiring pending device measure)
-- ~~**PURE/IMPURE classifier**~~ ✅ `tools/classify-module.mts` — AST-classifies an
-  app submodule as PURE (only declarations / pure const initializers → preload-
-  eligible, frozen into ROM ~free) or IMPURE (module-scope host construction
-  `new Skin()`, reactive state `signal()`/`useState()`, or any top-level call/
-  side effect → must stay in `main`, the 32KB heap). Unit-tested (6 cases). Also
-  a diagnostic: it flags that even `hint.tsx` is impure ONLY because of a module-
-  scope `new Style` — the "smart module splitting" hint.
-- **v1 wiring (TODO, behind `PRELOAD_PURE=1`, default off until measured):**
-  build.mts runs the classifier over each app submodule; PURE ones get added to
-  the manifest `modules` + `preload` (ROM) instead of being bundled into main;
-  IMPURE ones bundle into main as today. Measure the heap delta on a healthy
-  emulator before flipping the default (Rule 2) — a watchface with a big static
-  string table is the win case; a pure-reactive counter has nothing to move.
-- **v2 "smart module splitting" (your idea — advanced, risky):** auto-split a
-  MIXED module into a pure half (the const tables/formatters → preloaded) and an
-  impure half (UI/reactive → main). Needs dependency analysis + import rewrite;
-  ship only if v1 measurements show mixed modules carry significant pure weight.
-  The safe interim is developer-assisted: put constants in `foo.const.ts`, and
-  the v1 classifier auto-preloads it.
+## Auto pure-module preload — v1 WIRED; measurement OVERTURNED the naive model
+- **v1 wiring SHIPPED (2026-07)**: `--preload-pure` / `PRELOAD_PURE=1` in
+  build.mts (default OFF). Mechanics verified end-to-end on `navfat`: the
+  classifier vets each direct local import of the entry; PURE modules are
+  routed to the manifest (`app/<name>` + preload), the entry's import
+  specifier is rewritten, esbuild leaves them external, and they ship
+  minified in the archive. v1 bails per-module on nested local imports and
+  never runs lower/auto-thunk inside pure modules (keep JSX in the entry).
+- **MEASURED — the naive "ROM is ~free" model is WRONG on this firmware.**
+  A/B with a 4KB pure string table: all-in-main (archive 17802, main 5847)
+  boot-dies; table-in-ROM (archive 17926, main 806) ALSO boot-dies. Both
+  sit over the ~15.9KB TOTAL-ARCHIVE startup ceiling (gotcha 15) — at this
+  scale total archive size dominates, regardless of heap-vs-preload
+  placement. And near the floor the margins are razor-thin: small-navfat
+  all-in-main (12719) died while lean navmany (12116) boots, and small-B
+  (12840, main.js as lean as navmany's) died too — so module COUNT/records
+  and archive bytes both eat boot budget, with coefficients we have NOT
+  isolated yet.
+- **Next (the real v1.5): a controlled matrix** from the known-good navmany
+  baseline, varying ONE variable per probe: +1KB in main vs +1KB preloaded
+  vs +1 empty preloaded module vs +N exports — to get per-unit boot costs
+  (Rule 2). Only after that: decide the default, and whether v2 (smart
+  split of mixed modules) is worth building. The flag stays OFF until then.
+- **v2 "smart module splitting"** (auto-split mixed modules): unchanged,
+  gated on the matrix results.
 
 ## Product ideas (RN-parity, evaluated in api-parity.md)
 - react-compat shim (cosmetic — decided against; we stay honestly Solid-flavored),
