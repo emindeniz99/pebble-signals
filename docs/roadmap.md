@@ -63,6 +63,16 @@ strictly ordered except the "next batch".
       pypkjs pid is alive BEFORE trusting a 0-line capture; if it dies, restart
       it or capture in its brief window. The error-log code is unit-tested +
       deterministic; only the on-device screenshot is blocked.
+      pypkjs VERSION checked (2026-07): we run **pypkjs 2.0.7**, installed from
+      PyPI as a `pebble-tool` dep via `uv` (Home-page coredevices/pypkjs,
+      Author Core Devices) — NOT a git clone, but it IS coredevices' package,
+      and 2.0.7 is the LATEST on PyPI. So the crash is a 2.0.7/environment
+      issue, not a stale version — upgrading won't help. Possible experiment:
+      `pip install git+https://github.com/coredevices/pypkjs.git` into the
+      pebble-tool venv IF `main` has unreleased stability fixes (couldn't read
+      its commit log — GitHub SPA blocks WebFetch, our GH scope is playground
+      only). Reversible (reinstall 2.0.7). Try only if the wedge keeps
+      blocking device work.
 - [ ] build-time lint: flag *calling* a `computed`/`signal` binding
 
 **New ideas:**
