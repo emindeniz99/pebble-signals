@@ -52,27 +52,43 @@ strictly ordered except the "next batch".
 - [ ] device-smoke catalog → `tools/device-smoke.mts` runner
 
 **Must-do first thing when the log transport is healthy:**
-- [ ] device-verify the visible-error log (`[signal-piu] uncaught…`) —
-      ROOT CAUSE of the wedge FOUND (2026-07): **pypkjs keeps dying** in this
-      sandbox (`pb-emulator.json` pypkjs pid → `kill -0` = NO right after a
-      successful install). Both `pebble logs` AND the XS console/trace stream
-      route through pypkjs, so its death = 0 log lines (even the instruments
-      key). qemu's first `-serial` is `null`; the tcp serial carries nothing.
-      Tried: full state wipe, all-pid kill, direct tcp-serial read (0 bytes),
-      tight-timing concurrent capture — all dead. NEXT SESSION: check the
-      pypkjs pid is alive BEFORE trusting a 0-line capture; if it dies, restart
-      it or capture in its brief window. The error-log code is unit-tested +
-      deterministic; only the on-device screenshot is blocked.
-      pypkjs VERSION checked (2026-07): we run **pypkjs 2.0.7**, installed from
-      PyPI as a `pebble-tool` dep via `uv` (Home-page coredevices/pypkjs,
-      Author Core Devices) — NOT a git clone, but it IS coredevices' package,
-      and 2.0.7 is the LATEST on PyPI. So the crash is a 2.0.7/environment
-      issue, not a stale version — upgrading won't help. Possible experiment:
-      `pip install git+https://github.com/coredevices/pypkjs.git` into the
-      pebble-tool venv IF `main` has unreleased stability fixes (couldn't read
-      its commit log — GitHub SPA blocks WebFetch, our GH scope is playground
-      only). Reversible (reinstall 2.0.7). Try only if the wedge keeps
-      blocking device work.
+- [x] ~~device-verify the visible-error log~~ **SOLVED 2026-07 (deep dive).**
+      The wedge is beaten and errors ARE visible on device. Full story:
+      **(1) Why captures were empty:** pebble-tool spawns pypkjs with
+      stdout/stderr → devnull (`_get_output()` returns `black_hole` unless
+      the logger is at DEBUG), so its crashes were invisible; AND captures
+      run across separate shell invocations died with their processes.
+      **(2) The working recipe (device-proven, 17-line + 22-line captures):**
+      run everything in ONE shell invocation — `pebble logs > f 2>&1 &`,
+      `sleep 3`, `pebble install` (FOREGROUND), `sleep 10+`, `kill %1` —
+      instruments heartbeats, pkjs proxy lines, heap reports all flow.
+      **(3) The receipt:** a broken binding produced, live in `pebble logs`:
+      `fxAbort unhandled exception: TypeError: call: not a function (in q)`
+      + `at q () at A ()` — error WITH stack trace, on device. That line
+      also exposed a real bug: the visible-error fix itself called
+      `console.error`, but the Pebble host console is `Object.freeze({log})`
+      — NO `.error` — so the logger threw inside the catch and fxAbort'ed.
+      FIXED: `(c.error || c.log).call(c, …)`, logger can never throw;
+      Pebble-shaped-console test added (297 tests, 100% cov, XS green).
+      **Remaining receipt (2-min job, fresh session):** install the
+      throwing demo on a fresh emulator and grep the now-well-formed
+      `[signal-piu] uncaught in reactive update (effect #N)` line — this
+      session's emulator stopped booting after ~15 boot-cycles (resource
+      exhaustion), so the final screenshot is queued.
+      ALSO FOUND: **creation-time (first-run) exceptions bypass the notify()
+      guard** — an effect whose FIRST run throws propagates out of effect()
+      (module-load context) unguarded; only RE-runs go through notify(). By
+      Solid convention creation-time throws SHOULD propagate synchronously —
+      but the jsx-runtime binding path may want its own guard. Decide +
+      document (new item below).
+      pypkjs version note: we run 2.0.7 from PyPI (coredevices' package,
+      latest release) — the instability is environmental, not a stale version.
+- [ ] decide: should jsx-runtime guard CREATION-time binding throws (first
+      render of a `string={}` thunk) the way notify() guards re-runs? Today a
+      first-run throw aborts module load (fxAbort visible in logs — at least
+      it's loud now); catching it in the binding effect would keep the app up
+      with a blank label + a log line instead. Weigh Solid parity vs watch
+      resilience; add a conformance law either way.
 - [ ] build-time lint: flag *calling* a `computed`/`signal` binding
 
 **New ideas:**

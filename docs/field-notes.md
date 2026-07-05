@@ -235,6 +235,20 @@ mistakes taught more than the wins.
   memory-full; `String.fromCharCode.apply(...)` at render depth = JS stack
   overflow (6 KB stack). Safe path: ranged `resource.slice()` +
   `String.fromArrayBuffer`.
+- **The error-logger that crashed the machine.** Our "make reactive errors
+  visible" fix called `console.error(...)` — but the Pebble host console is
+  `Object.freeze({log})`, **no `.error`** (host main.js:45; the vendored
+  typings' `interface Console { log }` said so all along — a Rule 1 miss).
+  On device the logger itself threw inside notify()'s catch and fxAbort'ed
+  the machine. Fix: `(c.error || c.log).call(c, …)` — the logger can never
+  throw. Bonus finding from the same probe: **first-run (creation-time)
+  effect exceptions bypass notify() entirely** — only RE-runs are guarded.
+- **"pebble logs prints nothing" ≠ the app is silent.** pebble-tool spawns
+  pypkjs with stdout/stderr → devnull, and captures split across separate
+  shell invocations die with their processes. The working recipe: ONE shell
+  invocation — `pebble logs > f 2>&1 &` → `sleep 3` → `pebble install`
+  (foreground) → `sleep 10` → `kill %1`. Device-proven (instruments
+  heartbeats + pkjs lines + a live fxAbort stack trace captured).
 
 ---
 

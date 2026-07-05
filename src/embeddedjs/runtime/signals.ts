@@ -24,6 +24,9 @@ declare global {
 
 // A reaction is a plain thunk; an effect id indexes into the graph below.
 type EffectFn = () => void;
+// console method shape for the notify() fallback logger (the Pebble host
+// console only has `log`; Node/browsers have `error` too)
+type LogFn = (...args: unknown[]) => void;
 
 // The one lazily-created state record (see the block comment below). Typed as
 // an interface so every `G.xxx` access is checked; the runtime keeps it as a
@@ -268,18 +271,29 @@ function notify(e: number): void {
 		// id that threw) so the failure is visible in `pebble logs` instead of
 		// a silent blank Label — the classic footgun: a typo like calling a
 		// `computed` (`greeting()` instead of `greeting.value`) throws here and
-		// used to just vanish. `console` is host-interned, so this costs no boot
-		// symbol; the machine still survives — a watch must not exit to the
-		// launcher because one binding threw. Override via `globalThis.__spError`.
+		// used to just vanish. console/error/log are host-interned, so this
+		// costs no boot symbol; the machine still survives — a watch must not
+		// exit to the launcher because one binding threw. Override via
+		// `globalThis.__spError`.
+		// DEVICE RECEIPT (2026-07): the Pebble host console has ONLY `log`
+		// (host main.js `Object.freeze({log})`; vendored typings agree) — an
+		// unconditional `.error()` call here THREW inside the catch and
+		// fxAbort'ed the machine on gabbro. So: prefer error, fall back to
+		// log, and never let the logger itself take the app down.
 		else {
-			const c = (globalThis as { console?: { error(...a: unknown[]): void } }).console;
+			const c = (globalThis as { console?: { error?: LogFn; log?: LogFn } }).console;
+			const f = c && (c.error || c.log);
 			// Pass BOTH a fully-formatted string (type + message + stack, so
 			// nothing is lost even if the host console can't expand objects) AND
 			// the raw error object (so a host console that DOES render objects
 			// shows every extra field). Over-logging is harmless — this path only
 			// runs on an otherwise-silent failure.
-			if (c)
-				c.error("[signal-piu] uncaught in reactive update (effect #" + e + "):\n" + fmtError(err), err);
+			if (f)
+				f.call(
+					c,
+					"[signal-piu] uncaught in reactive update (effect #" + e + "):\n" + fmtError(err),
+					err,
+				);
 		}
 	}
 }

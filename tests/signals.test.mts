@@ -458,6 +458,27 @@ check(
 	logged.some((l) => l.includes("plainstring")),
 );
 
+// (f) PEBBLE-SHAPED console — only `log`, no `error` (the real host is
+// Object.freeze({log}); an unconditional .error() call fxAbort'ed on-device,
+// 2026-07) -> falls back to log, and the logger itself must NEVER throw
+const viaLog = [];
+globalThis.console = { log: (...a) => viaLog.push(a.map(String).join(" ")) };
+const th4b = signal(0);
+let threw4b = false;
+effect(() => {
+	if (th4b.value === 1) throw new Error("hostshape");
+});
+try {
+	th4b.value = 1;
+} catch {
+	threw4b = true;
+}
+check("log-only (Pebble host) console: no rethrow", threw4b === false);
+check(
+	"log-only console: error lands via console.log",
+	viaLog.some((l) => l.includes("hostshape")),
+);
+
 // console ALSO absent: still must not throw (silent survive)
 globalThis.console = undefined;
 const th5 = signal(0);

@@ -42,6 +42,25 @@ the whole state dir; `pebble` re-extracts a clean one on next install.
 Retry the first cold-boot install once. Do NOT chase it with flash-only
 deletes — that was the multi-hour red herring.
 
+**Log capture recipe (2026-07 deep dive — do NOT rediscover this):**
+`pebble logs` printing nothing does NOT mean the app is silent. pebble-tool
+spawns pypkjs with stdout/stderr → devnull, and captures split across
+separate shell invocations die with their processes. Capture in ONE shell
+invocation, install in the FOREGROUND:
+
+```bash
+pebble logs --emulator gabbro > /tmp/cap.txt 2>&1 &
+sleep 3
+pebble install --emulator gabbro      # foreground — relaunches the app
+sleep 10
+kill %1; grep instruments /tmp/cap.txt   # heartbeats = capture worked
+```
+
+A capture with zero `instruments:` lines is a dead transport, not a quiet
+app — reset (above) and retry. After many boot-cycles in one session the
+stack stops booting entirely; that's session resource exhaustion, not your
+code — continue in a fresh session.
+
 ## Rule 4 — The XS heap is the scarcest resource
 
 The JS heap ("arena") is firmware-fixed at 32KB and every design decision
