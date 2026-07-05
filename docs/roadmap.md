@@ -18,7 +18,11 @@ strictly ordered except the "next batch".
 
 **Next batch (owner order):**
 - [ ] load-time ms instrumentation (time an `importNow`; needs device)
-- [ ] conformance suite expansion (new laws; no device — pure Node/XS)
+- [x] conformance suite expansion — 19→23 laws (2026-07): write-in-untrack,
+      untrack return value, nested-effect dispose on parent RE-RUN (all MATCH),
+      + memo-equality (DIVERGE, documented). Most roadmap-listed laws already
+      existed (13-18). Found the memo-equality DIVERGE — candidate opt-in
+      eager-memo later. 295 tests, 100% cov, XS green.
 - [ ] autothunk bare-binding on-device verify (emulator)
 - [ ] `moveBy` reactive position (emulator repaint/timing)
 - [ ] machine-restart from C — research (PebbleOS `moddable.c`)

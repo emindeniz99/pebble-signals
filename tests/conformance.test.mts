@@ -463,6 +463,92 @@ const law = (name, verdict, cond, refs) => {
 	});
 }
 
+// --- Law 20: a write INSIDE untrack still notifies -------------------------
+// untrack scopes READ tracking only; it must not suppress writes. A set made
+// inside an untrack() still runs the signal's subscribers.
+{
+	const s = signal(0);
+	let runs = 0;
+	effect(() => {
+		s.value;
+		runs++;
+	});
+	runs = 0;
+	untrack(() => {
+		s.value = 1;
+	});
+	law("write inside untrack still notifies", "MATCH", runs === 1, {
+		solid: "untrack affects reads, not writes",
+		preact: "untracked() same",
+		react: "n/a (no fine-grained writes)",
+	});
+}
+
+// --- Law 21: untrack RETURNS the callback's value ---------------------------
+{
+	const got = untrack(() => 42);
+	law("untrack returns the callback value", "MATCH", got === 42, {
+		solid: "untrack(fn) returns fn()",
+		preact: "untracked(fn) returns fn()",
+		react: "n/a",
+	});
+}
+
+// --- Law 22: a nested effect is disposed on the parent's RE-RUN --------------
+// Distinct from Law 18 (owned-and-disposed-on-parent-DISPOSE): here the parent
+// merely RE-RUNS. The running-owner must tear down effects the previous run
+// created before the new run, or they leak and double-fire.
+{
+	const p = signal(0);
+	const src = signal(0);
+	let innerRuns = 0;
+	effect(() => {
+		p.value; // parent tracks p
+		effect(() => {
+			src.value;
+			innerRuns++;
+		}); // a fresh nested effect each parent run
+	});
+	p.value = 1; // parent re-runs: old inner disposed, new inner created
+	innerRuns = 0;
+	src.value = 1; // only the CURRENT inner should react (not a leaked old one)
+	law("nested effect disposed on parent re-run", "MATCH", innerRuns === 1, {
+		solid: "running-owner disposes prior-run effects before re-run",
+		preact: "effect() nested cleanup",
+		react: "n/a (component re-render replaces the tree)",
+	});
+}
+
+// --- Law 23: memo EQUALITY — recompute to the SAME value -------------------
+// DIVERGE (intentional, laziness tradeoff). Solid's createMemo runs an equality
+// check: if a dependency change recomputes the memo to an === value, it does
+// NOT notify downstream. OUR computeds are LAZY (recompute on READ), so the
+// notify path can't compare without forcing an eager recompute that would
+// defeat laziness — we propagate the source change and the downstream re-runs
+// even when the memo value is unchanged. Extra work, never a WRONG value. A
+// future opt-in eager-memo could add the short-circuit; today it's a DIVERGE.
+{
+	const x = signal(2);
+	const evenness = computed(() => x.value % 2); // 2%2 === 4%2 === 0
+	let downstream = 0;
+	effect(() => {
+		evenness.value;
+		downstream++;
+	});
+	downstream = 0;
+	x.value = 4; // memo recomputes 0 -> 0 (unchanged)
+	law(
+		"computed recompute to same value still notifies (no memo equality)",
+		"DIVERGE",
+		downstream === 1,
+		{
+			solid: "createMemo equality-checks — downstream would NOT run",
+			preact: "computed equality-checks — same as Solid",
+			react: "useMemo recomputes but re-render is diffed away",
+		},
+	);
+}
+
 // --- parity summary ---------------------------------------------------------
 console.log("\n--- parity vs Solid / Preact / React ---");
 for (const p of parity)

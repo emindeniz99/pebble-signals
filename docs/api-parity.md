@@ -42,26 +42,35 @@ compatibility; advertise **Solid-style fine-grained reactivity on Piu**.
 
 ## Conformance suite — the parity claim is CHECKED
 
-`tests/conformance.test.mjs` runs our runtime through 12 canonical
-fine-grained-reactivity laws and records, per law, how Solid / Preact-signals /
+`tests/conformance.test.mts` runs our runtime through **23 canonical
+fine-grained-reactivity laws** and records, per law, how Solid / Preact-signals /
 React behave. We can't take those libraries as deps (no-node_modules build, the
 32KB ethos, the release-age cooldown), so the reference column is each
 primitive's documented contract encoded as data next to the executable check.
 
-Result: **10 laws MATCH Solid** (auto-tracking, no-run-for-unread, dynamic
-re-tracking of conditional deps, computed memoization + recompute, untrack,
-batch coalescing, cleanup ordering, owner disposal) and **2 intentionally
-DIVERGE**:
+Result (2026-07): **20 laws MATCH Solid** (auto-tracking, no-run-for-unread,
+dynamic re-tracking of conditional deps, computed memoization + recompute,
+untrack read/write/return-value, batch coalescing + nesting, cleanup ordering,
+owner disposal, glitch-free diamond, running-owner nested disposal on re-run,
+memo chains, throwing-build teardown) and **3 intentionally DIVERGE**:
 
 - **Components run exactly once** — the structural break from React (which
   re-renders). This is *why* `useState` is `[getter, setter]`.
-- ~~Push notify is NOT glitch-free~~ **FIXED (2026-07 core round): the diamond
-  is glitch-free** — computeds are lazy (recompute on read, validated against a
-  global write version, pulling each source first: the read recursion IS the
-  topological order) and every notify coalesces into settle() turns. The sink
-  runs once, straight to the correct value; no scheduler, no per-edge objects —
-  the whole scheme rides the existing bitmask core plus one version counter
-  (law 12 = MATCH on both V8 and real XS).
+- **A throwing effect is isolated** — one bad subscriber can't kill the others
+  (or the machine); the error is reported (now logged, see the error-visibility
+  fix) rather than propagated.
+- **No memo-equality short-circuit** — Solid's `createMemo` skips notifying
+  downstream when a dependency change recomputes the memo to an `===` value.
+  OUR computeds are LAZY (recompute on read), so the notify path can't compare
+  without an eager recompute that would defeat laziness: we propagate the
+  source change and the downstream re-runs even when the memo value is
+  unchanged. Extra work, never a *wrong* value. An opt-in eager-memo could add
+  the short-circuit later.
+
+(~~Push notify is NOT glitch-free~~ FIXED in the 2026-07 core round — the
+diamond is now glitch-free, law 12 = MATCH on both V8 and real XS: computeds
+are lazy + validated against a global write version, and every notify coalesces
+into settle() turns, so the sink runs once straight to the correct value.)
 
 React's own test-utils assume a React runtime + DOM and won't run against us,
 so React parity is documented, not executed.
