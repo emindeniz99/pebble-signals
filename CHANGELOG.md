@@ -116,6 +116,15 @@ No registry releases yet; entries accumulate under Unreleased until the first
 - Consumers run `node_modules/signal-piu/dist/build.mjs` (NOT `build.mts` —
   Node refuses type-stripping under node_modules).
 
+### Fixed (knowledge, round 3)
+- Archive size limit SOLVED (corrects "112-131KB band / suspect mod
+  AREA"): on QEMU the mod archive is malloc'd into the APP HEAP
+  (`ArchivePebbleResource.c` → `applib_resource_mmap_or_load` fallback),
+  so the ceiling is `archive + app-heap runtime needs ≤ free heap`
+  (130,768B on gabbro's 128K class) and moves with the app. Lean-cell
+  edge: 116,816B works (App bytes free = 3,088 at rest), 117,042B dies
+  at launch. Probe generator: `tools/gen-lazyone.py`.
+
 ### Fixed
 - romscreens white screen: the runtime-min prune keep-set never scanned
   preload-pure module files, so `jsxs` (imported only by the frozen

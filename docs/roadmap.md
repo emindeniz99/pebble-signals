@@ -273,8 +273,12 @@ notifications, device info.
   updated: split screens into LAZY modules (not merge into one frozen lib).
   #48 SHIPPED (2026-07): romTable() + pack-table.mts + manifest
   auto-ship + romtable example (200 entries live from flash) + squash
-  advisory in build.mts; limit bisect narrowed to the 112-131KB archive
-  band; lazyklass cell corrected the class verdict (fine when lazy; cost
+  advisory in build.mts; archive limit SOLVED (round 3, corrects the
+  "112-131KB band / mod AREA" guess): the archive is malloc'd INTO the
+  app heap on QEMU (ArchivePebbleResource.c mmap_or_load fallback), so
+  ceiling = free app heap (~130,768 on gabbro) minus runtime needs;
+  lean-cell edge measured at 116,816✓/117,042✗ with App bytes free =
+  3,088 at rest (playbook "Limit bisect round 3"); lazyklass cell corrected the class verdict (fine when lazy; cost
   = method-name symbols). Automated squash pass SHIPPED (2026-07):
   tools/squash.mts packs array-of-arrows into one dispatch fn on lazy
   modules (default ON, --no-squash escape) — lazymany now BOOTS with

@@ -262,11 +262,26 @@ proportional load cost that kills by 24KB. Consequences:
   pass and the fn-count advisory individually. DEVICE RECEIPT: root →
   select loads screens/alpha, back, select loads screens/beta — both
   names computed at runtime from an array.
-- **Limit bisect (round 2):** 152KB source / 98,685B archive WORKS;
-  176KB source / 112,495B archive WORKS; 208KB source / 130,892B archive
-  dies at launch — measured-good up to ~112KB archive, ceiling in the
-  112-131KB band (suspect: the internal-flash mod AREA size, since
-  install succeeds and death is at map/launch).
+- **Limit bisect (round 3, SOLVED — corrects round 2):** round 2 said
+  "112-131KB band, suspect mod AREA size" — both halves were wrong. The
+  full bisect (gabbro, fresh emulator per point, lean lazyone cell):
+  111,640✓ 112,495✓ 114,558✓ 114,726✓ 115,910✓ 116,504✓ **116,816✓ /
+  117,042✗** 121,778✗ 126,845✗ 130,892✗ — the edge is a 226-byte window
+  at ~116.8KB, and it is NOT a round constant (112KiB and 114KiB both
+  probed and passed). MECHANISM (ArchivePebbleResource.c + instruments):
+  the firmware loads the mod archive via `applib_resource_mmap_or_load`;
+  on the QEMU emulator resources are not memory-mappable, so the WHOLE
+  archive is malloc'd INTO THE APP HEAP (128KB class: 131,072 − 304
+  footprint = 130,768 free). Receipt: the working 116,816B build idles
+  at **App bytes free = 3,088** — archive + ~10.9KB of runtime app-heap
+  allocations ≈ the whole heap. So the LAW is: `archive bytes + app-heap
+  runtime needs ≤ ~130,768` — the ceiling MOVES with the app (a fatter
+  Piu tree lowers it; our lean cell peaked at 116,816). Two death modes,
+  one mechanism: >130,768 fails the malloc outright (the 130,892
+  "installs, dies at launch" cell); 117K-130K mallocs the archive but a
+  later runtime allocation fails. Hardware caveat (unverified): real
+  gabbro flash may be XIP-mappable, in which case the copy — and this
+  ceiling — may not exist on-device at all.
 - **Class correction (lazyklass cell):** a 40-METHOD class in a LAZY
   module works ("sum = 2719" renders) — methods share ONE prototype
   object, so classes are fine ROM tenants when lazy-loaded; the real
