@@ -15,6 +15,15 @@ No registry releases yet; entries accumulate under Unreleased until the first
   Pack with `tools/pack-table.mts <name> <strings.json>`; the manifest
   ships any `romTable("<name>")` literal's blob automatically. Example:
   `romtable` (200 entries live from flash, device-verified).
+- **Symbol diet** (`tools/symbol-rename.mts`, default ON, `--no-symdiet`/
+  `SYMDIET=0`): an end-of-build pass renames each surviving runtime EXPORT
+  wire name (`jsx`/`jsxs`/`render`/`S`/`createStore`/`effect`/…) — and every
+  matching import, including lazy-module imports — to a host-known symbol id
+  from a curated obscure-constant pool, so `fxMapArchive` adds no new id and
+  the export costs no boot slot. Touches only import/export specifier
+  clauses (local code byte-identical); monotonic + collision-checked.
+  Device-verified: list 47→41 new-to-host, lazyscreen 43→34, both boot and
+  render.
 - Automated **SQUASH pass** (`tools/squash.mts`, default ON for lazy
   modules, `--no-squash`/`SQUASH=0`): a module-level array-of-arrows used
   only as `H[i](args)`/`H.length` packs into ONE dispatch function — the

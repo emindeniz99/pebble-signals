@@ -8,6 +8,7 @@ import { badFonts } from "../tools/fontcheck.mts";
 import { neededModules, pruneManifest } from "../tools/treeshake.mts";
 import { classify } from "../tools/classify-module.mts";
 import { squash } from "../tools/squash.mts";
+import { renameRuntimeExports } from "../tools/symbol-rename.mts";
 
 const BASE = {
 	modules: {
@@ -207,4 +208,83 @@ test("squash: picks a fresh prefix when $q is taken and packs multiple arrays", 
 	const B = evalGrab(res.out, "B") as (i: number) => string;
 	assert.equal(A(1, 1), 3);
 	assert.equal(B(0), "u");
+});
+
+// ---- symbol-rename: runtime EXPORT wire names -> host-known ids (boot slots) --
+
+const TARGETS = ["Q1", "Q2", "Q3"]; // predictable test-only targets
+
+test("symbol-rename: rewrites export + aliased/bare imports consistently", () => {
+	const files = {
+		"sig.js": "var a=1,b=2;export{a as sig,b as put}",
+		"main.js": 'import{sig as x}from"runtime/sig";import{put}from"runtime/sig";x(put)',
+	};
+	const { map, outputs } = renameRuntimeExports(files, new Set(["sig.js"]), TARGETS);
+	assert.deepEqual(map, { sig: "Q1", put: "Q2" });
+	assert.equal(outputs["sig.js"], "var a=1,b=2;export{a as Q1,b as Q2}");
+	// aliased import: only the wire name changes; bare import gains an alias so
+	// the local name (used in code) is preserved
+	assert.match(outputs["main.js"], /import\{Q1 as x\}from"runtime\/sig"/);
+	assert.match(outputs["main.js"], /import\{Q2 as put\}from"runtime\/sig"/);
+	assert.match(outputs["main.js"], /x\(put\)/); // local code untouched
+});
+
+test("symbol-rename: cross-module — same wire renamed in export AND every importer", () => {
+	const files = {
+		"signals.js": "var e=1;export{e as effect}",
+		"flow.js": 'import{effect as n}from"runtime/signals";n',
+		"main.js": 'import{effect as o}from"runtime/signals";o',
+	};
+	const { map, outputs } = renameRuntimeExports(files, new Set(["signals.js"]), TARGETS);
+	assert.equal(map.effect, "Q1");
+	assert.match(outputs["signals.js"], /export\{e as Q1\}/);
+	assert.match(outputs["flow.js"], /import\{Q1 as n\}/);
+	assert.match(outputs["main.js"], /import\{Q1 as o\}/);
+});
+
+test("symbol-rename: only runtime/* imports are rewritten (app modules untouched)", () => {
+	const files = {
+		"signals.js": "var s=1;export{s as sig}",
+		"data.js": "export const sig=9", // app module coincidentally exports 'sig'
+		"main.js": 'import{sig as r}from"runtime/signals";import{sig as d}from"app/data";r(d)',
+	};
+	const { outputs } = renameRuntimeExports(files, new Set(["signals.js"]), TARGETS);
+	// the runtime import is renamed; the app/data import keeps 'sig'
+	assert.match(outputs["main.js"], /import\{Q1 as r\}from"runtime\/signals"/);
+	assert.match(outputs["main.js"], /import\{sig as d\}from"app\/data"/);
+});
+
+test("symbol-rename: skips a target that collides with a real identifier", () => {
+	const files = {
+		"sig.js": "var a=1;export{a as sig}",
+		"main.js": 'import{sig as x}from"runtime/sig";var Q1=5;x(Q1)', // Q1 is used
+	};
+	const { map } = renameRuntimeExports(files, new Set(["sig.js"]), TARGETS);
+	assert.equal(map.sig, "Q2"); // Q1 skipped because it appears as a token
+});
+
+test("symbol-rename: skips a wire name exported by two modules (ambiguous)", () => {
+	const files = {
+		"a.js": "var x=1;export{x as dup}",
+		"b.js": "var y=2;export{y as dup}",
+		"main.js": 'import{dup as z}from"runtime/a";z',
+	};
+	const { map } = renameRuntimeExports(files, new Set(["a.js", "b.js"]), TARGETS);
+	assert.equal(map.dup, undefined); // ambiguous — left alone
+});
+
+test("symbol-rename: no runtime exports -> no-op", () => {
+	const files = { "main.js": 'import{Container}from"host";new Container()' };
+	const { map, outputs } = renameRuntimeExports(files, new Set(), TARGETS);
+	assert.deepEqual(map, {});
+	assert.deepEqual(outputs, {});
+});
+
+test("symbol-rename: stops when the target pool is exhausted", () => {
+	const files = {
+		"sig.js": "var a=1,b=2,c=3;export{a as one,b as two,c as three}",
+		"main.js": 'import{one as x,two as y,three as z}from"runtime/sig";x(y(z))',
+	};
+	const { map } = renameRuntimeExports(files, new Set(["sig.js"]), ["Q1", "Q2"]);
+	assert.equal(Object.keys(map).length, 2); // only two targets available
 });

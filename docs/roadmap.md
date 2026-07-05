@@ -322,15 +322,19 @@ notifications, device info.
   `fromCharCode.apply` at render depth = stack-overflow abort — use ranged
   `resource.slice()` + `String.fromArrayBuffer`. Productize status:
   (a) DONE — `romTable()` (#48) is the `defineTable()` helper (blob packer
-  `tools/pack-table.mts` + typed accessor + manifest auto-ship); (b) OPEN,
-  the SYMBOL DIET — `list` app pays ~48 new-to-host symbols; ~23 are
-  renameable runtime EXPORT names (`sig`/`put`/`val`/`computed`/`effect`/
-  `useState`/`jsx`/`jsxs`/`createStore`/`__spError`/… + packed-core 2-3
-  letter exports), and 419 short HOST-known symbols are free rename targets
-  (`Map`/`Set`/`Date`/`File`/`Font`/`PI`/…). An end-of-build export-rename
-  pass (rewrite export + all import sites in the shipped .js to host-known
-  ids) reclaims one boot slot each — the one real library-wide lever left;
-  (c) `importNow` caveat stands (saves bytecode, not boot slots).
+  `tools/pack-table.mts` + typed accessor + manifest auto-ship);
+  (b) DONE (2026-07) — the SYMBOL DIET shipped as `tools/symbol-rename.mts`
+  (default ON, `--no-symdiet`/`SYMDIET=0`): an end-of-build pass renames
+  each runtime EXPORT wire name (`jsx`/`jsxs`/`render`/`S`/`createStore`/
+  `effect`/…) AND every matching import — including lazy-module imports — to
+  a HOST-KNOWN id from a curated obscure-constant pool (`BGRA32`/`CLUT16`/
+  `LOG2E`/…), so `fxMapArchive` finds the id already interned. Touches only
+  import/export specifier clauses (local code byte-identical); monotonic +
+  collision-checked, so it can only lower the boot-slot count. DEVICE-
+  VERIFIED: list 47→41 new-to-host (boots + reactive), lazyscreen 43→34
+  (lazy screen still loads + renders). Property names (`.sig`/`.get`/graph
+  props) are NOT freed by this — a source-level prop rename is a possible
+  follow-up; (c) `importNow` caveat stands (saves bytecode, not boot slots).
 
 ## Product ideas (RN-parity, evaluated in api-parity.md)
 - react-compat shim (cosmetic — decided against; we stay honestly Solid-flavored),

@@ -116,6 +116,24 @@ Mechanism (source receipts: `fxMapArchive` in the SDK toolchain's
   beats data-as-structure at boot exactly like it does in steady state.
 - **The export-pruning #29 fix worked mostly as a SYMBOL diet**: every
   demoted export removes an archive symbol (a boot slot), not just bytes.
+- **The export-RENAME diet (2026-07, `tools/symbol-rename.mts`, default
+  ON):** an export that survives pruning still costs a slot IF its wire
+  name is new-to-host — and the runtime's public names (`jsx`, `useState`,
+  `S`, `render`, …) all are. Minification mangles the LOCAL name but keeps
+  the export/import boundary spelling. The pass rewrites each surviving
+  runtime export wire name AND every matching import (main.js, sibling
+  runtime modules, AND lazy modules) to a HOST-KNOWN id from a curated
+  obscure-constant pool (`BGRA32`, `CLUT16`, `LOG2E`, … — Commodetto pixel
+  formats + Math constants no UI app references), so `fxMapArchive` finds
+  the id already interned. It touches ONLY specifier clauses — local code
+  is byte-identical — and is monotonic + collision-checked (a target
+  appearing as any token in the bundle is skipped), so it can only lower
+  the count. DEVICE-VERIFIED: list 47→41 new-to-host (boots + reactive),
+  lazyscreen 43→34 (lazy screen loads + renders — the rename stays
+  consistent across the runtime→lazy-module import boundary). NOT freed:
+  property names (`.sig`/`.get`/graph props), which are interned by
+  property access regardless of the export wire name — a source-level
+  prop rename would be the next lever.
 
 ## v2: data-to-Resource — DEVICE-PROVEN (2026-07 deep dive)
 

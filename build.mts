@@ -38,6 +38,7 @@ import { parseArgs } from "node:util";
 import * as esbuild from "esbuild";
 import { classify } from "./tools/classify-module.mts";
 import { packageRoot } from "./tools/pkg-root.mts";
+import { renameRuntimeExports } from "./tools/symbol-rename.mts";
 
 // PACKAGE root (where signal-piu lives — the repo itself, or
 // node_modules/signal-piu inside a consumer project) vs PROJECT root (the app
@@ -86,6 +87,7 @@ const cli = parseArgs({
 		prune: { type: "boolean" },
 		"preload-pure": { type: "boolean" },
 		squash: { type: "boolean" },
+		symdiet: { type: "boolean" },
 	},
 	allowNegative: true, // --no-minify / --no-treeshake / --no-check-c / --no-lower
 }).values;
@@ -499,6 +501,35 @@ if (flag(cli["check-c"], "CHECK_C", "1", true)) {
 			process.exit(1);
 		}
 	}
+}
+
+// ---- symbol diet: rename runtime EXPORT wire names to host-known ids -------
+// Every new-to-host symbol in the archive costs a boot slot (fxMapArchive
+// interns the SYMB atom eagerly). A runtime export's wire name (`jsx`, `S`,
+// `useState`…) is new-to-host; renaming it — and every matching import — to a
+// name the firmware already interns frees the slot. Runs LAST, on the final
+// minified artifacts, touching only import/export specifier clauses (local
+// code stays byte-identical). Self-disables with treeshake (a dynamic import
+// the scan can't follow could reach an un-rewritten wire name). --no-symdiet /
+// SYMDIET=0 to force off. See tools/symbol-rename.mts for the safety argument.
+if (flag(cli.symdiet, "SYMDIET", "1", true) && treeshake) {
+	const shippedMods = (
+		JSON.parse(readFileSync("src/embeddedjs/manifest.json", "utf8")) as {
+			modules: Record<string, string>;
+		}
+	).modules;
+	const files: Record<string, string> = {};
+	const runtimePaths = new Set<string>();
+	for (const [id, rel] of Object.entries(shippedMods)) {
+		const p = join("src/embeddedjs", `${rel}.js`);
+		if (!existsSync(p)) continue;
+		files[p] = readFileSync(p, "utf8");
+		if (id.startsWith("runtime/")) runtimePaths.add(p);
+	}
+	const { map, outputs } = renameRuntimeExports(files, runtimePaths);
+	for (const [p, src] of Object.entries(outputs)) writeFileSync(p, src);
+	const n = Object.keys(map).length;
+	if (n) console.log(`symbol-diet: ${n} runtime export(s) renamed to host-known ids`);
 }
 
 run("pebble", ["build"]);
