@@ -25,13 +25,20 @@ int main(void) {
   //    unchanged. Stack does not grow, so StackAvail directly reflects the
   //    creation .stack — 6144 proves the field is ignored, via BOTH the C call
   //    and the manifest. §1 confirmed, not overturned.
-  //  - CAVEAT / re-measure (Rule 2): upstream coredevices/PebbleOS `main`
-  //    (src/fw/applib/moddable/moddable.c) DOES honor stack/slot/chunk — it
-  //    maps them onto xsCreation (stackCount/initialHeapCount/initialChunkSize),
-  //    all-or-nothing. So a NEWER firmware than our 4.17 emulator may allow a
-  //    LARGER arena than 32KB from here — a potential heap unlock (the words
-  //    numbers likely target that newer firmware). Retest when the SDK updates;
-  //    the "ignored" result above is specific to the 4.17 SDK binary we run.
+  //  - MAJOR CORRECTION (Rule 2, 2026-07): the "ignored" result is a STALE-4.17
+  //    thing, NOT how the firmware is meant to work. Read the CURRENT source:
+  //    coredevices/PebbleOS `main` src/fw/applib/moddable/moddable.c HONORS the
+  //    record — it sets creation.stackCount = stack/16, initialHeapCount =
+  //    slot/16, initialChunkSize = chunk; and if (stack+slot+chunk) EXCEEDS the
+  //    default staticSize it sets staticSize = 0 → the XS machine switches to
+  //    MALLOC-from-heap mode, i.e. a machine LARGER than the 32KB static arena
+  //    (bounded by the ~122KB app heap). Proof our 4.17 binary predates this:
+  //    main logs "evaluating creation record" (line 92) on every call — our
+  //    4.17 runs logged it 0 times; and main's "invalid" APP_LOG is at line 98,
+  //    while our 4.17 error was "moddable.c:79" — an older source. So the 32KB
+  //    wall + the 384-slot stack are a STALE-EMULATOR limit: a current-firmware
+  //    build lets an app request a bigger machine (words' 5120/31744/19456
+  //    numbers target exactly this). Retest when the SDK emulator updates.
   //    Other configurables on `main`: .flags (the two below only — Instrument +
   //    Debug, and both are no-ops without a BT log listener) and .fxBuildFFI
   //    (custom native bindings). Sizes below match the measured 4.17 config.

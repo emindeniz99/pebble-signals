@@ -747,6 +747,44 @@ therefore firmware-level (roadmap 10: fork/rebuild PebbleOS, or a future SDK),
 NOT a build-config change we can make. This is exactly what upstream-issue §1
 + §11 argue — now with the strongest on-device confirmation.
 
+**Round 10 — the firmware ALREADY honors creation sizes; our 4.17 SDK is just
+STALE (source-level Rule 2 correction; the biggest reframe of the whole memory
+saga).** Set out to do roadmap 10 (build a bigger-machine firmware in QEMU).
+Couldn't build it (PebbleOS is a blobless promisor clone; full Zephyr/waf
+firmware build is a separate multi-hour effort) — but the promisor remote let
+us fetch individual files, and reading `src/fw/applib/moddable/moddable.c` on
+`main` ANSWERED the question without a build:
+
+```c
+creation.stackCount      = stack / sizeof(xsSlot);   // HONORS .stack
+creation.initialHeapCount = slot / sizeof(xsSlot);   // HONORS .slot
+creation.initialChunkSize = chunk;                   // HONORS .chunk
+if ((stack + slot + chunk) <= creation.staticSize)
+    creation.staticSize = stack + slot + chunk;
+else { creation.incrementalChunkSize = 0;
+       creation.incrementalHeapCount = 0;
+       creation.staticSize = 0; }   // request > 32KB → MALLOC-from-heap machine
+```
+
+So current firmware not only honors the sizes but lets an app request a
+machine BIGGER than the 32KB static arena (`staticSize=0` mallocs from the
+~122KB app heap). Our 4.17 binary PREDATES this: `main` logs
+`"evaluating creation record"` (line 92) on every call — our 4.17 runs logged
+it **0 times** — and main's `"invalid ModdableCreationRecord"` is at line 98
+while our 4.17 error was `moddable.c:79`. Different, older source.
+
+The reframe: the 32KB arena wall, the 384-slot JS stack (Round 7), and the
+boot-symbol floor are **stale-4.17-emulator limits, not fundamental**. On a
+current-firmware build a signal-piu app could just request a bigger machine
+(e.g. `.stack=12288` → navreactive's depth problem gone; `.slot=` bigger →
+saturated apps' boot floor gone). §1 of the upstream issue is rewritten from
+"honor the sizes" (already done upstream) to "ship a current-firmware
+emulator." Everything downstream in that issue is measured against the stale
+4.17 binary and may already be moot on `main`. The genuine remaining ask is
+just: a fresher SDK/QEMU image. (Building `main` firmware to prove it live
+remains roadmap 10 — a real Zephyr build, its own effort — but the source is
+now unambiguous.)
+
 ## 6. Us vs. the official docs
 
 Where our empirical work landed relative to `mods.md`:

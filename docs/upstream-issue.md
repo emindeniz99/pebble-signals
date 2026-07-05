@@ -18,7 +18,7 @@ own documentation, and (3) a request for a loud failure channel.
 Environment: pebble tool v5, SDK 4.17, gabbro + emery QEMU emulators,
 `projectType: "moddable"` mods, release builds.
 
-## 1. `ModdableCreationRecord` sizes are validated, then ignored
+## 1. The shipped SDK 4.17 firmware IGNORES `ModdableCreationRecord` sizes — but `main` already honors them (stale-emulator gap)
 
 `pebble.h` documents `stack`/`slot`/`chunk` as "0 for default",
 implying nonzero values override, and Moddable's pebble-examples README
@@ -43,14 +43,38 @@ running the `words` example ITSELF (real Moddable toolchain, its own
 mdbl.c/manifest, instrumentation flag added only to read the sizes) on emery
 gives the same verdict: it requests `.stack=5120 .slot=31744 .chunk=19456`
 and gets `Stack available=6144`, `Chunk available=8192`, slot heap initial
-8176 — the shipped example runs on the default machine. (The larger numbers
-presumably target a newer firmware — upstream `main`'s `moddable.c` maps the
-record onto `xsCreation`, so a post-4.17 build likely honors it. This report
-is against the 4.17 SDK binary.)
+8176 — the shipped example runs on the default machine.
 
-**Ask:** either honor the sizes (within a documented cap) on the shipped
-SDK — the `words` example implies they should — or fix the docs and reject
-nonzero sizes loudly instead of silently cloning the built-in config.
+**ROOT CAUSE FOUND (source, not speculation): the 4.17 SDK firmware is STALE.**
+Current `main` `src/fw/applib/moddable/moddable.c` DOES honor the record:
+
+```c
+creation.stackCount     = stack / sizeof(xsSlot);
+creation.initialHeapCount = slot / sizeof(xsSlot);
+creation.initialChunkSize = chunk;
+if ((stack + slot + chunk) <= (uint32_t)creation.staticSize)
+    creation.staticSize = stack + slot + chunk;
+else {                              // request bigger than the static arena:
+    creation.incrementalChunkSize = 0;
+    creation.incrementalHeapCount = 0;
+    creation.staticSize = 0;        // → XS switches to MALLOC-from-heap mode
+}
+```
+
+So on current firmware an app can not only pick its sizes but request a
+machine LARGER than the 32KB static arena (`staticSize = 0` mallocs from the
+~122KB app heap). The 4.17 SDK binary predates this: it never logs main's
+`"evaluating creation record"` (line 92 — our runs logged it 0 times) and its
+`"invalid ModdableCreationRecord"` is at `moddable.c:79` vs main's line 98 — an
+older source. So this is not a design flaw to fix; it is a **shipped-SDK
+staleness gap** between the emulator firmware and `main`.
+
+**Ask:** ship an updated SDK / QEMU emulator firmware new enough to include
+the creation-honoring code that is already on `main`. (Everything downstream
+in this report — the 32KB arena wall (§3-§6), the FFI layout (§2), the silent
+boot deaths (§5), the JS-stack ceiling (§12) — is measured against the stale
+4.17 emulator; several may already be moot on a current-firmware build. A
+refreshed emulator would let developers verify against what actually ships.)
 
 ## 2. Enabling FFI reconfigures the machine into an unusable layout
 
