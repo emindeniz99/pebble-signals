@@ -1,15 +1,50 @@
 # Roadmap — what's left
 
 Shipped work lives in git history + the README/playbook. This tracks the OPEN
-items. **Emulator status: HEALTHY** (recovered via `tools/reset-emulator.sh`;
-counter device-verified 0→1). The old "needs a stable emulator" wall is down —
-device work is unblocked again. **Device status: owner has NO physical watch
-yet** (Round-2 pre-order, not yet shipped) — so all "device work" means the
+items. **Emulator status: intermittently WEDGED** — `pebble logs`/`drive.py`
+went dead mid-session (0 lines incl. the always-present instruments key)
+through hard resets; recovers on a fresh session. **Device status: owner has
+NO physical watch yet** (Round-2 pre-order) — so all "device work" means the
 QEMU emulator; real-hardware-only checks stay parked until a watch arrives.
 
 New readers: `docs/field-notes.md` is the lab notebook (how each memory
 finding was made, the source files, the tools, the wrong turns, the flag
 model). Start there for the "why".
+
+## Open — quick checklist
+The at-a-glance view (GitHub renders these as checkboxes). Each item is
+detailed in its section below; check it here when it ships. Grouped, not
+strictly ordered except the "next batch".
+
+**Next batch (owner order):**
+- [ ] load-time ms instrumentation (time an `importNow`; needs device)
+- [ ] conformance suite expansion (new laws; no device — pure Node/XS)
+- [ ] autothunk bare-binding on-device verify (emulator)
+- [ ] `moveBy` reactive position (emulator repaint/timing)
+- [ ] machine-restart from C — research (PebbleOS `moddable.c`)
+- [ ] heap-sizing source-verify (does newer firmware honor stack/slot/chunk?)
+- [ ] CloudPebble tier 1 → 2 → 3
+
+**DX:**
+- [ ] `defineApp` / `root.tsx` typesafe entry (tsrafce-style, generic props)
+- [ ] tighten `JSX.Element` `any` → `JSXNode`
+- [ ] tutorial: teach BOTH state placements (module-scope vs in-component)
+
+**Tutorial + docs:**
+- [ ] comprehensive watchface tutorial (fonts, images, Clay config, publish)
+- [ ] Clay config-page research (PKJS-side)
+- [ ] XS docs survey for more optimization lessons
+- [ ] `deviceinfo` example (surface everything the host injects)
+
+**Test infra:**
+- [ ] device-smoke catalog → `tools/device-smoke.mts` runner
+
+**Must-do first thing when the log transport is healthy:**
+- [ ] device-verify the visible-error log (`[signal-piu] uncaught…`)
+- [ ] build-time lint: flag *calling* a `computed`/`signal` binding
+
+**New ideas:**
+- [ ] speech-to-text via `pebble/dictation` (todo entry) — typing exists
 
 ## Owner-queued next batch (2026-07, do in order)
 Priority order the owner set; each is expanded in its own section below.
