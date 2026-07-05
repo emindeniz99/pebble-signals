@@ -15,11 +15,11 @@
 // Run with: node --experimental-vm-modules tests/conformance.test.mts
 import { loadRuntime, makeChecker } from "./load-runtime.mts";
 
-const { signals, jsx: jsxM, flow, sandbox } = await loadRuntime();
+const { signals, jsx: jsxM, sandbox } = await loadRuntime();
 const { signal, computed, effect, batch, untrack, createRoot, track, useState, useEffect } =
 	signals;
 const { jsx } = jsxM;
-const { ErrorBoundary } = flow;
+const { ErrorBoundary } = jsxM; // moved to jsx-runtime (boot-floor round)
 const { check, done } = makeChecker("conformance");
 
 // Each law prints a parity line: MATCH = we behave like Solid; DIVERGE = we

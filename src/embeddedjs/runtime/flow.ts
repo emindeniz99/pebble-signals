@@ -2,16 +2,7 @@
 // by these components. Children are THUNKS returning nodes (there is no
 // compiler making them lazy), each subtree runs under its own root so
 // removal disposes every effect created inside it.
-import {
-	signal,
-	effect,
-	untrack,
-	track,
-	createRoot,
-	withBoundary,
-	getBoundary,
-	report,
-} from "runtime/signals";
+import { signal, effect, untrack, track, createRoot } from "runtime/signals";
 import { appendChild, screen, type JSXNode } from "runtime/jsx-runtime";
 import type {
 	Skin,
@@ -65,13 +56,6 @@ export type ForProps<T> = BoxProps & {
 	each: Thunk<T[]>;
 	key?: (item: T, i: number) => unknown;
 	children: (item: T, i: number) => JSXNode;
-};
-
-export type ErrorBoundaryProps = BoxProps & {
-	/** the subtree to protect — a thunk returning nodes (like Show's children). */
-	children: Thunk<JSXNode>;
-	/** shown when the subtree throws; `reset` re-runs `children` under a fresh root. */
-	fallback: (err: unknown, reset: () => void) => JSXNode;
 };
 
 /** Anything with `count()` and `get(i)` — an array wrapper, the byte store, a lazy fetcher. */
@@ -192,103 +176,11 @@ function wrapSide(props: Props, build: (() => JSXNode) | undefined): PiuContaine
 	return wrapper;
 }
 
-// ErrorBoundary({ children, fallback }) — Solid's per-subtree boundary, on a
-// watch. `children` is a thunk (like Show); `fallback(err, reset)` renders
-// when the subtree throws — at BUILD time OR on any later reactive re-run —
-// and `reset` re-runs `children` under a fresh root (component-scope state
-// starts over; module-scope state survives — the swap tradeoff). The rest of
-// the app keeps running; only this subtree is replaced.
-//
-// This is the OPT-IN, LOCAL counterpart to render()'s default top-level crash
-// screen: an inner ErrorBoundary catches first; anything it doesn't wrap (or a
-// throw from the fallback itself) escalates OUTWARD to the enclosing boundary
-// and ultimately to the crash screen — the same chain React (root
-// onUncaughtError) and Solid (outermost catch) use. It does NOT catch button/
-// tap handler throws (those run outside the reactive graph — parity with
-// Solid, which also skips event handlers).
-//
-// `const` arrow, not `export function` (preloaded-module alias budget, gotcha
-// 13 — matches VirtualList/Navigator); the whole module tree-shakes away for
-// apps that never import it.
-export const ErrorBoundary = (props: ErrorBoundaryProps): PiuContainer => {
-	const host = makeHost(props, Column);
-	// The boundary in scope when THIS one is built — a fallback that itself
-	// throws escalates here (Solid nesting), not back into our own onError.
-	const parent = getBoundary();
-	let dispose: Disposer | null = null;
-	let shown = false; // currently showing the fallback (not the children)?
-	const clear = () => {
-		if (dispose) {
-			dispose();
-			dispose = null;
-		}
-		while (host.first) host.remove(host.first);
-	};
-	// (re)build the protected subtree UNDER this boundary, so its effects' later
-	// throws route back to onError (bnd tagging in signals' effect()/run()).
-	const mountChildren = () => {
-		const [tree, d] = createRoot(() =>
-			withBoundary(onError, () => wrapSide(props, props.children)),
-		);
-		// A CREATION-TIME binding throw is caught by the binding guard (no
-		// exception escapes createRoot) but fires onError SYNCHRONOUSLY during
-		// the build — the fallback is already mounted. Drop this orphan children
-		// tree instead of stacking it on top (mirrors render()'s `panicked`).
-		if (shown) {
-			d();
-			return;
-		}
-		dispose = d;
-		host.add(tree);
-	};
-	const reset = () =>
-		untrack(() => {
-			clear();
-			shown = false;
-			try {
-				mountChildren();
-			} catch (err) {
-				onError(err); // children re-build threw immediately — back to fallback
-			}
-		});
-	// Escalate an error OUT of this boundary: to the parent boundary if any,
-	// else the terminal sink (render's crash screen). Routed through
-	// withBoundary(parent) so report()'s g.cb lookup lands on the parent (or
-	// null), NOT back on THIS boundary — otherwise a failing fallback with no
-	// parent would loop, and a parent's own fallback would be mis-tagged as
-	// ours. __spError still outranks everything inside report().
-	const escalate = (e: unknown) =>
-		withBoundary(parent, () => report(e, "ErrorBoundary fallback threw"));
-	const onError = (err: unknown) => {
-		if (shown) {
-			escalate(err); // the fallback itself failed — never loop back here
-			return;
-		}
-		untrack(() => {
-			shown = true;
-			clear();
-			try {
-				// build the fallback under the PARENT boundary: a throw from it
-				// (build-time or a later re-run) escalates OUT, matching Solid.
-				const build = () => wrapSide(props, () => props.fallback(err, reset));
-				const [tree, d] = createRoot(() => withBoundary(parent, build));
-				dispose = d;
-				host.add(tree);
-			} catch (err2) {
-				escalate(err2);
-			}
-		});
-	};
-	try {
-		mountChildren();
-	} catch (err) {
-		onError(err); // first build threw synchronously (creation-time)
-	}
-	track(() => {
-		if (dispose) dispose();
-	});
-	return host;
-};
+// NOTE: <ErrorBoundary> moved to jsx-runtime (2026-07). It began life here
+// next to Show/For, but pulling the WHOLE flow module for one component cost
+// an extra archive module record (+2 ids, gotcha 15) — measured to matter on
+// a saturated app's boot floor. It lives in jsx-runtime now, so a lean app
+// gets local error containment without flow.
 
 // For({ each, key, children }) — keyed reconcile. `each` is a thunk
 // returning an array; `key` maps item -> unique key (default: identity);

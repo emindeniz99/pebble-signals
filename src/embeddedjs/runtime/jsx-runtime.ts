@@ -1,12 +1,25 @@
 // JSX factory — Solid model, no virtual DOM. Components run ONCE; host
 // elements become real Piu nodes created once; function-valued props become
 // live effect bindings that assign single Piu properties on change.
-import { createRoot, effect, report, setSink } from "runtime/signals";
+import {
+	createRoot,
+	effect,
+	getBoundary,
+	report,
+	setSink,
+	track,
+	untrack,
+	withBoundary,
+} from "runtime/signals";
 import type {
 	Application as PiuApplication,
 	ApplicationDictionary,
 	Container as PiuContainer,
 	Content as PiuContent,
+	Skin as PiuSkin,
+	SkinDictionary,
+	Style as PiuStyle,
+	StyleDictionary,
 } from "../../../types/moddable/piu/MC-types";
 
 // A JSX result: a Piu node, a primitive child, an array of them, or nullish.
@@ -400,3 +413,147 @@ export function render(
 	}
 	return app;
 }
+
+// ---- <ErrorBoundary> — the OPT-IN, per-subtree boundary (Solid parity) ------
+// Lives HERE, not in flow.ts (moved 2026-07): pulling the whole flow module
+// for one component cost an extra archive module record (+2 ids, gotcha 15) —
+// measured to matter on a saturated app's boot floor. In jsx-runtime a lean
+// app gets local error containment for free-of-flow; apps that never import
+// it lose the code to export-prune + DCE, exactly as before.
+
+/** Props for {@link ErrorBoundary}. Box coordinates size the host (like Show). */
+export interface ErrorBoundaryProps {
+	width?: number;
+	height?: number;
+	left?: number;
+	right?: number;
+	top?: number;
+	bottom?: number;
+	skin?: PiuSkin | SkinDictionary;
+	style?: PiuStyle | StyleDictionary;
+	/** the subtree to protect — a thunk returning nodes (like Show's children). */
+	children: () => JSXNode;
+	/** shown when the subtree throws; `reset` re-runs `children` under a fresh root. */
+	fallback: (err: unknown, reset: () => void) => JSXNode;
+}
+
+// ErrorBoundary({ children, fallback }) — Solid's per-subtree boundary, on a
+// watch. `children` is a thunk (like Show); `fallback(err, reset)` renders
+// when the subtree throws — at BUILD time OR on any later reactive re-run —
+// and `reset` re-runs `children` under a fresh root (component-scope state
+// starts over; module-scope state survives — the swap tradeoff). The rest of
+// the app keeps running; only this subtree is replaced.
+//
+// This is the OPT-IN, LOCAL counterpart to render()'s default top-level crash
+// screen: an inner ErrorBoundary catches first; anything it doesn't wrap (or a
+// throw from the fallback itself) escalates OUTWARD to the enclosing boundary
+// and ultimately to the crash screen — the same chain React (root
+// onUncaughtError) and Solid (outermost catch) use. It does NOT catch button/
+// tap handler throws (those run outside the reactive graph — parity with
+// Solid, which also skips event handlers).
+//
+// `const` arrow, not `export function` (preloaded-module alias budget, gotcha
+// 13); apps that never import it pay nothing (export prune + DCE). ALL its
+// helpers live INSIDE this one arrow on purpose: extra module-scope bindings
+// push esbuild's minified top-level identifier allocation into letters the
+// host never interned — MEASURED +5 boot symbols on watchface when ebHost/
+// ebWrap sat at module scope. Function-local names never intern; the price is
+// a few closures per ErrorBoundary instance, and boundaries are few.
+export const ErrorBoundary = (props: ErrorBoundaryProps): PiuContainer => {
+	// Host + side-wrapper — inlined equivalents of flow's makeHost/wrapSide
+	// (importing them from flow would re-create the module dependency the move
+	// exists to remove). Same on-device-proven shapes: the host defaults to
+	// screen width (a width-less container measures 0, gotcha 16) and each
+	// side mounts inside a Container sized like the host (bare content swapped
+	// as a direct child crashes the piu Pebble port — measured).
+	const ebWrap = (build: () => JSXNode): PiuContainer => {
+		const wrapper = new Container(null, {
+			width: props.width,
+			height: props.height,
+		}) as PiuContainer;
+		// unwrap a thunk-returning build result (the same dynamic boundary
+		// flow's asNode handles — `{() => <Label/>}` children arrive as a fn)
+		const r = build();
+		appendChild(wrapper, typeof r === "function" ? (r as () => JSXNode)() : r);
+		return wrapper;
+	};
+	const dict: Record<string, unknown> = {};
+	for (const k in props) if (k !== "children" && k !== "fallback") dict[k] = (props as Props)[k];
+	if (dict.width === undefined && !(dict.left !== undefined && dict.right !== undefined))
+		dict.width = screen.width;
+	const host = new Column(null, dict) as PiuContainer;
+	// The boundary in scope when THIS one is built — a fallback that itself
+	// throws escalates here (Solid nesting), not back into our own onError.
+	const parent = getBoundary();
+	let disposer: (() => void) | null = null;
+	let shown = false; // currently showing the fallback (not the children)?
+	const clear = () => {
+		if (disposer) {
+			disposer();
+			disposer = null;
+		}
+		while (host.first) host.remove(host.first);
+	};
+	// (re)build the protected subtree UNDER this boundary, so its effects' later
+	// throws route back to onError (the z-tagging in signals' effect()/run()).
+	const mountChildren = () => {
+		const r = createRoot(() => withBoundary(onError, () => ebWrap(props.children)));
+		// A CREATION-TIME binding throw is caught by the binding guard (no
+		// exception escapes createRoot) but fires onError SYNCHRONOUSLY during
+		// the build — the fallback is already mounted. Drop this orphan children
+		// tree instead of stacking it on top (mirrors render()'s `panicked`).
+		if (shown) {
+			r[1]();
+			return;
+		}
+		disposer = r[1];
+		host.add(r[0]);
+	};
+	const reset = () =>
+		untrack(() => {
+			clear();
+			shown = false;
+			try {
+				mountChildren();
+			} catch (err) {
+				onError(err); // children re-build threw immediately — back to fallback
+			}
+		});
+	// Escalate an error OUT of this boundary: to the parent boundary if any,
+	// else the terminal sink (render's crash screen). Routed through
+	// withBoundary(parent) so report()'s boundary lookup lands on the parent
+	// (or null), NOT back on THIS boundary — otherwise a failing fallback with
+	// no parent would loop, and a parent's own fallback would be mis-tagged as
+	// ours. __spError still outranks everything inside report().
+	const escalate = (e: unknown) =>
+		withBoundary(parent, () => report(e, "ErrorBoundary fallback threw"));
+	const onError = (err: unknown) => {
+		if (shown) {
+			escalate(err); // the fallback itself failed — never loop back here
+			return;
+		}
+		untrack(() => {
+			shown = true;
+			clear();
+			try {
+				// build the fallback under the PARENT boundary: a throw from it
+				// (build-time or a later re-run) escalates OUT, matching Solid.
+				const build = () => ebWrap(() => props.fallback(err, reset));
+				const r = createRoot(() => withBoundary(parent, build));
+				disposer = r[1];
+				host.add(r[0]);
+			} catch (err2) {
+				escalate(err2);
+			}
+		});
+	};
+	try {
+		mountChildren();
+	} catch (err) {
+		onError(err); // first build threw synchronously (creation-time)
+	}
+	track(() => {
+		if (disposer) disposer();
+	});
+	return host;
+};

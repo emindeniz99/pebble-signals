@@ -4,11 +4,11 @@
 // it (outside the boundary) keeps updating — only the wrapped subtree is
 // replaced. up/down change n; select calls the fallback's reset (lower n below
 // 3 first). Contrast crashdemo.tsx, where the same throw with NO inner boundary
-// hits render()'s top-level crash screen. Kept deliberately lean (one Style)
-// because pulling flow's ErrorBoundary rides near the boot-slot floor.
+// hits render()'s top-level crash screen. ErrorBoundary ships from
+// jsx-runtime (no flow module needed), so this app stays two runtime modules
+// — the lean shape that clears the boot-slot floor.
 // Build: APP=boundary node build.mts
-import { ErrorBoundary } from "runtime/flow";
-import { render } from "runtime/jsx-runtime";
+import { ErrorBoundary, render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";
 
 const bg = new Skin({ fill: "black" });

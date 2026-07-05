@@ -8,7 +8,8 @@ const { signals, jsx: jsxM, flow, sandbox, tick, liveTimers } = await loadRuntim
 const { signal } = signals;
 const { createRoot } = signals;
 const { jsx } = jsxM;
-const { Show, For, VirtualList, animate, ErrorBoundary } = flow;
+const { Show, For, VirtualList, animate } = flow;
+const { ErrorBoundary } = jsxM; // moved to jsx-runtime (boot-floor round)
 const { check, done } = makeChecker("flow");
 
 const inner = (host) => host.contents[0] && host.contents[0].contents[0];
@@ -621,6 +622,43 @@ dStop();
 	);
 	signals.setSink(null);
 	sandbox.console = savedC;
+}
+
+// (h) host sizing (the inlined ebHost, post-move): no width and no left/right
+// -> defaults to screen.width (a width-less container measures 0, gotcha 16);
+// left+right anchoring suppresses the default (the box is already constrained)
+{
+	const [defHost] = createRoot(() =>
+		ErrorBoundary({
+			height: 20,
+			fallback: () => jsx(StubContent, { string: "f" }),
+			children: () => jsx(StubContent, { string: "c" }),
+		}),
+	);
+	check("EB host defaults width to screen.width", defHost.width === jsxM.screen.width);
+	const [lrHost] = createRoot(() =>
+		ErrorBoundary({
+			left: 0,
+			right: 0,
+			height: 20,
+			fallback: () => jsx(StubContent, { string: "f" }),
+			children: () => jsx(StubContent, { string: "c" }),
+		}),
+	);
+	check("EB host left+right anchoring skips the width default", lrHost.width === undefined);
+}
+
+// (i) children returning a THUNK (the auto-thunk JSX boundary) is unwrapped
+{
+	const [host] = createRoot(() =>
+		ErrorBoundary({
+			width: 60,
+			height: 20,
+			fallback: () => jsx(StubContent, { string: "f" }),
+			children: () => () => jsx(StubContent, { string: "unwrapped" }),
+		}),
+	);
+	check("EB unwraps a thunk-returning children build", inner(host).string === "unwrapped");
 }
 
 done();
