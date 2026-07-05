@@ -272,7 +272,9 @@ setSink(null);
 // Owner decision: on a product, telling the wearer the app crashed beats a
 // silently frozen watchface. Contract pinned here: an escaped binding error
 // disposes the WHOLE tree, empties the app, paints a crash screen carrying
-// the context + message, and every button rethrows the ORIGINAL error (on
+// the context + message (newlines compacted to " ~ " so the small screen
+// packs more per line), SELECT retries the build (Solid ErrorBoundary
+// `reset` parity), and any other button rethrows the ORIGINAL error (on
 // device: fxAbort → host exits the mod — the "exit" button).
 {
 	const savedC = sandbox.console;
@@ -317,11 +319,18 @@ setSink(null);
 	);
 	const txt = crash.contents[0];
 	check(
-		"boundary: crash text carries title, context, message and exit hint",
+		"boundary: crash text carries title, context, message and button hints",
 		txt.string.includes("APP CRASHED") &&
 			txt.string.includes("binding 'string'") &&
 			txt.string.includes("boundary boom") &&
+			txt.string.includes("retry") &&
 			txt.string.includes("exit"),
+	);
+	check(
+		"boundary: crash body compacts stack newlines to ' ~ '",
+		// the Node Error stack is multi-line; on screen it must pack into one
+		// wrapped paragraph — only the title and hint keep their own lines
+		txt.string.includes(" ~ ") && txt.string.split("\n").length <= 4,
 	);
 	check(
 		"boundary: crash screen styles itself from host globals",
@@ -330,17 +339,42 @@ setSink(null);
 	const runsAtCrash = runs;
 	bs.value = 3; // the root was disposed — the old binding must NOT run again
 	check("boundary: old tree's effects are dead after the crash", runs === runsAtCrash);
-	// the kill path: any button rethrows the ORIGINAL error
+	// the kill path: BACK (and up/down) rethrows the ORIGINAL error
 	let killErr = null;
 	try {
-		crash.behavior.onPressSelect(crash);
+		crash.behavior.onPressBack(crash);
 	} catch (e) {
 		killErr = e;
 	}
 	check(
-		"boundary: button press rethrows the original error (exit path)",
+		"boundary: back press rethrows the original error (exit path)",
 		killErr !== null && killErr.message === "boundary boom",
 	);
+	// the retry path: SELECT re-runs the build under a fresh root. The signal
+	// is healthy again (bs=3), so the tree remounts and its binding is LIVE.
+	const consumed = crash.behavior.onPressSelect(crash);
+	check(
+		"boundary: select retries — tree remounts with live bindings",
+		consumed === true &&
+			app3.contents.length === 1 &&
+			app3.contents[0].name === "good" &&
+			app3.contents[0].contents[0].string === "b3",
+	);
+	bs.value = 4;
+	check("boundary: remounted binding tracks again", app3.contents[0].contents[0].string === "b4");
+	// a retry whose build IMMEDIATELY re-throws just repaints the crash screen
+	bs.value = 2; // crash again
+	const crash2 = app3.contents[0];
+	check("boundary: crashes again after retry", crash2.contents[0].string.includes("APP CRASHED"));
+	crash2.behavior.onPressSelect(crash2); // retry while still broken (bs=2)
+	check(
+		"boundary: failing retry repaints the crash screen",
+		app3.contents.length === 1 && app3.contents[0].contents[0].string.includes("APP CRASHED"),
+	);
+	bs.value = 3; // heal + retry once more -> live tree again
+	const crash3 = app3.contents[0];
+	crash3.behavior.onPressSelect(crash3);
+	check("boundary: retry recovers after healing", app3.contents[0].name === "good");
 
 	// (b) BUILD error → crash screen instead of propagating out of render().
 	// A stackless object error keeps the message SHORT — pins the uncapped
@@ -353,6 +387,14 @@ setSink(null);
 		app4.contents.length === 1 &&
 			app4.contents[0].contents[0].string.includes("build boom") &&
 			!app4.contents[0].contents[0].string.includes("…"),
+	);
+	// retrying a build that STILL throws (the throw escapes createRoot, not
+	// just a guarded binding) lands in retry's own catch and repaints
+	const crash4 = app4.contents[0];
+	crash4.behavior.onPressSelect(crash4);
+	check(
+		"boundary: retry of a throwing build repaints the crash screen",
+		app4.contents.length === 1 && app4.contents[0].contents[0].string.includes("build boom"),
 	);
 
 	// (c) FIRST-RENDER binding error mid-build → crash screen up, orphan
@@ -452,6 +494,28 @@ setSink(null);
 		seen[0] === "handler boom" && app6.contents[0].name === "kept",
 	);
 	sandbox.__spError = undefined;
+
+	// (g) screen shape/depth: render() reads the HOST display global — round
+	// panels get wider crash-text insets (content away from clipped corners)
+	sandbox.screen = { round: true, color: true }; // gabbro-shaped host display
+	const rr = signal(1);
+	const app8 = render(() =>
+		jsx(Label, {
+			string: () => {
+				if (rr.value === 2) throw new Error("round boom");
+				return "r";
+			},
+		}),
+	);
+	check("screen.round/color read from the host display", screen.round && screen.color);
+	rr.value = 2;
+	check("crash text insets widen on a round screen", app8.contents[0].contents[0].left === 26);
+	sandbox.screen = undefined;
+	const app9 = render(() => jsx(Label, { string: "flat" }));
+	check(
+		"no host display global (tests) -> rect defaults",
+		screen.round === false && screen.color === false && app9.contents[0].string === "flat",
+	);
 
 	setSink(null); // restore bare mode for whatever runs after this suite
 	sandbox.console = savedC;

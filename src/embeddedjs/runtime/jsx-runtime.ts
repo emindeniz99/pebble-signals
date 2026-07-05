@@ -252,15 +252,36 @@ function consumePendingFocus() {
 // a watch that looks alive but stopped updating. Per project rules, these
 // module-level helpers are `const` bindings (gotcha 13 alias budget).
 let theApp: PiuApplication | null = null; // the mounted Application — the crash canvas
+let theBuild: (() => JSXNode) | null = null; // kept for the crash screen's RETRY
 let rootDispose: (() => void) | null = null; // tears down every effect on panic
 let panicked = false; // first crash wins; also tells render() a mid-build panic happened
 
+// Build + mount the tree onto the app under a fresh root. Shared by render()
+// and the crash screen's retry. A binding that panics DURING the build paints
+// the crash screen from inside createRoot — in that case the orphan tree is
+// dropped (its effects disposed) instead of mounted over the crash screen.
+const mount = (app: PiuApplication, build: () => JSXNode): void => {
+	const r = createRoot(build);
+	if (panicked) {
+		r[1]();
+		return;
+	}
+	rootDispose = r[1];
+	appendChild(app, r[0]);
+	consumePendingFocus();
+};
+
 // Paint the crash screen. Order matters on the 32KB arena: dispose the tree
 // and empty the app FIRST (frees the old nodes/effects — later notifies hit
-// disposed ids and no-op), then build the deliberately tiny error UI. Any
-// button rethrows the ORIGINAL error outside every guard: uncaught → fxAbort
-// (stack in `pebble logs`) → the host exits the mod. That rethrow IS the
-// "exit" button — and the second visibility channel.
+// disposed ids and no-op), then build the deliberately tiny error UI.
+// Buttons — Solid's ErrorBoundary `reset` and React's error-dialog guidance,
+// adapted to a two-button watch:
+//   select = RETRY: re-run the app build under a fresh root (module-scope
+//            state survives; component-scope state starts over). A build
+//            that immediately throws again just repaints this screen.
+//   back/up/down = EXIT: rethrow the ORIGINAL error outside every guard —
+//            uncaught → fxAbort (stack in `pebble logs`) → the host kills
+//            the mod. The rethrow IS the exit AND the second log channel.
 const showCrash = (err: unknown, msg: string): void => {
 	if (panicked) return; // one screen per crash; re-entrant reports just log
 	panicked = true;
@@ -276,22 +297,35 @@ const showCrash = (err: unknown, msg: string): void => {
 	const kill = () => {
 		throw err;
 	};
+	const retry = () => {
+		panicked = false;
+		app.empty();
+		try {
+			mount(app, theBuild!); // render() set theBuild before this sink existed
+		} catch (e2) {
+			report(e2, "retry build threw"); // paints this screen again
+		}
+	};
 	// Skin/Style are host compartment globals (absent only in the Node test
 	// sandbox); "18px Gothic" is a valid Pebble system font (tools/fontcheck).
 	const g = globalThis as unknown as {
 		Skin?: new (d: object) => object;
 		Style?: new (d: object) => object;
 	};
+	// The log kept the full multi-line error above; the SCREEN compacts
+	// newlines to " ~ " so wrapped text packs far more per line (each stack
+	// frame is short — one frame per line wasted most of a 260px circle).
+	let body = msg.replace(/\n+/g, " ~ ");
+	if (body.length > 380) body = body.slice(0, 380) + "…";
 	// No top/bottom: Piu centers a fitted Text vertically — on a ROUND screen
 	// (gabbro) that lands the message in the circle's widest band instead of
-	// the clipped top corners (measured on the device screenshot).
+	// the clipped top corners (measured on the device screenshot). Insets
+	// adapt to the shape via screen.round (host display flag).
+	const inset = screen.round ? 26 : 8;
 	const tprops: Props = {
-		left: 18,
-		right: 18,
-		string:
-			"APP CRASHED\n" +
-			(msg.length > 380 ? msg.slice(0, 380) + "…" : msg) +
-			"\n\n[any button: exit]",
+		left: inset,
+		right: inset,
+		string: "APP CRASHED\n" + body + "\n\n[select: retry \u00b7 back: exit]",
 	};
 	if (g.Style)
 		tprops.style = new g.Style({ font: "18px Gothic", color: "white", horizontal: "left" });
@@ -300,7 +334,7 @@ const showCrash = (err: unknown, msg: string): void => {
 		right: 0,
 		top: 0,
 		bottom: 0,
-		onPressSelect: kill,
+		onPressSelect: retry,
 		onPressBack: kill,
 		onPressUp: kill,
 		onPressDown: kill,
@@ -309,26 +343,30 @@ const showCrash = (err: unknown, msg: string): void => {
 	if (g.Skin) props.skin = new g.Skin({ fill: "black" });
 	const ui = jsx(Container, props) as PiuContent;
 	app.add(ui);
-	ui.focus(); // bound now — button presses reach the kill handler
+	ui.focus(); // bound now — button presses reach the retry/kill handlers
 };
 
-// Live screen dimensions, RN-Dimensions style. Populated by render() from the
-// Application's measured size, so it is VALID ONCE render() HAS STARTED (like
-// RN's "after layout" caveat) — read it inside the build callback / component
-// bodies, not at module top level. Lets components size to the real screen
-// (200x228 emery, 260x260 gabbro) instead of a hardcoded width.
-/** RN-Dimensions-style screen size; valid once {@link render} has started. */
-export const screen = { width: 0, height: 0 };
+// Live screen info, RN-Dimensions style. Populated by render() from the
+// Application's measured size and the host display, so it is VALID ONCE
+// render() HAS STARTED (like RN's "after layout" caveat) — read it inside the
+// build callback / component bodies, not at module top level. Lets components
+// size to the real screen (200x228 emery, 260x260 gabbro) and adapt layout to
+// the panel: `round` (circular display — inset content away from the clipped
+// corners) and `color` (color vs b/w panel) come from the host's `screen`
+// display global (`pebble-display.js` on the Pebble host).
+/** RN-Dimensions-style screen info (size/round/color); valid once {@link render} has started. */
+export const screen = { width: 0, height: 0, round: false, color: false };
 
 /** Options for {@link render}. */
 export interface RenderOptions {
 	/**
 	 * Top-level error boundary (default ON). `true`/omitted: an escaped
 	 * reactive or build error disposes the whole tree and paints a crash
-	 * screen — the full error on the watch, any button exits (rethrows →
-	 * fxAbort, so the log gets it too). `false` = strict: errors are logged
-	 * in full, then PROPAGATE (on device: fxAbort — dead but loud). A custom
-	 * `globalThis.__spError` handler bypasses both and owns the policy.
+	 * screen — the full error on the watch; select retries the build, any
+	 * other button exits (rethrows → fxAbort, so the log gets it too).
+	 * `false` = strict: errors are logged in full, then PROPAGATE (on
+	 * device: fxAbort — dead but loud). A custom `globalThis.__spError`
+	 * handler bypasses both and owns the policy.
 	 */
 	boundary?: boolean;
 }
@@ -343,30 +381,22 @@ export function render(
 ): PiuApplication {
 	const app = new Application(null, dict || {});
 	theApp = app;
+	theBuild = build;
 	panicked = false;
 	screen.width = app.width; // screen size is known once the app exists,
 	screen.height = app.height; // before build() runs so it can read it
+	// panel shape/depth from the host display global (absent in Node tests)
+	const hs = (globalThis as unknown as { screen?: { round?: boolean; color?: boolean } }).screen;
+	screen.round = !!(hs && hs.round);
+	screen.color = !!(hs && hs.color);
 	setSink(!opts || opts.boundary !== false ? showCrash : true);
-	let tree: JSXNode, disposer: () => void;
 	try {
-		const r = createRoot(build);
-		tree = r[0];
-		disposer = r[1];
+		mount(app, build);
 	} catch (err) {
 		// build threw (createRoot already tore down its partial effects).
 		// Boundary: crash screen (unless a mid-build binding already painted
 		// one); strict: report logs in full, then rethrows out of render().
 		report(err, "render() build threw");
-		return app;
 	}
-	if (panicked) {
-		// a binding panicked DURING build: the crash screen is already up —
-		// drop the orphan tree's effects instead of mounting it
-		disposer();
-		return app;
-	}
-	rootDispose = disposer;
-	appendChild(app, tree);
-	consumePendingFocus();
 	return app;
 }

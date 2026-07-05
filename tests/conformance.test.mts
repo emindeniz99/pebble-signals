@@ -590,9 +590,10 @@ const law = (name, verdict, cond, refs) => {
 // TOP-LEVEL boundary render() installs BY DEFAULT (owner decision: telling
 // the wearer the app crashed beats a watch that looks alive but stopped).
 // An escaped binding/build error disposes the WHOLE reactive tree, empties
-// the Application and paints the error + exit hint; any button rethrows the
-// ORIGINAL error (on device: fxAbort → the host exits the mod — loud in the
-// log too). `render(..., {boundary:false})` restores propagate semantics.
+// the Application and paints the error + button hints; SELECT retries the
+// build (Solid's `reset` adapted to a watch), BACK rethrows the ORIGINAL
+// error (on device: fxAbort → the host exits the mod — loud in the log
+// too). `render(..., {boundary:false})` restores propagate semantics.
 {
 	const savedC = sandbox.console;
 	sandbox.console = { log: () => {} }; // report() logs before painting
@@ -621,7 +622,7 @@ const law = (name, verdict, cond, refs) => {
 	s.value = 3; // tree disposed — the binding must not run again
 	let killed = false;
 	try {
-		crash.behavior.onPressSelect(crash);
+		crash.behavior.onPressBack(crash); // back = exit (select = retry)
 	} catch (e) {
 		killed = e.message === "law25";
 	}
