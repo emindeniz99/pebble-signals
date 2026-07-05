@@ -1,7 +1,7 @@
 // JSX factory — Solid model, no virtual DOM. Components run ONCE; host
 // elements become real Piu nodes created once; function-valued props become
 // live effect bindings that assign single Piu properties on change.
-import { createRoot, effect, report } from "runtime/signals";
+import { createRoot, effect, report, setSink } from "runtime/signals";
 import type {
 	Application as PiuApplication,
 	ApplicationDictionary,
@@ -144,29 +144,23 @@ function createHost(type: any, props: Props): PiuContent {
 			// React-refugee surprise (Piu layout is construction-time).
 			if (REACTIVE_PROPS.indexOf(key) < 0) throw new Error(bindErr(key));
 			// effect() auto-registers with the innermost owner (running-owner round).
-			// The binding body is GUARDED (2026-07 decision): a throwing thunk —
-			// including on the FIRST render, which runs during effect creation and
-			// would otherwise abort the whole module load — is contained here and
-			// reported WITH context (which prop, which node class), instead of
-			// taking the app down. The node keeps its previous (or dictionary)
-			// value; siblings and the rest of the app keep working. This is a
-			// deliberate DIVERGE from Solid (which propagates creation-time
-			// errors): on a watch, a stale/blank label beats exit-to-launcher.
-			// A throwing render() BUILD still propagates — a fully broken tree
-			// stays loud. Conformance law 24 pins this.
+			// The binding body is GUARDED so a throwing thunk is caught WITH
+			// context (which prop, which node class) — including on the FIRST
+			// render, which runs during effect creation and would otherwise skip
+			// the notify() guard. What happens NEXT is report()'s escalation
+			// ladder (2026-07 redesign, owner decision: telling the wearer beats
+			// a silently frozen label): under render()'s default boundary the
+			// tree is torn down and a crash screen is painted; with
+			// `boundary:false` the error is logged then rethrown (fxAbort — dead
+			// but loud); a custom `__spError` handler owns the policy; and with
+			// no boundary at all (bare core, tests) the node keeps its last good
+			// value and the app survives. Conformance laws 24-25 pin this.
 			effect(() => {
 				try {
 					setProp(node, key, thunk());
 				} catch (err) {
 					const cls = (node as { constructor?: { name?: string } }).constructor;
-					report(
-						err,
-						"binding '" +
-							key +
-							"' on " +
-							((cls && cls.name) || "content") +
-							" threw (kept last value)",
-					);
+					report(err, "binding '" + key + "' on " + ((cls && cls.name) || "content") + " threw");
 				}
 			});
 		}
@@ -250,6 +244,74 @@ function consumePendingFocus() {
 	}
 }
 
+// ---- top-level error boundary (2026-07 redesign) ---------------------------
+// render() installs showCrash as report()'s sink by default: an escaped
+// reactive/build error tears down the whole tree and paints a crash screen
+// instead of leaving a silently frozen watchface. Owner decision: on a
+// product, telling the wearer the app crashed (with the actual error) beats
+// a watch that looks alive but stopped updating. Per project rules, these
+// module-level helpers are `const` bindings (gotcha 13 alias budget).
+let theApp: PiuApplication | null = null; // the mounted Application — the crash canvas
+let rootDispose: (() => void) | null = null; // tears down every effect on panic
+let panicked = false; // first crash wins; also tells render() a mid-build panic happened
+
+// Paint the crash screen. Order matters on the 32KB arena: dispose the tree
+// and empty the app FIRST (frees the old nodes/effects — later notifies hit
+// disposed ids and no-op), then build the deliberately tiny error UI. Any
+// button rethrows the ORIGINAL error outside every guard: uncaught → fxAbort
+// (stack in `pebble logs`) → the host exits the mod. That rethrow IS the
+// "exit" button — and the second visibility channel.
+const showCrash = (err: unknown, msg: string): void => {
+	if (panicked) return; // one screen per crash; re-entrant reports just log
+	panicked = true;
+	pendingFocus = null; // a mid-build crash must not hand focus to orphans
+	if (rootDispose) {
+		rootDispose();
+		rootDispose = null;
+	}
+	// theApp is never null here: render() assigns it before installing this
+	// sink, and the sink is the only caller (the `!` is type-only, erases).
+	const app = theApp!;
+	app.empty();
+	const kill = () => {
+		throw err;
+	};
+	// Skin/Style are host compartment globals (absent only in the Node test
+	// sandbox); "18px Gothic" is a valid Pebble system font (tools/fontcheck).
+	const g = globalThis as unknown as {
+		Skin?: new (d: object) => object;
+		Style?: new (d: object) => object;
+	};
+	// No top/bottom: Piu centers a fitted Text vertically — on a ROUND screen
+	// (gabbro) that lands the message in the circle's widest band instead of
+	// the clipped top corners (measured on the device screenshot).
+	const tprops: Props = {
+		left: 18,
+		right: 18,
+		string:
+			"APP CRASHED\n" +
+			(msg.length > 380 ? msg.slice(0, 380) + "…" : msg) +
+			"\n\n[any button: exit]",
+	};
+	if (g.Style)
+		tprops.style = new g.Style({ font: "18px Gothic", color: "white", horizontal: "left" });
+	const props: Props = {
+		left: 0,
+		right: 0,
+		top: 0,
+		bottom: 0,
+		onPressSelect: kill,
+		onPressBack: kill,
+		onPressUp: kill,
+		onPressDown: kill,
+		children: jsx(Text, tprops),
+	};
+	if (g.Skin) props.skin = new g.Skin({ fill: "black" });
+	const ui = jsx(Container, props) as PiuContent;
+	app.add(ui);
+	ui.focus(); // bound now — button presses reach the kill handler
+};
+
 // Live screen dimensions, RN-Dimensions style. Populated by render() from the
 // Application's measured size, so it is VALID ONCE render() HAS STARTED (like
 // RN's "after layout" caveat) — read it inside the build callback / component
@@ -258,14 +320,52 @@ function consumePendingFocus() {
 /** RN-Dimensions-style screen size; valid once {@link render} has started. */
 export const screen = { width: 0, height: 0 };
 
+/** Options for {@link render}. */
+export interface RenderOptions {
+	/**
+	 * Top-level error boundary (default ON). `true`/omitted: an escaped
+	 * reactive or build error disposes the whole tree and paints a crash
+	 * screen — the full error on the watch, any button exits (rethrows →
+	 * fxAbort, so the log gets it too). `false` = strict: errors are logged
+	 * in full, then PROPAGATE (on device: fxAbort — dead but loud). A custom
+	 * `globalThis.__spError` handler bypasses both and owns the policy.
+	 */
+	boundary?: boolean;
+}
+
 // Mount a JSX tree as the Piu application. `build` runs under a root owner;
-// the returned disposer is kept alive for the app's lifetime.
+// the disposer is kept so the default error boundary can tear the tree down.
 /** Mount a JSX tree as the Piu Application. `build` runs under a root owner. */
-export function render(build: () => JSXNode, dict?: ApplicationDictionary): PiuApplication {
+export function render(
+	build: () => JSXNode,
+	dict?: ApplicationDictionary,
+	opts?: RenderOptions,
+): PiuApplication {
 	const app = new Application(null, dict || {});
+	theApp = app;
+	panicked = false;
 	screen.width = app.width; // screen size is known once the app exists,
 	screen.height = app.height; // before build() runs so it can read it
-	const [tree] = createRoot(build);
+	setSink(!opts || opts.boundary !== false ? showCrash : true);
+	let tree: JSXNode, disposer: () => void;
+	try {
+		const r = createRoot(build);
+		tree = r[0];
+		disposer = r[1];
+	} catch (err) {
+		// build threw (createRoot already tore down its partial effects).
+		// Boundary: crash screen (unless a mid-build binding already painted
+		// one); strict: report logs in full, then rethrows out of render().
+		report(err, "render() build threw");
+		return app;
+	}
+	if (panicked) {
+		// a binding panicked DURING build: the crash screen is already up —
+		// drop the orphan tree's effects instead of mounting it
+		disposer();
+		return app;
+	}
+	rootDispose = disposer;
 	appendChild(app, tree);
 	consumePendingFocus();
 	return app;

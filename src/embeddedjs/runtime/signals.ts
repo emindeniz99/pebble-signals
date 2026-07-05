@@ -254,19 +254,47 @@ function fmtError(err: unknown): string {
 	if (err && typeof err === "object") {
 		const e = err as { name?: string; message?: string; stack?: string };
 		const head = (e.name || "Error") + (e.message ? ": " + e.message : "");
-		return e.stack ? head + "\n" + e.stack : head;
+		const st = e.stack;
+		if (!st) return head;
+		// XS and V8 stacks already open with the "Name: message" line — don't
+		// print it twice (measured on the gabbro crash screen, where every
+		// duplicated line costs visible space).
+		return st.indexOf(head) === 0 ? st : head + "\n" + st;
 	}
 	return String(err);
 }
 
+// Top-level failure sink, installed by render() (jsx-runtime). Three states:
+//   fn    — render()'s default boundary: report() hands the error over and
+//           the fn paints the crash screen (2026-07 redesign).
+//   true  — strict boundary (`render(..., {boundary:false})`): report() logs
+//           the FULL error first, then RETHROWS so the failure propagates
+//           (on device: fxAbort + stack — dead but loud).
+//   null  — no boundary (bare core / tests / render never called): report()
+//           logs and CONTAINS, the pre-boundary behavior.
+let sink: ((err: unknown, msg: string) => void) | true | null = null;
+
 /**
- * Report a caught reactive error — the shared "loud failure" channel.
- * Routes to `globalThis.__spError` when the app installed a handler,
- * else logs the FULL error (type, message, stack, plus the raw object)
- * through the host console so the failure is visible instead of a silent
- * blank Label — the classic footgun: a typo like calling a `computed`
- * (`greeting()` instead of `greeting.value`) throws in a binding and used
- * to just vanish.
+ * Install the top-level error sink — the jsx-runtime's `render()` calls this;
+ * apps normally never do. A function receives every escalated error (plus the
+ * formatted message) and owns what happens next; `true` means "log fully,
+ * then rethrow"; `null` restores the bare log-and-contain default.
+ */
+export function setSink(s: ((err: unknown, msg: string) => void) | true | null): void {
+	sink = s;
+}
+
+/**
+ * Report a caught reactive error — the shared "loud failure" channel. The
+ * escalation ladder (2026-07 redesign — owner decision: telling the wearer
+ * the app crashed beats a silently frozen watchface):
+ * 1. `globalThis.__spError` installed → the handler owns the policy entirely
+ *    (contain by returning, escalate by rethrowing — dev strict mode).
+ * 2. Else: log the FULL error (type, message, stack, raw object) through the
+ *    host console, THEN hand it to the sink — render()'s default sink paints
+ *    the crash screen; the strict sink (`boundary:false`) rethrows; no sink
+ *    (bare core) means log-and-contain.
+ * The log always happens before the sink, so the record is never lost.
  *
  * Hard-won constraints baked in (device receipts, 2026-07):
  * - The Pebble host console is `Object.freeze({log})` — NO `.error`. An
@@ -274,29 +302,34 @@ function fmtError(err: unknown): string {
  *   fxAbort'ed the machine on gabbro. So: prefer error, fall back to log,
  *   and the logger itself must NEVER throw.
  * - On release firmware JS `trace` (which host console.log wraps) is a
- *   no-op, so this line only reaches `pebble logs` on debug hosts/xsbug —
- *   but `__spError` always works, Node tests always see it, and the
- *   machine ALWAYS survives (a watch must not exit to the launcher
- *   because one binding threw).
+ *   no-op, so the log line only reaches `pebble logs` on debug hosts/xsbug —
+ *   but `__spError` always works, Node tests always see it, and the crash
+ *   screen is visible on the WATCH itself.
  * - console/error/log are host-interned names — zero boot-symbol cost.
  * Exported for the jsx-runtime binding guard (which adds prop/node
  * context); apps may also call it from their own try/catch.
  */
 export function report(err: unknown, ctx: string): void {
 	const h = globalThis.__spError;
-	if (h) h(err);
-	else {
-		const c = (globalThis as { console?: { error?: LogFn; log?: LogFn } }).console;
-		const f = c && (c.error || c.log);
-		// Pass BOTH a fully-formatted string (nothing lost on consoles that
-		// can't expand objects) AND the raw error (everything shown on ones
-		// that can). Over-logging is harmless on a rare failure path.
-		if (f) f.call(c, "[signal-piu] " + ctx + ":\n" + fmtError(err), err);
+	if (h) {
+		h(err);
+		return;
 	}
+	const msg = "[signal-piu] " + ctx + ":\n" + fmtError(err);
+	const c = (globalThis as { console?: { error?: LogFn; log?: LogFn } }).console;
+	const f = c && (c.error || c.log);
+	// Pass BOTH a fully-formatted string (nothing lost on consoles that
+	// can't expand objects) AND the raw error (everything shown on ones
+	// that can). Over-logging is harmless on a rare failure path.
+	if (f) f.call(c, msg, err);
+	const s = sink;
+	if (s === true) throw err; // strict: logged in full above, now die loudly
+	if (s !== null) s(err, msg); // render()'s boundary: paint the crash screen
 }
 
-// diagnostic hook: surface subscriber exceptions instead of letting them
-// abort the machine (XS kills the app otherwise)
+// Route subscriber exceptions through report() instead of letting them
+// abort the machine unseen — the installed sink/handler decides whether the
+// app shows a crash screen, dies loudly (strict), or contains (bare core).
 function notify(e: number): void {
 	try {
 		run(e);

@@ -4,7 +4,7 @@
 import { loadRuntime, makeChecker } from "./load-runtime.mts";
 
 const { signals, jsx: jsxM, sandbox } = await loadRuntime();
-const { signal } = signals;
+const { signal, setSink } = signals;
 const { jsx, jsxs, Fragment, appendChild, render, screen } = jsxM;
 const { Container, Label } = sandbox;
 const { check, done } = makeChecker("jsx");
@@ -136,10 +136,16 @@ sandbox.Container.prototype.focus = origFocus;
 const app2 = render(() => jsx(Container, { name: "nodict" }));
 check("render without dict works", app2.contents[0].name === "nodict");
 
-// ---- guarded bindings (2026-07): a throwing thunk must not take the app down.
-// Errors route to __spError (set here; console fallback otherwise) WITH prop +
-// node-class context. Covers BOTH the first render (effect creation — used to
-// abort the whole module load) and re-runs (the notify path).
+// The renders above installed the default boundary sink; the legacy blocks
+// below pin the BARE-core contract (no boundary), so restore it explicitly.
+setSink(null);
+
+// ---- guarded bindings, BARE mode (no boundary installed): a throwing thunk
+// must not take the app down. Errors route to __spError (set here; console
+// fallback otherwise) WITH prop + node-class context. Covers BOTH the first
+// render (effect creation — used to abort the whole module load) and re-runs
+// (the notify path). Under render()'s default boundary the same errors
+// escalate to the crash screen instead — pinned in the boundary block below.
 {
 	const reported = [];
 	sandbox.__spError = (e) => reported.push(String(e && e.message ? e.message : e));
@@ -246,7 +252,211 @@ check("render without dict works", app2.contents[0].name === "nodict");
 		// context includes the NODE CLASS name (on-device this reads "Label")
 		lines.some((l) => l.includes("binding 'string' on StubContent") && l.includes("ctxboom")),
 	);
+	// a NAMELESS node class (class `name` is configurable) falls back to "content"
+	const savedName = Object.getOwnPropertyDescriptor(sandbox.Label, "name");
+	Object.defineProperty(sandbox.Label, "name", { value: "", configurable: true });
+	jsx(Label, {
+		string: () => {
+			throw new Error("noname boom");
+		},
+	});
+	Object.defineProperty(sandbox.Label, "name", savedName);
+	check(
+		"guard falls back to 'content' for a nameless class",
+		lines.some((l) => l.includes("binding 'string' on content") && l.includes("noname boom")),
+	);
 	sandbox.console = savedC;
+}
+
+// ---- top-level error boundary (2026-07 redesign): render()'s DEFAULT sink.
+// Owner decision: on a product, telling the wearer the app crashed beats a
+// silently frozen watchface. Contract pinned here: an escaped binding error
+// disposes the WHOLE tree, empties the app, paints a crash screen carrying
+// the context + message, and every button rethrows the ORIGINAL error (on
+// device: fxAbort → host exits the mod — the "exit" button).
+{
+	const savedC = sandbox.console;
+	sandbox.console = { log: () => {} }; // report() logs before painting; keep test output clean
+	// host-compartment globals the crash screen styles itself with (the real
+	// host always has them; the sandbox needs stubs to cover those paths)
+	sandbox.Skin = class {
+		constructor(d) {
+			Object.assign(this, d);
+		}
+	};
+	sandbox.Style = class {
+		constructor(d) {
+			Object.assign(this, d);
+		}
+	};
+
+	// (a) RE-RUN binding error → crash screen; the old tree is really disposed
+	let runs = 0;
+	const bs = signal(1);
+	const app3 = render(
+		() =>
+			jsx(Container, {
+				name: "good",
+				children: jsx(Label, {
+					string: () => {
+						runs++;
+						if (bs.value === 2) throw new Error("boundary boom");
+						return "b" + bs.value;
+					},
+				}),
+			}),
+		undefined,
+		{ boundary: true }, // explicit ON (same as the default)
+	);
+	check("boundary: app renders normally before the crash", app3.contents[0].name === "good");
+	bs.value = 2; // throws in the binding -> report -> crash screen
+	const crash = app3.contents[0];
+	check(
+		"boundary: crash screen replaced the tree",
+		app3.contents.length === 1 && crash.name !== "good",
+	);
+	const txt = crash.contents[0];
+	check(
+		"boundary: crash text carries title, context, message and exit hint",
+		txt.string.includes("APP CRASHED") &&
+			txt.string.includes("binding 'string'") &&
+			txt.string.includes("boundary boom") &&
+			txt.string.includes("exit"),
+	);
+	check(
+		"boundary: crash screen styles itself from host globals",
+		crash.skin instanceof sandbox.Skin && txt.style instanceof sandbox.Style,
+	);
+	const runsAtCrash = runs;
+	bs.value = 3; // the root was disposed — the old binding must NOT run again
+	check("boundary: old tree's effects are dead after the crash", runs === runsAtCrash);
+	// the kill path: any button rethrows the ORIGINAL error
+	let killErr = null;
+	try {
+		crash.behavior.onPressSelect(crash);
+	} catch (e) {
+		killErr = e;
+	}
+	check(
+		"boundary: button press rethrows the original error (exit path)",
+		killErr !== null && killErr.message === "boundary boom",
+	);
+
+	// (b) BUILD error → crash screen instead of propagating out of render().
+	// A stackless object error keeps the message SHORT — pins the uncapped
+	// side of the crash-text branch (Error throws all carry long Node stacks).
+	const app4 = render(() => {
+		throw { name: "BuildBoom", message: "build boom" };
+	});
+	check(
+		"boundary: throwing build paints the crash screen",
+		app4.contents.length === 1 &&
+			app4.contents[0].contents[0].string.includes("build boom") &&
+			!app4.contents[0].contents[0].string.includes("…"),
+	);
+
+	// (c) FIRST-RENDER binding error mid-build → crash screen up, orphan
+	// siblings dropped (render() disposes the never-mounted tree). The second
+	// throwing binding proves "first crash wins": its report re-enters the
+	// sink after panicked is set and must NOT repaint. The long message pins
+	// the 380-char cap (the screen is small and the arena is tight).
+	const app5 = render(() =>
+		jsx(Container, {
+			name: "orphan",
+			children: [
+				jsx(Label, {
+					string: () => {
+						throw new Error("mid-build boom " + "x".repeat(400));
+					},
+				}),
+				jsx(Label, {
+					string: () => {
+						throw new Error("second boom");
+					},
+				}),
+			],
+		}),
+	);
+	const crash5 = app5.contents[0];
+	check(
+		"boundary: mid-build crash shows the screen, not the tree",
+		app5.contents.length === 1 &&
+			crash5.name !== "orphan" &&
+			crash5.contents[0].string.includes("mid-build boom"),
+	);
+	check(
+		"boundary: first crash wins (second error does not repaint)",
+		!crash5.contents[0].string.includes("second boom"),
+	);
+	check(
+		"boundary: crash text is capped for the small screen",
+		crash5.contents[0].string.includes("…") &&
+			crash5.contents[0].string.length < 450 &&
+			crash5.contents[0].string.includes("exit"),
+	);
+
+	// (d) boundary:false (strict): a build error PROPAGATES out of render()
+	let strictBuild = false;
+	try {
+		render(
+			() => {
+				throw new Error("strict build");
+			},
+			undefined,
+			{ boundary: false },
+		);
+	} catch (e) {
+		strictBuild = e.message === "strict build";
+	}
+	check("boundary:false — build error propagates", strictBuild);
+
+	// (e) boundary:false (strict): a re-run binding error escapes the setter
+	const ss = signal(1);
+	render(
+		() =>
+			jsx(Label, {
+				string: () => {
+					if (ss.value === 2) throw new Error("strict rerun");
+					return "x";
+				},
+			}),
+		undefined,
+		{ boundary: false },
+	);
+	let strictRerun = false;
+	try {
+		ss.value = 2;
+	} catch (e) {
+		strictRerun = e.message === "strict rerun";
+	}
+	check("boundary:false — binding error escapes the setter", strictRerun);
+
+	// (f) __spError still outranks the boundary: handler runs, no crash screen
+	const seen = [];
+	sandbox.__spError = (e) => seen.push(String(e && e.message));
+	const hs = signal(1);
+	const app6 = render(() =>
+		jsx(Container, {
+			name: "kept",
+			children: jsx(Label, {
+				string: () => {
+					if (hs.value === 2) throw new Error("handler boom");
+					return "h" + hs.value;
+				},
+			}),
+		}),
+	);
+	hs.value = 2;
+	check(
+		"boundary: __spError outranks it (handler ran, tree kept)",
+		seen[0] === "handler boom" && app6.contents[0].name === "kept",
+	);
+	sandbox.__spError = undefined;
+
+	setSink(null); // restore bare mode for whatever runs after this suite
+	sandbox.console = savedC;
+	sandbox.Skin = undefined; // (delete can be a no-op on a vm global)
+	sandbox.Style = undefined;
 }
 
 done();

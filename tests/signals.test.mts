@@ -21,6 +21,7 @@ import {
 	batch,
 	S,
 	romTable,
+	setSink,
 } from "../src/embeddedjs/runtime-build/signals.js";
 import { makeChecker } from "./load-runtime.mts";
 
@@ -422,6 +423,31 @@ check(
 	logged.some((l) => l.includes("Boom: bam")),
 );
 
+// (b2) stack WITHOUT the "Name: message" opener -> head line prepended;
+// a V8/XS-shaped stack (opens with the head) must NOT be printed twice
+const th2b = signal(0);
+const bareStack = { name: "Odd", message: "shape", stack: "  at somewhere" };
+effect(() => {
+	if (th2b.value === 1) throw bareStack;
+});
+th2b.value = 1;
+check(
+	"prepends the head to a headless stack",
+	logged.some((l) => l.includes("Odd: shape\n  at somewhere")),
+);
+const th2c = signal(0);
+const v8Stack = { name: "Dup", message: "once", stack: "Dup: once\n  at somewhere" };
+effect(() => {
+	if (th2c.value === 1) throw v8Stack;
+});
+th2c.value = 1;
+check(
+	"does not duplicate a stack that opens with the head",
+	logged.some(
+		(l) => l.includes("Dup: once\n  at somewhere") && !l.includes("Dup: once\nDup: once"),
+	),
+);
+
 // (c) an object with NO name -> defaults to "Error"
 const th3 = signal(0);
 const namelessErr = { message: "noname" };
@@ -493,6 +519,82 @@ try {
 }
 check("no hook + no console: survives silently", threw5 === false);
 globalThis.console = savedConsole;
+
+// ---- report() escalation ladder: the top-level SINK (2026-07 redesign) ----
+// render() installs a sink (crash screen / strict); here we pin the raw
+// contract at the notify level: a fn sink receives (raw error, formatted
+// msg) AFTER the console log; `true` = strict (log fully, THEN rethrow);
+// null = the bare contain default tested above. __spError outranks all.
+{
+	const savedC2 = globalThis.console;
+	const slog: string[] = [];
+	globalThis.console = { log: (...a: unknown[]) => slog.push(a.map(String).join(" ")) } as never;
+
+	// (a) fn sink: raw error + formatted message, no rethrow, log came first
+	const got: [unknown, string][] = [];
+	setSink((e, m) => got.push([e, m]));
+	const sk = signal(0);
+	effect(() => {
+		if (sk.value === 1) throw new Error("sinkfn");
+	});
+	let sinkThrew = false;
+	try {
+		sk.value = 1;
+	} catch {
+		sinkThrew = true;
+	}
+	check("fn sink: no rethrow", sinkThrew === false);
+	check(
+		"fn sink: raw error + formatted msg with context",
+		got.length === 1 &&
+			(got[0][0] as Error).message === "sinkfn" &&
+			got[0][1].includes("sinkfn") &&
+			got[0][1].includes("effect #"),
+	);
+	check(
+		"fn sink: the console log is never lost",
+		slog.some((l) => l.includes("sinkfn")),
+	);
+
+	// (b) strict sink (true): logged in full, THEN rethrown out of the setter
+	setSink(true);
+	const st = signal(0);
+	effect(() => {
+		if (st.value === 1) throw new Error("strictsink");
+	});
+	let rethrown = false;
+	try {
+		st.value = 1;
+	} catch (e) {
+		rethrown = (e as Error).message === "strictsink";
+	}
+	check("strict sink: rethrows out of the setter", rethrown);
+	check(
+		"strict sink: still logged first",
+		slog.some((l) => l.includes("strictsink")),
+	);
+
+	// (c) __spError outranks any sink (handler owns the policy entirely)
+	const hseen: string[] = [];
+	globalThis.__spError = (e) => hseen.push(String((e as Error).message));
+	const hs = signal(0);
+	effect(() => {
+		if (hs.value === 1) throw new Error("hookwins");
+	});
+	let hookThrew = false;
+	try {
+		hs.value = 1;
+	} catch {
+		hookThrew = true;
+	}
+	check(
+		"__spError outranks the sink (no rethrow, no log line)",
+		hookThrew === false && hseen[0] === "hookwins" && !slog.some((l) => l.includes("hookwins")),
+	);
+	delete globalThis.__spError;
+	setSink(null);
+	globalThis.console = savedC2;
+}
 
 // high-word effect (id > 31) disposed MID-cascade -> qh quarantine path.
 // Pad past 32 so the victim lands in word 1, then dispose it from a

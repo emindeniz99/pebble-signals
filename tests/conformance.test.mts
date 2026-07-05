@@ -549,13 +549,15 @@ const law = (name, verdict, cond, refs) => {
 	);
 }
 
-// --- Law 24: a throwing JSX BINDING is contained — the app survives ---------
-// DIVERGE (intentional, watch resilience): Solid propagates creation-time
-// errors (and routes render errors to ErrorBoundary); we contain a throwing
-// binding thunk AT the binding — first render AND re-runs — report it with
-// prop+node context, keep the last good value, and keep the rest of the app
-// alive. A watchface must not exit to the launcher because one label threw.
-// (A throwing render() BUILD still propagates — a fully broken tree is loud.)
+// --- Law 24: a throwing JSX BINDING without a boundary is contained ---------
+// DIVERGE (intentional): with NO boundary installed (bare core — render()
+// never called, or an app that set a non-rethrowing __spError), a throwing
+// binding thunk is caught AT the binding — first render AND re-runs —
+// reported with prop+node context, the last good value kept, the rest of the
+// app alive. This is the report() ladder's floor; under render()'s DEFAULT
+// boundary the same error escalates to the crash screen instead (law 25 —
+// the 2026-07 redesign: a silently frozen watchface was judged the wrong
+// product default, but the contained floor remains for handler-owned apps).
 {
 	const reported = [];
 	sandbox.__spError = (e) => reported.push(String(e && e.message ? e.message : e));
@@ -570,7 +572,7 @@ const law = (name, verdict, cond, refs) => {
 	const kept = node.string === "ok1" && reported.includes("law24");
 	s.value = 3; // still subscribed — recovers
 	law(
-		"throwing binding contained; app survives; binding recovers",
+		"throwing binding without boundary: contained, app survives, recovers",
 		"DIVERGE",
 		kept && node.string === "ok3",
 		{
@@ -580,6 +582,61 @@ const law = (name, verdict, cond, refs) => {
 		},
 	);
 	sandbox.__spError = undefined;
+}
+
+// --- Law 25: render()'s DEFAULT error boundary — crash screen, not freeze ---
+// DIVERGE in mechanism, MATCH in philosophy: Solid's <ErrorBoundary> is an
+// OPT-IN component that swaps the failed subtree for a fallback; ours is a
+// TOP-LEVEL boundary render() installs BY DEFAULT (owner decision: telling
+// the wearer the app crashed beats a watch that looks alive but stopped).
+// An escaped binding/build error disposes the WHOLE reactive tree, empties
+// the Application and paints the error + exit hint; any button rethrows the
+// ORIGINAL error (on device: fxAbort → the host exits the mod — loud in the
+// log too). `render(..., {boundary:false})` restores propagate semantics.
+{
+	const savedC = sandbox.console;
+	sandbox.console = { log: () => {} }; // report() logs before painting
+	let runs = 0;
+	const s = signal(1);
+	const app = jsxM.render(() =>
+		jsx(sandbox.Container, {
+			name: "tree",
+			children: jsx(sandbox.Label, {
+				string: () => {
+					runs++;
+					if (s.value === 2) throw new Error("law25");
+					return "ok" + s.value;
+				},
+			}),
+		}),
+	);
+	const before = app.contents[0].name === "tree";
+	s.value = 2; // escapes the binding -> boundary -> crash screen
+	const crash = app.contents[0];
+	const painted =
+		app.contents.length === 1 &&
+		crash.name !== "tree" &&
+		crash.contents[0].string.includes("law25");
+	const runsAtCrash = runs;
+	s.value = 3; // tree disposed — the binding must not run again
+	let killed = false;
+	try {
+		crash.behavior.onPressSelect(crash);
+	} catch (e) {
+		killed = e.message === "law25";
+	}
+	law(
+		"render() default boundary: crash screen + full teardown + exit rethrow",
+		"DIVERGE",
+		before && painted && runs === runsAtCrash && killed,
+		{
+			solid: "<ErrorBoundary> is opt-in per subtree; no default top-level one",
+			preact: "no boundary primitive — effect errors propagate to the writer",
+			react: "class error boundaries, opt-in; unhandled errors unmount the app",
+		},
+	);
+	signals.setSink(null); // restore bare mode for anything after
+	sandbox.console = savedC;
 }
 
 // --- parity summary ---------------------------------------------------------
