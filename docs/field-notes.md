@@ -671,6 +671,40 @@ free on a mod. 372 tests still green (asNode is a pure refactor). The
 `effect → run → fn` leaf trim is now unnecessary for navreactive and left
 for a future app that needs more headroom.
 
+**Round 8 — the boot-symbol diet, measured properly (owner ask: "sırayla
+yapalım").** This is the SLOT/symbol floor (saturated apps), NOT navreactive
+(that was depth, Round 7). First, a **measurement correction**: the build's
+`symbols:` line and a naive `xsa-symbols.py list | comm` count TOTAL archive
+symbols, not new-to-host — the `list` output is leading-space indented, so it
+must be whitespace-stripped before `comm` against the host set (else NOTHING
+matches and every symbol looks "new"). Earlier crash-UI "−8 new-to-host" was
+really −8 TOTAL symbols; the byte deltas were always fine. TRUE new-to-host
+(tools/host-symbols.py vs the gabbro debug ELF) is what costs boot slots.
+
+Baseline: `navmany` = **44 true new-to-host**. Cuts, each measured:
+- **Graph field rename → −9.** The Graph state record's property names intern
+  as archive symbols; 11 were new-to-host (`eff val st dep bat pend` + the
+  single letters `n u q` — the last three an oversight: single letters chosen
+  like the deliberately-free `y x w c z` but never checked against the host
+  set, which they're absent from). Renamed the 10 with a free host-known
+  letter available (free set: `E b c e f h i m r s t w x y z`):
+  `eff→e val→f st→s uh→m qh→i dep→b bat→E pend→t u→h q→r`; `n` had no free
+  letter left and stays. Pure property rename (only `.prop`/interface/`gi()`
+  keys; bare-word locals like `const st = g.s` untouched). tsc + 372 tests +
+  real-XS laws green; navmany boots.
+- **`__SP_CRASH_UI__` define fix → −1.** The crash-UI flag left the identifier
+  UNDEFINED in the default (ON) build, and an undefined free identifier
+  survives minify as an archive symbol — costing a slot on EVERY app. Always
+  define it now (true/false); the crash screen still ships under ON.
+
+Net **44 → 34 (−10 boot slots)**, archive 150 → 140 symbols. The remaining 34
+are mostly esbuild's minified single-letter identifiers (`A B C D G I …`,
+`a d g j k …` — uppercase and ~half the lowercase are not host-interned) plus
+necessary API names (`__spError`, `boundary`, `canPop`, `children`, `computed`,
+`put`, `sig`, `root`, `v`). Shrinking the minified-letter set would need a
+custom esbuild mangle charset (deferred — complex, uncertain); the flow-helper
+→ component-local move is the next small lever.
+
 ## 6. Us vs. the official docs
 
 Where our empirical work landed relative to `mods.md`:

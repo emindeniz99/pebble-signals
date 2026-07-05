@@ -180,12 +180,19 @@ strictly ordered except the "next batch".
       `effect → run → fn` leaf trim is unnecessary for navreactive — left for a
       future deeper app. Lesson: an extra wrapper fn in the render path is not
       free on a mod (a control-flow-node design constraint now, not a bug).
-- [ ] **flow-module SYMBOL diet — for the boot floor (NOT navreactive).**
-      Squash flow's module-scope helper bindings into the component arrows
-      (the EB round measured that trick at −5 symbols), fold the ticker consts,
-      measure per-binding. Still worth doing for saturated apps' boot budget —
-      but it removes symbols/bytes, not stack frames, so it does NOT win
-      navreactive back (that's the depth diet above; Round 7 correction).
+- [~] **SYMBOL diet — for the boot floor (NOT navreactive). Round 8, partly done.**
+      DONE & measured (navmany 44 → 34 true new-to-host, −10 boot slots):
+      Graph field rename to host-known letters (−9) + `__SP_CRASH_UI__` define
+      fix (−1). See field-notes Round 8. STILL OPEN, lower value:
+      (a) flow module-scope helpers (makeHost/wrapSide/asNode) → component-local
+      + fold the ticker consts (the EB round measured that shape at −5 symbols
+      on a flow-heavy app — re-measure with the corrected new-to-host method);
+      (b) `Signal.v` → a free letter (−1, check packed-API collisions);
+      (c) widen the export-rename pool / add a host-known target for `computed`;
+      (d) BIG but hard — a custom esbuild mangle charset so minified identifiers
+      prefer the free set (`E b c e f h i m r s t w x y z`); ~half the remaining
+      34 are esbuild's `A B C D G I…`/`a d g j k…`. Removes symbols/bytes, not
+      stack frames — does NOT win navreactive back (that was Round 7's depth).
 - [x] ~~sink → root-boundary merge (single error mechanism)~~ **ANALYZED &
       REJECTED (2026-07).** Folding render()'s terminal sink into the
       `Graph.c` boundary chain looks cleaner but re-creates the sink under
