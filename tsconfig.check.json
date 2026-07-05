@@ -31,8 +31,9 @@
 	"include": [
 		"src/tsx/globals.d.ts",
 		"tests/types.test-d.tsx",
-		"types/moddable/piu/MC.d.ts",
-		"types/moddable/pebble/global.d.ts",
-		"types/moddable/pebble/piu.d.ts"
+		// the WHOLE vendored Moddable/Pebble surface — sensors, dictation,
+		// storage, transitions, image/font decode — so every host API is typed
+		// and importable. skipLibCheck suppresses their internal cross-refs.
+		"types/moddable/**/*.d.ts"
 	]
 }
