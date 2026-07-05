@@ -90,7 +90,26 @@ full days bisecting these apart.
 **Ask:** any early failure beacon — a reason code in a syslog line, a
 `moddable_createMachine` return value the C shim could log, anything.
 
-## 6. Piu Pebble port crashes (all reproducible)
+## 6. Mod archive is copied into the app heap — the size ceiling is the heap
+
+`ArchivePebbleResource.c` loads the mod archive with
+`applib_resource_mmap_or_load`; when resources are not memory-mappable
+(the QEMU emulators), the WHOLE archive is malloc'd from the app heap.
+Measured on gabbro (128KB class, 130,768B free after footprint), lean
+one-lazy-module app, fresh emulator per point: 116,816B archive works
+(instruments then idle at **App bytes free = 3,088**); 117,042B dies at
+launch, silently. Archives above the whole free heap (e.g. 130,892B)
+fail the initial malloc and die instantly — also silently. The ceiling
+is therefore `archive + app-heap runtime needs ≤ free heap` and MOVES
+with the app; nothing in the toolchain warns at build or install time.
+
+**Ask:** (a) memory-map the archive where flash allows it instead of
+copying (and document whether real hardware takes the mmap path);
+(b) fail loudly — "load resource failed" never reaches the app-log
+transport; (c) let `pebble build` warn when the archive approaches the
+platform's app-heap budget.
+
+## 7. Piu Pebble port crashes (all reproducible)
 
 - Writing `.visible` on bound content crashes the firmware (first write).
 - Swapping a bare `Label` as a container's direct child crashes;
@@ -105,7 +124,7 @@ full days bisecting these apart.
 - Any real-coordinate QEMU touch event reboots the firmware, even on
   static apps (emulator-side).
 
-## 6b. `fetch` is unusable from a normal-sized mod (arena)
+## 8. `fetch` is unusable from a normal-sized mod (arena)
 
 Alloy's `fetch` proxies through PKJS on the phone
 (`@moddable/pebbleproxy`), which is the correct and emulator-supported
@@ -116,7 +135,7 @@ arena) — only a bare app (no runtime) leaves room. So a network app
 cannot also have a real reactive UI in 32KB. A larger arena (see #1)
 would make `fetch` usable alongside a UI.
 
-## 7. Font lookup contradicts the font table
+## 9. Font lookup contradicts the font table
 
 The firmware's font table lists families like `Bitham-Bold`, but
 `"42px Bitham-Bold"` throws inside render (leaving a black Application
@@ -124,23 +143,40 @@ The firmware's font table lists families like `Bitham-Bold`, but
 `"bold 42px Bitham"`. Documenting the accepted grammar would save the
 next developer a bisection.
 
+## 10. Mods cannot preload — the single biggest RAM lever is host-only
+
+`mcrun.js` warns "preload is unavailable in mods" and nulls the preload
+list (the manifest's `preload` array is silently ignored). Host builds
+freeze preloaded modules into the ROM prep (xsl), but a mod's modules
+ALL execute at load, building every module-level function object and
+structure in the 32KB machine. On a firmware-fixed 32KB machine this is
+the dominant constraint. Measured (gabbro, fresh emulator per cell):
+
+- Every module-level function object costs ~5-6 slots at module load,
+  exported or not; call-time closures are transient and effectively
+  free. 4KB of helpers dies as 46 thin functions, boots as 8 fat ones.
+- The cost law holds at RUNTIME load too, not just boot: a lazy
+  (non-preloaded) module with 70 thin arrows dies at its `importNow`,
+  while the SAME 70 bodies packed into ONE dispatch function (a switch)
+  load and run. We now ship an automated build pass that performs that
+  switch-packing — a transform that exists only because mods cannot
+  freeze modules the way hosts can.
+- Classes are fine tenants (methods share one prototype object); the
+  real cost is their method-name symbols, which `fxMapArchive` interns
+  eagerly for the whole archive at boot.
+- Lazy `importNow` modules are the workable big-code path (100KB+ of
+  total code runs this way, only the active screen's objects in RAM),
+  but they cannot own frozen module-level state and every load replays
+  the per-function cost.
+
+**Ask:** support preload for mod archives (xsl already implements the
+freeze for hosts), or document the intended alternative for RAM-tight
+mod code. This would obsolete an entire class of userland workarounds
+(switch-packing compilers, per-screen module splitting).
+
 ## Repro availability
 
 All numbers come from XS instrumentation logs
 (`kModdableCreationFlagLogInstrumentation`) driven by a deterministic
 QEMU harness; repro projects and the measurement scripts are available
 on request.
-
-## 5. Mods cannot preload — the single biggest RAM lever is host-only
-
-`mcrun.js` warns "preload is unavailable in mods" and nulls the preload
-list. Host builds freeze preloaded modules into the ROM prep (xsl), but a
-mod's modules ALL execute at boot, building every module-level function
-object and structure in the 32KB machine. On a firmware-fixed 32KB
-machine this is the dominant constraint (measured: ~5-6 slots per
-module-level function at boot; 4KB of helpers dies as 46 functions,
-boots as 8).
-
-**Ask:** support preload for mod archives (xsl already implements the
-freeze for hosts), or document the intended alternative for RAM-tight
-mod code.
