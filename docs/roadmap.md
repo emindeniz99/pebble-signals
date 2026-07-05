@@ -162,8 +162,12 @@ notifications, device info.
   RESOLVED from the original #29 (2026-07, task #39): the swapped-screen
   reactive crash was the SAME boot-pressure, not a separate Navigator/Show
   bug — export pruning overturned it (CHANGELOG "Fixed"). No open item here.
-- **text-input example:** key-based char picker (Pebble has no keyboard) + a todo
-  whose items are entered that way.
+- ~~**text-input example**~~ ✅ SHIPPED (2026-07): `textinput` — a button-driven
+  character picker (Up/Down cycle a-z + ␣, Select appends, Back commits the word
+  to a reactive todo list, empty-buffer Back falls through so the app can exit).
+  Four `useState` signals (candidate/buffer/count/last), all on-screen state is
+  reactive `<Label>` bindings — proves text entry needs no special widget on a
+  keyboard-less device. Device-verified on gabbro (typed "ab" → todo: 1).
 - **Reactive position via Piu moveBy.** Position/size props are construction-time
   static (bind-time rejected today, shipped). The dynamic path: a `<Move>` helper
   or `animate()`+`content.moveBy(dx,dy)` / Piu Transition binding that repositions

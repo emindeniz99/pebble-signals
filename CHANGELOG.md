@@ -47,7 +47,8 @@ No registry releases yet; entries accumulate under Unreleased until the first
   (`dist/build.mjs`); `npm run dev` (build+install+logs, `--watch`).
 - `npm run test:xs` — conformance laws on the real XS engine.
 - Examples: consumer (npm-package proof), watchface, worker, migration
-  (before/after), navreactive, navmany.
+  (before/after), navreactive, navmany, `textinput` (keyboard-less
+  button-driven char picker → reactive todo list).
 - Boot-floor measurement kit: `tools/gen-boot-probe.mts` (one-variable boot
   probes: data bytes / extra modules / fresh symbol interning / `--res`
   data-to-Resource variant) and `tools/xsa-symbols.py` (count the symbols a
