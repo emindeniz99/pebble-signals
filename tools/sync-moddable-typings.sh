@@ -13,7 +13,8 @@ DEST="$(dirname "$0")/../types/moddable"
 # Piu base + Pebble ambient globals + the internal deps they /// -reference or
 # import (MC.d.ts references ../easing.d.ts and imports commodetto/Poco).
 FILES="piu/MC.d.ts piu/MC-types.d.ts pebble/global.d.ts pebble/piu.d.ts \
-       pebble/poco.d.ts commodetto/Poco.d.ts commodetto/Bitmap.d.ts easing.d.ts"
+       pebble/poco.d.ts pebble/device.d.ts commodetto/Poco.d.ts \
+       commodetto/Bitmap.d.ts easing.d.ts"
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 echo "Fetching @moddable/typings@${VERSION} ..."
