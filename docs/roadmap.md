@@ -61,6 +61,48 @@ Priority order the owner set; each is expanded in its own section below.
   per signal — may not be worth it on the 32KB arena; a lint may be the
   cheaper fix). Tracked, not yet decided.
 
+### Bigger tutorial + docs push (owner, 2026-07)
+- **A second, COMPREHENSIVE watchface tutorial (0→published).** The existing
+  `tutorials/build-a-watchface/` stays (a focused 3-part intro). Add a longer
+  original series covering the full arc the official Alloy tutorial covers, in
+  OUR words / OUR code (we do NOT copy or re-word their copyrighted text — we
+  write original signal-piu content on the same topics): project setup,
+  drawing time/text, **custom fonts** (`.ttf` → resource → `Style`), images,
+  **config pages** (see Clay below), persistence via `device.keyValue`, and
+  publishing. Each part device-verified. This is the "port their tutorial
+  outline to signal-piu, originally written" the owner asked for.
+- **Clay config pages — does it work with us?** Alloy tutorial part 6 uses
+  [pebble-dev/clay](https://github.com/pebble-dev/clay) for settings pages.
+  Clay runs PKJS-side (config webview + AppMessage), so it is orthogonal to
+  our XS/Piu runtime — likely works unchanged through `src/pkjs/`. RESEARCH:
+  wire Clay into the pkjs bridge, expose settings to the watchface as signals,
+  device-verify a color/toggle setting round-trips. Great tutorial payoff.
+- **XS docs survey for optimization lessons.** Read the rest of Moddable's
+  `documentation/xs/*` the way we read `mods.md`/`preload.md`. `preload.md`
+  already paid off (READ 2026-07): its guidance — "separate pure logic from
+  device ops, export init FUNCTIONS instead of running setup at load, freeze
+  const data, pre-compute lookup tables at build" — is exactly what our
+  pure-module classifier + `romTable` already do, just via lazy modules
+  because mods can't preload. Worth a field-notes cross-ref and a scan of
+  `XS in C`, `XS Differences`, `handle`/`profile` docs for more.
+- **Vendor the rest of the Pebble typings.** We now vendor `pebble/device.d.ts`
+  (2026-07). Audit `@moddable/typings/pebble/*` for other useful ambient decls
+  (sensors, button, message) and the `embedded:*` module typings, and add the
+  ones our examples touch to `sync-moddable-typings.sh`.
+
+### Test/verification infrastructure (owner ask, 2026-07)
+- **Smoke catalog + runner.** Today's automated gate is `npm run verify`
+  (SDK-free: typecheck + 100% coverage + XS conformance laws + consumer
+  tarball smoke) plus `npm run smoke:flags-off` (SDK). What we LACK is a
+  cataloged, repeatable set of on-device (emulator) smokes — "install app X,
+  press these buttons, assert this renders" — that we currently do by hand
+  each time. PLAN: (1) write down the manual device-smoke steps per example in
+  one file (a checklist), (2) then automate with a `tools/device-smoke.mts`
+  that drives `reset → install → drive.py → screenshot brightness/OCR assert`
+  for a list of apps. Start manual (document), automate incrementally. This is
+  the "list of smoke tests, run in sequence, prove we didn't break anything"
+  the owner wants.
+
 ### Genuinely NEW ideas (owner, 2026-07)
 - **Speech-to-text for todo entry.** The watch has a mic; PebbleOS/Pebble had
   a *Dictation* API (`DictationSession`) in the classic SDK. FEASIBILITY
