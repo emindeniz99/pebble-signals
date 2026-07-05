@@ -14,6 +14,9 @@
 
 // Optional host/app diagnostic hook: notify() routes reaction errors here so a
 // throwing effect can't abort the XS machine. Declared on globalThis (erases).
+// `console` is the Pebble host's logger (host-interned name — free at boot);
+// notify() falls back to it so an unhandled reaction error is VISIBLE in
+// `pebble logs` instead of a silent blank Label.
 declare global {
 	// eslint-disable-next-line no-var
 	var __spError: ((e: unknown) => void) | undefined;
@@ -246,8 +249,19 @@ function notify(e: number): void {
 	try {
 		run(e);
 	} catch (err) {
-		if (globalThis.__spError) globalThis.__spError(err);
-		else throw err;
+		const report = globalThis.__spError;
+		if (report) report(err);
+		// No app handler: LOG it so the failure is visible in `pebble logs`
+		// instead of a silent blank Label (the classic footgun: a typo like
+		// calling a `computed` — `greeting()` instead of `greeting.value` —
+		// throws here and used to just vanish). `console` is host-interned, so
+		// this costs no boot symbol; the machine still survives — a watch must
+		// not exit to the launcher because one binding threw. Override by
+		// setting `globalThis.__spError`.
+		else {
+			const c = (globalThis as { console?: { error(...a: unknown[]): void } }).console;
+			if (c) c.error("[signal-piu] uncaught in reactive update:", err);
+		}
 	}
 }
 

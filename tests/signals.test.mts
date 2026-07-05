@@ -387,18 +387,38 @@ check("dispose(function) runs it", dran === 1);
 dispose(99999); // no such effect id
 check("dispose(invalid) is a no-op", true);
 
-// throwing subscriber with NO __spError hook rethrows (default path)
+// throwing subscriber with NO __spError hook: LOGS to console (visible in
+// `pebble logs`) and SURVIVES — does not rethrow, does not blank silently.
 const th = signal(0);
-let propagated = false;
+const savedConsole = globalThis.console;
+const logged = [];
+globalThis.console = { error: (...a) => logged.push(a.map(String).join(" ")) };
+let threw = false;
 effect(() => {
 	if (th.value === 1) throw new Error("nohook");
 });
 try {
 	th.value = 1;
-} catch (e) {
-	propagated = e.message === "nohook";
+} catch {
+	threw = true;
 }
-check("throwing subscriber rethrows without hook", propagated);
+check("throwing subscriber does NOT rethrow without hook", threw === false);
+check("throwing subscriber logs to console", logged.length === 1 && logged[0].includes("nohook"));
+
+// same, but console ALSO absent: still must not throw (silent survive)
+globalThis.console = undefined;
+const th2 = signal(0);
+let threw2 = false;
+effect(() => {
+	if (th2.value === 1) throw new Error("noconsole");
+});
+try {
+	th2.value = 1;
+} catch {
+	threw2 = true;
+}
+check("no hook + no console: survives silently", threw2 === false);
+globalThis.console = savedConsole;
 
 // high-word effect (id > 31) disposed MID-cascade -> qh quarantine path.
 // Pad past 32 so the victim lands in word 1, then dispose it from a
