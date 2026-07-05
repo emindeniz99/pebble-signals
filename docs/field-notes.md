@@ -384,7 +384,7 @@ centers the fitted content in the circle's widest band).
 
 | Where it throws | Default (`render()` boundary ON) | `{boundary: false}` | custom `__spError` |
 |---|---|---|---|
-| Binding thunk (first render or re-run) | crash screen — tree disposed, error painted, button exits via rethrow | logged, then CRASH (first render: module-load abort; re-run: escapes the setter) | handler's choice; contained keeps last value |
+| Binding thunk (first render or re-run) | crash screen — tree disposed, error painted; select retries the build, back exits via rethrow | logged, then CRASH (first render: module-load abort; re-run: escapes the setter) | handler's choice; contained keeps last value |
 | render() BUILD | crash screen | logged, then propagates out of render() | handler's choice |
 | Bare core (no render(): tests, headless) | logged + contained — effect isolated, app LIVES | — | handler's choice |
 
@@ -396,16 +396,53 @@ to be quiet-ish — the frozen label — is gone from the defaults.
 Device receipts for the boundary (gabbro, QEMU): the `crashdemo` example
 (a binding that throws at n=3) paints the crash screen while the machine
 keeps 13-15 heartbeats with **0 fxAbort** and stays stable for minutes
-after (`screenshots/crash-boundary-gabbro.png`); the unowned interval
-keeps writing the signal post-teardown and the disposed effects no-op as
-designed; the `watchface` example re-verified clean on the same runtime
-(no regression). The one thing QEMU could NOT verify is the literal
-button press: the Pebble QEMU Protocol port is exclusively held by
-pypkjs (a second `QemuButton` connection is silently dropped) and the
-qemu monitor's `sendkey` isn't wired to the button GPIOs — the kill path
-is pinned by unit tests instead, and throw-from-behavior → fxAbort was
-device-measured earlier (swapped-screen investigation). Roadmap carries
-the residual "press the button on real hardware" item.
+after (`screenshots/crash-boundary-gabbro.png`); post-teardown signal
+writes hit disposed effects and no-op as designed; the `watchface`
+example re-verified clean on the same runtime (no regression).
+
+**Round 3 — retry, screen packing, and the button receipt (owner
+review of the shipped screen).** Three refinements, each from looking at
+the actual device output:
+
+- *Retry (Solid `reset`, React error-dialog guidance, on two buttons).*
+  React's `createRoot` options (`onUncaughtError`/`onCaughtError`) and
+  Solid's `<ErrorBoundary fallback={(err, reset) => …}>` both treat
+  "clear the error and try again" as a first-class recovery. Our crash
+  screen now maps it to the watch: **select = retry** (re-run the app
+  build under a fresh root — component-scope state starts over,
+  module-scope state survives; a build that immediately re-throws just
+  repaints the screen), **back/up/down = exit** (rethrow → fxAbort).
+- *Screen packing.* The log keeps the full multi-line error, but the
+  SCREEN compacts newlines to `" ~ "` — one stack frame per line wasted
+  most of a 260 px circle (device screenshot); as one wrapped paragraph
+  the same 380-char budget fits in half the height. Insets adapt via the
+  new `screen.round` flag (below).
+- *`screen.round` / `screen.color`.* The Pebble host exposes the display
+  shape on the compartment's `screen` global (`pebble-display.js`:
+  `get round()`, `get color()` — PBL_ROUND compile flag underneath).
+  render() now mirrors both onto our exported RN-style `screen`, so apps
+  (and the crash screen: 26 px insets on round, 8 on rect) can adapt
+  layout per panel. Piu itself has NO circular text flow — the native
+  SDK's `GTextAttributes` round-flow never made it into the Piu port —
+  so shape-aware insets are the honest tool.
+
+**Correction (Rule 2): "QEMU can't inject buttons" was WRONG.** The
+previous round claimed button presses weren't injectable because the
+Pebble QEMU Protocol port is held by pypkjs and monitor `sendkey` isn't
+wired to the GPIOs. Both facts are true — but the project's own
+`tools/drive.py` already solves it (kill pypkjs, take the single-client
+qemu port directly, send `QemuButton` + listen to `AppLogMessage`), and
+it's even written up in `docs/debugging.md`. Re-ran the FULL loop with
+it: crash screen → **select** → face reborn at n=0
+(`screenshots/crash-retry-gabbro.png`) → crashes again at n=3 →
+**back** → "Install an app to continue"
+(`screenshots/crash-exit-gabbro.png`), with the kill's
+`fxAbort unhandled exception: Error: demo boom at n=3` + stack arriving
+on the drive log channel. One delivery quirk, for the record: the
+firmware persists app-log records and ships them when a NEW log session
+attaches, so a kill's fxAbort line can show up timestamped into the
+NEXT drive session — a second run whose dumps prove the machine alive
+13+ s after the crash (no spontaneous abort) pinned the causality.
 
 **The moral:** every layer of this stack can silently eat an error — the
 spawn (devnull), the shell (split invocations), the runtime (unguarded

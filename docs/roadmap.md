@@ -98,14 +98,20 @@ strictly ordered except the "next batch".
       crashdemo paints the screen at n=3 with 13-15 heartbeats / 0 fxAbort
       and stays stable for minutes (`screenshots/crash-boundary-gabbro.png`);
       watchface re-verified no-regression. 329 tests, 100% cov, 25 laws.
-- [ ] error boundary residuals: (a) press the crash screen's exit button on
-      REAL hardware (QEMU can't inject buttons — the Pebble QEMU Protocol
-      port is held by pypkjs and monitor `sendkey` isn't wired to the button
-      GPIOs; the rethrow path is unit-pinned and throw-from-behavior →
-      fxAbort was device-measured in the swapped-screen round); (b) optional
-      per-subtree `<ErrorBoundary>` component (Solid-style fallback swap) if
-      an app ever wants partial containment; (c) `defineApp` DX could own the
-      boundary default toggle when it lands.
+- [x] ~~error boundary residual (a): exit-button press~~ **VERIFIED in QEMU
+      (2026-07, correction of "can't inject buttons"):** `tools/drive.py`
+      (kill pypkjs, own the qemu port, QemuButton + AppLogMessage) drove the
+      FULL loop — crash screen → select RETRIES (face reborn at n=0,
+      `screenshots/crash-retry-gabbro.png`) → crashes again → back EXITS
+      ("Install an app to continue", `crash-exit-gabbro.png`) with the
+      kill's fxAbort + stack on the log channel. Retry itself (Solid
+      `reset` parity), `" ~ "` screen packing, and `screen.round/color`
+      shipped in the same round. Optional: repeat once on real hardware
+      when the watch arrives.
+- [ ] error boundary residuals: (b) optional per-subtree `<ErrorBoundary>`
+      component (Solid-style fallback swap) if an app ever wants partial
+      containment; (c) `defineApp` DX could own the boundary default toggle
+      when it lands.
 - [ ] **Visible dev-log bridge (design):** on RELEASE firmware JS `trace` is
       a no-op (xsHost.c: visible lines are C-side `modLog_transmit`/APP_LOG;
       probes confirmed console.log/trace never reach `pebble logs` from a

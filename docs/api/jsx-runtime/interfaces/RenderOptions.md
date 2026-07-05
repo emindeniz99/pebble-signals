@@ -6,7 +6,7 @@
 
 # Interface: RenderOptions
 
-Defined in: jsx-runtime.ts:324
+Defined in: jsx-runtime.ts:361
 
 Options for [render](../functions/render.md).
 
@@ -16,11 +16,12 @@ Options for [render](../functions/render.md).
 
 > `optional` **boundary?**: `boolean`
 
-Defined in: jsx-runtime.ts:333
+Defined in: jsx-runtime.ts:371
 
 Top-level error boundary (default ON). `true`/omitted: an escaped
 reactive or build error disposes the whole tree and paints a crash
-screen — the full error on the watch, any button exits (rethrows →
-fxAbort, so the log gets it too). `false` = strict: errors are logged
-in full, then PROPAGATE (on device: fxAbort — dead but loud). A custom
-`globalThis.__spError` handler bypasses both and owns the policy.
+screen — the full error on the watch; select retries the build, any
+other button exits (rethrows → fxAbort, so the log gets it too).
+`false` = strict: errors are logged in full, then PROPAGATE (on
+device: fxAbort — dead but loud). A custom `globalThis.__spError`
+handler bypasses both and owns the policy.

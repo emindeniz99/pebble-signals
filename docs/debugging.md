@@ -51,10 +51,13 @@ redesign) decides what happens, in order:
 2. Else the FULL error is logged (visible in Node/xsbug; JS `trace` is a
    no-op on release firmware), then:
    - `render()`'s DEFAULT boundary paints a **crash screen**: the whole tree
-     is disposed, the actual error (name/message/stack) is drawn on the
-     watch with `[any button: exit]`, and a button press rethrows the
-     original error → fxAbort with stack in `pebble logs` → the host exits
-     the mod. Screenshot receipt: `screenshots/crash-boundary-gabbro.png`.
+     is disposed and the actual error (name/message/stack, newlines packed
+     to `" ~ "`) is drawn on the watch with `[select: retry · back: exit]`.
+     SELECT re-runs the app build under a fresh root (component state
+     resets); BACK rethrows the original error → fxAbort with stack in the
+     log → the host exits the mod. Drive-verified loop:
+     `screenshots/crash-boundary-gabbro.png` → `crash-retry-gabbro.png` →
+     `crash-exit-gabbro.png`.
    - `render(build, dict, {boundary: false})` (strict): log, then PROPAGATE
      — first-render errors abort module load, re-run errors escape the
      setter (fxAbort). Dead but loud.
