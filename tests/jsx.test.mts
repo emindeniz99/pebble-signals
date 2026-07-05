@@ -180,6 +180,55 @@ check("render without dict works", app2.contents[0].name === "nodict");
 	sandbox.__spError = undefined; // (delete can be a no-op on a vm global)
 }
 
+// DEV STRICT MODE (2026-07, owner-requested option): a RETHROWING __spError
+// handler turns "contain & survive" into "log fully, THEN crash loudly" —
+// the handler always runs first (full context/log), the rethrow then
+// propagates (on device: fxAbort with its own stack). Zero runtime cost;
+// it's just the existing hook's contract. Pin it so it can't regress.
+{
+	const seen = [];
+	sandbox.__spError = (e) => {
+		seen.push(String(e && e.message));
+		throw e; // strict: escalate after logging
+	};
+	// first render: propagates out of jsx() (on device: module load aborts)
+	let firstThrew = false;
+	try {
+		jsx(Label, {
+			string: () => {
+				throw new Error("strict-first");
+			},
+		});
+	} catch (e) {
+		firstThrew = e.message === "strict-first";
+	}
+	check(
+		"strict mode: first-render handler ran, then propagated",
+		seen[0] === "strict-first" && firstThrew,
+	);
+	// re-run: handler fires for the binding AND the notify layer, then the
+	// throw propagates out of the setter (on device: fxAbort)
+	seen.length = 0;
+	const sv = signal(1);
+	const nodeS = jsx(Label, {
+		string: () => {
+			if (sv.value === 2) throw new Error("strict-rerun");
+			return "v" + sv.value;
+		},
+	});
+	let rerunThrew = false;
+	try {
+		sv.value = 2;
+	} catch (e) {
+		rerunThrew = e.message === "strict-rerun";
+	}
+	check(
+		"strict mode: re-run handler ran (twice: binding + notify), then propagated; last value kept",
+		seen.length === 2 && rerunThrew && nodeS.string === "v1",
+	);
+	sandbox.__spError = undefined;
+}
+
 // binding guard falls back to the console (no __spError): context string
 // includes the prop and the node class name
 {

@@ -332,6 +332,34 @@ free; `install -v` booted fine; pipes/timeouts had misled us); "console
 has .error" (it doesn't); "trace reaches pebble logs" (it doesn't, on
 release).
 
+**Want it to CRASH instead? Dev strict mode.** The containment default is
+a product decision, not a limitation — the `__spError` hook already gives
+you fail-fast when you want it. Install a handler that RETHROWS:
+
+```ts
+// dev builds only: log everything, THEN die loudly (fxAbort + stack)
+globalThis.__spError = (e) => { /* your logging */ throw e; };
+```
+
+Measured contract (pinned by tests): the handler always runs FIRST — so
+the full log/context is never lost — and the rethrow then propagates: a
+first-render throw aborts module load, a re-run throw escapes the setter
+(the handler fires twice on re-runs: once with binding context, once from
+the notify layer). Default = contain & survive (ship this); strict =
+log-then-crash (debug with this). Same runtime, zero extra cost.
+
+**The crash-loudness matrix**, for the record:
+
+| Where it throws | Default behavior | Visible where |
+|---|---|---|
+| Binding thunk (first render or re-run) | contained — label keeps last value, app LIVES | `__spError` / console (tests, xsbug); UI freezes visibly |
+| Binding thunk + strict `__spError` | logged, then CRASH | handler output, then fxAbort + stack in `pebble logs` |
+| render() BUILD / non-binding module code | CRASH (never swallowed) | fxAbort + stack in `pebble logs` — always loud |
+
+So "no silent death" means: either the app survives with a well-defined
+frozen state, or it dies with a stack trace in the log. There is no path
+that is both dead and quiet.
+
 **The moral:** every layer of this stack can silently eat an error — the
 spawn (devnull), the shell (split invocations), the runtime (unguarded
 first runs), the logger itself (missing method), the firmware (trace

@@ -101,7 +101,10 @@ strictly ordered except the "next batch".
       and `pkjs>` lines (PKJS-side console). So build an opt-in dev bridge:
       watch `report()` → AppMessage → our src/pkjs proxy `console.log` →
       visible as `pkjs>`. Needs appKeys + size cap; lazy/dev-only module so
-      release apps pay nothing.
+      release apps pay nothing. Note: "log fully then CRASH" already exists
+      today with zero code — a rethrowing `__spError` handler (dev strict
+      mode, pinned by tests; field-notes §5b has the matrix) — the bridge is
+      only needed for live release-firmware log LINES.
 - [ ] build-time lint: flag *calling* a `computed`/`signal` binding
 
 **New ideas:**
