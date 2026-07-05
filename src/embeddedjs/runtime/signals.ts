@@ -305,12 +305,17 @@ export function setSink(s: ((err: unknown, msg: string) => void) | true | null):
  * escalation ladder (2026-07 redesign — owner decision: telling the wearer
  * the app crashed beats a silently frozen watchface):
  * 1. `globalThis.__spError` installed → the handler owns the policy entirely
- *    (contain by returning, escalate by rethrowing — dev strict mode).
+ *    (contain by returning, escalate by rethrowing — dev strict mode). It
+ *    also owns LOGGING — report() prints nothing for it.
  * 2. Else: log the FULL error (type, message, stack, raw object) through the
- *    host console, THEN hand it to the sink — render()'s default sink paints
- *    the crash screen; the strict sink (`boundary:false`) rethrows; no sink
- *    (bare core) means log-and-contain.
- * The log always happens before the sink, so the record is never lost.
+ *    host console — ALWAYS, even when a boundary is about to catch it
+ *    (owner decision: a caught error is still worth seeing in the log;
+ *    on release firmware the line is a trace no-op anyway, so it is free
+ *    where it can't be read and visible everywhere it can).
+ * 3. Then dispatch: the nearest `<ErrorBoundary>` in scope catches it (its
+ *    fallback shows the error); else the sink — render()'s default sink
+ *    paints the crash screen, the strict sink (`boundary:false`) rethrows,
+ *    no sink (bare core) means the log was it: contain.
  *
  * Hard-won constraints baked in (device receipts, 2026-07):
  * - The Pebble host console is `Object.freeze({log})` — NO `.error`. An
@@ -334,17 +339,8 @@ export function report(err: unknown, ctx: string): void {
 		h(err);
 		return;
 	}
-	// 2. the nearest ErrorBoundary in scope catches it (a deliberate catch —
-	//    no log; the fallback receives the error and shows it). g.c is set
-	//    during a boundaried effect's run (see run()) and re-set by notify()
-	//    around this call for the uncaught-effect path.
-	const g0 = G;
-	if (g0 !== null && g0.c !== null) {
-		g0.c(err);
-		return;
-	}
-	// 3. no boundary: log the full error, then the terminal sink (render's
-	//    crash screen / strict rethrow / bare contain).
+	// 2. log FIRST, unconditionally — boundary-caught errors included (owner
+	//    call: harmless where invisible, useful where visible).
 	const msg = "[signal-piu] " + ctx + ":\n" + fmtError(err);
 	const c = (globalThis as { console?: { error?: LogFn; log?: LogFn } }).console;
 	const f = c && (c.error || c.log);
@@ -352,6 +348,16 @@ export function report(err: unknown, ctx: string): void {
 	// can't expand objects) AND the raw error (everything shown on ones
 	// that can). Over-logging is harmless on a rare failure path.
 	if (f) f.call(c, msg, err);
+	// 3. the nearest ErrorBoundary in scope catches it (the fallback receives
+	//    the error and shows it). g.c is set during a boundaried effect's run
+	//    (see run()) and re-set by notify() around this call for the
+	//    uncaught-effect path.
+	const g0 = G;
+	if (g0 !== null && g0.c !== null) {
+		g0.c(err);
+		return;
+	}
+	// 4. no boundary: the terminal sink (crash screen / strict rethrow / contain).
 	const s = sink;
 	if (s === true) throw err; // strict: logged in full above, now die loudly
 	if (s !== null) s(err, msg); // render()'s boundary: paint the crash screen

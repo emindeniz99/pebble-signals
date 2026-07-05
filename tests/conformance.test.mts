@@ -649,6 +649,8 @@ const law = (name, verdict, cond, refs) => {
 // only that ours also has a DEFAULT top-level boundary (law 25) that Solid
 // lacks; the component contract itself matches.
 {
+	const savedC = sandbox.console;
+	sandbox.console = { log: () => {} }; // report() logs boundary-caught errors too (pinned in signals.test)
 	const bad = signal(0);
 	const sib = signal("live");
 	let resetFn = null;
@@ -691,6 +693,7 @@ const law = (name, verdict, cond, refs) => {
 		},
 	);
 	disposeRoot();
+	sandbox.console = savedC;
 }
 
 // --- parity summary ---------------------------------------------------------

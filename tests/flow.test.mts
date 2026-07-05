@@ -418,6 +418,11 @@ dStop();
 // --- ErrorBoundary: per-subtree catch, fallback, reset, nesting ------------
 // Solid's opt-in local boundary. Catches BUILD-time and RE-RUN throws in its
 // subtree, swaps in fallback(err, reset), keeps the rest of the app alive.
+// report() logs EVERY error — boundary-caught included (owner decision) — so
+// the whole section runs under a stubbed console to keep test output clean;
+// the log-on-catch contract itself is pinned in signals.test.mts.
+const ebSavedConsole = sandbox.console;
+sandbox.console = { log: () => {} };
 
 // (a) BUILD-time throw in children -> fallback shows, receives the error
 {
@@ -660,5 +665,7 @@ dStop();
 	);
 	check("EB unwraps a thunk-returning children build", inner(host).string === "unwrapped");
 }
+
+sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 
 done();

@@ -602,11 +602,17 @@ globalThis.console = savedConsole;
 }
 
 // ---- ErrorBoundary plumbing (withBoundary/getBoundary): the core hooks the
-// flow.ts <ErrorBoundary> component builds on. Pins effect->boundary tagging,
-// the notify() re-run route, nested inheritance, and id-reuse cleanup.
+// <ErrorBoundary> component builds on. Pins effect->boundary tagging, the
+// notify() re-run route, nested inheritance, id-reuse cleanup — and the
+// LOG-ON-CATCH contract (owner decision, 2026-07): a boundary-caught error
+// still logs in full BEFORE the handler runs. Harmless where invisible
+// (release trace is a no-op), useful everywhere else.
 {
+	const savedBC = globalThis.console;
+	const blog: string[] = [];
+	globalThis.console = { log: (...a: unknown[]) => blog.push(a.map(String).join(" ")) } as never;
 	// (a) a RAW effect (not a binding) that throws on re-run routes to the
-	// handler via notify() — the g.bnd lookup path bindings don't exercise
+	// handler via notify() — the g.z lookup path bindings don't exercise
 	const caught: string[] = [];
 	const handler = (e: unknown) => caught.push(String((e as Error).message));
 	const bad = signal(0);
@@ -626,6 +632,10 @@ globalThis.console = savedConsole;
 	check("getBoundary is null outside any withBoundary", getBoundary() === null);
 	bad.value = 1; // re-run throws uncaught -> notify -> handler
 	check("withBoundary: re-run effect throw routes to the handler", caught.join() === "eff-boom");
+	check(
+		"withBoundary: a boundary-caught error STILL LOGS in full (log-on-catch)",
+		blog.some((l) => l.includes("eff-boom") && l.includes("effect #")),
+	);
 	bad.value = 2; // parent re-runs, spawns a nested effect that ALSO throws
 	check(
 		"withBoundary: a nested effect inherits the boundary",
@@ -639,12 +649,10 @@ globalThis.console = savedConsole;
 	const s2eid = effect(() => {
 		if (s2.value === 1) throw new Error("unowned");
 	});
-	const savedC = globalThis.console;
-	globalThis.console = { log: () => {} } as never; // swallow the terminal log
 	s2.value = 1; // no boundary -> terminal (contain), NOT the old handler
-	globalThis.console = savedC;
 	check("withBoundary: disposed effect's boundary tag is cleared", caught.length === was);
 	dispose(s2eid); // leave zero net live effects so downstream id-allocation tests are unshifted
+	globalThis.console = savedBC;
 }
 
 // high-word effect (id > 31) disposed MID-cascade -> qh quarantine path.
