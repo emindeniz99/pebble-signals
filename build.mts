@@ -221,9 +221,13 @@ const minify = flag(cli.minify, "MINIFY", "1", true);
 const crashUI = flag(cli["crash-ui"], "CRASH_UI", "1", true);
 // esbuild `define` for the runtime minify: substitutes the compile-time flag so
 // `typeof __SP_CRASH_UI__ === "undefined" || __SP_CRASH_UI__` folds to a const.
-// Empty when crashUI is ON — leave __SP_CRASH_UI__ undefined so the `typeof`
-// guard keeps the screen (identical to today's default; no define needed).
-const crashDefine: Record<string, string> = crashUI ? {} : { __SP_CRASH_UI__: "false" };
+// ALWAYS define it (true when ON, false when OFF) — never leave it undefined in
+// a minified build: an undefined free identifier survives as an archive SYMBOL
+// (measured: `__SP_CRASH_UI__` cost 1 boot slot on every default build). Defined
+// to `true`, esbuild folds the guard away AND the identifier vanishes; the
+// `typeof` still protects Node tests / non-minified builds where it is genuinely
+// undefined.
+const crashDefine: Record<string, string> = { __SP_CRASH_UI__: crashUI ? "true" : "false" };
 rmSync("src/embeddedjs/app", { recursive: true, force: true });
 rmSync("src/embeddedjs/runtime-min", { recursive: true, force: true });
 rmSync("src/embeddedjs/runtime-build", { recursive: true, force: true });
