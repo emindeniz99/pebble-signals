@@ -30,8 +30,22 @@ ModdableCreationRecord"), and then the sizes are ignored — 16K/16K and
 initial, slot heap growing to the same ceiling, 6144B stack, 32KB
 static total). Only `.flags` takes effect.
 
-**Ask:** either honor the sizes (within a documented cap) or fix the
-docs and reject nonzero sizes loudly.
+Strongest confirmation (retest against the shipped example): the official
+`piu/apps/words` example sets `.stack=5120 .slot=31744 .chunk=19456` in its
+`src/c/mdbl.c` **and** a matching manifest `config.creation`, targeting
+`emery`. Setting those exact numbers on emery 4.17 — with the C verified
+compiled (`build/src/c/mdbl.c.o` via `arm-none-eabi-gcc`) and the manifest
+block present — produced a byte-identical machine: `Stack available` stayed
+**6144, not 5120**, `Slot available` unchanged. Since the stack does not
+grow, `Stack available` reflects `.stack` directly, so 6144 is proof the
+field is ignored, through BOTH the C call and the manifest. (The example's
+larger numbers presumably target a newer firmware — upstream `main`'s
+`moddable.c` maps the record onto `xsCreation`, so a post-4.17 build likely
+honors it. This report is against the 4.17 SDK binary.)
+
+**Ask:** either honor the sizes (within a documented cap) on the shipped
+SDK — the `words` example implies they should — or fix the docs and reject
+nonzero sizes loudly instead of silently cloning the built-in config.
 
 ## 2. Enabling FFI reconfigures the machine into an unusable layout
 

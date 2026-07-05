@@ -16,12 +16,22 @@ int main(void) {
   //    static total) whether we passed slot=16K/chunk=16K or 32K/32K. The 4.17
   //    machine appears cloned from the firmware's built-in creation config
   //    ("static": 32768); only .flags took effect.
+  //  - RE-TESTED 2026-07 with the STRONGEST probe (prompted by the official
+  //    piu/apps/words example, which ships .stack=5120 .slot=31744 .chunk=19456
+  //    for emery): set THOSE exact numbers here (mdbl.c IS compiled — verified
+  //    build/src/c/mdbl.c.17.o via arm-none-eabi-gcc) AND added the matching
+  //    manifest `config.creation` block, then booted emery. Machine BYTE-
+  //    IDENTICAL to default: StackAvail stayed 6144 (not 5120), SlotAvail 19440
+  //    unchanged. Stack does not grow, so StackAvail directly reflects the
+  //    creation .stack — 6144 proves the field is ignored, via BOTH the C call
+  //    and the manifest. §1 confirmed, not overturned.
   //  - CAVEAT / re-measure (Rule 2): upstream coredevices/PebbleOS `main`
   //    (src/fw/applib/moddable/moddable.c) DOES honor stack/slot/chunk — it
   //    maps them onto xsCreation (stackCount/initialHeapCount/initialChunkSize),
   //    all-or-nothing. So a NEWER firmware than our 4.17 emulator may allow a
-  //    LARGER arena than 32KB from here — a potential heap unlock. Retest when
-  //    the SDK updates; the "ignored" result above is specific to 4.17.
+  //    LARGER arena than 32KB from here — a potential heap unlock (the words
+  //    numbers likely target that newer firmware). Retest when the SDK updates;
+  //    the "ignored" result above is specific to the 4.17 SDK binary we run.
   //    Other configurables on `main`: .flags (the two below only — Instrument +
   //    Debug, and both are no-ops without a BT log listener) and .fxBuildFFI
   //    (custom native bindings). Sizes below match the measured 4.17 config.
