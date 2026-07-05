@@ -15,10 +15,11 @@
 // Run with: node --experimental-vm-modules tests/conformance.test.mts
 import { loadRuntime, makeChecker } from "./load-runtime.mts";
 
-const { signals, jsx: jsxM, sandbox } = await loadRuntime();
+const { signals, jsx: jsxM, flow, sandbox } = await loadRuntime();
 const { signal, computed, effect, batch, untrack, createRoot, track, useState, useEffect } =
 	signals;
 const { jsx } = jsxM;
+const { ErrorBoundary } = flow;
 const { check, done } = makeChecker("conformance");
 
 // Each law prints a parity line: MATCH = we behave like Solid; DIVERGE = we
@@ -638,6 +639,58 @@ const law = (name, verdict, cond, refs) => {
 	);
 	signals.setSink(null); // restore bare mode for anything after
 	sandbox.console = savedC;
+}
+
+// --- Law 26: <ErrorBoundary> — opt-in per-subtree catch (Solid parity) -------
+// MATCH: this is the Solid feature directly — fallback(err, reset) catches
+// BUILD-time and REACTIVE-UPDATE throws in the subtree, keeps the rest of the
+// app alive, and reset re-runs the children. (Like Solid, it does NOT catch
+// event-handler throws — those run outside the reactive graph.) The DIVERGE is
+// only that ours also has a DEFAULT top-level boundary (law 25) that Solid
+// lacks; the component contract itself matches.
+{
+	const bad = signal(0);
+	const sib = signal("live");
+	let resetFn = null;
+	const [root, disposeRoot] = createRoot(() => {
+		const eb = ErrorBoundary({
+			width: 80,
+			height: 40,
+			fallback: (err, reset) => {
+				resetFn = reset;
+				return jsx(sandbox.Label, { string: "caught:" + err.message });
+			},
+			children: () =>
+				jsx(sandbox.Label, {
+					string: () => {
+						if (bad.value === 1) throw new Error("boom");
+						return "ok" + bad.value;
+					},
+				}),
+		});
+		const s = jsx(sandbox.Label, { string: () => sib.value }); // outside the boundary
+		return [eb, s];
+	});
+	const inner = (h) => h.contents[0].contents[0];
+	const before = inner(root[0]).string === "ok0";
+	bad.value = 1; // reactive-update throw -> caught, fallback swapped in
+	const caught = inner(root[0]).string === "caught:boom";
+	sib.value = "still-live";
+	const sibAlive = root[1].string === "still-live"; // rest of the app unaffected
+	bad.value = 2; // heal the source
+	resetFn(); // reset -> children re-run, now healthy
+	const recovered = inner(root[0]).string === "ok2";
+	law(
+		"<ErrorBoundary> catches subtree throws; siblings live; reset recovers",
+		"MATCH",
+		before && caught && sibAlive && recovered,
+		{
+			solid: "createErrorBoundary — fallback(err, reset), same contract",
+			preact: "no boundary primitive (preact/signals core)",
+			react: "class error boundaries — componentDidCatch + manual reset",
+		},
+	);
+	disposeRoot();
 }
 
 // --- parity summary ---------------------------------------------------------

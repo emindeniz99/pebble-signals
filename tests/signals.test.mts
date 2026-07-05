@@ -22,6 +22,8 @@ import {
 	S,
 	romTable,
 	setSink,
+	withBoundary,
+	getBoundary,
 } from "../src/embeddedjs/runtime-build/signals.js";
 import { makeChecker } from "./load-runtime.mts";
 
@@ -32,6 +34,9 @@ const { check, done } = makeChecker("signals");
 const pre = signal(0);
 pre.value = 1;
 check("write before graph exists is safe", pre.value === 1);
+// getBoundary before ANY graph exists (G still null — an app whose first
+// runtime call is <ErrorBoundary> at the top of render()) returns null
+check("getBoundary is null before the graph exists", getBoundary() === null);
 
 // 1. signal -> effect fires on set
 const a = signal(1);
@@ -594,6 +599,52 @@ globalThis.console = savedConsole;
 	delete globalThis.__spError;
 	setSink(null);
 	globalThis.console = savedC2;
+}
+
+// ---- ErrorBoundary plumbing (withBoundary/getBoundary): the core hooks the
+// flow.ts <ErrorBoundary> component builds on. Pins effect->boundary tagging,
+// the notify() re-run route, nested inheritance, and id-reuse cleanup.
+{
+	// (a) a RAW effect (not a binding) that throws on re-run routes to the
+	// handler via notify() — the g.bnd lookup path bindings don't exercise
+	const caught: string[] = [];
+	const handler = (e: unknown) => caught.push(String((e as Error).message));
+	const bad = signal(0);
+	let inner = 0;
+	const eid = withBoundary(handler, () => {
+		check("getBoundary reports the active handler", getBoundary() === handler);
+		return effect(() => {
+			if (bad.value === 1) throw new Error("eff-boom");
+			// (b) a NESTED effect created during the run inherits the boundary
+			if (bad.value === 2)
+				effect(() => {
+					inner++;
+					if (bad.value === 2) throw new Error("nested-boom");
+				});
+		});
+	});
+	check("getBoundary is null outside any withBoundary", getBoundary() === null);
+	bad.value = 1; // re-run throws uncaught -> notify -> handler
+	check("withBoundary: re-run effect throw routes to the handler", caught.join() === "eff-boom");
+	bad.value = 2; // parent re-runs, spawns a nested effect that ALSO throws
+	check(
+		"withBoundary: a nested effect inherits the boundary",
+		inner === 1 && caught.join() === "eff-boom,nested-boom",
+	);
+	// (c) disposing a boundaried effect clears its tag so a reused id can't
+	// inherit it: dispose, then a NEW unboundaried effect must not route here
+	dispose(eid);
+	const was = caught.length;
+	const s2 = signal(0);
+	const s2eid = effect(() => {
+		if (s2.value === 1) throw new Error("unowned");
+	});
+	const savedC = globalThis.console;
+	globalThis.console = { log: () => {} } as never; // swallow the terminal log
+	s2.value = 1; // no boundary -> terminal (contain), NOT the old handler
+	globalThis.console = savedC;
+	check("withBoundary: disposed effect's boundary tag is cleared", caught.length === was);
+	dispose(s2eid); // leave zero net live effects so downstream id-allocation tests are unshifted
 }
 
 // high-word effect (id > 31) disposed MID-cascade -> qh quarantine path.

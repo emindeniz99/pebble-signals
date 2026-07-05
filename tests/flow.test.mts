@@ -4,11 +4,11 @@
 // look through one wrapper layer via inner().
 import { loadRuntime, StubContent, makeChecker } from "./load-runtime.mts";
 
-const { signals, jsx: jsxM, flow, tick, liveTimers } = await loadRuntime();
+const { signals, jsx: jsxM, flow, sandbox, tick, liveTimers } = await loadRuntime();
 const { signal } = signals;
 const { createRoot } = signals;
 const { jsx } = jsxM;
-const { Show, For, VirtualList, animate } = flow;
+const { Show, For, VirtualList, animate, ErrorBoundary } = flow;
 const { check, done } = makeChecker("flow");
 
 const inner = (host) => host.contents[0] && host.contents[0].contents[0];
@@ -413,5 +413,214 @@ const [, dStop] = createRoot(() => {
 	return 0;
 });
 dStop();
+
+// --- ErrorBoundary: per-subtree catch, fallback, reset, nesting ------------
+// Solid's opt-in local boundary. Catches BUILD-time and RE-RUN throws in its
+// subtree, swaps in fallback(err, reset), keeps the rest of the app alive.
+
+// (a) BUILD-time throw in children -> fallback shows, receives the error
+{
+	const [host] = createRoot(() =>
+		ErrorBoundary({
+			width: 100,
+			height: 50,
+			fallback: (err) => jsx(StubContent, { string: "caught:" + err.message }),
+			children: () => {
+				throw new Error("build-fail");
+			},
+		}),
+	);
+	check(
+		"EB: build-time throw shows fallback with the error",
+		inner(host).string === "caught:build-fail",
+	);
+}
+
+// (b) CREATION-TIME binding throw (first render of a binding) -> fallback, and
+// the orphan children tree is NOT stacked over it (the re-entrancy guard)
+{
+	const [host] = createRoot(() =>
+		ErrorBoundary({
+			width: 100,
+			height: 50,
+			fallback: (err) => jsx(StubContent, { string: "fb:" + err.message }),
+			children: () =>
+				jsx(StubContent, {
+					string: () => {
+						throw new Error("first-render");
+					},
+				}),
+		}),
+	);
+	check("EB: creation-time binding throw shows fallback", inner(host).string === "fb:first-render");
+	check("EB: no orphan tree stacked over the fallback", host.contents.length === 1);
+}
+
+// (c) RE-RUN throw -> fallback; a SIBLING outside the boundary stays alive,
+// and the error never reached the terminal sink (no crash)
+{
+	const bad = signal(0);
+	const sib = signal("s0");
+	const [root, disposeRoot] = createRoot(() => {
+		const eb = ErrorBoundary({
+			width: 100,
+			height: 50,
+			fallback: (err) => jsx(StubContent, { string: "fb:" + err.message }),
+			children: () =>
+				jsx(StubContent, {
+					string: () => {
+						if (bad.value === 1) throw new Error("rerun-fail");
+						return "child" + bad.value;
+					},
+				}),
+		});
+		const s = jsx(StubContent, { string: () => sib.value }); // OUTSIDE the boundary
+		return [eb, s];
+	});
+	check("EB: children render before the error", inner(root[0]).string === "child0");
+	bad.value = 1; // throws on re-run -> caught by the boundary
+	check("EB: re-run throw swaps in the fallback", inner(root[0]).string === "fb:rerun-fail");
+	sib.value = "s1";
+	check("EB: sibling outside the boundary stays alive", root[1].string === "s1");
+	disposeRoot();
+}
+
+// (d) reset(): re-runs children under a fresh root
+{
+	const bad = signal(1); // start broken
+	let resetFn = null;
+	const [host] = createRoot(() =>
+		ErrorBoundary({
+			width: 100,
+			height: 50,
+			fallback: (err, reset) => {
+				resetFn = reset;
+				return jsx(StubContent, { string: "fb" });
+			},
+			children: () =>
+				jsx(StubContent, {
+					string: () => {
+						if (bad.value === 1) throw new Error("x");
+						return "ok" + bad.value;
+					},
+				}),
+		}),
+	);
+	check("EB: starts in fallback (build failed)", inner(host).string === "fb");
+	bad.value = 2; // heal — but the boundary won't re-mount on its own
+	check("EB: fallback stays until reset", inner(host).string === "fb");
+	resetFn(); // re-run children -> now healthy
+	check("EB: reset re-mounts the healed children", inner(host).string === "ok2");
+	bad.value = 3;
+	check("EB: reset children track again", inner(host).string === "ok3");
+	bad.value = 1; // break again -> back to fallback
+	check("EB: re-breaks after reset", inner(host).string === "fb");
+}
+
+// (e) NESTING: an inner fallback that itself throws escalates to the OUTER
+// boundary (Solid semantics), not back into the inner one
+{
+	const innerBad = signal(0);
+	const [host] = createRoot(() =>
+		ErrorBoundary({
+			width: 100,
+			height: 50,
+			fallback: () => jsx(StubContent, { string: "OUTER" }),
+			children: () =>
+				ErrorBoundary({
+					width: 100,
+					height: 50,
+					// the inner fallback THROWS -> must go to the outer boundary
+					fallback: () => {
+						throw new Error("fallback-boom");
+					},
+					children: () =>
+						jsx(StubContent, {
+							string: () => {
+								if (innerBad.value === 1) throw new Error("inner");
+								return "inner-ok";
+							},
+						}),
+				}),
+		}),
+	);
+	// inner children render fine, inside the outer host -> wrapper -> inner host
+	check(
+		"EB nest: inner children render",
+		inner(host).contents[0].contents[0].string === "inner-ok",
+	);
+	innerBad.value = 1; // inner throws -> inner fallback throws -> OUTER catches
+	check(
+		"EB nest: inner fallback throw escalates to the outer boundary",
+		inner(host).string === "OUTER",
+	);
+}
+
+// (f) reset() when the children build throws SYNCHRONOUSLY (a component body,
+// not a binding) -> reset's own try/catch re-shows the fallback
+{
+	let boom = true;
+	let resetFn = null;
+	const [host] = createRoot(() =>
+		ErrorBoundary({
+			width: 100,
+			height: 50,
+			fallback: (err, reset) => {
+				resetFn = reset;
+				return jsx(StubContent, { string: "fb2" });
+			},
+			children: () => {
+				if (boom) throw new Error("sync-build");
+				return jsx(StubContent, { string: "healed" });
+			},
+		}),
+	);
+	check("EB: sync build-throw shows fallback", inner(host).string === "fb2");
+	resetFn(); // still failing -> reset's catch keeps the fallback up
+	check("EB: reset of a still-failing sync build stays in fallback", inner(host).string === "fb2");
+	boom = false;
+	resetFn(); // healed -> children mount
+	check("EB: reset after healing mounts children", inner(host).string === "healed");
+}
+
+// (g) two throwing bindings in one build: the FIRST swaps in the fallback; the
+// SECOND (built after, still under this boundary) re-enters onError while it is
+// already showing the fallback -> escalates OUT (no loop). Outermost boundary
+// (no parent) -> the terminal sink, observed here via setSink.
+{
+	const escalated = [];
+	const savedC = sandbox.console;
+	sandbox.console = { log: () => {} }; // report() logs before the sink; keep output clean
+	signals.setSink((e) => escalated.push(String(e && e.message ? e.message : e)));
+	const [host] = createRoot(() =>
+		ErrorBoundary({
+			width: 100,
+			height: 50,
+			fallback: () => jsx(StubContent, { string: "fb3" }),
+			children: () =>
+				jsx(StubContent, {
+					children: [
+						jsx(StubContent, {
+							string: () => {
+								throw new Error("boom-a");
+							},
+						}),
+						jsx(StubContent, {
+							string: () => {
+								throw new Error("boom-b");
+							},
+						}),
+					],
+				}),
+		}),
+	);
+	check("EB: first throwing binding shows the fallback", inner(host).string === "fb3");
+	check(
+		"EB: second binding (already shown) escalates to the terminal sink, no loop",
+		escalated.length === 1 && escalated[0] === "boom-b",
+	);
+	signals.setSink(null);
+	sandbox.console = savedC;
+}
 
 done();

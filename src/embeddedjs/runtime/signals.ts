@@ -59,6 +59,20 @@ interface Graph {
 	// array: a tracked cleanup closure has the exact same timing). null
 	// until some running effect tracks something — most never do.
 	w: (Disposable[] | null)[] | null;
+	// ErrorBoundary routing (2026-07). `c` = the boundary handler in scope
+	// RIGHT NOW (set during a boundaried effect's run / a withBoundary build,
+	// null otherwise); `z[e]` = the boundary that OWNS effect e, captured at
+	// its creation so re-runs (which happen outside the build) still route.
+	// Both live on the Graph (chunk memory) rather than as new top-level
+	// `let`s: adding a module-scope writable binding would spend an XS alias
+	// slot from a near-empty budget (gotcha 13); a Graph field is free of that
+	// budget, and `z` stays null until the first ErrorBoundary exists — so
+	// apps that never use one pay nothing. NAMES ARE SINGLE LETTERS on purpose
+	// (like y/x/w above): a/z single letters are already in the symbol table
+	// via the minified runtime, so they cost ZERO new boot symbols — a `cb`/
+	// `bnd` pair MEASURED +2 symbols and helped tip a saturated app to death.
+	c: ((e: unknown) => void) | null; // current boundary handler
+	z: (((e: unknown) => void) | undefined)[] | null; // effect id -> owning boundary
 }
 
 let current = -1; // id of the running effect, -1 = none
@@ -102,6 +116,8 @@ const gi = (): Graph => {
 			y: 0,
 			x: null,
 			w: null,
+			c: null,
+			z: null,
 		};
 	return g;
 };
@@ -310,11 +326,25 @@ export function setSink(s: ((err: unknown, msg: string) => void) | true | null):
  * context); apps may also call it from their own try/catch.
  */
 export function report(err: unknown, ctx: string): void {
+	// 1. __spError is the ultimate override (dev/strict) — it sees EVERY error,
+	//    even inside an ErrorBoundary, so a rethrowing handler still crashes
+	//    loudly for debugging.
 	const h = globalThis.__spError;
 	if (h) {
 		h(err);
 		return;
 	}
+	// 2. the nearest ErrorBoundary in scope catches it (a deliberate catch —
+	//    no log; the fallback receives the error and shows it). g.c is set
+	//    during a boundaried effect's run (see run()) and re-set by notify()
+	//    around this call for the uncaught-effect path.
+	const g0 = G;
+	if (g0 !== null && g0.c !== null) {
+		g0.c(err);
+		return;
+	}
+	// 3. no boundary: log the full error, then the terminal sink (render's
+	//    crash screen / strict rethrow / bare contain).
 	const msg = "[signal-piu] " + ctx + ":\n" + fmtError(err);
 	const c = (globalThis as { console?: { error?: LogFn; log?: LogFn } }).console;
 	const f = c && (c.error || c.log);
@@ -330,30 +360,47 @@ export function report(err: unknown, ctx: string): void {
 // Route subscriber exceptions through report() instead of letting them
 // abort the machine unseen — the installed sink/handler decides whether the
 // app shows a crash screen, dies loudly (strict), or contains (bare core).
+// A BINDING catches inside its own guard (jsx-runtime) while g.c is still
+// set by run(); this catch is for effects whose fn threw UNCAUGHT (useEffect,
+// a computed's forward effect), where run()'s finally already cleared g.c —
+// so re-establish the effect's boundary before report() consults it.
 function notify(e: number): void {
 	try {
 		run(e);
 	} catch (err) {
-		report(err, "uncaught in reactive update (effect #" + e + ")");
+		const g = G!;
+		const pb = g.c;
+		g.c = (g.z && g.z[e]) || null;
+		try {
+			report(err, "uncaught in reactive update (effect #" + e + ")");
+		} finally {
+			g.c = pb;
+		}
 	}
 }
 
 const run = (e: number): void => {
-	const fn = G!.eff[e];
+	const g = G!;
+	const fn = g.eff[e];
 	if (!fn)
 		// disposed mid-notification — do not resurrect
 		return;
 	unsubscribe(e);
 	const prev = current;
 	const po = owner;
+	const pb = g.c; // ErrorBoundary in scope for THIS effect (and its children)
 	current = e;
 	owner = e; // running-owner (B9): trackables created during the run belong
 	// to THIS effect and are disposed before its next run / at its disposal
+	// Re-establish the effect's owning boundary so its binding guard reports
+	// to it AND any nested effect it creates inherits it (bnd null = no cost).
+	g.c = (g.z && g.z[e]) || null;
 	try {
 		fn();
 	} finally {
 		current = prev;
 		owner = po;
+		g.c = pb;
 	}
 };
 
@@ -520,6 +567,11 @@ export function effect(fn: EffectFn): number {
 		}
 	}
 	g.eff[e] = fn;
+	// ErrorBoundary capture: if an <ErrorBoundary> is in scope, remember which
+	// one owns this effect so a LATER re-run (which happens outside the build)
+	// still routes its throw to the fallback. `bnd` is allocated on the first
+	// boundary ever — a boundary-free app keeps it null and pays nothing.
+	if (g.c !== null) (g.z || (g.z = []))[e] = g.c;
 	// Running-owner (B9): auto-register with the innermost context — the
 	// running effect or the current root — BEFORE the first run, so a
 	// throwing initial run is still torn down by its root. A top-level
@@ -540,6 +592,7 @@ export function dispose(d: number | EffectFn): void {
 	const g = G;
 	if (!g || !g.eff[d]) return;
 	g.eff[d] = null; // run() becomes a no-op — no resurrection
+	if (g.z) g.z[d] = undefined; // drop the boundary tag so a reused id can't inherit it
 	unsubscribe(d);
 	const word = d >> 5,
 		b = 1 << (d & 31);
@@ -609,6 +662,34 @@ export function untrack<T>(fn: () => T): T {
 		current = prev;
 	}
 }
+
+// ErrorBoundary plumbing (the <ErrorBoundary> component in flow.ts is the only
+// caller). `const` arrow form, not `export function` — a new top-level
+// function declaration spends an XS alias slot (gotcha 13); both are also
+// pruned out of the archive for apps that never import ErrorBoundary (the
+// build's export-prune pass), so a boundary-free app carries zero cost.
+
+// Run `fn` with `handler` installed as the boundary in scope: every effect
+// created during `fn` is tagged (see effect()) so its later throws route to
+// `handler`. Restores the previous boundary on exit (nesting-safe).
+// `handler` may be null — that runs `fn` with NO boundary in scope, which is
+// how ErrorBoundary escalates OUT of itself (a fallback that threw routes to
+// the parent boundary, or to the terminal sink when there is no parent —
+// never back into the boundary that is already failing).
+/** Run `build` with `handler` as the active ErrorBoundary (internal — see flow's ErrorBoundary). */
+export const withBoundary = <T>(handler: ((e: unknown) => void) | null, fn: () => T): T => {
+	const g = gi();
+	const prev = g.c;
+	g.c = handler;
+	try {
+		return fn();
+	} finally {
+		g.c = prev;
+	}
+};
+
+/** The ErrorBoundary handler currently in scope (null = none) — for nesting a fallback under its parent. */
+export const getBoundary = (): ((e: unknown) => void) | null => (G ? G.c : null);
 
 // ---- ownership & disposal ----------------------------------------------
 // Every effect created while building a subtree is registered on the
