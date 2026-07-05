@@ -1,67 +1,83 @@
 # Part 3 — a live complication
 
-Goal: add an hour-based greeting ("good morning / afternoon / evening"). It's a
-tiny feature, but it teaches the single most important thing about signal-piu:
-**a Label only repaints when its value actually changes** — even if you write
-to its signal every second.
+Goal: add an hour-based greeting ("good morning / afternoon / evening"),
+*derived* from the hour with `computed`. It's a tiny feature, but it teaches
+the payoff of fine-grained reactivity: a `computed` re-evaluates only when its
+inputs change, and its Label repaints only then — while the seconds line ticks
+every second.
 
-## Add the greeting
+## Split the time into fields
+
+First, keep the hour as its own signal so we can derive from it:
 
 ```tsx
-const [greeting, setGreeting] = useState("");
+const [hh, setHh] = useState(0);
+const [mm, setMm] = useState(0);
+const [ss, setSs] = useState(0);
+const [day, setDay] = useState("");
 
 function tick() {
   const d = new Date();
-  const h = d.getHours();
-  setHhmm(two(h) + ":" + two(d.getMinutes()));
-  setSs(two(d.getSeconds()));
+  setHh(d.getHours());
+  setMm(d.getMinutes());
+  setSs(d.getSeconds());
   setDay(DAYS[d.getDay()] + " " + two(d.getDate()) + "." + two(d.getMonth() + 1));
-  setGreeting(h < 12 ? "good morning" : h < 18 ? "good afternoon" : "good evening");
 }
 ```
 
-and one more Label at the top of the `<Column>`:
+## Derive the greeting with `computed`
 
 ```tsx
-<Label style={greetStyle} string={() => greeting()} />
+import { computed, useState } from "runtime/signals";
+
+// re-derives only when hh() changes — i.e. on the hour, not the second
+const greeting = computed(() => {
+  const h = hh();
+  return h < 12 ? "good morning" : h < 18 ? "good afternoon" : "good evening";
+});
+```
+
+and render it. **Read a `computed` with `.value`, not `()`:**
+
+```tsx
+<Label style={greetStyle} string={() => greeting.value} />
 ```
 
 The finished file is [`src/watchface.tsx`](src/watchface.tsx).
 
+## The three read syntaxes (don't trip on this)
+
+signal-piu has three source kinds and — for now — three read syntaxes:
+
+| you wrote | how you read it |
+|---|---|
+| `const [hh] = useState(0)` | **call**: `hh()` |
+| `const s = signal(0)` | **`.value`**: `s.value` |
+| `const g = computed(() => …)` | **`.value`**: `g.value` |
+
+`computed` and `signal` return a `{ value }` object; `useState` returns a
+`[getter, setter]` pair. If you accidentally *call* a computed (`greeting()`),
+it throws at runtime — and signal-piu's error guard swallows subscriber
+exceptions so the machine survives, which means the symptom is a **blank
+Label**, not a crash. If a binding renders nothing, check you used `.value`.
+(Unifying these three into one syntax is a tracked ergonomics task.)
+
 ## What just happened — the payoff
 
-Look closely at `tick()`: it calls `setGreeting(...)` **every second**, with
-the *same* string for most of the hour. Yet the greeting line does not flicker
-or repaint every second — only the seconds line does.
+`greeting` is a `computed` that reads `hh()`. It subscribes to the hour and
+nothing else, so:
 
-That's because **signal-piu skips same-value writes.** Internally a set is
-`if (next !== current) notify()`. When you `setGreeting("good morning")` and it
-was already `"good morning"`, nothing is marked dirty, no effect re-runs, no
-Piu node is touched. The greeting Label repaints exactly once per hour band, at
-the boundary where the text really changes.
-
-This is *fine-grained reactivity* in one screen:
-
-- the **seconds** Label re-runs every second (its value changes every second);
+- the **seconds** Label re-runs every second;
 - the **time** Label re-runs once a minute;
-- the **greeting** Label re-runs a few times a day.
+- the **greeting** `computed` re-derives — and its Label repaints — only when
+  the hour band changes, a few times a day.
 
-…all from one `tick()` that naively sets everything every second. You don't
-orchestrate any of that — the reactive graph does, and it does it with a flat
-heap (no allocation per update in steady state). On a watch that runs this face
-24/7, "don't repaint what didn't change" is the difference between smooth and
-dead battery.
-
-## A note on `computed`
-
-You might reach for `computed(() => hh() < 12 ? … )` to derive the greeting
-instead of setting it in `tick()`. `computed` is a real primitive in the API
-and is covered by the conformance laws — but there is a **known open issue**
-(2026-07): a *module-scope* `computed` read directly inside a JSX `string={}`
-thunk currently renders blank on-device in this exact shape. Until that's
-root-caused (tracked in `docs/roadmap.md`), derive values the way this tutorial
-does — compute in the updater and set a plain signal. Same result, and it
-teaches the same-value-skip lesson better anyway.
+You don't orchestrate any of that. The reactive graph tracks exactly which
+Label reads which signal and updates only what changed, with a flat heap (no
+allocation per update in steady state). On a watch that runs this face 24/7,
+"don't repaint what didn't change" is the difference between smooth and dead
+battery. (`computed` also *caches*: read `greeting.value` ten times in one
+frame and the function body runs at most once.)
 
 ## Where to go next
 

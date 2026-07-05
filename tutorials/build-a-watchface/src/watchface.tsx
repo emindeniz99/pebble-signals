@@ -1,13 +1,17 @@
 // The finished watchface from tutorials/build-a-watchface/. A reactive
-// digital watchface: HH:MM big, a seconds + date line, and an hour-based
-// greeting. tick() naively sets every signal each second, but signal-piu
-// skips same-value writes, so each Label repaints only when ITS value
-// changes: seconds every second, time every minute, greeting a few times a
-// day. That independence is signal-piu's whole point — fine-grained updates,
+// digital watchface: an hour-based greeting, HH:MM big, and a seconds + date
+// line. `hh/mm/ss` are useState signals; `greeting` is a computed DERIVED from
+// hh — so it re-evaluates only when the hour changes while seconds tick every
+// second. Each Label subscribes to only what it reads: fine-grained updates,
 // no VDOM diff, flat heap in steady state. Build: npm run dev -- --app
 // watchface (flip package.json watchapp.watchface=true for a real face).
+//
+// NOTE the read syntax — signal-piu has THREE, by source kind:
+//   useState -> call:   hh()            (getter is a function)
+//   signal   -> .value: mySig.value
+//   computed -> .value: greeting.value  (a ReadonlySignal, NOT callable)
 import { render } from "runtime/jsx-runtime";
-import { useState } from "runtime/signals";
+import { computed, useState } from "runtime/signals";
 
 const bg = new Skin({ fill: "black" });
 const timeStyle = new Style({ font: "bold 42px Bitham", color: "white" });
@@ -17,30 +21,34 @@ const greetStyle = new Style({ font: "18px Gothic", color: "#FFAA55" });
 const two = (n: number) => (n < 10 ? "0" : "") + n;
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-// One signal per field, so each Label subscribes to only what it shows.
-const [hhmm, setHhmm] = useState("");
-const [ss, setSs] = useState("");
+const [hh, setHh] = useState(0);
+const [mm, setMm] = useState(0);
+const [ss, setSs] = useState(0);
 const [day, setDay] = useState("");
-const [greeting, setGreeting] = useState("");
 
 function tick() {
 	const d = new Date();
-	const h = d.getHours();
-	setHhmm(two(h) + ":" + two(d.getMinutes()));
-	setSs(two(d.getSeconds()));
+	setHh(d.getHours());
+	setMm(d.getMinutes());
+	setSs(d.getSeconds());
 	setDay(DAYS[d.getDay()] + " " + two(d.getDate()) + "." + two(d.getMonth() + 1));
-	setGreeting(h < 12 ? "good morning" : h < 18 ? "good afternoon" : "good evening");
 }
 tick();
 setInterval(tick, 1000);
+
+// computed reads hh() only -> re-derives on the hour, not the second.
+const greeting = computed(() => {
+	const h = hh();
+	return h < 12 ? "good morning" : h < 18 ? "good afternoon" : "good evening";
+});
 
 render(
 	() => (
 		<Container left={0} right={0} top={0} bottom={0}>
 			<Column>
-				<Label style={greetStyle} string={() => greeting()} />
-				<Label style={timeStyle} string={() => hhmm()} />
-				<Label style={dateStyle} string={() => ss() + "   " + day()} />
+				<Label style={greetStyle} string={() => greeting.value} />
+				<Label style={timeStyle} string={() => two(hh()) + ":" + two(mm())} />
+				<Label style={dateStyle} string={() => two(ss()) + "   " + day()} />
 			</Column>
 		</Container>
 	),

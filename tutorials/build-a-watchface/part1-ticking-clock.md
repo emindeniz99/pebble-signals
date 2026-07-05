@@ -47,12 +47,20 @@ the value with `hhmm()`, change it with `setHhmm(...)`. This is the same shape
 as React's `useState`, but the resemblance stops there: there is no component
 re-render. The signal is a tiny node in a reactive graph.
 
-**`string={() => hhmm()}` is a binding.** The `() =>` matters. If you wrote
-`string={hhmm()}` you'd pass the *current string once* and it would never
-update. By passing a *function that reads the signal*, signal-piu runs it once
-to get the initial text AND records that this `<Label>` depends on `hhmm`.
-When `setHhmm` later changes the value, only this Label's text is recomputed
-and repainted — nothing else on screen is touched.
+**`string={() => hhmm()}` is a binding.** The reactive part is the *call*
+`hhmm()`; wrapping it in a thunk gives signal-piu a function it can re-run.
+signal-piu runs it once to get the initial text AND records that this
+`<Label>` depends on `hhmm`. When `setHhmm` later changes the value, only this
+Label's text is recomputed and repainted — nothing else on screen is touched.
+
+**You can also drop the arrow: `string={hhmm()}` works too.** The build's
+*auto-thunk* pass (what Solid's compiler does) rewrites a bare reactive read on
+a host prop into `string={() => hhmm()}` for you at compile time. So both forms
+are reactive and equivalent — write whichever reads better. The one thing that
+is NOT reactive is passing the signal *without calling it* (`string={hhmm}`, no
+parens): that's just a function value, and signal-piu can't tell it apart from
+a plain callback, so it won't subscribe. **Rule of thumb: the `()` call is the
+reactivity; the arrow is optional.**
 
 **No VDOM, no diff.** Compare to React, which would re-run your component and
 diff a virtual tree. Here the subscription is direct: signal → this one Label.
@@ -66,7 +74,9 @@ the firmware provides. signal-piu's JSX creates them for you; you can also
 
 - Change `two(d.getMinutes())` to `two(d.getSeconds())` — now it ticks visibly
   every second.
-- Remove the `() =>` from the binding and rebuild. The clock freezes at its
-  first value — proof that the thunk is what makes it reactive.
+- Rewrite the binding as `string={hhmm()}` (no arrow) and rebuild — it still
+  ticks, because auto-thunk wrapped it for you. Then try `string={hhmm}` (no
+  call) and it freezes — proof that the `()` call, not the arrow, is the
+  reactivity.
 
 Next: [Part 2 — date & layout](part2-date-and-layout.md).

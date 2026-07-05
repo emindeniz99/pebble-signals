@@ -36,20 +36,30 @@ Priority order the owner set; each is expanded in its own section below.
 10. **CloudPebble tiers 1→2→3** — see the CloudPebble section; tier 2
     (browser layout preview) is the one we can build ourselves.
 
-### Bug found while writing the watchface tutorial (2026-07) — INVESTIGATE
-- **Module-scope `computed` read in a JSX `string={}` thunk renders BLANK
-  on-device.** Repro: the tutorial watchface with
-  `const greeting = computed(() => hh() < 12 ? "…" : "…")` and
-  `<Label string={() => greeting()} />` boots healthy (0 aborts, live
-  instruments) but paints nothing; the byte-identical app with a plain
-  `useState` greeting set inside `tick()` renders fine (device-verified,
-  "good morning / 09:02 / …"). Also black with `--no-lower`, so it is NOT the
-  lowering. `computed` IS covered by the XS conformance laws, so suspect the
-  specific combination: module-scope computed + read inside a Label thunk +
-  a `useState`-sourced dependency. Isolate with a minimal cell (computed of a
-  `signal()` vs of a `useState` getter; module-scope vs inside the render
-  builder), add a conformance/example repro, then fix. The tutorial routes
-  around it (derive-in-updater) and says so in part 3.
+### Real findings from the watchface tutorial (2026-07)
+- **RETRACTED "computed bug".** An earlier commit claimed a module-scope
+  `computed` in a Label thunk renders blank. That was MY error, not a library
+  bug: I *called* the computed (`greeting()`) but `computed` returns a
+  `ReadonlySignal` = `{ readonly value }`, read with `greeting.value`. The
+  `hooks` example (module-scope `computed`, read via `.value`) has always
+  worked, and the watchface now derives `greeting` with `computed` and is
+  device-verified (renders "good morning / 09:21", seconds tick 54→58). No
+  library bug — corrected everywhere it was written.
+- **REAL footgun it exposed: silent swallow.** Calling a computed (or any
+  wrong-typed read) inside a binding throws at runtime, and `notify()`'s error
+  guard routes subscriber exceptions to `globalThis.__spError` (so the machine
+  survives) — with no `__spError` set, the symptom is a **blank Label**, not a
+  crash or a log line. That is a genuine dev-experience hazard: a typo yields
+  a silent blank. FIX OPTIONS: (a) install a default `__spError` that logs to
+  the instruments/console in non-minified builds (loud failure in dev);
+  (b) a build-time lint that flags calling a `computed`/`signal` binding.
+- **Read-syntax unification (ergonomics).** Three read syntaxes today:
+  `useState`→`hh()`, `signal`→`.value`, `computed`→`.value`. This is the
+  source of the footgun above. Consider making computed/signal also callable
+  (a `()` that returns `.value`) so ONE syntax works everywhere, or the
+  reverse. Design + measure the slot cost (a callable adds a function object
+  per signal — may not be worth it on the 32KB arena; a lint may be the
+  cheaper fix). Tracked, not yet decided.
 
 ### Genuinely NEW ideas (owner, 2026-07)
 - **Speech-to-text for todo entry.** The watch has a mic; PebbleOS/Pebble had
