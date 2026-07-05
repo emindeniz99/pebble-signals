@@ -45,14 +45,16 @@ Priority order the owner set; each is expanded in its own section below.
   worked, and the watchface now derives `greeting` with `computed` and is
   device-verified (renders "good morning / 09:21", seconds tick 54→58). No
   library bug — corrected everywhere it was written.
-- **REAL footgun it exposed: silent swallow.** Calling a computed (or any
-  wrong-typed read) inside a binding throws at runtime, and `notify()`'s error
-  guard routes subscriber exceptions to `globalThis.__spError` (so the machine
-  survives) — with no `__spError` set, the symptom is a **blank Label**, not a
-  crash or a log line. That is a genuine dev-experience hazard: a typo yields
-  a silent blank. FIX OPTIONS: (a) install a default `__spError` that logs to
-  the instruments/console in non-minified builds (loud failure in dev);
-  (b) a build-time lint that flags calling a `computed`/`signal` binding.
+- ~~**REAL footgun it exposed: silent swallow**~~ ✅ FIXED (2026-07, d4beddb).
+  A throw inside a binding/effect with no `__spError` handler used to be
+  rethrown-and-swallowed → silent blank Label, nothing in the logs. Now
+  `notify()` logs it via `console.error` ("[signal-piu] uncaught in reactive
+  update: …") — visible in `pebble logs`, ZERO boot-slot cost (console/error
+  are host-interned), machine still survives, still overridable via
+  `globalThis.__spError`. Unit-tested; on-device log confirmation pending a
+  non-wedged `pebble logs` session. STILL WANTED (cheaper-still): a build-time
+  lint that flags *calling* a `computed`/`signal` binding so the typo is
+  caught before device.
 - **Read-syntax unification (ergonomics).** Three read syntaxes today:
   `useState`→`hh()`, `signal`→`.value`, `computed`→`.value`. This is the
   source of the footgun above. Consider making computed/signal also callable
@@ -60,6 +62,24 @@ Priority order the owner set; each is expanded in its own section below.
   reverse. Design + measure the slot cost (a callable adds a function object
   per signal — may not be worth it on the 32KB arena; a lint may be the
   cheaper fix). Tracked, not yet decided.
+
+### DX: typesafe component entry + component patterns (owner, 2026-07)
+- **Auto-render entry (`root.tsx` convention) — typesafe, `tsrafce`-style.**
+  Today every app hand-writes `render(() => <App/>, { skin, style })`. Add a
+  convention: an app can `export default` a root component and the build wraps
+  it in `render(...)` automatically (the skin/style dict via a sibling export
+  or a `defineApp({...})` helper). Keep it fully TYPESAFE — a component is
+  `(props: P) => JSXNode`, props typed with generics like React FC but WITHOUT
+  the re-render model. Deliverable: `defineApp`/`root.tsx` support in build.mts
+  + a typed `Component<P>` type + a `tsrafce`-equivalent snippet for editors.
+  This is the "people shouldn't hand-write render(); write a component like
+  React, typesafe with props" ask — record it in DETAIL, it's high-value DX.
+- **Component patterns: teach BOTH state placements.** Most devs know React,
+  where state lives INSIDE the component. In signal-piu both work and cost the
+  same RAM (no re-render → state created once at mount, wherever declared).
+  The tutorial should show BOTH: module-scope signals (clean for a single
+  screen) AND state-inside-a-component (familiar to React devs, required for
+  reusable components). Add a short "where does state go?" section.
 
 ### Bigger tutorial + docs push (owner, 2026-07)
 - **A second, COMPREHENSIVE watchface tutorial (0→published).** The existing
@@ -86,9 +106,16 @@ Priority order the owner set; each is expanded in its own section below.
   because mods can't preload. Worth a field-notes cross-ref and a scan of
   `XS in C`, `XS Differences`, `handle`/`profile` docs for more.
 - **Vendor the rest of the Pebble typings.** We now vendor `pebble/device.d.ts`
-  (2026-07). Audit `@moddable/typings/pebble/*` for other useful ambient decls
-  (sensors, button, message) and the `embedded:*` module typings, and add the
-  ones our examples touch to `sync-moddable-typings.sh`.
+  (2026-07). Full list of what `@moddable/typings@8.2.3` has that we do NOT yet
+  vendor, add per example need:
+  - `pebble/`: `dictation` (speech-to-text!), `battery`, `accelerometer`,
+    `compass`, `location`, `vibes`, `button`, `message`, `wakeup`.
+  - `embedded/`: `storage/key-value` (types `device.keyValue`), `storage/files`,
+    `storage/flash`, `RTC`, `display`, `update`.
+  - `piu/`: `QRCode`, `Sound`, `Timeline`, `CombTransition`, `WipeTransition`,
+    `shape`, `index`.
+  - `commodetto/`: `outline`, `parseBMF`, `readJPEG`, `ReadPNG`, … (font/image
+    decode — relevant to the custom-fonts tutorial part).
 
 ### Test/verification infrastructure (owner ask, 2026-07)
 - **Smoke catalog + runner.** Today's automated gate is `npm run verify`
@@ -104,12 +131,14 @@ Priority order the owner set; each is expanded in its own section below.
   the owner wants.
 
 ### Genuinely NEW ideas (owner, 2026-07)
-- **Speech-to-text for todo entry.** The watch has a mic; PebbleOS/Pebble had
-  a *Dictation* API (`DictationSession`) in the classic SDK. FEASIBILITY
-  UNKNOWN on the Moddable/Alloy mod surface — research whether Alloy exposes
-  dictation (or PKJS can bridge phone speech recognition) before promising it.
-  If reachable, it pairs perfectly with the `textinput` todo example. Do a
-  research pass first (Rule 2 — don't claim it works until measured).
+- **Speech-to-text for todo entry — LIKELY REACHABLE.** `@moddable/typings`
+  ships `pebble/dictation.d.ts` (2026-07 finding), so Alloy exposes a
+  dictation API on the mod surface — not just the classic-SDK
+  `DictationSession`. NEXT: vendor `pebble/dictation.d.ts`, read its shape,
+  wire a minimal "hold to dictate → append to todo" onto the `textinput`
+  example, device-verify on the emulator (mic may be stubbed there — may need
+  the real watch). Pairs perfectly with the todo example. Still Rule 2: don't
+  claim it works until measured, but the typing existing is a strong signal.
 - **Tighten `JSX.Element` from `any` → `JSXNode`.** `globals.d.ts` currently
   declares `JSX.Element = any` (the loosest legal JSX contract). React uses
   `ReactElement`, Solid a big renderable union; our principled type is the
