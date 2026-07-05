@@ -31,7 +31,15 @@ strictly ordered except the "next batch".
 
 **DX:**
 - [ ] `defineApp` / `root.tsx` typesafe entry (tsrafce-style, generic props)
-- [ ] tighten `JSX.Element` `any` → `JSXNode`
+- [ ] tighten `JSX.Element` `any` → precise — TRIED 2026-07, harder than it
+      looked. `= object` typechecks OUR repo clean but BREAKS the consumer
+      smoke (a JSX element as `object` is not assignable to a `JSXNode` slot:
+      `object ⊄ Content | primitives | array`). The correct type is the
+      runtime's `Content`/`JSXNode`, but those live in a MODULE — referencing
+      them from `globals.d.ts` needs an `import`, which turns the ambient file
+      into a module and drops the `JSX`/`importNow` GLOBALS. So it's a
+      restructure (e.g. a triple-slash `/// <reference>` or a global re-export
+      of `Content`), not a one-liner. Deferred; `any` stays for now.
 - [ ] tutorial: teach BOTH state placements (module-scope vs in-component)
 
 **Tutorial + docs:**
