@@ -51,7 +51,7 @@ ran; "firmware" = fixed by the Moddable/Pebble build, not ours to change.
 | XS **chunk heap** | 8192 B initial, GC-compacted, grows within the arena | measured | yes | bytes here (typed arrays) |
 | XS machine **total** | **32768 B** (slot+chunk+stack, firmware-cloned) | measured, firmware | yes | the whole budget |
 | Mod archive **boot cost** | no fixed byte ceiling — costs SLOTS (symbols, modules) + CHUNK (bytecode/data), see "The boot floor" below | measured (2026-07 matrix; supersedes the old "~15.9KB ceiling" — README gotcha 15 correction) | ROM | yes, indirectly: every archive symbol interns at boot; every module costs records + 2 ids |
-| Native **app heap** | ~122–130 KB | measured (this project) | yes | no (separate heap) |
+| Native **app heap** | ~122–130 KB; holds the mod ARCHIVE + Poco/framebuffer — NOT per-Piu-node structs (measured flat vs node count, 2026-07) | measured (this project) | yes | no (separate heap) |
 | Flash **resource area** | 256 KB, read-only | firmware (device manifest) | ROM | no — `Resource` views it in place |
 | **localStorage** (PKJS bridge) | per-key/-app cap **UNVERIFIED** — measure before relying on a size | needs a probe | persistent | no (native/phone side) |
 | **Background worker** (C only) | 10.5KB, separate pool | measured via examples/worker | no (no XS: `pebble_worker.h` lacks the Moddable API — compile-error receipt; and workers can't read resources, where XS bytecode lives) | persists via shared `persist_*` KV |
@@ -64,6 +64,32 @@ ceiling, and Rule 2 forbids quoting a limit we didn't measure. If an app needs
 to know, write a probe (grow a stored blob until write fails) and record the
 number here. Do not assume the classic-SDK 4 KB persist cap applies to the
 Moddable localStorage path without checking.
+
+## Piu nodes live in the ARENA, not a second native ledger (2026-07)
+
+We long assumed each Piu node cost TWICE — XS arena slots for the JS half
+AND native app-heap bytes for the C half (layout box, draw state). MEASURED
+and CORRECTED (`tools/gen-native-probe.mts`, N imperative Labels in a Column,
+instruments at idle, fresh emulator per N):
+
+| N labels | App bytes free | Chunk used | Slot used |
+|---|---|---|---|
+| 0  | 114,716 | 5,604 | 9,440 |
+| 40 | 114,664 | 7,824 | 10,208 |
+| 80 | 114,664 | 12,000 | 12,032 |
+
+**App bytes free is FLAT** — byte-identical at 40 and 80 labels — while the XS
+arena (chunk + slot) grows. The Piu content struct is an XS host chunk
+(`xsSetHostChunk`), so it lives INSIDE the 32KB arena, not the ~122-130KB
+native pool. That pool holds the mod ARCHIVE (playbook "Limit bisect round
+3") and Poco's framebuffer/render state — NOT per-node structs. So there is
+ONE node ledger to budget, the arena, and it is the same 32KB we already
+guard. Approximate per-Label arena cost across the range: **~80 B chunk +
+~30 slot-units** (noisy — instruments captures at an arbitrary GC moment; the
+load-bearing, GC-independent result is the flat app-heap). Practical import:
+a big flat list still dies in the ARENA (why `For`/VirtualList recycle O(1
+screen) of cells), and the native pool is not a second wall to worry about
+until the archive itself approaches it.
 
 ## The boot floor — slots and symbols, not archive bytes (2026-07 matrix)
 

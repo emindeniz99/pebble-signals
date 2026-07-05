@@ -372,14 +372,16 @@ big for one arena lifetime. To research (in order):
 4. Trigger path: JS asks C to restart (AppMessage-to-self? a persist flag +
    exit? an FFI hook?) — the FFI gotcha (#17, slot budget) applies.
 
-## Piu native node halves — measure the SECOND ledger (owner ask, tracked late)
-Every Piu node costs TWICE: XS arena slots for the JS half AND native app-heap
-bytes (~122-130KB pool) for the C half (layout box, draw state). We budget the
-arena carefully but have never measured per-node NATIVE cost — if a big app
-ever exhausts the native pool, symptoms would blame the wrong ledger. Do a
-Rule-2 pass: Heap Usage log deltas (`process_manager` prints Total/Used on
-exit) across N-label apps -> bytes/node native. Low urgency (native pool is
-~4x the arena and nodes are few) but the number belongs in the playbook table.
+## ~~Piu native node halves — measure the SECOND ledger~~ MEASURED 2026-07: no second ledger
+We assumed each Piu node cost TWICE — XS arena slots AND native app-heap bytes
+for the C half. MEASURED and OVERTURNED (`tools/gen-native-probe.mts`, N Labels
+in a Column, instruments at idle, fresh emulator per N): **App bytes free is
+FLAT vs node count** (byte-identical 114,664 at 40 and 80 labels) while the XS
+arena chunk+slot grows (~80 B chunk + ~30 slot-units per Label). The Piu content
+struct is an XS host chunk (`xsSetHostChunk`) — it lives in the 32KB arena, not
+the ~122-130KB native pool, which holds only the mod archive + Poco framebuffer.
+So there is ONE node ledger (the arena we already guard), not two. Full table +
+mechanism in playbook "Piu nodes live in the ARENA, not a second native ledger".
 
 ## ~~Hand-Piu + JSX coexistence example~~ ✅ SHIPPED (owner ask 2026-07)
 
