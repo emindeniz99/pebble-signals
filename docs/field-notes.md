@@ -508,6 +508,64 @@ one subtree and keeps the rest of the UI alive. We built it in `flow.ts`.
   build/re-run catch, fallback+reset, nesting, escalation,
   sibling-stays-alive, and the re-entrancy guard all covered.
 
+**Round 5 — the A/B exoneration, the dead-import discovery, and the
+LIVE receipt.** Three findings, in the order the evidence forced them:
+
+- *EB is exonerated — measured, not argued.* The decisive experiment
+  Round 4 skipped: rebuild `navreactive` with the PRE-ErrorBoundary
+  runtime (`git checkout eb7738a -- signals.ts flow.ts`; 149 sym /
+  14.9KB — the exact code that booted it in earlier sessions) and boot
+  it TODAY. It dies identically ("Install an app to continue"). So the
+  EB work never caused the floor; this session's floor is <149 for
+  reasons outside the repo. (EB's runtime cost to flow apps was still
+  real — navreactive 149→151, +681B — which kept the move worthwhile.)
+- *The move, and the trap behind it.* ErrorBoundary moved from flow.ts
+  into jsx-runtime so an EB-only app ships two runtime modules, not
+  three. First measurement: watchface — which uses NO ErrorBoundary —
+  jumped 144→153 symbols (+540B). Root cause, a genuine pipeline hole:
+  esbuild's DCE deleted the EB code from watchface's jsx-runtime-min but
+  KEPT the now-dead import specifiers (an external import isn't provably
+  pure), and the per-app export prune computed its keep-sets from the
+  PRE-DCE builds — so signals kept withBoundary/getBoundary/track/
+  untrack alive for every app, and the fatter module pushed the
+  minifier's top-level identifier allocation into un-interned uppercase
+  letters (G/H/M/V/W). Two layered fixes: (1) EB's helpers moved INSIDE
+  the component arrow (function-local names never intern — module-scope
+  bindings do, via their minified names); (2) a new build pass,
+  `tools/import-prune-min.mts`, drops post-DCE dead import specifiers
+  (AST check — a `.G` property access never counts as a use), and
+  build.mts now emits runtime-min in REVERSE-topological order (flow →
+  jsx-runtime → signals), reading each module's keep-set from the
+  already-pruned MIN siblings instead of the raw builds. Watchface came
+  back to EXACTLY 144/13970B, and the pass even cleaned a PRE-EXISTING
+  leak: every flow app had been shipping flow's dead import wires.
+- *The live receipt (gabbro, tools/drive.py).* The `boundary` example —
+  now 2 modules, 149 tool-count (4 of which are symdiet pool names the
+  host already interns — the tool counts them, boot doesn't pay them),
+  15.3KB — BOOTS, and the full Solid contract ran on the watch:
+  "n=0/ok0" → up×3 → the wrapped label throws at n=3 → fallback
+  "X: n3" swaps in while the sibling line OUTSIDE the boundary keeps
+  updating (n=2, n=3…) → the fallback HOLDS until reset → select
+  (reset) remounts the healed children ("ok2") → up re-breaks it on
+  cue. `screenshots/eb-live-gabbro.png` → `eb-caught-gabbro.png` →
+  `eb-reset-gabbro.png`. The lesson stack, one line each: measure the
+  counterfactual before assigning blame; a "count" that mixes free and
+  costly symbols is a correlate, not the mechanism; and every
+  whole-pipeline optimization needs its dual (export prune needed
+  import prune).
+
+**Sink → root-boundary merge: ANALYZED & REJECTED (owner asked).** The
+tempting refactor — make render()'s crash handler just the ROOT of the
+`Graph.c` boundary chain and delete the sink — re-creates the sink under
+another name: effects created OUTSIDE any build/run (timer callbacks)
+carry no boundary tag, so routing their errors to the crash screen needs
+a global fallback field (that IS the sink); inner boundaries deliberately
+skip logging while the terminal must log (the never-lose-the-log
+invariant), so report() would need to distinguish root from inner
+handlers anyway; and the handler signatures differ (formatted message vs
+raw error). React draws the same line — per-subtree boundaries vs
+`createRoot`'s `onUncaughtError` options. Two tiers, kept.
+
 ## 6. Us vs. the official docs
 
 Where our empirical work landed relative to `mods.md`:

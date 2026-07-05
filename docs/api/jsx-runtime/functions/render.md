@@ -8,7 +8,7 @@
 
 > **render**(`build`, `dict?`, `opts?`): `Application`
 
-Defined in: jsx-runtime.ts:377
+Defined in: jsx-runtime.ts:390
 
 Mount a JSX tree as the Piu Application. `build` runs under a root owner.
 

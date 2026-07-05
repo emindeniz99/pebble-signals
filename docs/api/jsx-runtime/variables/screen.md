@@ -8,7 +8,7 @@
 
 > `const` **screen**: `object`
 
-Defined in: jsx-runtime.ts:358
+Defined in: jsx-runtime.ts:371
 
 RN-Dimensions-style screen info (size/round/color); valid once [render](../functions/render.md) has started.
 

@@ -8,7 +8,7 @@
 
 > **DataSource**\<`T`\> = `object`
 
-Defined in: flow.ts:78
+Defined in: flow.ts:62
 
 Anything with `count()` and `get(i)` — an array wrapper, the byte store, a lazy fetcher.
 
@@ -24,7 +24,7 @@ Anything with `count()` and `get(i)` — an array wrapper, the byte store, a laz
 
 > **count**(): `number`
 
-Defined in: flow.ts:79
+Defined in: flow.ts:63
 
 #### Returns
 
@@ -36,7 +36,7 @@ Defined in: flow.ts:79
 
 > **get**(`i`): `T`
 
-Defined in: flow.ts:80
+Defined in: flow.ts:64
 
 #### Parameters
 

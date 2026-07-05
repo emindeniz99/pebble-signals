@@ -8,7 +8,7 @@
 
 > **animate**(`from`, `to`, `ms`, `easing?`): `Tween`
 
-Defined in: flow.ts:586
+Defined in: flow.ts:478
 
 ## Parameters
 

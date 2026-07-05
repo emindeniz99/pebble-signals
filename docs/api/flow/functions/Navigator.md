@@ -8,7 +8,7 @@
 
 > **Navigator**(`props`): `Container`
 
-Defined in: flow.ts:475
+Defined in: flow.ts:367
 
 ## Parameters
 

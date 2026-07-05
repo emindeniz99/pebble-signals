@@ -8,7 +8,7 @@
 
 > **jsx**(`type`, `props`): [`JSXNode`](../type-aliases/JSXNode.md)
 
-Defined in: jsx-runtime.ts:40
+Defined in: jsx-runtime.ts:53
 
 JSX factory (automatic runtime). Host Piu type → real node; function → component call.
 

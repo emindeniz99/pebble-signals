@@ -129,12 +129,42 @@ strictly ordered except the "next batch".
       this session, NOT the intermittent wedge (corrected in field-notes §5b).
       Pulling flow's ErrorBoundary costs ~2 boot symbols + ~2KB — inherent,
       like any flow component. (c) `defineApp` boundary-default toggle: future.
-- [ ] error boundary residual (c-cont): land the `boundary` example's live
-      catch/reset screenshot — needs EITHER a healthier emulator/firmware floor
-      (historical richlist booted at 149) OR shaving the example under ~145 sym
-      (candidate: move ErrorBoundary from flow.ts into jsx-runtime so an EB app
-      doesn't pull a separate flow module record). Behavior itself is already
-      pinned by 364 tests + conformance Law 26 on real XS.
+- [x] ~~error boundary residual (c-cont): live catch/reset receipt~~ **DONE
+      (2026-07): `<ErrorBoundary>` LIVE on gabbro.** Three moves landed it:
+      (1) A/B EXONERATION — navreactive rebuilt with the PRE-EB runtime
+      (149 sym / 14.9KB) also fails to boot this session, so EB never caused
+      the floor; the session floor itself is <149 (environmental). (2) the
+      MOVE: ErrorBoundary now lives in jsx-runtime (no flow module record for
+      EB-only apps). First cut REGRESSED watchface 144→153: DCE deleted the
+      EB code but esbuild kept the now-dead import specifiers, and the export
+      prune — which read keep-sets from the PRE-DCE builds — kept
+      withBoundary/getBoundary/track/untrack alive in signals for every app.
+      (3) the FIX, a new build pass: `tools/import-prune-min.mts` drops
+      import specifiers whose local has zero AST references post-DCE, and
+      build.mts now emits runtime-min in REVERSE-topological order (flow →
+      jsx-runtime → signals), computing each module's keep-set from the
+      already-pruned MIN siblings — post-DCE truth, not source claims.
+      Watchface back to EXACTLY 144/13970B; the pass even cleans flow's
+      pre-existing dead imports for every flow app. RECEIPTS (gabbro,
+      tools/drive.py): boundary example (149 tool-count incl. 4 free symdiet
+      pool names, 15.3KB) boots — ok0 → up×3 → fallback "X: n3" with the
+      OUTSIDE sibling still updating → fallback holds until reset → select
+      remounts healed children "ok2" → re-breaks on cue
+      (`screenshots/eb-live-gabbro.png`, `eb-caught-gabbro.png`,
+      `eb-reset-gabbro.png`). 371 tests / 100% cov / 26 laws / all smokes.
+- [x] ~~sink → root-boundary merge (single error mechanism)~~ **ANALYZED &
+      REJECTED (2026-07).** Folding render()'s terminal sink into the
+      `Graph.c` boundary chain looks cleaner but re-creates the sink under
+      another name: (a) effects created OUTSIDE any build/run (timer
+      callbacks) carry no boundary tag — routing their errors to the crash
+      screen requires a GLOBAL fallback field, which is the sink; (b) inner
+      boundaries deliberately don't log while the terminal MUST (the
+      never-lose-the-log invariant) — a root-as-boundary forces report() to
+      distinguish root from inner handlers, two kinds again; (c) the sink
+      receives the formatted message, boundary handlers the raw error. Two
+      tiers are structurally real (React splits the same way: per-subtree
+      boundaries vs createRoot's onUncaughtError). Keeping the shipped,
+      device-verified design.
 - [ ] **Visible dev-log bridge (design):** on RELEASE firmware JS `trace` is
       a no-op (xsHost.c: visible lines are C-side `modLog_transmit`/APP_LOG;
       probes confirmed console.log/trace never reach `pebble logs` from a

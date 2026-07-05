@@ -8,7 +8,7 @@
 
 > **BoxProps** = `object`
 
-Defined in: flow.ts:46
+Defined in: flow.ts:37
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: flow.ts:46
 
 > `optional` **bottom?**: `number`
 
-Defined in: flow.ts:52
+Defined in: flow.ts:43
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: flow.ts:52
 
 > `optional` **height?**: `number`
 
-Defined in: flow.ts:48
+Defined in: flow.ts:39
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: flow.ts:48
 
 > `optional` **left?**: `number`
 
-Defined in: flow.ts:49
+Defined in: flow.ts:40
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: flow.ts:49
 
 > `optional` **right?**: `number`
 
-Defined in: flow.ts:50
+Defined in: flow.ts:41
 
 ***
 
@@ -48,7 +48,7 @@ Defined in: flow.ts:50
 
 > `optional` **skin?**: `Skin` \| `SkinDictionary`
 
-Defined in: flow.ts:53
+Defined in: flow.ts:44
 
 ***
 
@@ -56,7 +56,7 @@ Defined in: flow.ts:53
 
 > `optional` **style?**: `Style` \| `StyleDictionary`
 
-Defined in: flow.ts:54
+Defined in: flow.ts:45
 
 ***
 
@@ -64,7 +64,7 @@ Defined in: flow.ts:54
 
 > `optional` **top?**: `number`
 
-Defined in: flow.ts:51
+Defined in: flow.ts:42
 
 ***
 
@@ -72,4 +72,4 @@ Defined in: flow.ts:51
 
 > `optional` **width?**: `number`
 
-Defined in: flow.ts:47
+Defined in: flow.ts:38

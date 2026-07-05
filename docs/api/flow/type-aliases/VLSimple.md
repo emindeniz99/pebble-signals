@@ -8,7 +8,7 @@
 
 > **VLSimple**\<`T`\> = `VLBase`\<`T`\> & `object`
 
-Defined in: flow.ts:88
+Defined in: flow.ts:72
 
 ## Type Declaration
 

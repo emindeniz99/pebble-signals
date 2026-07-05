@@ -8,4 +8,4 @@
 
 > **JSXNode** = `PiuContent` \| `string` \| `number` \| `boolean` \| `null` \| `undefined` \| `JSXNode`[]
 
-Defined in: jsx-runtime.ts:13
+Defined in: jsx-runtime.ts:26

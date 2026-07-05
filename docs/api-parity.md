@@ -33,7 +33,7 @@ with Solid's primitives, not identical signatures to React's.
 | `mergeProps` / `splitProps` | Solid | 🔴 props are plain objects; not needed |
 | `animate()` / transitions | Reanimated / Solid `Tween` libs | ✅ SHIPPED `animate(from,to,ms,easing?)` in flow.js |
 | `Suspense` | React/Solid | 🔴 no async render |
-| `ErrorBoundary` | Solid | ✅ SHIPPED, two layers: a DEFAULT top-level crash screen from `render()` (opt out `{boundary:false}`) AND Solid's opt-in `<ErrorBoundary fallback={(err,reset)=>…}>` per subtree (`runtime/flow`); `__spError` overrides both |
+| `ErrorBoundary` | Solid | ✅ SHIPPED, two layers: a DEFAULT top-level crash screen from `render()` (opt out `{boundary:false}`) AND Solid's opt-in `<ErrorBoundary fallback={(err,reset)=>…}>` per subtree (`runtime/jsx-runtime`, device-verified live); `__spError` overrides both |
 
 ## Not a React drop-in — say so
 
