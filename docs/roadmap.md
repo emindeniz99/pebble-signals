@@ -36,6 +36,21 @@ Priority order the owner set; each is expanded in its own section below.
 10. **CloudPebble tiers 1→2→3** — see the CloudPebble section; tier 2
     (browser layout preview) is the one we can build ourselves.
 
+### Bug found while writing the watchface tutorial (2026-07) — INVESTIGATE
+- **Module-scope `computed` read in a JSX `string={}` thunk renders BLANK
+  on-device.** Repro: the tutorial watchface with
+  `const greeting = computed(() => hh() < 12 ? "…" : "…")` and
+  `<Label string={() => greeting()} />` boots healthy (0 aborts, live
+  instruments) but paints nothing; the byte-identical app with a plain
+  `useState` greeting set inside `tick()` renders fine (device-verified,
+  "good morning / 09:02 / …"). Also black with `--no-lower`, so it is NOT the
+  lowering. `computed` IS covered by the XS conformance laws, so suspect the
+  specific combination: module-scope computed + read inside a Label thunk +
+  a `useState`-sourced dependency. Isolate with a minimal cell (computed of a
+  `signal()` vs of a `useState` getter; module-scope vs inside the render
+  builder), add a conformance/example repro, then fix. The tutorial routes
+  around it (derive-in-updater) and says so in part 3.
+
 ### Genuinely NEW ideas (owner, 2026-07)
 - **Speech-to-text for todo entry.** The watch has a mic; PebbleOS/Pebble had
   a *Dictation* API (`DictationSession`) in the classic SDK. FEASIBILITY
@@ -53,6 +68,29 @@ Priority order the owner set; each is expanded in its own section below.
 - **Vendor `modules.d.ts`** (Moddable's `Modules.importNow`/`has`/`host`/
   `archive`) into `types/moddable/` via `sync-moddable-typings.sh`, so the
   mod API is typed from the real source instead of our hand-declared global.
+- **`tutorials/` folder — "Build a watchface in signal-piu".** Mirror the
+  shape of coredevices/alloy-watchface-tutorial (working example source +
+  step-by-step MD guides), but original signal-piu content. Structure:
+  `tutorials/build-a-watchface/{README.md, part1…3.md, src/watchface.tsx}`.
+  Part 1 a reactive ticking clock, Part 2 date + layout/styles, Part 3 a
+  live complication (fine-grained update — only the changed Label repaints).
+  Device-verified on gabbro + emery. STARTED 2026-07.
+- **`deviceinfo` example — show everything the Pebble host injects.** A screen
+  that surfaces `device.info` (serialNumber, language), `device.sensor`,
+  `device.keyValue` round-trip, and platform (gabbro/emery) — both a demo and
+  a probe of what the emulator actually returns vs. real hardware. `keyValue`
+  is the proper persist path (vs. localStorage); worth adopting in examples.
+- **Flags-OFF smoke test.** Every heavy transform is a flag (LOWER/PRUNE/
+  SQUASH/SYMDIET/MINIFY, all default-ON). We have NO test that the OFF path
+  still builds and boots — so a regression in the un-optimized path would go
+  unnoticed until someone flips a flag to debug. Add a smoke build with all
+  optimizations off (`--no-lower --no-prune --no-squash --no-symdiet
+  --no-minify`) that installs on gabbro and confirms the app renders.
+- **SDK currency note (2026-07):** we build on Pebble SDK 4.17 (Moddable
+  tools 8.2.3). Upstream Moddable shipped 7.1 (ES2026) + 8.0 (ESP-IDF v6) in
+  early 2026; coredevices/moddable trails upstream public by ~49 commits. Not
+  our lever — we use whatever `pebble` installs — but track it: a Pebble SDK
+  bump could move the arena story (see the heap-sizing retest).
 
 ## Big in-flight tracks
 

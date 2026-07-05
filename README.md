@@ -79,6 +79,7 @@ square screenshots below come from identical `.tsx`.
 |-----|----|--------|:---:|:---:|
 | `list` (default) | dynamic mixed-type list, 3-row window, PERSISTED | store + windowing + buttons + localStorage | ✅ `ex-list-persisted.png` | ✅ `em-list.png` |
 | `clock` | ticking HH:MM:SS watchface + date | `Date`, `setInterval`, Bitham + Gothic styles | ✅ `ex-clock.png` | ✅ `em-clock.png` |
+| `watchface` | greeting + HH:MM + seconds/date face | fine-grained: same-value writes skip repaint (tutorial) | ✅ gabbro-verified | (same source) |
 | `counter` | classic up/down counter | `useState` + button handlers | ✅ `ex-counter.png` | ✅ `em-counter.png` |
 | `toggle` | ON/OFF with live skin+style flip | reactive `skin`/`style` setProp path | ✅ `ex-toggle-on.png` | ✅ `em-toggle-on.png` |
 | `forbind` | 3 reactive `For` rows (gotcha-16 testbed) | reactive bindings INSIDE For rows | ✅ `ex-forbind-boot.png` / `ex-forbind-updated.png` | ✅ `em-forbind.png` |
