@@ -33,10 +33,44 @@ Numbers below are measured on gabbro/SDK 4.17 unless marked est.
 | String character data | Latin-1 strings = 1 B/char in chunk (+ slot header). |
 | Array element blocks | contiguous; cheaper than objects but still slot-adjacent. |
 
-### Stack (~6KB, fixed)
+### Stack (6144 B = 384 slots, fixed) — the THIRD budget
 
-Deep recursion (reconcile over deep trees) is the risk; our runtime keeps
-recursion shallow (appendChild recurses over children arrays only).
+The XS **value stack**: a fixed array of `txSlot`s (16 B each) that holds live
+CALL FRAMES, not objects. Every JS function call pushes a frame (callee, this,
+args, locals, temporaries); nested calls stack; exceeding **384 slots** aborts
+with `fxAbort JavaScript stack overflow` (a DIFFERENT abort than
+`memory full`, and — on a mod — equally silent to the launcher). Firmware-fixed
+at machine creation; a mod cannot grow it (creation ignored).
+
+**Measured (navreactive, gabbro, 2026-07 — the Round 7 finding):** a
+`Navigator` over a two-Label reactive screen peaks at a sampled
+**6128 / 6144 B = 383 / 384 slots (99.7 %)** at its INITIAL render, then
+settles to 2592 B (162 slots) forever after. It was ONE slot from the wall;
+before the fix it went over and died silently at boot. See
+`docs/postmortem-navreactive-stack.md` for the full story.
+
+Why it is real (the old note here — "our runtime keeps recursion shallow" —
+was WRONG for Navigator): the deepest chain is the initial
+`render → createRoot → build → … → jsx(Navigator) → swap → NESTED createRoot →
+screen → jsx → createHost → effect → run → thunk → signal`. Navigator opens a
+second owner scope INSIDE render's build, ~doubling the chain; the 2026-07
+error-handling round added a frame or two to the universal leaf. Fix was to
+inline `asNode` in `swap()` (−2 frames = the whole margin).
+
+**How to watch it:** the `instruments:` line's fields 12/13 are `Stack used` /
+`Stack available` in bytes — read them like Slot used/available. `Stack used`
+climbing toward 6144 = a depth problem coming. `Stack available` is a constant
+6144 (the fixed total, not a remaining count). `Stack used` is INSTANTANEOUS
+(it spikes at render then drops), so the true transient peak is ≥ the sampled
+value.
+
+**Design rules:** keep the initial render tree shallow; every wrapper fn in the
+render path is a permanent per-screen depth tax; control-flow nodes (Show/For/
+Navigator) should reach their children in as few frames as possible; avoid
+opening a nested `createRoot` inside another build unless you must (Navigator
+does — it is the deep case). `appendChild` recursing over children arrays is
+fine — arrays are shallow and the tree is built bottom-up (each `jsx()` returns
+before its parent's runs), so JSX nesting does NOT stack.
 
 ## Memory partitions — the size table
 

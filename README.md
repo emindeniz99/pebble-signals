@@ -298,6 +298,15 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
   32K/32K requests produce byte-identical instrumentation. Only `.flags`
   (instrumentation logging, debug) takes effect. There is no manifest
   `creation` route for mods either.
+- **Watch the STACK, not just the heap — it is a third, separate boot-death
+  budget.** That `6144B stack` is `384 slots` (16B each) of XS *call frames*,
+  and a render that recurses too DEEP aborts with `fxAbort JavaScript stack
+  overflow` (≠ `memory full`), silently, at boot. Measured: a `Navigator` over
+  a reactive screen peaks at **383/384 slots (99.7%)** at its initial render
+  (fixed by shaving two frames off the deep path). Keep the initial render
+  tree shallow; every wrapper fn in the render path is a permanent per-screen
+  depth tax. Gauge it live via `instruments:` fields 12/13 (`Stack used` /
+  `available`). Full write-up: `docs/postmortem-navreactive-stack.md`.
 - **Piu nodes are comparatively cheap for the arena** (their weight lands in
   the 122KB native app heap); closures, signals, effects, behavior handlers
   and module records are what exhaust the 32KB. Budget accordingly.

@@ -649,8 +649,14 @@ Navigator's nested `createRoot` (build the first screen without opening a
 second owner scope inside render's build), then trimming frames in the
 universal `effect → run → fn` leaf.
 
-**FIXED (same round).** The margin was TWO frames. `Navigator.swap()` built
-its screen via `appendChild(wrapper, asNode(() => build(nav)))` — the
+**FIXED (same round).** The margin was TWO frames — because the app runs at
+the very edge of the fixed stack. **Measured:** the XS value stack is
+6144 B = 384 slots (16 B/slot), constant every heartbeat; navreactive's
+initial render peaks at a sampled **6128 B = 383/384 slots (99.7 %)** then
+settles to 2592 B (`instruments:` fields 12/13, `Stack used`/`available`;
+full numbers + reasoning in `docs/postmortem-navreactive-stack.md`).
+`Navigator.swap()` built its screen via
+`appendChild(wrapper, asNode(() => build(nav)))` — the
 `asNode` call plus its `() => build(nav)` arg-arrow are two stack frames,
 and the INITIAL swap runs deepest (inside render's build). Inlining
 asNode's auto-thunk unwrap so `build(nav)` is called directly from the
