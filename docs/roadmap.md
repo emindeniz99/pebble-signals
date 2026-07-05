@@ -180,19 +180,30 @@ strictly ordered except the "next batch".
       `effect → run → fn` leaf trim is unnecessary for navreactive — left for a
       future deeper app. Lesson: an extra wrapper fn in the render path is not
       free on a mod (a control-flow-node design constraint now, not a bug).
-- [~] **SYMBOL diet — for the boot floor (NOT navreactive). Round 8, partly done.**
-      DONE & measured (navmany 44 → 34 true new-to-host, −10 boot slots):
-      Graph field rename to host-known letters (−9) + `__SP_CRASH_UI__` define
-      fix (−1). See field-notes Round 8. STILL OPEN, lower value:
-      (a) flow module-scope helpers (makeHost/wrapSide/asNode) → component-local
-      + fold the ticker consts (the EB round measured that shape at −5 symbols
-      on a flow-heavy app — re-measure with the corrected new-to-host method);
-      (b) `Signal.v` → a free letter (−1, check packed-API collisions);
-      (c) widen the export-rename pool / add a host-known target for `computed`;
-      (d) BIG but hard — a custom esbuild mangle charset so minified identifiers
-      prefer the free set (`E b c e f h i m r s t w x y z`); ~half the remaining
-      34 are esbuild's `A B C D G I…`/`a d g j k…`. Removes symbols/bytes, not
-      stack frames — does NOT win navreactive back (that was Round 7's depth).
+- [~] **SYMBOL diet — for the boot floor (NOT navreactive). Round 8; property
+      floor reached.** DONE & measured (navmany 44 → 34 true new-to-host, −10
+      boot slots): Graph field rename to host-known letters (−9) +
+      `__SP_CRASH_UI__` define fix (−1). See field-notes Round 8.
+      Two more levers ATTEMPTED & REJECTED (measured, Round 8b):
+      - `Signal.v` (+ `Context.v`) → free letter: **0 gain, reverted.** The `v`
+        in the archive is esbuild's minified module-scope IDENTIFIER, not the
+        `.v` property — renaming the only two source-level `.v` left `v` in the
+        symbol table (confirmed: no `.v` in the shipped runtime-min). Not a
+        source property, so not renameable this way.
+      - flow helpers (makeHost/wrapSide/asNode) → component-local: **net-negative.**
+        All are SHARED (5/4/4 call-sites), so delocalizing means 4-5 duplicated
+        copies + that many extra function objects at load. The EB round's −5 only
+        worked because ebHost/ebWrap were SINGLE-use (zero duplication).
+      The remaining ~34 are dominated by esbuild's minified module-scope
+      identifiers (`A B C D G I…`/`a d g j k…` — not host-interned). The ONLY
+      lever left is **(d) an AST charset-remap pass**: after minify, rename those
+      top-level identifiers to the free host-known set (`E b c e f h i m r s t w
+      x y z` — same atoms as Graph's props, so free to reuse; identifiers and
+      properties share the symbol table). Potential −15…−20, but needs a
+      scope-aware TS-compiler-API pass (can't string-replace `a`→`b`) with real
+      test coverage — a proper tool, its own task, real bug risk. Removes
+      symbols/bytes, not stack frames — does NOT win navreactive back (Round 7
+      depth).
 - [x] ~~sink → root-boundary merge (single error mechanism)~~ **ANALYZED &
       REJECTED (2026-07).** Folding render()'s terminal sink into the
       `Graph.c` boundary chain looks cleaner but re-creates the sink under
