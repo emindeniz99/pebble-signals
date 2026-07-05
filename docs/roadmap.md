@@ -167,19 +167,19 @@ strictly ordered except the "next batch".
       even when an `<ErrorBoundary>` catches it (was a deliberate skip);
       `__spError` still owns its own logging. Pinned in signals.test;
       device re-verified (boundary catches at n=3 unchanged).
-- [ ] **render-path DEPTH diet — the ACTUAL cure for navreactive (Round 7).**
-      navreactive does NOT die of the boot-slot floor — it dies of the mod's
-      fixed JS VALUE-STACK depth (`fxAbort JavaScript stack overflow`, proven
-      by mix-and-match runtime builds: 659c47c boots, but new-jsx-alone AND
-      new-signals/flow-alone each overflow → marginal depth, not one bad line;
-      see field-notes Round 7 + debugging.md). The mod cannot grow the stack
-      (creation ignored). Cure = REDUCE render→effect call depth. Highest
-      leverage: Navigator's `swap()` opens a NESTED `createRoot` inside
-      render's own build (~doubles the deepest chain) — build the first screen
-      without a second owner scope, or defer it to a shallow context. Then trim
-      frames in the universal `effect → run → fn` leaf (bindings sit at max
-      depth). MUST measure per-cut on device (Node stubs can't overflow; a
-      crash screen ALSO emits heartbeats, so screenshot to confirm real render).
+- [x] ~~**render-path DEPTH diet — the ACTUAL cure for navreactive (Round 7).**~~
+      **DONE & device-verified (Round 7).** navreactive died of the mod's fixed
+      JS VALUE-STACK depth (`fxAbort JavaScript stack overflow`), NOT the
+      boot-slot floor — proven by mix-and-match runtime builds (659c47c boots;
+      new-jsx-alone AND new-signals/flow-alone each overflow → marginal depth).
+      Fix: `Navigator.swap()` built its screen via `asNode(() => build(nav))`;
+      inlining asNode's auto-thunk unwrap (call `build(nav)` directly from the
+      `createRoot` body — behaviour-identical) removed TWO stack frames, which
+      was the entire margin. navreactive now BOOTS on gabbro (Round 2) AND
+      emery (Time 2); push/pop navigation verified; 372 tests green. The
+      `effect → run → fn` leaf trim is unnecessary for navreactive — left for a
+      future deeper app. Lesson: an extra wrapper fn in the render path is not
+      free on a mod (a control-flow-node design constraint now, not a bug).
 - [ ] **flow-module SYMBOL diet — for the boot floor (NOT navreactive).**
       Squash flow's module-scope helper bindings into the component arrows
       (the EB round measured that trick at −5 symbols), fold the ticker consts,

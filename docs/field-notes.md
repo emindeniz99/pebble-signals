@@ -647,8 +647,23 @@ floor, but it is NOT navreactive's cure. (c) Winning navreactive back means
 REDUCING render-path call depth — the highest-leverage single cut is
 Navigator's nested `createRoot` (build the first screen without opening a
 second owner scope inside render's build), then trimming frames in the
-universal `effect → run → fn` leaf. Tracked as its own roadmap item;
-NOT a quick patch (needs a per-cut on-device depth measurement).
+universal `effect → run → fn` leaf.
+
+**FIXED (same round).** The margin was TWO frames. `Navigator.swap()` built
+its screen via `appendChild(wrapper, asNode(() => build(nav)))` — the
+`asNode` call plus its `() => build(nav)` arg-arrow are two stack frames,
+and the INITIAL swap runs deepest (inside render's build). Inlining
+asNode's auto-thunk unwrap so `build(nav)` is called directly from the
+`createRoot` body (behaviour-identical) removed exactly those two frames —
+and navreactive now BOOTS on **gabbro (Round 2)** AND **emery (Time 2)**:
+"depth 1 / ping N", select→"depth 2", back→"depth 1", ping ticking
+throughout (screenshots/navreactive-depth-fix-{gabbro,emery}.png,
+-push-gabbro.png). Two frames being the entire difference is the loudest
+possible confirmation that this is a marginal-depth budget — and the lesson
+for every control-flow node: an extra wrapper fn in the render path is not
+free on a mod. 372 tests still green (asNode is a pure refactor). The
+`effect → run → fn` leaf trim is now unnecessary for navreactive and left
+for a future app that needs more headroom.
 
 ## 6. Us vs. the official docs
 

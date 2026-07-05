@@ -386,10 +386,15 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 				height: props.height || screen.height,
 			});
 			const [tree, d] = createRoot(() => {
-				appendChild(
-					wrapper,
-					asNode(() => build(nav)),
-				);
+				// asNode INLINED (build(nav) called directly, not asNode(() => …)):
+				// the INITIAL swap runs deep inside render()'s build, and every frame
+				// here counts against the mod's fixed JS value stack — a Navigator
+				// over a reactive screen sits near it (field-notes Round 7). Dropping
+				// the asNode call + its arg-arrow shaves two frames from that chain;
+				// the auto-thunk unwrap is identical to asNode's.
+				let s: unknown = build(nav);
+				if (typeof s === "function") s = (s as () => unknown)();
+				appendChild(wrapper, s as JSXNode);
 				return wrapper;
 			});
 			disposeTop = d;
