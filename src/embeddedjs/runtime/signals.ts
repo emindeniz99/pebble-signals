@@ -273,8 +273,13 @@ function notify(e: number): void {
 		// launcher because one binding threw. Override via `globalThis.__spError`.
 		else {
 			const c = (globalThis as { console?: { error(...a: unknown[]): void } }).console;
+			// Pass BOTH a fully-formatted string (type + message + stack, so
+			// nothing is lost even if the host console can't expand objects) AND
+			// the raw error object (so a host console that DOES render objects
+			// shows every extra field). Over-logging is harmless — this path only
+			// runs on an otherwise-silent failure.
 			if (c)
-				c.error("[signal-piu] uncaught in reactive update (effect #" + e + "):\n" + fmtError(err));
+				c.error("[signal-piu] uncaught in reactive update (effect #" + e + "):\n" + fmtError(err), err);
 		}
 	}
 }
