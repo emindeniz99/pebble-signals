@@ -174,6 +174,50 @@ freeze for hosts), or document the intended alternative for RAM-tight
 mod code. This would obsolete an entire class of userland workarounds
 (switch-packing compilers, per-screen module splitting).
 
+## 11. ROOT CAUSE: `mcrun` nulls BOTH escape valves for mods (creation + preload)
+
+Sections 3/4/10 are three faces of one mechanism. `tools/mcrun.js` — the
+mod builder, stock Moddable Tech, not a Pebble patch — does, after parsing
+the manifest:
+
+```js
+this.creation = null;   // the "creation" section is DISCARDED for mods
+this.preloads = null;   // preload is DISCARDED for mods
+```
+
+So the two levers Moddable gives a HOST to control exactly these budgets
+are both unavailable to a mod:
+
+- `"creation": { "keys": {...}, "stack": …, "static": … }` would size the
+  runtime key (symbol) array and the machine — the direct fix for the
+  boot-symbol floor (§3). **Measured (2026-07):** adding a full `creation`
+  block to a mod manifest produces a **byte-identical archive** (navreactive,
+  15,198B, 43 new-to-host symbols, both with and without) — confirming
+  `mcrun` ignores it. A mod inherits the firmware's ONE fixed pre-built
+  machine and cannot resize it.
+- `preload` (freeze modules into the ROM prep via `xsl`) would remove the
+  per-module-object load cost (§10). Nulled, so every mod module executes
+  in the live 32KB machine at load.
+
+The net effect: a mod's only headroom is (a) fewer distinct new-to-host
+symbol names, (b) fewer modules, (c) fewer top-level writable bindings —
+all userland micro-optimizations against a ceiling the mod cannot see or
+raise. A three-module reactive UI (signals + jsx-runtime + flow) plus a
+default error-handling layer already sits at that ceiling on gabbro.
+
+**Ask (concrete, and now tractable since PebbleOS + Moddable are open
+source):** any ONE of —
+1. let a mod's manifest carry a `creation` section through `mcrun` into the
+   archive, and have `moddable_createMachine` honor `keys`/`static` (§1 says
+   the firmware currently validates-then-ignores the record sizes);
+2. implement mod preload (`xsl` already freezes modules for hosts);
+3. raise the firmware's fixed machine defaults (heap 512 +64, keys 32 +32,
+   per the 4.17 gabbro creation struct) — costs static RAM for every app.
+
+Even documenting the exact per-symbol / per-module / per-alias boot budget,
+so a toolchain can refuse the build instead of shipping a silent boot death,
+would remove an entire class of multi-day debugging.
+
 ## Repro availability
 
 All numbers come from XS instrumentation logs
