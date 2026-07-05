@@ -80,12 +80,15 @@ Priority order the owner set; each is expanded in its own section below.
   `device.keyValue` round-trip, and platform (gabbro/emery) — both a demo and
   a probe of what the emulator actually returns vs. real hardware. `keyValue`
   is the proper persist path (vs. localStorage); worth adopting in examples.
-- **Flags-OFF smoke test.** Every heavy transform is a flag (LOWER/PRUNE/
-  SQUASH/SYMDIET/MINIFY, all default-ON). We have NO test that the OFF path
-  still builds and boots — so a regression in the un-optimized path would go
-  unnoticed until someone flips a flag to debug. Add a smoke build with all
-  optimizations off (`--no-lower --no-prune --no-squash --no-symdiet
-  --no-minify`) that installs on gabbro and confirms the app renders.
+- ~~**Flags-OFF smoke test**~~ ✅ DONE (2026-07): `npm run smoke:flags-off`
+  (`tools/flags-off-smoke.mts`) rebuilds `counter` with EACH flag off in turn
+  and asserts a valid mod archive. Finding (measured, device): each flag off
+  INDIVIDUALLY still boots (arena rebalances — counter boots with `--no-prune`
+  alone or `--no-lower` alone, 0 aborts), but ALL off at once **dies**
+  (`fxAbort memory full`, slot heap pinned at 8176) — so `prune`+`lower` are
+  load-bearing for the 32KB fit, not cosmetic. Corrected the field-notes §4
+  overstatement accordingly. (Requires the SDK, so it's separate from the
+  SDK-free `npm run verify`.)
 - **SDK currency note (2026-07):** we build on Pebble SDK 4.17 (Moddable
   tools 8.2.3). Upstream Moddable shipped 7.1 (ES2026) + 8.0 (ESP-IDF v6) in
   early 2026; coredevices/moddable trails upstream public by ~49 commits. Not

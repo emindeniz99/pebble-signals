@@ -164,9 +164,17 @@ Two things worth internalizing:
    your source, never the `.d.ts`, never the local variable. You keep writing
    `import { useState } from "signal-piu"`. The rename is monotonic and
    collision-checked, so at worst it is a no-op; it can never break your code.
-2. **Every optimization is reversible.** If a build misbehaves, flip one flag
-   OFF and you get a plain, readable, correct build. That is how we *isolate*
-   a regression (the #29 boot bug was found by bisecting with `--no-lower`).
+2. **Each optimization is individually reversible — but they are collectively
+   load-bearing for RAM.** Flip ONE flag off and you get a correct build that
+   still *fits* (measured: `counter` boots with `--no-prune` alone, or
+   `--no-lower` alone, 0 aborts — the arena rebalances). That is how we
+   *isolate* a regression (the #29 boot bug was found by bisecting with
+   `--no-lower`). But do **not** read flags-off as a shipping mode: with ALL
+   of them off at once, even the tiny `counter` **dies** with `fxAbort memory
+   full` (measured: slot heap pinned at 8176, exhausted). `prune` (drops the
+   unused runtime) and `lower` (halves slot cost per state) are not polish —
+   they are what makes a saturated app fit in 32 KB. The output is always
+   *correct*; it is not always *small enough*.
 
 ---
 
@@ -184,6 +192,12 @@ mistakes taught more than the wins.
 - **"112–131 KB band, mod AREA size."** A lazy guess with a wrong mechanism.
   The real answer (§2.4) is the app heap, and the edge is a 226-byte window,
   not a round constant.
+- **"Flags-off is always a safe, correct build."** Half true — corrected in
+  §4. Each flag off *individually* still fits, but ALL off at once exhausts
+  the arena (`counter` → `fxAbort memory full`). Found by actually building
+  the all-off path (owner asked "do we test flags-off?"). Lesson: `prune` +
+  `lower` are load-bearing, not cosmetic. Guarded now by `npm run
+  smoke:flags-off`.
 - **"importNow isn't in @moddable/typings."** Wrong. `Modules.importNow` is
   standard Moddable (modules.d.ts, mods.md); Pebble only wraps it as a bare
   global. Corrected in `globals.d.ts`.

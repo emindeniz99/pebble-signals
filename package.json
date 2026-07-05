@@ -81,6 +81,7 @@
     "test": "npm run build:runtime && node --test --experimental-vm-modules tests/*.test.mts",
     "test:xs": "npm run build:runtime && node tools/xstest.mts",
     "test:consumer": "node tools/consumer-smoke.mts",
+    "smoke:flags-off": "node tools/flags-off-smoke.mts",
     "typecheck": "tsc -p tsconfig.check.json && tsc -p tsconfig.runtime-build.json && tsc -p tsconfig.tools.json && tsc -p tsconfig.pkjs.json --noEmit",
     "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/ build.mts",
     "format:c": "clang-format -i src/c/*.c",
