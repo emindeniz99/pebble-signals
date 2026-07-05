@@ -44,7 +44,17 @@ strictly ordered except the "next batch".
 - [ ] device-smoke catalog → `tools/device-smoke.mts` runner
 
 **Must-do first thing when the log transport is healthy:**
-- [ ] device-verify the visible-error log (`[signal-piu] uncaught…`)
+- [ ] device-verify the visible-error log (`[signal-piu] uncaught…`) —
+      ROOT CAUSE of the wedge FOUND (2026-07): **pypkjs keeps dying** in this
+      sandbox (`pb-emulator.json` pypkjs pid → `kill -0` = NO right after a
+      successful install). Both `pebble logs` AND the XS console/trace stream
+      route through pypkjs, so its death = 0 log lines (even the instruments
+      key). qemu's first `-serial` is `null`; the tcp serial carries nothing.
+      Tried: full state wipe, all-pid kill, direct tcp-serial read (0 bytes),
+      tight-timing concurrent capture — all dead. NEXT SESSION: check the
+      pypkjs pid is alive BEFORE trusting a 0-line capture; if it dies, restart
+      it or capture in its brief window. The error-log code is unit-tested +
+      deterministic; only the on-device screenshot is blocked.
 - [ ] build-time lint: flag *calling* a `computed`/`signal` binding
 
 **New ideas:**
