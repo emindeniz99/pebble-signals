@@ -485,21 +485,28 @@ one subtree and keeps the rest of the UI alive. We built it in `flow.ts`.
   SINGLE LETTERS already in the minified symbol table." Renaming to
   `c`/`z` recovered the symbols (watchface back to 144) and it booted
   clean. I'd read that comment and ignored it; the device caught me.
-- *Device status (honest).* watchface — which now exercises the new
-  `run/notify/report/effect/dispose` boundary branches on EVERY reactive
-  tick — boots and runs clean on gabbro, so the always-on core cost is
-  boot-safe and does NOT regress non-EB apps. The `boundary` EXAMPLE
-  itself is 147 symbols (watchface + 2 for the kept
-  `withBoundary`/`getBoundary`, which prune away entirely when unused) and
-  would not boot in this session — but neither would the known-good
-  `navreactive` (151 sym) after repeated hard resets, i.e. the emulator
-  session was degraded (the documented intermittent wedge), not the code.
-  richlist boots at 149 symbols historically, so 147 should on a healthy
-  session; the live catch/reset screenshot is queued behind a fresh
-  emulator. The LOGIC is pinned by 364 Node tests / 100% branch coverage
-  and conformance Law 26 (MATCH Solid) on real XS — build/re-run catch,
-  fallback+reset, nesting, escalation, sibling-stays-alive, and the
-  re-entrancy guard all covered.
+- *Device status (honest, and a self-correction).* watchface — which now
+  exercises the new `run/notify/report/effect/dispose` boundary branches
+  on EVERY reactive tick — boots and runs clean on gabbro **reliably**
+  across full hard-wipes, so the always-on core cost is boot-safe and does
+  NOT regress non-EB apps. The `boundary` EXAMPLE (147 symbols / 16.1KB —
+  watchface + 2 for the kept `withBoundary`/`getBoundary`, plus flow's
+  ~2KB) does NOT boot: "Install an app to continue", consistently, after
+  clean wipes. I first wrote this off as the intermittent emulator wedge —
+  but that was wrong (Rule 2 correction): a wedge would flake watchface
+  too, and watchface is rock-solid. This is a REAL boot-slot/chunk floor
+  around ~145 symbols in this session — the boundary app is simply over
+  it (as is the known-good `navreactive` at 151). The floor is lower than
+  the historical richlist@149 receipt, so a healthier firmware/emulator
+  config would likely boot it, but I will NOT claim a live receipt I did
+  not get. The COST is real and inherent: pulling flow's ErrorBoundary
+  adds ~2 boot symbols + ~2KB — like any flow component, and fine for an
+  app with headroom, but an app already near the floor must budget for it
+  (or the future move of ErrorBoundary into jsx-runtime would drop the
+  separate-module overhead). The LOGIC is pinned by 364 Node tests / 100%
+  branch coverage and conformance Law 26 (MATCH Solid) on real XS —
+  build/re-run catch, fallback+reset, nesting, escalation,
+  sibling-stays-alive, and the re-entrancy guard all covered.
 
 ## 6. Us vs. the official docs
 

@@ -122,16 +122,19 @@ strictly ordered except the "next batch".
       a `cb`/`bnd` pair cost +2 boot symbols and helped tip a saturated app
       (gotcha 13/boot-floor lesson, re-learned). 364 tests, 100% cov, 26 laws
       (Law 26 MATCH Solid). DEVICE: watchface (exercises the new core paths on
-      every tick) boots clean — core changes don't regress non-EB apps; the
-      `boundary` example itself (147 sym, +2 over watchface for the kept
-      `withBoundary`/`getBoundary`) sits at THIS session's degraded boot floor
-      (known-good navreactive@151 also won't boot right now), so its live-catch
-      screenshot is pending a healthy emulator session — richlist boots at 149
-      historically, so it should. (c) `defineApp` boundary-default toggle:
-      future.
-- [ ] error boundary residual (c-cont): capture the `boundary` example's
-      live catch/reset on a HEALTHY emulator session (blocked today by the
-      intermittent gabbro wedge; unit + conformance already pin the behavior).
+      every tick) boots clean and RELIABLY across hard-wipes — core changes
+      don't regress non-EB apps. The `boundary` example (147 sym / 16.1KB) does
+      NOT boot here ("Install an app"): CONSISTENT across clean wipes while
+      watchface@144 is rock-solid, so this is a real ~145-symbol boot floor
+      this session, NOT the intermittent wedge (corrected in field-notes §5b).
+      Pulling flow's ErrorBoundary costs ~2 boot symbols + ~2KB — inherent,
+      like any flow component. (c) `defineApp` boundary-default toggle: future.
+- [ ] error boundary residual (c-cont): land the `boundary` example's live
+      catch/reset screenshot — needs EITHER a healthier emulator/firmware floor
+      (historical richlist booted at 149) OR shaving the example under ~145 sym
+      (candidate: move ErrorBoundary from flow.ts into jsx-runtime so an EB app
+      doesn't pull a separate flow module record). Behavior itself is already
+      pinned by 364 tests + conformance Law 26 on real XS.
 - [ ] **Visible dev-log bridge (design):** on RELEASE firmware JS `trace` is
       a no-op (xsHost.c: visible lines are C-side `modLog_transmit`/APP_LOG;
       probes confirmed console.log/trace never reach `pebble logs` from a
