@@ -434,44 +434,77 @@ if (prune) {
 	// preload-pure app modules likewise (romscreens white-screen: screens.js
 	// needed jsxs, main.js didn't — pruning it broke render silently)
 	for (const file of pureFiles) importScan(file, keeps);
-	// sibling runtime modules that actually SHIP (per the possibly-treeshaken
-	// manifest) also pull exports from each other
-	for (const name of Object.keys(shipped ?? {})) {
-		const rel = name.replace("runtime/", "");
-		const built = join("src/embeddedjs/runtime-build", `${rel}.js`);
-		if (name.startsWith("runtime/") && existsSync(built)) importScan(built, keeps);
-	}
+	// NOTE: sibling runtime modules are NOT scanned here anymore. Their
+	// keep-contributions are collected inside the emission loop below, from
+	// the PRUNED+DCE'd+import-pruned MIN files — scanning the raw builds kept
+	// exports alive that DCE was about to orphan (the ErrorBoundary receipt,
+	// 2026-07: watchface shipped withBoundary/getBoundary/track/untrack in
+	// signals only because jsx-runtime-BUILD's import clause named them; the
+	// DCE'd jsx-runtime-min used none of the four — +9 archive symbols,
+	// +540B, measured).
 }
 mkdirSync("src/embeddedjs/runtime-min", { recursive: true });
+// Collect runtime module files (later dirs win on name collisions — build
+// output over hand-written .js, same preference the old dir loop had).
+const runtimeFiles = new Map<string, string>();
 for (const dir of [join(PKG, "src/embeddedjs/runtime"), "src/embeddedjs/runtime-build"]) {
 	if (!existsSync(dir)) continue;
-	for (const name of readdirSync(dir)) {
-		if (!name.endsWith(".js")) continue;
-		const f = join(dir, name);
-		const out = join("src/embeddedjs/runtime-min", name);
-		copyFileSync(f, out); // work on a copy — never mutate the source dirs
-		const keep = keeps.get(name.replace(/\.js$/, ""));
-		if (prune && keep !== "all")
-			run(process.execPath, [
-				join(TOOLS, `prune-exports${EXT}`),
-				out,
-				[...(keep ?? new Set<string>())].join(","),
-			]);
-		if (minify)
-			tryEsbuild({
-				entryPoints: [out],
-				// bundle:true is what makes the demoted exports actually DISAPPEAR:
-				// esbuild only tree-shakes when bundling, and with runtime/* external
-				// nothing gets inlined — imports/exports survive for the manifest map.
-				bundle: true,
-				external: ["runtime/*"],
-				treeShaking: true,
-				minify: true,
-				format: "esm",
-				outfile: out,
-				allowOverwrite: true,
-			});
-	}
+	for (const name of readdirSync(dir))
+		if (name.endsWith(".js")) runtimeFiles.set(name, join(dir, name));
+}
+// Emit in REVERSE-topological order (importers before importees: flow →
+// jsx-runtime → signals), so by the time a module is pruned every sibling
+// that imports it has already been emitted, DCE'd and import-pruned — its
+// keep-set then reflects what actually SHIPS, not what the source mentioned.
+const runtimeDeps = new Map<string, string[]>();
+for (const [name, f] of runtimeFiles)
+	runtimeDeps.set(
+		name,
+		[...readFileSync(f, "utf8").matchAll(/from\s*"runtime\/([\w-]+)"/g)].map((m) => `${m[1]}.js`),
+	);
+const emitOrder: string[] = [];
+const emitSeen = new Set<string>();
+const emitVisit = (name: string): void => {
+	if (emitSeen.has(name) || !runtimeFiles.has(name)) return;
+	emitSeen.add(name);
+	for (const dep of runtimeDeps.get(name) ?? []) emitVisit(dep);
+	emitOrder.push(name); // post-order = dependencies first…
+};
+for (const name of runtimeFiles.keys()) emitVisit(name);
+emitOrder.reverse(); // …reversed = importers first
+for (const name of emitOrder) {
+	const f = runtimeFiles.get(name)!;
+	const out = join("src/embeddedjs/runtime-min", name);
+	copyFileSync(f, out); // work on a copy — never mutate the source dirs
+	const mod = name.replace(/\.js$/, "");
+	const keep = keeps.get(mod);
+	if (prune && keep !== "all")
+		run(process.execPath, [
+			join(TOOLS, `prune-exports${EXT}`),
+			out,
+			[...(keep ?? new Set<string>())].join(","),
+		]);
+	if (minify)
+		tryEsbuild({
+			entryPoints: [out],
+			// bundle:true is what makes the demoted exports actually DISAPPEAR:
+			// esbuild only tree-shakes when bundling, and with runtime/* external
+			// nothing gets inlined — imports/exports survive for the manifest map.
+			bundle: true,
+			external: ["runtime/*"],
+			treeShaking: true,
+			minify: true,
+			format: "esm",
+			outfile: out,
+			allowOverwrite: true,
+		});
+	if (prune && minify)
+		// drop the import specifiers DCE just orphaned (esbuild keeps them —
+		// it can't prove an external import pure); tools/import-prune-min.mts
+		run(process.execPath, [join(TOOLS, `import-prune-min${EXT}`), out]);
+	// this module's REAL imports now feed the keep-sets of modules emitted
+	// after it — but only if it ships (same rule the old build-scan applied)
+	if (prune && shipped?.[`runtime/${mod}`] !== undefined) importScan(out, keeps);
 }
 
 if (minify)

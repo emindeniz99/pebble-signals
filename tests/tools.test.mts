@@ -8,6 +8,7 @@ import { badFonts } from "../tools/fontcheck.mts";
 import { neededModules, pruneManifest } from "../tools/treeshake.mts";
 import { classify } from "../tools/classify-module.mts";
 import { squash } from "../tools/squash.mts";
+import { pruneDeadImports } from "../tools/import-prune-min.mts";
 import { renameRuntimeExports } from "../tools/symbol-rename.mts";
 
 const BASE = {
@@ -287,4 +288,44 @@ test("symbol-rename: stops when the target pool is exhausted", () => {
 	};
 	const { map } = renameRuntimeExports(files, new Set(["sig.js"]), ["Q1", "Q2"]);
 	assert.equal(Object.keys(map).length, 2); // only two targets available
+});
+
+// ---- import-prune-min: dead runtime/* import specifiers after DCE ----------
+// The ErrorBoundary-move receipt (2026-07): esbuild keeps import specifiers
+// whose users DCE deleted (external modules aren't provably pure), and the
+// per-app export prune then reads those stale clauses as demand — watchface
+// shipped withBoundary/getBoundary/track/untrack in signals for nothing
+// (+9 archive symbols, +540B, measured). This pass closes the loop.
+
+test("import-prune: drops only the specifiers with zero body references", () => {
+	const src =
+		'import{alpha as a,beta as b,gamma as c}from"runtime/signals";export const f=()=>a(b);';
+	const { out, dropped } = pruneDeadImports(src);
+	assert.deepEqual(dropped, ["gamma"]);
+	assert.match(out, /import\{alpha as a,beta as b\}from"runtime\/signals"/);
+	assert.match(out, /a\(b\)/); // code untouched
+});
+
+test("import-prune: a property access is NOT a use (.G never counts)", () => {
+	const src = 'import{wire as G}from"runtime/signals";export const f=(o)=>o.G;';
+	const { out, dropped } = pruneDeadImports(src);
+	assert.deepEqual(dropped, ["wire"]);
+	assert.doesNotMatch(out, /import\{/); // clause emptied -> declaration gone
+	assert.match(out, /o\.G/); // the property access survives untouched
+});
+
+test("import-prune: fully-dead clause is removed; app modules untouched", () => {
+	const src =
+		'import{x as p}from"runtime/flow";import{y as q}from"./app-util";export const f=()=>q;';
+	const { out, dropped } = pruneDeadImports(src);
+	assert.deepEqual(dropped, ["x"]);
+	assert.doesNotMatch(out, /runtime\/flow/); // our module, no side effects — gone
+	assert.match(out, /import\{y as q\}from"\.\/app-util"/); // non-runtime clause kept even if... q IS used
+});
+
+test("import-prune: no dead specifiers -> byte-identical no-op", () => {
+	const src = 'import{a}from"runtime/signals";export const f=()=>a();';
+	const { out, dropped } = pruneDeadImports(src);
+	assert.equal(dropped.length, 0);
+	assert.equal(out, src);
 });
