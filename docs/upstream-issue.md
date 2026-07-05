@@ -218,6 +218,27 @@ Even documenting the exact per-symbol / per-module / per-alias boot budget,
 so a toolchain can refuse the build instead of shipping a silent boot death,
 would remove an entire class of multi-day debugging.
 
+## 12. The fixed JS value stack is a THIRD silent boot-death budget
+
+Distinct from the 32KB arena (§1) and the boot-symbol/alias floor (§3/§4):
+a mod that recurses too DEEPLY at first render dies with `fxAbort
+JavaScript stack overflow` — silently, same exit-to-launcher as every
+other budget. Measured while building a runtime-reactive UI: a two-screen
+navigation app (a `Navigator` that opens a nested owner scope inside the
+render build) overflows at load on gabbro, while the byte-identical logic
+runs fine under a desktop XS (large host stack). The JS stack size is part
+of the `ModdableCreationRecord` the firmware validates-then-ignores for
+mods (§1), so — like heap and keys — a mod cannot raise it, and the app
+author has no way to see how close to the edge they are. There is no
+build-time or install-time warning; the first sign is a silent boot death
+that looks identical to an OOM.
+
+**Ask:** (a) surface `fxAbort JavaScript stack overflow` at launch on the
+app-log channel (it currently reaches only the C-side abort, not the mod's
+own log path); (b) let a mod's `creation.stack` through `mcrun` and honor
+it (same fix as §11 for heap/keys); (c) document the mod JS-stack budget so
+a toolchain can estimate render-tree depth against it.
+
 ## Repro availability
 
 All numbers come from XS instrumentation logs

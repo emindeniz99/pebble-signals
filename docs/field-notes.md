@@ -582,15 +582,15 @@ of Round 5), plus two owner asks.**
   / 12.0KB — and it BOOTS today ("depth 1 / ping 10"). The floor is
   FIXED; the Jul-5 features grew every app (navreactive: 39 → 43
   new-to-host, +3.2KB) and the three-module flow apps crossed it.
-- *navreactive's diagnosis, precisely.* Real new-to-host counts
-  (tools/host-symbols.py against the firmware ELF, not the mixed
-  tool-count): watchface 40 (boots) · boundary 47 (BOOTS) · navreactive
-  43 (dies). More symbols booting while fewer die kills the pure-symbol
-  theory: the differentiator is the THIRD MODULE — flow's records + 2 ids
-  (gotcha 15) and its surviving top-level bindings (alias slots, gotcha
-  13). navreactive is the canary for "error-handling machinery + a flow
-  module no longer fit at saturation"; winning it back means dieting
-  flow's module-scope bindings (open roadmap item), not chasing symbols.
+- *navreactive's diagnosis, precisely.* **SUPERSEDED by Round 7 — do not
+  trust this bullet.** It read: real new-to-host counts (watchface 40
+  boots · boundary 47 BOOTS · navreactive 43 dies) kill the pure-symbol
+  theory, so the differentiator is the THIRD MODULE (flow's records/ids +
+  alias slots) and winning navreactive back means dieting flow. Round 7
+  OVERTURNS this: navreactive never died of the boot-slot floor at all —
+  it dies of the fixed JS VALUE-STACK DEPTH (a `fxAbort JavaScript stack
+  overflow`, not `memory full`). The symbol counts were real but a red
+  herring for THIS app; flow-dieting would not have won it back.
 - *Log-on-catch (owner decision).* report() now logs the FULL error even
   when an `<ErrorBoundary>` is about to catch it — previously a deliberate
   skip. Rationale: harmless where invisible (release trace is a no-op),
@@ -607,6 +607,48 @@ of Round 5), plus two owner asks.**
   files (so a future runtime-module CYCLE converges to a safe keep-set),
   and FAILS the build loudly if still unstable — a silently mis-pruned
   runtime is a boot-floor death by another name.
+
+**Round 7 — navreactive dies of JS-STACK DEPTH, not the boot floor (Rule 2
+correction of Round 6, decisively measured).**
+
+The Round 6 story — "navreactive crosses the boot-slot floor; diet flow to
+win it back" — is WRONG. The actual failure is a `fxAbort JavaScript stack
+overflow` at first render, captured in the boot log (Round 6 inferred a
+boot-slot death from symbol counts and never read the abort reason). The
+budget being blown is the mod's FIXED JS value stack (a different fixed
+limit than the 32KB arena and than the boot-symbol floor), and the mod
+cannot grow it (creation ignored — §11 upstream issue).
+
+Decisive evidence — mix-and-match runtime builds of navreactive on gabbro
+(one variable = which commit each of the 3 runtime modules comes from):
+
+| signals+flow | jsx-runtime | result |
+|---|---|---|
+| `659c47c` | `659c47c` | **BOOTS** — screenshot "depth 1 / ping 7" |
+| `659c47c` (old) | `a59a493` (new) | stack overflow |
+| HEAD (new) | `659c47c` (old) | stack overflow |
+| HEAD | HEAD | stack overflow |
+
+BOTH "new jsx alone" AND "new signals/flow alone" tip it over, while
+old+old boots — the signature of a MARGINAL depth budget, not a single
+regressing line. The 2026-07 error-handling/boundary round (crash-screen
+`mount` wrapper, the `report()` boundary save/restore in `run()`, the
+guarded binding body) each added a frame or two to the render→effect call
+chain, and navreactive — uniquely deep because `Navigator.swap()` opens a
+NESTED `createRoot` inside render's own build, ~doubling the chain — can no
+longer afford them. watchms (no flow, shallow tree) boots on the same HEAD
+runtime; the Node/XS stub repro renders fine (huge host stack) — both
+confirm it is depth, not logic and not symbols.
+
+Consequences: (a) `--no-crash-ui` reclaims boot symbols/bytes (measured
+−8 / −994B) but does NOT change navreactive's fate — it removes code, not
+frames. (b) The flow-module symbol diet is still worth doing for the boot
+floor, but it is NOT navreactive's cure. (c) Winning navreactive back means
+REDUCING render-path call depth — the highest-leverage single cut is
+Navigator's nested `createRoot` (build the first screen without opening a
+second owner scope inside render's build), then trimming frames in the
+universal `effect → run → fn` leaf. Tracked as its own roadmap item;
+NOT a quick patch (needs a per-cut on-device depth measurement).
 
 ## 6. Us vs. the official docs
 

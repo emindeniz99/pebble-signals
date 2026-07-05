@@ -167,15 +167,25 @@ strictly ordered except the "next batch".
       even when an `<ErrorBoundary>` catches it (was a deliberate skip);
       `__spError` still owns its own logging. Pinned in signals.test;
       device re-verified (boundary catches at n=3 unchanged).
-- [ ] **flow-module diet — win navreactive back at the boot floor.** Real
-      new-to-host counts (tools/host-symbols.py): watchface 40 boots,
-      boundary 47 BOOTS, navreactive 43 DIES — so the killing budget is not
-      symbols but the THIRD module's records + 2 ids (gotcha 15) plus flow's
-      surviving top-level bindings (alias slots, gotcha 13). Candidates:
-      squash flow's module-scope helper bindings into the component arrows
-      (the EB round measured that trick at −5 symbols), fold the ticker
-      consts, measure per-binding. navreactive is the canary; it booted on
-      the Jul-4 runtime and should again after the diet.
+- [ ] **render-path DEPTH diet — the ACTUAL cure for navreactive (Round 7).**
+      navreactive does NOT die of the boot-slot floor — it dies of the mod's
+      fixed JS VALUE-STACK depth (`fxAbort JavaScript stack overflow`, proven
+      by mix-and-match runtime builds: 659c47c boots, but new-jsx-alone AND
+      new-signals/flow-alone each overflow → marginal depth, not one bad line;
+      see field-notes Round 7 + debugging.md). The mod cannot grow the stack
+      (creation ignored). Cure = REDUCE render→effect call depth. Highest
+      leverage: Navigator's `swap()` opens a NESTED `createRoot` inside
+      render's own build (~doubles the deepest chain) — build the first screen
+      without a second owner scope, or defer it to a shallow context. Then trim
+      frames in the universal `effect → run → fn` leaf (bindings sit at max
+      depth). MUST measure per-cut on device (Node stubs can't overflow; a
+      crash screen ALSO emits heartbeats, so screenshot to confirm real render).
+- [ ] **flow-module SYMBOL diet — for the boot floor (NOT navreactive).**
+      Squash flow's module-scope helper bindings into the component arrows
+      (the EB round measured that trick at −5 symbols), fold the ticker consts,
+      measure per-binding. Still worth doing for saturated apps' boot budget —
+      but it removes symbols/bytes, not stack frames, so it does NOT win
+      navreactive back (that's the depth diet above; Round 7 correction).
 - [x] ~~sink → root-boundary merge (single error mechanism)~~ **ANALYZED &
       REJECTED (2026-07).** Folding render()'s terminal sink into the
       `Graph.c` boundary chain looks cleaner but re-creates the sink under
@@ -227,7 +237,19 @@ Priority order the owner set; each is expanded in its own section below.
 9. **Heap-sizing retest (source-verify)** — read PebbleOS `main` `moddable.c`
    to see if newer firmware honors stack/slot/chunk (our 4.17 ignores them);
    can't run it, but can confirm from source.
-10. **CloudPebble tiers 1→2→3** — see the CloudPebble section; tier 2
+10. **Fork + rebuild PebbleOS to test bigger machine defaults (owner ask:
+    "roadmape ekleyelim, deneyelim").** PebbleOS + Moddable are open source now
+    (coredevices/pebbleos, coredevices/moddable). The experiment: bump the
+    fixed machine defaults in `moddable_createMachine` (heap 512 +64, keys
+    32 +32, **JS stack** — the Round 7 navreactive killer) and/or stop `mcrun`
+    nulling `creation`/`preload`, build the firmware, run in QEMU, and re-test
+    navreactive + a saturated app. Two payoffs: proves whether a larger stack
+    boots navreactive (validates the Round 7 depth diagnosis end-to-end) and
+    whether honoring `keys`/`static` lifts the boot-slot floor (§1/§11 of the
+    upstream issue). NOT 5 minutes: needs the firmware toolchain + a QEMU image
+    build. Sequence per repo etiquette: file the issue FIRST (our draft is
+    ready), then fork/PR with the QEMU-measured before/after as evidence.
+11. **CloudPebble tiers 1→2→3** — see the CloudPebble section; tier 2
     (browser layout preview) is the one we can build ourselves.
 
 ### Real findings from the watchface tutorial (2026-07)

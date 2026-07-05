@@ -31,6 +31,32 @@ running-owner round, `effect()` auto-registers with the innermost owner —
 running effect or root — so nested effects no longer accumulate; a TOP-LEVEL
 effect with no owner is still yours to `dispose()`).
 
+## `fxAbort JavaScript stack overflow:` at boot (NOT memory full)
+
+A DIFFERENT limit than the arena — the mod's fixed JS value stack (the mod
+cannot grow it; creation is ignored). The render→effect call chain went too
+DEEP, not too wide. This is finite recursion hitting a low ceiling, so it
+reproduces on device but NOT under Node (`npm test`, huge host stack) — do
+not expect the sandbox to catch it. Distinguish it from `memory full` by
+reading the actual abort line in the boot log, not by symbol counts.
+
+Checklist:
+1. **Read the abort reason.** `fxAbort JavaScript stack overflow` ≠
+   `fxAbort memory full`. Symbol/byte diets (`--no-crash-ui`, flow diet,
+   symbol-rename) do NOTHING for a stack-overflow — they remove code and
+   symbols, not call frames.
+2. **Nested `createRoot`?** `Navigator.swap()` opens a second owner scope
+   INSIDE render's own build, ~doubling the deepest chain. A deep reactive
+   tree under a Navigator is the classic offender (navreactive, Round 7
+   field-note). A flatter tree, or fewer Navigator levels live at once,
+   buys depth back.
+3. **Marginal is the norm.** The budget is small enough that a couple of
+   extra frames (a new wrapper fn in the render path) tips an app that
+   booted yesterday. Bisect by reading the abort reason on each side, not
+   heartbeat counts — a crash screen ALSO emits `instruments:` heartbeats,
+   so "8 heartbeats" is not proof of a healthy boot; screenshot to confirm
+   real content vs the crash UI.
+
 ## App installs but never appears / bounces instantly with NO logs
 
 - Boot abort happened before the log listener attached. Re-run with
