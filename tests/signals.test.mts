@@ -387,12 +387,14 @@ check("dispose(function) runs it", dran === 1);
 dispose(99999); // no such effect id
 check("dispose(invalid) is a no-op", true);
 
-// throwing subscriber with NO __spError hook: LOGS to console (visible in
+// throwing subscriber with NO __spError hook: LOGS the FULL error (visible in
 // `pebble logs`) and SURVIVES — does not rethrow, does not blank silently.
-const th = signal(0);
 const savedConsole = globalThis.console;
 const logged = [];
 globalThis.console = { error: (...a) => logged.push(a.map(String).join(" ")) };
+
+// (a) a real Error -> "Name: message" (+ stack if present)
+const th = signal(0);
 let threw = false;
 effect(() => {
 	if (th.value === 1) throw new Error("nohook");
@@ -403,21 +405,72 @@ try {
 	threw = true;
 }
 check("throwing subscriber does NOT rethrow without hook", threw === false);
-check("throwing subscriber logs to console", logged.length === 1 && logged[0].includes("nohook"));
+check(
+	"logs the error message + effect id",
+	logged.some((l) => l.includes("nohook") && l.includes("effect #")),
+);
 
-// same, but console ALSO absent: still must not throw (silent survive)
-globalThis.console = undefined;
+// (b) a stackless object WITH a name -> "Boom: bam", no stack line
 const th2 = signal(0);
-let threw2 = false;
+const objErr = { name: "Boom", message: "bam" };
 effect(() => {
-	if (th2.value === 1) throw new Error("noconsole");
+	if (th2.value === 1) throw objErr;
+});
+th2.value = 1;
+check(
+	"logs a stackless named object",
+	logged.some((l) => l.includes("Boom: bam")),
+);
+
+// (c) an object with NO name -> defaults to "Error"
+const th3 = signal(0);
+const namelessErr = { message: "noname" };
+effect(() => {
+	if (th3.value === 1) throw namelessErr;
+});
+th3.value = 1;
+check(
+	"logs a name-less object as Error",
+	logged.some((l) => l.includes("Error: noname")),
+);
+
+// (d) a name-only object -> head only, no ": message"
+const th3b = signal(0);
+const bareErr = { name: "Bare" };
+effect(() => {
+	if (th3b.value === 1) throw bareErr;
+});
+th3b.value = 1;
+check(
+	"logs a message-less object head-only",
+	logged.some((l) => l.includes("Bare") && !l.includes("Bare:")),
+);
+
+// (e) a primitive throw -> String(err)
+const th4 = signal(0);
+const strErr = "plainstring";
+effect(() => {
+	if (th4.value === 1) throw strErr;
+});
+th4.value = 1;
+check(
+	"logs a primitive throw",
+	logged.some((l) => l.includes("plainstring")),
+);
+
+// console ALSO absent: still must not throw (silent survive)
+globalThis.console = undefined;
+const th5 = signal(0);
+let threw5 = false;
+effect(() => {
+	if (th5.value === 1) throw new Error("noconsole");
 });
 try {
-	th2.value = 1;
+	th5.value = 1;
 } catch {
-	threw2 = true;
+	threw5 = true;
 }
-check("no hook + no console: survives silently", threw2 === false);
+check("no hook + no console: survives silently", threw5 === false);
 globalThis.console = savedConsole;
 
 // high-word effect (id > 31) disposed MID-cascade -> qh quarantine path.

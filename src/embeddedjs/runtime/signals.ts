@@ -243,6 +243,19 @@ export interface ReadonlySignal<T> {
 	readonly value: T;
 }
 
+// Format a caught reaction error for the console fallback — dump EVERYTHING
+// we can (type, message, stack) so a would-be silent blank becomes a loud,
+// complete log line. XS may or may not populate `.stack`; whatever it gives
+// us, we print.
+function fmtError(err: unknown): string {
+	if (err && typeof err === "object") {
+		const e = err as { name?: string; message?: string; stack?: string };
+		const head = (e.name || "Error") + (e.message ? ": " + e.message : "");
+		return e.stack ? head + "\n" + e.stack : head;
+	}
+	return String(err);
+}
+
 // diagnostic hook: surface subscriber exceptions instead of letting them
 // abort the machine (XS kills the app otherwise)
 function notify(e: number): void {
@@ -251,16 +264,17 @@ function notify(e: number): void {
 	} catch (err) {
 		const report = globalThis.__spError;
 		if (report) report(err);
-		// No app handler: LOG it so the failure is visible in `pebble logs`
-		// instead of a silent blank Label (the classic footgun: a typo like
-		// calling a `computed` — `greeting()` instead of `greeting.value` —
-		// throws here and used to just vanish). `console` is host-interned, so
-		// this costs no boot symbol; the machine still survives — a watch must
-		// not exit to the launcher because one binding threw. Override by
-		// setting `globalThis.__spError`.
+		// No app handler: LOG the FULL error (type, message, stack, the effect
+		// id that threw) so the failure is visible in `pebble logs` instead of
+		// a silent blank Label — the classic footgun: a typo like calling a
+		// `computed` (`greeting()` instead of `greeting.value`) throws here and
+		// used to just vanish. `console` is host-interned, so this costs no boot
+		// symbol; the machine still survives — a watch must not exit to the
+		// launcher because one binding threw. Override via `globalThis.__spError`.
 		else {
 			const c = (globalThis as { console?: { error(...a: unknown[]): void } }).console;
-			if (c) c.error("[signal-piu] uncaught in reactive update:", err);
+			if (c)
+				c.error("[signal-piu] uncaught in reactive update (effect #" + e + "):\n" + fmtError(err));
 		}
 	}
 }
