@@ -8,7 +8,7 @@
 
 > **createRoot**\<`T`\>(`fn`): \[`T`, () => `void`\]
 
-Defined in: signals.ts:714
+Defined in: signals.ts:720
 
 Run `fn` under a fresh owner; returns `[result, disposer]`. Calling the
 disposer tears down every effect/cleanup [track](track.md)ed during `fn`.

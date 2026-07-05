@@ -133,38 +133,62 @@ strictly ordered except the "next batch".
       (2026-07): `<ErrorBoundary>` LIVE on gabbro.** Three moves landed it:
       (1) A/B EXONERATION — navreactive rebuilt with the PRE-EB runtime
       (149 sym / 14.9KB) also fails to boot this session, so EB never caused
-      the floor; the session floor itself is <149 (environmental). (2) the
-      MOVE: ErrorBoundary now lives in jsx-runtime (no flow module record for
-      EB-only apps). First cut REGRESSED watchface 144→153: DCE deleted the
-      EB code but esbuild kept the now-dead import specifiers, and the export
-      prune — which read keep-sets from the PRE-DCE builds — kept
-      withBoundary/getBoundary/track/untrack alive in signals for every app.
-      (3) the FIX, a new build pass: `tools/import-prune-min.mts` drops
-      import specifiers whose local has zero AST references post-DCE, and
-      build.mts now emits runtime-min in REVERSE-topological order (flow →
-      jsx-runtime → signals), computing each module's keep-set from the
-      already-pruned MIN siblings — post-DCE truth, not source claims.
-      Watchface back to EXACTLY 144/13970B; the pass even cleans flow's
-      pre-existing dead imports for every flow app. RECEIPTS (gabbro,
-      tools/drive.py): boundary example (149 tool-count incl. 4 free symdiet
-      pool names, 15.3KB) boots — ok0 → up×3 → fallback "X: n3" with the
-      OUTSIDE sibling still updating → fallback holds until reset → select
-      remounts healed children "ok2" → re-breaks on cue
-      (`screenshots/eb-live-gabbro.png`, `eb-caught-gabbro.png`,
-      `eb-reset-gabbro.png`). 371 tests / 100% cov / 26 laws / all smokes.
+      the floor. ~~the session floor itself is <149 (environmental)~~
+      **CORRECTED same day (Round 6): the floor never moved — the RUNTIME
+      grew.** navreactive with its Jul-4 verification-era runtime (126
+      tool-count / 39 new-to-host / 12.0KB) BOOTS today; the Jul-5
+      error-handling rounds (crash screen/retry/strict/EB) grew it to 43
+      new-to-host / 15.2KB and the three-module flow apps crossed the FIXED
+      floor. (2) the MOVE: ErrorBoundary now lives in jsx-runtime (no flow
+      module record for EB-only apps). First cut REGRESSED watchface
+      144→153: DCE deleted the EB code but esbuild kept the now-dead import
+      specifiers, and the export prune — which read keep-sets from the
+      PRE-DCE builds — kept withBoundary/getBoundary/track/untrack alive in
+      signals for every app. (3) the FIX, a new build pass:
+      `tools/import-prune-min.mts` drops import specifiers whose local has
+      zero AST references post-DCE, and build.mts now emits runtime-min in
+      REVERSE-topological order (flow → jsx-runtime → signals), computing
+      each module's keep-set from the already-pruned MIN siblings —
+      post-DCE truth, not source claims. Watchface back to EXACTLY
+      144/13970B; the pass even cleans flow's pre-existing dead imports for
+      every flow app. RECEIPTS (gabbro, tools/drive.py): boundary example
+      (149 tool-count incl. 4 free symdiet pool names, 15.3KB) boots —
+      ok0 → up×3 → fallback "X: n3" with the OUTSIDE sibling still
+      updating → fallback holds until reset → select remounts healed
+      children "ok2" → re-breaks on cue (`screenshots/eb-live-gabbro.png`,
+      `eb-caught-gabbro.png`, `eb-reset-gabbro.png`).
+- [x] prune FIXPOINT rounds (owner ask, 2026-07): build.mts re-runs the
+      runtime-min emission and requires byte-identical output — converges
+      silently (measured: round 2 == round 1), iterates to 3 rounds seeding
+      keep-sets from the previous round's min files (a future runtime-module
+      cycle converges to a safe keep-set), and FAILS the build loudly if
+      still unstable.
+- [x] log-on-catch (owner decision, 2026-07): report() logs the FULL error
+      even when an `<ErrorBoundary>` catches it (was a deliberate skip);
+      `__spError` still owns its own logging. Pinned in signals.test;
+      device re-verified (boundary catches at n=3 unchanged).
+- [ ] **flow-module diet — win navreactive back at the boot floor.** Real
+      new-to-host counts (tools/host-symbols.py): watchface 40 boots,
+      boundary 47 BOOTS, navreactive 43 DIES — so the killing budget is not
+      symbols but the THIRD module's records + 2 ids (gotcha 15) plus flow's
+      surviving top-level bindings (alias slots, gotcha 13). Candidates:
+      squash flow's module-scope helper bindings into the component arrows
+      (the EB round measured that trick at −5 symbols), fold the ticker
+      consts, measure per-binding. navreactive is the canary; it booted on
+      the Jul-4 runtime and should again after the diet.
 - [x] ~~sink → root-boundary merge (single error mechanism)~~ **ANALYZED &
       REJECTED (2026-07).** Folding render()'s terminal sink into the
       `Graph.c` boundary chain looks cleaner but re-creates the sink under
       another name: (a) effects created OUTSIDE any build/run (timer
       callbacks) carry no boundary tag — routing their errors to the crash
-      screen requires a GLOBAL fallback field, which is the sink; (b) inner
-      boundaries deliberately don't log while the terminal MUST (the
-      never-lose-the-log invariant) — a root-as-boundary forces report() to
-      distinguish root from inner handlers, two kinds again; (c) the sink
-      receives the formatted message, boundary handlers the raw error. Two
-      tiers are structurally real (React splits the same way: per-subtree
-      boundaries vs createRoot's onUncaughtError). Keeping the shipped,
-      device-verified design.
+      screen requires a GLOBAL fallback field, which is the sink; (b) the
+      handler signatures differ (the sink receives the formatted message,
+      boundary handlers the raw error). Two tiers are structurally real
+      (React splits the same way: per-subtree boundaries vs createRoot's
+      onUncaughtError). Keeping the shipped, device-verified design. (The
+      original third reason — inner boundaries don't log while the terminal
+      must — was retired by the log-on-catch decision; the two above stand
+      on their own.)
 - [ ] **Visible dev-log bridge (design):** on RELEASE firmware JS `trace` is
       a no-op (xsHost.c: visible lines are C-side `modLog_transmit`/APP_LOG;
       probes confirmed console.log/trace never reach `pebble logs` from a

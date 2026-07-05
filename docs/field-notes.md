@@ -565,6 +565,48 @@ invariant), so report() would need to distinguish root from inner
 handlers anyway; and the handler signatures differ (formatted message vs
 raw error). React draws the same line — per-subtree boundaries vs
 `createRoot`'s `onUncaughtError` options. Two tiers, kept.
+(Round 6 amendment: the owner later made boundary-caught errors log too,
+which retires the logging argument — the rejection now rests on the
+unowned-effects and signature points, which stand on their own.)
+
+**Round 6 — the floor never moved: OUR runtime grew (Rule 2 correction
+of Round 5), plus two owner asks.**
+
+- *Correction: "environmental floor" was WRONG.* Round 5 claimed this
+  session's boot floor had degraded for reasons outside the repo, because
+  the pre-EB runtime (149 tool-count) also failed to boot. But "pre-EB"
+  still contained the ENTIRE Jul-5 error-handling saga (crash screen,
+  retry, strict mode, screen.round). The proper counterfactual: rebuild
+  navreactive with the Jul-4 runtime from its verification commit
+  (`27f2d71`) under TODAY's pipeline — 126 tool-count / **39 new-to-host**
+  / 12.0KB — and it BOOTS today ("depth 1 / ping 10"). The floor is
+  FIXED; the Jul-5 features grew every app (navreactive: 39 → 43
+  new-to-host, +3.2KB) and the three-module flow apps crossed it.
+- *navreactive's diagnosis, precisely.* Real new-to-host counts
+  (tools/host-symbols.py against the firmware ELF, not the mixed
+  tool-count): watchface 40 (boots) · boundary 47 (BOOTS) · navreactive
+  43 (dies). More symbols booting while fewer die kills the pure-symbol
+  theory: the differentiator is the THIRD MODULE — flow's records + 2 ids
+  (gotcha 15) and its surviving top-level bindings (alias slots, gotcha
+  13). navreactive is the canary for "error-handling machinery + a flow
+  module no longer fit at saturation"; winning it back means dieting
+  flow's module-scope bindings (open roadmap item), not chasing symbols.
+- *Log-on-catch (owner decision).* report() now logs the FULL error even
+  when an `<ErrorBoundary>` is about to catch it — previously a deliberate
+  skip. Rationale: harmless where invisible (release trace is a no-op),
+  useful everywhere else, and one less rule to remember. `__spError`
+  still logs nothing (the handler owns the policy). Pinned by a
+  signals-suite test; device re-verified (boundary example catches at
+  n=3 exactly as before).
+- *Prune fixpoint rounds (owner ask: "run the pass 2-3 times").* For
+  today's DAG (flow → jsx-runtime → signals) ONE reverse-topological
+  pass IS the fixpoint — but that was an argument, not a check. build.mts
+  now re-runs the emission and requires byte-identical output: converges
+  silently (measured: round 2 == round 1 on watchface and boundary),
+  iterates up to 3 rounds seeding keep-sets from the previous round's min
+  files (so a future runtime-module CYCLE converges to a safe keep-set),
+  and FAILS the build loudly if still unstable — a silently mis-pruned
+  runtime is a boot-floor death by another name.
 
 ## 6. Us vs. the official docs
 

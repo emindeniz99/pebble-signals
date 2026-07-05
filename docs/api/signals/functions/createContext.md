@@ -8,7 +8,7 @@
 
 > **createContext**\<`T`\>(`defaultValue`): `object`
 
-Defined in: signals.ts:838
+Defined in: signals.ts:844
 
 ## Type Parameters
 

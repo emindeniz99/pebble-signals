@@ -47,17 +47,24 @@ An escaped reactive error does NOT vanish. The report() ladder (2026-07
 redesign) decides what happens, in order:
 
 1. `globalThis.__spError` installed → the handler owns the policy — contain
-   by returning, escalate by rethrowing (dev strict mode).
-2. Else the FULL error is logged (visible in Node/xsbug; JS `trace` is a
-   no-op on release firmware), then:
-   - `render()`'s DEFAULT boundary paints a **crash screen**: the whole tree
-     is disposed and the actual error (name/message/stack, newlines packed
-     to `" ~ "`) is drawn on the watch with `[select: retry · back: exit]`.
-     SELECT re-runs the app build under a fresh root (component state
-     resets); BACK rethrows the original error → fxAbort with stack in the
-     log → the host exits the mod. Drive-verified loop:
-     `screenshots/crash-boundary-gabbro.png` → `crash-retry-gabbro.png` →
-     `crash-exit-gabbro.png`.
+   by returning, escalate by rethrowing (dev strict mode). It also owns
+   logging: report() prints nothing for it.
+2. Else the FULL error is logged — ALWAYS, even when a boundary is about to
+   catch it (owner decision: a caught error is still worth a log line;
+   visible in Node/xsbug, a free no-op on release firmware where JS `trace`
+   is dead). Then:
+   - the nearest **`<ErrorBoundary>`** in scope catches it: its
+     `fallback(err, reset)` renders in place of the subtree, the rest of
+     the app keeps running, `reset` re-runs the children. Inner boundaries
+     catch before outer ones; a fallback that throws escalates outward.
+   - else `render()`'s DEFAULT boundary paints a **crash screen**: the whole
+     tree is disposed and the actual error (name/message/stack, newlines
+     packed to `" ~ "`) is drawn on the watch with
+     `[select: retry · back: exit]`. SELECT re-runs the app build under a
+     fresh root (component state resets); BACK rethrows the original error
+     → fxAbort with stack in the log → the host exits the mod.
+     Drive-verified loop: `screenshots/crash-boundary-gabbro.png` →
+     `crash-retry-gabbro.png` → `crash-exit-gabbro.png`.
    - `render(build, dict, {boundary: false})` (strict): log, then PROPAGATE
      — first-render errors abort module load, re-run errors escape the
      setter (fxAbort). Dead but loud.

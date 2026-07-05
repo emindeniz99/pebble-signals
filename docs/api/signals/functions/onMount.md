@@ -8,7 +8,7 @@
 
 > **onMount**(`fn`): `void`
 
-Defined in: signals.ts:828
+Defined in: signals.ts:834
 
 ## Parameters
 

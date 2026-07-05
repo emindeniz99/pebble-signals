@@ -8,7 +8,7 @@
 
 > **useMemo**\<`T`\>(`fn`): () => `T`
 
-Defined in: signals.ts:802
+Defined in: signals.ts:808
 
 Memoized getter over [computed](computed.md): `const total = useMemo(() => a() + b())`.
 
