@@ -38,10 +38,15 @@ compiled (`build/src/c/mdbl.c.o` via `arm-none-eabi-gcc`) and the manifest
 block present — produced a byte-identical machine: `Stack available` stayed
 **6144, not 5120**, `Slot available` unchanged. Since the stack does not
 grow, `Stack available` reflects `.stack` directly, so 6144 is proof the
-field is ignored, through BOTH the C call and the manifest. (The example's
-larger numbers presumably target a newer firmware — upstream `main`'s
-`moddable.c` maps the record onto `xsCreation`, so a post-4.17 build likely
-honors it. This report is against the 4.17 SDK binary.)
+field is ignored, through BOTH the C call and the manifest. Building and
+running the `words` example ITSELF (real Moddable toolchain, its own
+mdbl.c/manifest, instrumentation flag added only to read the sizes) on emery
+gives the same verdict: it requests `.stack=5120 .slot=31744 .chunk=19456`
+and gets `Stack available=6144`, `Chunk available=8192`, slot heap initial
+8176 — the shipped example runs on the default machine. (The larger numbers
+presumably target a newer firmware — upstream `main`'s `moddable.c` maps the
+record onto `xsCreation`, so a post-4.17 build likely honors it. This report
+is against the 4.17 SDK binary.)
 
 **Ask:** either honor the sizes (within a documented cap) on the shipped
 SDK — the `words` example implies they should — or fix the docs and reject

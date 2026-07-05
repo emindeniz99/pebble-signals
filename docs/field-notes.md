@@ -727,6 +727,16 @@ both the 32 KB arena and the 384-slot stack. Investigated properly:
   `Stack available` reflects `.stack` directly — proof the field is ignored,
   through BOTH the C call and the manifest.
 
+DEFINITIVE (the actual example, not a replica): downloaded pebble-examples,
+built `piu/apps/words` with the real Moddable toolchain (`pebble build`, its
+own `mdbl.c` + `manifest.json`), added ONLY the instrumentation flag to read
+sizes (a `.flags` bit — orthogonal to `.stack/.slot/.chunk`, changes nothing),
+installed on emery. words REQUESTS `.stack=5120 .slot=31744 .chunk=19456` and
+GETS `StackAvail=6144` (default, not 5120), `ChunkAvail=8192` (default, not
+19456), slot heap initial 8176 growing on demand (not a 31744 initial). The
+official example itself runs on the default ~32 KB machine — its numbers are
+ignored on 4.17.
+
 Conclusion: on the 4.17 SDK firmware, `moddable_createMachine` validates the
 record (all sizes must be nonzero) then CLONES the firmware's built-in config
 regardless — so an app developer has NO path to a bigger machine, and being
