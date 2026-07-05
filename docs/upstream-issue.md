@@ -63,14 +63,20 @@ else {                              // request bigger than the static arena:
 
 So on current firmware an app can not only pick its sizes but request a
 machine LARGER than the 32KB static arena (`staticSize = 0` mallocs from the
-~122KB app heap). The 4.17 SDK binary predates this: it never logs main's
-`"evaluating creation record"` (line 92 — our runs logged it 0 times) and its
-`"invalid ModdableCreationRecord"` is at `moddable.c:79` vs main's line 98 — an
-older source. So this is not a design flaw to fix; it is a **shipped-SDK
-staleness gap** between the emulator firmware and `main`.
+~122KB app heap). And this is NOT a recent addition: the identical honoring
+block (including the `staticSize = 0` malloc branch) is already in the
+**`v4.17.0` tag's** source (verified via raw.githubusercontent) — `main` only
+adds an `"evaluating creation record"` log line. Yet the pebble-tool "SDK 4.17"
+emulator firmware measurably ignores the sizes (the real `words` build gets the
+default machine), and never logs `"evaluating creation record"`, and reports
+`"invalid ModdableCreationRecord"` at `moddable.c:79` (vs line 98 in v4.17.0+).
+So the shipped QEMU firmware BINARY is **older than the v4.17.0 source tag it
+is named after** — a pebble-tool-SDK ↔ PebbleOS-source version gap, not a
+design flaw in the firmware.
 
-**Ask:** ship an updated SDK / QEMU emulator firmware new enough to include
-the creation-honoring code that is already on `main`. (Everything downstream
+**Ask:** ship an updated SDK / QEMU emulator firmware built from a PebbleOS
+new enough to include the creation-honoring code (already present at `v4.17.0`
+and `main`). (Everything downstream
 in this report — the 32KB arena wall (§3-§6), the FFI layout (§2), the silent
 boot deaths (§5), the JS-stack ceiling (§12) — is measured against the stale
 4.17 emulator; several may already be moot on a current-firmware build. A

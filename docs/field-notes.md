@@ -785,6 +785,17 @@ just: a fresher SDK/QEMU image. (Building `main` firmware to prove it live
 remains roadmap 10 — a real Zephyr build, its own effort — but the source is
 now unambiguous.)
 
+*Round 10 refinement (owner pointed at the v4.17.0 blame):* the honoring is
+not `main`-only — the IDENTICAL block (with the `staticSize=0` malloc branch)
+is already in the **`v4.17.0` tag** source (verified via raw.githubusercontent;
+`main` only adds the `"evaluating creation record"` log). So our emulator
+firmware is older than the very `v4.17.0` tag the pebble-tool SDK is named for
+— a pebble-tool ↔ PebbleOS version gap. The live proof would be to boot a
+newer firmware (the `v4.19.2` release ships 110 assets, likely including a QEMU
+image) and re-run our apps requesting a big machine — blocked here only because
+the GitHub release API is out of scope (can't enumerate/download the asset);
+an asset URL or upload (like the pebble-examples S3 trick) would unblock it.
+
 ## 6. Us vs. the official docs
 
 Where our empirical work landed relative to `mods.md`:
