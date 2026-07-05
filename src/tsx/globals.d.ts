@@ -17,9 +17,13 @@ declare namespace JSX {
 	}
 }
 
-// Pebble-host-injected globals the vendored Moddable typings cannot know
-// about: the boot host (build/devices/pebble/host/main.js) passes a
-// synchronous module loader into the app's ArchiveCompartment. It resolves
-// PRECOMPILED bytecode from the mod archive — there is no on-device source
-// compile. Used by the lazyscreen example (#27).
+// `importNow` as a BARE GLOBAL is Pebble-specific, but the capability is
+// standard Moddable. The mechanism is `Modules.importNow(name)` (see the SDK's
+// typings/modules.d.ts and documentation/xs/mods.md); Pebble's boot host
+// (build/devices/pebble/host/main.js, ~line 169) wraps it —
+//   importNow(specifier) { return state.mod.importNow(specifier); }
+// — and passes that 1-arg wrapper into the app's compartment, so we call it
+// unqualified. It loads + synchronously runs a module from the mod archive
+// (precompiled bytecode; no on-device source compile) and returns its default
+// export. Used by the lazyscreen example (#27). See docs/field-notes.md §1.
 declare function importNow(specifier: string): any;

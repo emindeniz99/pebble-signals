@@ -3,7 +3,56 @@
 Shipped work lives in git history + the README/playbook. This tracks the OPEN
 items. **Emulator status: HEALTHY** (recovered via `tools/reset-emulator.sh`;
 counter device-verified 0→1). The old "needs a stable emulator" wall is down —
-device work is unblocked again.
+device work is unblocked again. **Device status: owner has NO physical watch
+yet** (Round-2 pre-order, not yet shipped) — so all "device work" means the
+QEMU emulator; real-hardware-only checks stay parked until a watch arrives.
+
+New readers: `docs/field-notes.md` is the lab notebook (how each memory
+finding was made, the source files, the tools, the wrong turns, the flag
+model). Start there for the "why".
+
+## Owner-queued next batch (2026-07, do in order)
+Priority order the owner set; each is expanded in its own section below.
+1. **Symbol diet** ✅ DONE (shipped `tools/symbol-rename.mts`).
+2. **Piu native node ledger** ✅ DONE (measured: no second ledger).
+3. **text-input example** ✅ DONE (`textinput`) — but do a SOTA/prior-art
+   pass on watch text-entry (Pebble dictation, T9-style, scanning keyboards)
+   and fold the best idea in.
+4. **load-time ms instrumentation** — time an `importNow` and quote the lazy
+   load latency in ms (one of the two genuinely-open playbook items).
+5. **Conformance suite expansion** — new laws (same-value-no-notify,
+   nested-effect ownership, effect-in-effect disposal, memo-of-memo, error
+   isolation, batch nesting, untrack-in-effect).
+6. **autothunk on-device (EMULATOR)** — build `autothunk`, install on gabbro,
+   confirm the bare `string={"c"+count()}` binding updates live.
+7. **moveBy reactive position** — `<Move>`/`animate()` imperative reposition
+   inside an effect; emulator repaint/timing check.
+8. **Machine restart from C (research)** — can `mdbl.c` kill + recreate the XS
+   machine for a JS "process restart" (mode switch / OOM recovery)? Read
+   PebbleOS `moddable.c` for `deleteMachine`; see the dedicated section below.
+9. **Heap-sizing retest (source-verify)** — read PebbleOS `main` `moddable.c`
+   to see if newer firmware honors stack/slot/chunk (our 4.17 ignores them);
+   can't run it, but can confirm from source.
+10. **CloudPebble tiers 1→2→3** — see the CloudPebble section; tier 2
+    (browser layout preview) is the one we can build ourselves.
+
+### Genuinely NEW ideas (owner, 2026-07)
+- **Speech-to-text for todo entry.** The watch has a mic; PebbleOS/Pebble had
+  a *Dictation* API (`DictationSession`) in the classic SDK. FEASIBILITY
+  UNKNOWN on the Moddable/Alloy mod surface — research whether Alloy exposes
+  dictation (or PKJS can bridge phone speech recognition) before promising it.
+  If reachable, it pairs perfectly with the `textinput` todo example. Do a
+  research pass first (Rule 2 — don't claim it works until measured).
+- **Tighten `JSX.Element` from `any` → `JSXNode`.** `globals.d.ts` currently
+  declares `JSX.Element = any` (the loosest legal JSX contract). React uses
+  `ReactElement`, Solid a big renderable union; our principled type is the
+  `JSXNode` we already define (Content | primitive | array | nullish). Swapping
+  it gives real typechecking of JSX expressions but can ripple through
+  inference — do it behind the typecheck gate, one pass, verify `npm run
+  typecheck` stays green. Low risk, nice-to-have.
+- **Vendor `modules.d.ts`** (Moddable's `Modules.importNow`/`has`/`host`/
+  `archive`) into `types/moddable/` via `sync-moddable-typings.sh`, so the
+  mod API is typed from the real source instead of our hand-declared global.
 
 ## Big in-flight tracks
 

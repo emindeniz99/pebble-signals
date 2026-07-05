@@ -536,6 +536,12 @@ memory space on the watch+phone (arena, mod archive, resources, native
 heap, worker pool, persist KV, PKJS), which signal-piu feature uses which,
 and a decision table for where a given kind of data belongs.
 
+[`docs/field-notes.md`](docs/field-notes.md) is the lab notebook — *how*
+each memory finding was made: the exact firmware/SDK source files we read,
+the measurement tools we built, the wrong turns we kept on purpose, the
+flag-gated (DX-neutral) optimization model, and a cross-check of our
+numbers against Moddable's official `mods.md`. Start here for the "why".
+
 ## XS / Piu gotchas actually hit
 
 1. **Every fatal error looks identical**: `fxAbort` (memory full, unhandled
