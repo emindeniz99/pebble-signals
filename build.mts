@@ -21,6 +21,11 @@
 //                                         (object API still works) but costs
 //                                         ~2x slots per state and bare reactive
 //                                         props need hand-written thunks
+//   --no-crash-ui       CRASH_UI=0        drop render()'s on-watch crash SCREEN;
+//                                         escaped errors still log + contain (the
+//                                         node keeps its last good value). DCEs
+//                                         showCrash — reclaims boot symbols/bytes
+//                                         for a saturated app (see docs/field-notes)
 import { execFileSync } from "node:child_process";
 import {
 	copyFileSync,
@@ -88,6 +93,7 @@ const cli = parseArgs({
 		"preload-pure": { type: "boolean" },
 		squash: { type: "boolean" },
 		symdiet: { type: "boolean" },
+		"crash-ui": { type: "boolean" },
 	},
 	allowNegative: true, // --no-minify / --no-treeshake / --no-check-c / --no-lower
 }).values;
@@ -207,6 +213,17 @@ if (!flag(cli["skip-fontcheck"], "SKIP_FONTCHECK", "1", false))
 // ships readable modules (correctness is identical either way). Self-disabling:
 // if esbuild is missing/errors, each file falls back to a verbatim copy.
 const minify = flag(cli.minify, "MINIFY", "1", true);
+// Crash-screen build flag (DEFAULT ON). --no-crash-ui / CRASH_UI=0 esbuild-
+// `define`s __SP_CRASH_UI__ = false in the runtime minify, so DCE drops
+// jsx-runtime's showCrash body (Text/Skin/Style build + retry) and render()
+// installs the lean log+contain sink instead. Boot symbols/bytes back for a
+// saturated app that would rather keep the room than the on-watch error UI.
+const crashUI = flag(cli["crash-ui"], "CRASH_UI", "1", true);
+// esbuild `define` for the runtime minify: substitutes the compile-time flag so
+// `typeof __SP_CRASH_UI__ === "undefined" || __SP_CRASH_UI__` folds to a const.
+// Empty when crashUI is ON — leave __SP_CRASH_UI__ undefined so the `typeof`
+// guard keeps the screen (identical to today's default; no define needed).
+const crashDefine: Record<string, string> = crashUI ? {} : { __SP_CRASH_UI__: "false" };
 rmSync("src/embeddedjs/app", { recursive: true, force: true });
 rmSync("src/embeddedjs/runtime-min", { recursive: true, force: true });
 rmSync("src/embeddedjs/runtime-build", { recursive: true, force: true });
@@ -508,6 +525,9 @@ const emitRuntime = (preScanPrevious: boolean): Map<string, string> => {
 				external: ["runtime/*"],
 				treeShaking: true,
 				minify: true,
+				// __SP_CRASH_UI__=false (--no-crash-ui) folds jsx-runtime's crash
+				// screen guard so DCE drops showCrash; empty when the screen stays.
+				define: crashDefine,
 				format: "esm",
 				outfile: out,
 				allowOverwrite: true,

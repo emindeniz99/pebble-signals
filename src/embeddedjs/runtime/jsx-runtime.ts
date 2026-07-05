@@ -257,6 +257,16 @@ function consumePendingFocus() {
 	}
 }
 
+// Compile-time flag: does this build ship the full crash SCREEN, or the lean
+// "log + contain" sink? Default ON. The build's `--no-crash-ui` / CRASH_UI=0
+// esbuild-`define`s this to `false`, and DCE then drops the whole showCrash
+// body (Text/Skin/Style construction + retry) — recovering boot symbols +
+// bytecode for a saturated app that would rather keep the room than the UI.
+// `typeof` guard makes it SAFE when undefined (Node tests, non-minified debug
+// builds): unset → ON. `render(..., {boundary:false})` still gives strict
+// crash-on-error regardless; this only controls the on-watch screen.
+declare const __SP_CRASH_UI__: boolean;
+
 // ---- top-level error boundary (2026-07 redesign) ---------------------------
 // render() installs showCrash as report()'s sink by default: an escaped
 // reactive/build error tears down the whole tree and paints a crash screen
@@ -402,7 +412,18 @@ export function render(
 	const hs = (globalThis as unknown as { screen?: { round?: boolean; color?: boolean } }).screen;
 	screen.round = !!(hs && hs.round);
 	screen.color = !!(hs && hs.color);
-	setSink(!opts || opts.boundary !== false ? showCrash : true);
+	// crashSink: the tree-teardown crash SCREEN, or null (lean log+contain).
+	// Kept as a dead-`if` on the compile-time flag ON PURPOSE: when esbuild
+	// `define`s __SP_CRASH_UI__ = false (--no-crash-ui) the branch is dead and
+	// DCE drops both it AND showCrash's whole body — esbuild eliminates a
+	// constant-`false` `if` reliably, where it would NOT re-fold a `?:` fed an
+	// inlined const (measured: the ternary form left showCrash referenced).
+	// Flag undefined (Node tests, non-minified builds, default ON): the guard
+	// stays runtime-true, so the screen is installed. `null` sink = report()
+	// still LOGS in full, then CONTAINS (node keeps last good value).
+	let crashSink: ((err: unknown, msg: string) => void) | null = null;
+	if (typeof __SP_CRASH_UI__ === "undefined" || __SP_CRASH_UI__) crashSink = showCrash;
+	setSink(!opts || opts.boundary !== false ? crashSink : true);
 	try {
 		mount(app, build);
 	} catch (err) {
