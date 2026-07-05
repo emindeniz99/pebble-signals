@@ -41,11 +41,27 @@ effect with no owner is still yours to `dispose()`).
 - A WATCHFACE build (`watchapp.watchface: true`) has no launcher entry — it
   appears as the active face, not in the menu. Check which you built.
 
-## Effect errors (not aborts)
+## Effect errors: the crash screen (default) and the ladder
 
-A throwing effect does NOT kill the machine: the runtime routes subscriber
-exceptions to `globalThis.__spError` (XS would otherwise abort the app on an
-uncaught throw). Define it early in the app for visibility:
+An escaped reactive error does NOT vanish. The report() ladder (2026-07
+redesign) decides what happens, in order:
+
+1. `globalThis.__spError` installed → the handler owns the policy — contain
+   by returning, escalate by rethrowing (dev strict mode).
+2. Else the FULL error is logged (visible in Node/xsbug; JS `trace` is a
+   no-op on release firmware), then:
+   - `render()`'s DEFAULT boundary paints a **crash screen**: the whole tree
+     is disposed, the actual error (name/message/stack) is drawn on the
+     watch with `[any button: exit]`, and a button press rethrows the
+     original error → fxAbort with stack in `pebble logs` → the host exits
+     the mod. Screenshot receipt: `screenshots/crash-boundary-gabbro.png`.
+   - `render(build, dict, {boundary: false})` (strict): log, then PROPAGATE
+     — first-render errors abort module load, re-run errors escape the
+     setter (fxAbort). Dead but loud.
+   - No boundary at all (bare core, unit tests): log and contain — the node
+     keeps its last good value.
+
+For a custom dev channel, define the hook early in the app:
 
 ```js
 globalThis.__spError = (e) => trace("effect error: " + e.message + "\n");

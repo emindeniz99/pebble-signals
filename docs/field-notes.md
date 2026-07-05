@@ -319,11 +319,11 @@ every reactive binding in try/catch and reports with full context —
 stack, and the raw error. This covers the first render too (the
 creation-time hole), keeps the last good value, and lets the rest of the
 app live. It is a deliberate DIVERGE from Solid (which propagates
-creation errors): on a watch, a stale label beats exit-to-launcher. A
-throwing render() BUILD still propagates — a fully broken tree stays
-loud. Conformance law 24 pins the contract; the device receipt is an app
-whose binding throws every second running with **15 heartbeats, 0
-fxAbort**, screen frozen at the last good value ("n=1").
+creation errors): on a watch, a stale label beats exit-to-launcher — or
+so we thought; Round 2 below overturns that default. Conformance law 24
+pins this contract (today: as the NO-boundary floor); the device receipt
+is an app whose binding throws every second running with **15
+heartbeats, 0 fxAbort**, screen frozen at the last good value ("n=1").
 
 **Assumptions overturned along the way** (Rule 2 corrections): "pypkjs
 keeps dying" (partly environmental, but captures were the real issue);
@@ -345,20 +345,67 @@ Measured contract (pinned by tests): the handler always runs FIRST — so
 the full log/context is never lost — and the rethrow then propagates: a
 first-render throw aborts module load, a re-run throw escapes the setter
 (the handler fires twice on re-runs: once with binding context, once from
-the notify layer). Default = contain & survive (ship this); strict =
-log-then-crash (debug with this). Same runtime, zero extra cost.
+the notify layer). At this point the story read "default = contain &
+survive; strict = log-then-crash" — Round 2 below revised the default.
 
-**The crash-loudness matrix**, for the record:
+**Round 2 — the frozen-label default was overturned (owner design
+review, same 2026-07).** Living with the shipped guard for a day exposed
+its product flaw: the "contained" default leaves the wearer looking at a
+watchface that SEEMS alive but silently stopped updating — a frozen time
+display is arguably worse than a dead app, because the user keeps
+trusting it. Owner call: *telling the user the app crashed beats a watch
+that lies.* So the containment default was replaced by a **top-level
+error boundary that `render()` installs by default**:
 
-| Where it throws | Default behavior | Visible where |
-|---|---|---|
-| Binding thunk (first render or re-run) | contained — label keeps last value, app LIVES | `__spError` / console (tests, xsbug); UI freezes visibly |
-| Binding thunk + strict `__spError` | logged, then CRASH | handler output, then fxAbort + stack in `pebble logs` |
-| render() BUILD / non-binding module code | CRASH (never swallowed) | fxAbort + stack in `pebble logs` — always loud |
+- An escaped binding error (first render OR re-run) and a throwing
+  `render()` build now ESCALATE: the whole reactive tree is disposed
+  (owners tear down effects and cleanups; later notifies hit disposed ids
+  and no-op), the Application is emptied FIRST (frees the old nodes on
+  the tight arena before the error UI allocates), and a crash screen is
+  painted — "APP CRASHED", the real error (name/message/stack, capped at
+  380 chars), and `[any button: exit]`.
+- The exit button rethrows the ORIGINAL error outside every guard:
+  uncaught → fxAbort with stack in `pebble logs` → the host kills the
+  mod. One press, two receipts (screen + log).
+- `render(build, dict, {boundary: false})` = strict: log fully, then
+  propagate (the old dev-strict semantics as a first-class flag).
+- `__spError` still outranks everything — a handler owns the policy
+  (contain by returning, crash by rethrowing), and the old contained
+  behavior remains the floor when NO boundary exists (bare core, tests).
 
-So "no silent death" means: either the app survives with a well-defined
-frozen state, or it dies with a stack trace in the log. There is no path
-that is both dead and quiet.
+Two cosmetic findings came straight off device screenshots: XS (like V8)
+opens `.stack` with the `Name: message` line, so `fmtError` was printing
+the head twice (deduped — every line costs visible space on a 260 px
+circle); and top-aligned text on the ROUND gabbro display clips into the
+corners, so the crash Text is vertically centered (no top/bottom → Piu
+centers the fitted content in the circle's widest band).
+
+**The crash-loudness matrix (v2)**, for the record:
+
+| Where it throws | Default (`render()` boundary ON) | `{boundary: false}` | custom `__spError` |
+|---|---|---|---|
+| Binding thunk (first render or re-run) | crash screen — tree disposed, error painted, button exits via rethrow | logged, then CRASH (first render: module-load abort; re-run: escapes the setter) | handler's choice; contained keeps last value |
+| render() BUILD | crash screen | logged, then propagates out of render() | handler's choice |
+| Bare core (no render(): tests, headless) | logged + contained — effect isolated, app LIVES | — | handler's choice |
+
+So "no silent death" now means: either the wearer SEES the crash (screen
++ optional exit), or the app dies with a stack trace in the log, or an
+app-installed handler explicitly chose otherwise. The one path that used
+to be quiet-ish — the frozen label — is gone from the defaults.
+
+Device receipts for the boundary (gabbro, QEMU): the `crashdemo` example
+(a binding that throws at n=3) paints the crash screen while the machine
+keeps 13-15 heartbeats with **0 fxAbort** and stays stable for minutes
+after (`screenshots/crash-boundary-gabbro.png`); the unowned interval
+keeps writing the signal post-teardown and the disposed effects no-op as
+designed; the `watchface` example re-verified clean on the same runtime
+(no regression). The one thing QEMU could NOT verify is the literal
+button press: the Pebble QEMU Protocol port is exclusively held by
+pypkjs (a second `QemuButton` connection is silently dropped) and the
+qemu monitor's `sendkey` isn't wired to the button GPIOs — the kill path
+is pinned by unit tests instead, and throw-from-behavior → fxAbort was
+device-measured earlier (swapped-screen investigation). Roadmap carries
+the residual "press the button on real hardware" item.
 
 **The moral:** every layer of this stack can silently eat an error — the
 spawn (devnull), the shell (split invocations), the runtime (unguarded

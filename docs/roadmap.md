@@ -83,17 +83,29 @@ strictly ordered except the "next batch".
       document (new item below).
       pypkjs version note: we run 2.0.7 from PyPI (coredevices' package,
       latest release) — the instability is environmental, not a stale version.
-- [x] ~~decide: creation-time binding guard~~ **DECIDED + SHIPPED (2026-07):
-      bindings are guarded, first render included.** jsx-runtime wraps every
-      reactive binding in try/catch and reports with context (`binding
-      'string' on Label threw (kept last value)` + name/message/stack + raw
-      err via the new exported `report(err, ctx)`); the node keeps its last
-      good value, the app survives. Deliberate DIVERGE from Solid (watch
-      resilience > parity); a throwing render() BUILD still propagates.
-      Conformance law 24 pins it; DEVICE RECEIPT: per-second-throwing app
-      alive with 15 heartbeats / 0 fxAbort, screen frozen at "n=1".
-      (Old runtime: same app fxAbort'ed to the launcher.) 303 tests, 100%
-      cov, 24 XS-checked laws.
+- [x] ~~decide: creation-time binding guard~~ **DECIDED + SHIPPED (2026-07),
+      then REVISED same month (owner design review): the frozen-label
+      containment default was overturned by the top-level error boundary.**
+      Round 1 (guard): jsx-runtime wraps every reactive binding in try/catch
+      and reports with context via `report(err, ctx)` — first render
+      included. Round 2 (boundary, the shipped contract): `render()` installs
+      a default sink — an escaped binding/build error DISPOSES the whole
+      tree, empties the app and paints a crash screen ("APP CRASHED" + the
+      real error + `[any button: exit]`; the press rethrows → fxAbort → host
+      exits the mod). `render(build, dict, {boundary: false})` = log then
+      propagate (strict); `__spError` outranks everything; bare core (no
+      render) keeps the contained floor. Laws 24-25 pin it; DEVICE RECEIPTS:
+      crashdemo paints the screen at n=3 with 13-15 heartbeats / 0 fxAbort
+      and stays stable for minutes (`screenshots/crash-boundary-gabbro.png`);
+      watchface re-verified no-regression. 329 tests, 100% cov, 25 laws.
+- [ ] error boundary residuals: (a) press the crash screen's exit button on
+      REAL hardware (QEMU can't inject buttons — the Pebble QEMU Protocol
+      port is held by pypkjs and monitor `sendkey` isn't wired to the button
+      GPIOs; the rethrow path is unit-pinned and throw-from-behavior →
+      fxAbort was device-measured in the swapped-screen round); (b) optional
+      per-subtree `<ErrorBoundary>` component (Solid-style fallback swap) if
+      an app ever wants partial containment; (c) `defineApp` DX could own the
+      boundary default toggle when it lands.
 - [ ] **Visible dev-log bridge (design):** on RELEASE firmware JS `trace` is
       a no-op (xsHost.c: visible lines are C-side `modLog_transmit`/APP_LOG;
       probes confirmed console.log/trace never reach `pebble logs` from a

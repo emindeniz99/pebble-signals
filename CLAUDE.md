@@ -63,7 +63,9 @@ misleadingly "fail". Know the channels: on RELEASE firmware, JS
 `trace`/`console.log` from a mod is a NO-OP (never reaches `pebble logs`);
 what you CAN see is C-side APP_LOG (instruments, fxAbort + stack) and
 `pkjs>` lines (PKJS-side console). Route diagnostics through
-`globalThis.__spError` or the UI, not trace.
+`globalThis.__spError` or the UI, not trace — and remember the DEFAULT
+render() error boundary already paints escaped errors on the watch
+itself (crash screen; `pebble screenshot` captures it as a receipt).
 
 ## Rule 4 — The XS heap is the scarcest resource
 

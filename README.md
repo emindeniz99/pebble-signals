@@ -176,15 +176,16 @@ Full hook/primitive parity table (what we have, what we skip, and why) is in
 |---|---|
 | React re-render model | Components run **once**. State updates flow through bindings, not re-invocation. `useState` returns `[getter, setter]` — read with `count()`. |
 | `createResource` (async data) | SHIPPED — `createResource(fetcher)` → reactive `{loading, error, data, refetch}` thunks (two Signal objects total; stale responses dropped). On-device, `fetch()` proxies through the phone (gotcha 18) — keep fetch-using apps lean. |
-| `Suspense` / `ErrorBoundary` | No async render. Subscriber errors are already isolated per-effect via the `__spError` hook (a throwing effect can't kill the others). |
+| `Suspense` / `ErrorBoundary` | No async render. Error handling is BUILT IN instead (2026-07 redesign): `render()` installs a top-level boundary by default — an escaped binding/build error tears the tree down and paints a crash screen (the actual error on the watch + `[any button: exit]`, where the press rethrows so the host exits the mod loudly). `render(build, dict, {boundary: false})` = log-then-propagate (strict); a `globalThis.__spError` handler owns the policy outright (contain by returning, crash by rethrowing). No per-subtree `<ErrorBoundary>` component (yet). Screenshot: `screenshots/crash-boundary-gabbro.png`. |
 | `useCallback` / `useMemo`-for-identity | Pointless — components run once, so closures are already stable. `useMemo` exists only for *value* caching. |
 | Glitch-free diamonds | SHIPPED (2026-07 core round) — computeds are LAZY (recompute on read, version-validated, pulling sources first) and every notify coalesces into turns, so a diamond sink runs ONCE, straight to the correct value (conformance law 12 = MATCH, verified on real XS). |
 | Reactive position/size props | Piu lays out at construction time — `left/top/width/height` are static. A reactive one is rejected at bind time with guidance; use `<Show>` to swap. |
 | Bare `{count}` reactivity | The reactivity signal is the **call** `{count()}` (or `sig.value`); a bare identifier can't be told apart from a static value. |
 
-Conformance is CHECKED, not claimed: `tests/conformance.test.mts` runs 19
-fine-grained-reactivity laws against the runtime (17 match Solid, 2 intentional
-divergences: run-once components and per-effect error isolation — see
+Conformance is CHECKED, not claimed: `tests/conformance.test.mts` runs 25
+fine-grained-reactivity laws against the runtime (20 match Solid, 5 intentional
+divergences: run-once components, per-effect error isolation, no memo
+equality-short-circuit, and the two error-boundary laws — see
 [`docs/api-parity.md`](docs/api-parity.md)). Glitch-freedom and nested-effect
 ownership flipped to MATCH in the 2026-07 core round.
 

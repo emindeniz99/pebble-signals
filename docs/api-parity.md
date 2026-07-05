@@ -32,7 +32,7 @@ with Solid's primitives, not identical signatures to React's.
 | `createSelector` / `mapArray` | Solid | 🔴 niche; `For` covers the list case |
 | `mergeProps` / `splitProps` | Solid | 🔴 props are plain objects; not needed |
 | `animate()` / transitions | Reanimated / Solid `Tween` libs | ✅ SHIPPED `animate(from,to,ms,easing?)` in flow.js |
-| `Suspense`/`ErrorBoundary` | React/Solid | 🔴 no async render; subscriber errors already isolated via `__spError` |
+| `Suspense`/`ErrorBoundary` | React/Solid | 🟡 no async render / no per-subtree component, but `render()` installs a DEFAULT top-level boundary: escaped errors paint a crash screen (opt out with `{boundary: false}`; `__spError` overrides entirely) |
 
 ## Not a React drop-in — say so
 
