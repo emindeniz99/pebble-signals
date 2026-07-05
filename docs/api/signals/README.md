@@ -32,6 +32,7 @@
 - [createStore](functions/createStore.md)
 - [dispose](functions/dispose.md)
 - [effect](functions/effect.md)
+- [getBoundary](functions/getBoundary.md)
 - [onCleanup](functions/onCleanup.md)
 - [onMount](functions/onMount.md)
 - [provide](functions/provide.md)
@@ -47,3 +48,4 @@
 - [useReducer](functions/useReducer.md)
 - [useRef](functions/useRef.md)
 - [useState](functions/useState.md)
+- [withBoundary](functions/withBoundary.md)

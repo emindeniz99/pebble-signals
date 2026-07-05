@@ -8,7 +8,7 @@
 
 > **VLRich**\<`T`\> = `VLBase`\<`T`\> & `object`
 
-Defined in: flow.ts:77
+Defined in: flow.ts:93
 
 ## Type Declaration
 

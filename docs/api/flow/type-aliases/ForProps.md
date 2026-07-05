@@ -8,7 +8,7 @@
 
 > **ForProps**\<`T`\> = [`BoxProps`](BoxProps.md) & `object`
 
-Defined in: flow.ts:55
+Defined in: flow.ts:64
 
 ## Type Declaration
 

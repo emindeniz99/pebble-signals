@@ -8,7 +8,7 @@
 
 > **NavHandle** = `object`
 
-Defined in: flow.ts:82
+Defined in: flow.ts:98
 
 ## Methods
 
@@ -16,7 +16,7 @@ Defined in: flow.ts:82
 
 > **canPop**(): `boolean`
 
-Defined in: flow.ts:86
+Defined in: flow.ts:102
 
 #### Returns
 
@@ -28,7 +28,7 @@ Defined in: flow.ts:86
 
 > **depth**(): `number`
 
-Defined in: flow.ts:85
+Defined in: flow.ts:101
 
 #### Returns
 
@@ -40,7 +40,7 @@ Defined in: flow.ts:85
 
 > **pop**(): `void`
 
-Defined in: flow.ts:84
+Defined in: flow.ts:100
 
 #### Returns
 
@@ -52,7 +52,7 @@ Defined in: flow.ts:84
 
 > **push**(`build`): `void`
 
-Defined in: flow.ts:83
+Defined in: flow.ts:99
 
 #### Parameters
 

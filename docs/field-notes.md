@@ -450,6 +450,57 @@ first runs), the logger itself (missing method), the firmware (trace
 no-op). Visibility had to be won at each layer separately, and each win
 was only trustworthy with a device receipt.
 
+**Round 4 — the OPT-IN per-subtree `<ErrorBoundary>` (Solid parity), and
+an alias-budget lesson re-learned the hard way.** The default crash
+screen is the app's last resort; Solid's real feature is a *local*
+`<ErrorBoundary fallback={(err, reset) => …}>` that contains a failure to
+one subtree and keeps the rest of the UI alive. We built it in `flow.ts`.
+
+- *The routing problem.* A binding catches in its own guard, but a
+  re-run throw happens on a later `notify()` turn — outside any build —
+  so "which boundary owns this effect?" can't be answered by a call-stack
+  walk (we have no parent-owner pointers, unlike Solid's owner tree). The
+  answer: tag each effect with its boundary AT CREATION. `Graph.z[e]` =
+  the owning boundary (a lazy sparse array, null until the first
+  `<ErrorBoundary>` — a boundary-free app allocates nothing); `Graph.c` =
+  the boundary in scope right now, set by `withBoundary()` during a build
+  and re-established by `run()` so a boundaried effect's own re-run and
+  any effect it spawns both inherit it. `report()` became the single
+  router: `__spError` > nearest boundary (`Graph.c`) > terminal sink.
+  Nesting falls out for free — a throwing fallback is built under the
+  PARENT boundary, so it escalates outward, never loops.
+- *The re-entrancy bug (found by coverage, not luck).* A creation-time
+  binding throw fires `onError` SYNCHRONOUSLY mid-build; without a guard
+  the orphan children tree then mounts on top of the freshly-painted
+  fallback (the same shape as render()'s `panicked` flag). And the
+  `if (shown)` escalation, if it called `report()` while `Graph.c` was
+  still self, looped forever — fixed by escalating through
+  `withBoundary(parent, …)` so the scope is correctly re-established.
+- *ALIAS-BUDGET LESSON, re-learned (Rule 2).* First cut named the two
+  Graph fields `cb` and `bnd`. Measured: the `boundary` example DIED at
+  boot with `fxAbort memory full`, and a NON-EB app (watchface) jumped
+  147→ from ~141 symbols. Cause: `cb`/`bnd` are new-to-host symbol names,
+  each costing a boot slot (gotcha 13 / the boot-floor). The file's own
+  rule — right there in the Graph comment — is "field names must be
+  SINGLE LETTERS already in the minified symbol table." Renaming to
+  `c`/`z` recovered the symbols (watchface back to 144) and it booted
+  clean. I'd read that comment and ignored it; the device caught me.
+- *Device status (honest).* watchface — which now exercises the new
+  `run/notify/report/effect/dispose` boundary branches on EVERY reactive
+  tick — boots and runs clean on gabbro, so the always-on core cost is
+  boot-safe and does NOT regress non-EB apps. The `boundary` EXAMPLE
+  itself is 147 symbols (watchface + 2 for the kept
+  `withBoundary`/`getBoundary`, which prune away entirely when unused) and
+  would not boot in this session — but neither would the known-good
+  `navreactive` (151 sym) after repeated hard resets, i.e. the emulator
+  session was degraded (the documented intermittent wedge), not the code.
+  richlist boots at 149 symbols historically, so 147 should on a healthy
+  session; the live catch/reset screenshot is queued behind a fresh
+  emulator. The LOGIC is pinned by 364 Node tests / 100% branch coverage
+  and conformance Law 26 (MATCH Solid) on real XS — build/re-run catch,
+  fallback+reset, nesting, escalation, sibling-stays-alive, and the
+  re-entrancy guard all covered.
+
 ## 6. Us vs. the official docs
 
 Where our empirical work landed relative to `mods.md`:

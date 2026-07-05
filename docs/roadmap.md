@@ -108,10 +108,30 @@ strictly ordered except the "next batch".
       `reset` parity), `" ~ "` screen packing, and `screen.round/color`
       shipped in the same round. Optional: repeat once on real hardware
       when the watch arrives.
-- [ ] error boundary residuals: (b) optional per-subtree `<ErrorBoundary>`
-      component (Solid-style fallback swap) if an app ever wants partial
-      containment; (c) `defineApp` DX could own the boundary default toggle
-      when it lands.
+- [x] ~~error boundary residual (b): per-subtree `<ErrorBoundary>`~~ **SHIPPED
+      (2026-07):** Solid's opt-in component in `flow.ts` —
+      `<ErrorBoundary fallback={(err, reset) => …}>{() => <App/>}</ErrorBoundary>`.
+      Catches BUILD-time AND reactive-update throws in its subtree, swaps in the
+      fallback, keeps the rest of the app alive; `reset` re-runs children under a
+      fresh root; inner boundaries catch before the default crash screen; a
+      throwing fallback escalates to the enclosing boundary (Solid nesting).
+      Core mechanism: `Graph.z[e]` tags each effect with its owning boundary at
+      creation (lazy, null until the first boundary — zero cost otherwise) and
+      `Graph.c` is the boundary in scope; `report()` routes `__spError` >
+      boundary > terminal sink. Names are SINGLE LETTERS (`c`/`z`) on purpose —
+      a `cb`/`bnd` pair cost +2 boot symbols and helped tip a saturated app
+      (gotcha 13/boot-floor lesson, re-learned). 364 tests, 100% cov, 26 laws
+      (Law 26 MATCH Solid). DEVICE: watchface (exercises the new core paths on
+      every tick) boots clean — core changes don't regress non-EB apps; the
+      `boundary` example itself (147 sym, +2 over watchface for the kept
+      `withBoundary`/`getBoundary`) sits at THIS session's degraded boot floor
+      (known-good navreactive@151 also won't boot right now), so its live-catch
+      screenshot is pending a healthy emulator session — richlist boots at 149
+      historically, so it should. (c) `defineApp` boundary-default toggle:
+      future.
+- [ ] error boundary residual (c-cont): capture the `boundary` example's
+      live catch/reset on a HEALTHY emulator session (blocked today by the
+      intermittent gabbro wedge; unit + conformance already pin the behavior).
 - [ ] **Visible dev-log bridge (design):** on RELEASE firmware JS `trace` is
       a no-op (xsHost.c: visible lines are C-side `modLog_transmit`/APP_LOG;
       probes confirmed console.log/trace never reach `pebble logs` from a

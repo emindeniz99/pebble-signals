@@ -10,6 +10,7 @@
 
 - [BoxProps](type-aliases/BoxProps.md)
 - [DataSource](type-aliases/DataSource.md)
+- [ErrorBoundaryProps](type-aliases/ErrorBoundaryProps.md)
 - [ForProps](type-aliases/ForProps.md)
 - [NavHandle](type-aliases/NavHandle.md)
 - [NavigatorProps](type-aliases/NavigatorProps.md)
@@ -20,6 +21,7 @@
 ## Functions
 
 - [animate](functions/animate.md)
+- [ErrorBoundary](functions/ErrorBoundary.md)
 - [For](functions/For.md)
 - [Navigator](functions/Navigator.md)
 - [Show](functions/Show.md)

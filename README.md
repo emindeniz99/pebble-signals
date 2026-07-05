@@ -176,16 +176,18 @@ Full hook/primitive parity table (what we have, what we skip, and why) is in
 |---|---|
 | React re-render model | Components run **once**. State updates flow through bindings, not re-invocation. `useState` returns `[getter, setter]` — read with `count()`. |
 | `createResource` (async data) | SHIPPED — `createResource(fetcher)` → reactive `{loading, error, data, refetch}` thunks (two Signal objects total; stale responses dropped). On-device, `fetch()` proxies through the phone (gotcha 18) — keep fetch-using apps lean. |
-| `Suspense` / `ErrorBoundary` | No async render. Error handling is BUILT IN instead (2026-07 redesign): `render()` installs a top-level boundary by default — an escaped binding/build error tears the tree down and paints a crash screen with the actual error, stack compacted to `" ~ "` separators so a small screen packs more per line, and `[select: retry · back: exit]`. SELECT re-runs the app build under a fresh root (Solid's ErrorBoundary `reset`, adapted to a watch); BACK rethrows the original error so the host exits the mod loudly. `render(build, dict, {boundary: false})` = log-then-propagate (strict); a `globalThis.__spError` handler owns the policy outright (contain by returning, crash by rethrowing). No per-subtree `<ErrorBoundary>` component (yet). Full loop drive-verified on QEMU gabbro: `screenshots/crash-boundary-gabbro.png` → retry → `crash-retry-gabbro.png` → back → `crash-exit-gabbro.png`. |
+| `Suspense` | No async render. |
+| `ErrorBoundary` | SHIPPED — TWO layers (2026-07). **Default top-level:** `render()` installs a boundary automatically — an escaped binding/build error tears the tree down and paints a crash screen with the actual error (stack compacted to `" ~ "`) and `[select: retry · back: exit]`; SELECT re-runs the build under a fresh root (Solid's `reset`), BACK rethrows so the host exits loudly. `render(build, dict, {boundary: false})` = log-then-propagate; a `globalThis.__spError` handler overrides everything. Full loop drive-verified on gabbro (`screenshots/crash-boundary-gabbro.png` → `crash-retry-gabbro.png` → `crash-exit-gabbro.png`). **Opt-in per-subtree:** `<ErrorBoundary fallback={(err, reset) => …}>{() => <App/>}</ErrorBoundary>` (from `runtime/flow`) — Solid's component, catches BUILD-time and reactive-update throws in its subtree, keeps the rest of the app alive, `reset` re-runs the children; inner boundaries catch before the crash screen; a fallback that throws escalates to the enclosing boundary. Like Solid, neither catches event-handler throws. Zero cost when unused (tree-shaken); when used it pulls `flow` and costs ~2 boot symbols like any flow component. Example: `src/tsx/examples/boundary.tsx`. |
 | `useCallback` / `useMemo`-for-identity | Pointless — components run once, so closures are already stable. `useMemo` exists only for *value* caching. |
 | Glitch-free diamonds | SHIPPED (2026-07 core round) — computeds are LAZY (recompute on read, version-validated, pulling sources first) and every notify coalesces into turns, so a diamond sink runs ONCE, straight to the correct value (conformance law 12 = MATCH, verified on real XS). |
 | Reactive position/size props | Piu lays out at construction time — `left/top/width/height` are static. A reactive one is rejected at bind time with guidance; use `<Show>` to swap. |
 | Bare `{count}` reactivity | The reactivity signal is the **call** `{count()}` (or `sig.value`); a bare identifier can't be told apart from a static value. |
 
-Conformance is CHECKED, not claimed: `tests/conformance.test.mts` runs 25
-fine-grained-reactivity laws against the runtime (20 match Solid, 5 intentional
-divergences: run-once components, per-effect error isolation, no memo
-equality-short-circuit, and the two error-boundary laws — see
+Conformance is CHECKED, not claimed: `tests/conformance.test.mts` runs 26
+fine-grained-reactivity laws against the runtime (21 match Solid — including
+the per-subtree `<ErrorBoundary>` — and 5 intentional divergences: run-once
+components, per-effect error isolation, no memo equality-short-circuit, and the
+default-boundary crash screen — see
 [`docs/api-parity.md`](docs/api-parity.md)). Glitch-freedom and nested-effect
 ownership flipped to MATCH in the 2026-07 core round.
 

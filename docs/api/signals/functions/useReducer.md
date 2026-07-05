@@ -8,7 +8,7 @@
 
 > **useReducer**\<`S`, `A`\>(`reducer`, `init`): \[() => `S`, (`action`) => `void`\]
 
-Defined in: signals.ts:735
+Defined in: signals.ts:816
 
 ## Type Parameters
 

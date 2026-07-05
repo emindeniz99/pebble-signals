@@ -8,7 +8,7 @@
 
 > **useRef**\<`T`\>(`v`): `object`
 
-Defined in: signals.ts:729
+Defined in: signals.ts:810
 
 ## Type Parameters
 
