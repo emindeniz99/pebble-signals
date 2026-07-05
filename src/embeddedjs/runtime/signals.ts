@@ -33,22 +33,28 @@ type LogFn = (...args: unknown[]) => void;
 // plain object literal (no class — a class would add a top-level declaration to
 // this preloaded module, gotcha 13).
 interface Graph {
-	eff: (EffectFn | null)[]; // effect id -> reaction (null = disposed)
-	val: unknown[]; // packed signal id -> value
-	sub: Uint32Array; // subscription matrix, st words per signal row
-	st: number; // stride: words per row (= 1 + hi-word count)
+	e: (EffectFn | null)[]; // effect id -> reaction (null = disposed)
+	f: unknown[]; // packed signal id -> value
+	sub: Uint32Array; // subscription matrix, s words per signal row
+	s: number; // stride: words per row (= 1 + hi-word count)
 	n: number; // rows used
-	u: number; // word 0 of the live effect-id set
-	q: number; // word 0 of the quarantined effect-id set
-	uh: Uint32Array | null; // live-set hi-words (ids 32+)
-	qh: Uint32Array | null; // quarantine hi-words
-	dep: number; // notification cascade depth
-	bat: number; // batch() nesting depth
-	pend: number[] | null; // rows whose notify is deferred (settle turns)
-	// The three fields below use SINGLE-LETTER property names on purpose:
-	// every archive symbol interns at boot (playbook "The boot floor"), and
-	// a/z single letters are already in every build's symbol table via the
-	// minified runtime — so these cost ZERO new boot symbols.
+	h: number; // word 0 of the live effect-id set
+	r: number; // word 0 of the quarantined effect-id set
+	m: Uint32Array | null; // live-set hi-words (ids 32+)
+	i: Uint32Array | null; // quarantine hi-words
+	b: number; // notification cascade depth
+	E: number; // batch() nesting depth
+	t: number[] | null; // rows whose notify is deferred (settle turns)
+	// EVERY property name in this interface is a SINGLE LETTER the firmware
+	// ALREADY interns (measured against the gabbro SDK debug ELF —
+	// tools/host-symbols.py; the free set is E,b,c,e,f,h,i,m,r,s,t,w,x,y,z).
+	// Reason: every archive symbol interns at boot (playbook "The boot floor")
+	// and a name the host does NOT know costs one boot slot. Descriptive names
+	// (eff/val/st/dep/bat/pend + the single letters n/u/q) were each new-to-host
+	// — renaming them to free letters MEASURED navmany 44 → 35 new-to-host
+	// (−9 boot slots; only `n` had no free letter left and stays). See the
+	// block comment above for the role→field mapping. The three fields below
+	// were the first to adopt this, hence their own note:
 	y: number; // global write version — lazy computeds validate against it
 	// lazy-computed state (SoA triple, one property): x[0][row] fn,
 	// x[1][row] last-validated version (-1 = never), x[2][row]
@@ -80,20 +86,24 @@ let current = -1; // id of the running effect, -1 = none
 // ---- packed effect graph (task #15 Stage 1 — measured ~2x cheaper) ----
 // An effect is an INTEGER ID, not an object. Tables live in ONE lazily
 // created state record (a preload-time buffer would be frozen into ROM):
-//   eff[id]  reaction fn (null = disposed — doubles as the zombie guard)
-//   sub      Uint32Array, `st` words per SIGNAL row (32 effect bits each);
+// NOTE the Graph property names are DELIBERATELY host-known single letters
+// (e/f/s/n/h/r/m/i/b/E/t/y/x/w/c/z) — see the interface's rationale block. The
+// mnemonics used below (eff/sub/u/q/uh/qh/st) name the ROLES, not the wire
+// property; the field each maps to is shown in parentheses.
+//   e[id]    (e)   reaction fn (null = disposed — doubles as the zombie guard)
+//   sub      (sub) Uint32Array, `s` words per SIGNAL row (32 effect bits each);
 //            subscribe is one OR — and the old per-effect dependency
 //            array is GONE: reverse edges are implied by the forward
 //            masks, so unsubscribe is one AND-NOT pass over the rows.
-//   u/q      word 0 of the used / quarantined effect-id sets (effects
-//            0-31, the fast path); uh/qh hold words 1..st-1 and stay null
-//            until a 33rd live effect forces the stride to grow (#21).
-//   st       stride: words per signal row AND (1 + uh.length). Starts at 1
+//   used/qtn (h/r) word 0 of the used / quarantined effect-id sets (effects
+//            0-31, the fast path); hi-words (m/i) hold words 1..s-1 and stay
+//            null until a 33rd live effect forces the stride to grow (#21).
+//   stride   (s)   words per signal row AND (1 + m.length). Starts at 1
 //            (single-word core, zero overhead); grows lazily so apps with
 //            <=32 effects pay nothing.
 // Freed ids are QUARANTINED while a notification cascade is running
-// (dep > 0): a set() snapshots masks by value, so without quarantine a
-// stale bit could run a freshly reused id.
+// (cascade-depth field b > 0): a set() snapshots masks by value, so without
+// quarantine a stale bit could run a freshly reused id.
 let G: Graph | null = null;
 
 const gi = (): Graph => {
@@ -101,18 +111,18 @@ const gi = (): Graph => {
 	if (g === null)
 		// lazy: a preload-time table would be frozen in ROM
 		G = g = {
-			eff: [],
-			val: [],
+			e: [],
+			f: [],
 			sub: new Uint32Array(8),
-			st: 1,
+			s: 1,
 			n: 0,
-			u: 0,
-			q: 0,
-			uh: null,
-			qh: null,
-			dep: 0,
-			bat: 0,
-			pend: null,
+			h: 0,
+			r: 0,
+			m: null,
+			i: null,
+			b: 0,
+			E: 0,
+			t: null,
 			y: 0,
 			x: null,
 			w: null,
@@ -123,11 +133,11 @@ const gi = (): Graph => {
 };
 
 const grow = (g: Graph): number => {
-	// allocate one subscription row (st words wide). Row capacity is DERIVED
-	// (sub.length / st) instead of stored — one division per grow buys back a
+	// allocate one subscription row (s words wide). Row capacity is DERIVED
+	// (sub.length / s) instead of stored — one division per grow buys back a
 	// Graph slot + a boot symbol (CPU for RAM, as always).
 	const i = g.n++;
-	if ((i + 1) * g.st > g.sub.length) {
+	if ((i + 1) * g.s > g.sub.length) {
 		// rows packed contiguously — a flat copy preserves layout
 		const s2 = new Uint32Array(g.sub.length << 1);
 		s2.set(g.sub);
@@ -141,37 +151,37 @@ const grow = (g: Graph): number => {
 // live-effect count crosses a 32-bit boundary (32, 64, ...), so amortized
 // to nothing. Preserves each row's existing words in place.
 const growStride = (g: Graph): void => {
-	const os = g.st,
+	const os = g.s,
 		ns = os + 1;
 	const nsub = new Uint32Array((g.sub.length / os) * ns);
 	for (let r = 0; r < g.n; r++) for (let w = 0; w < os; w++) nsub[r * ns + w] = g.sub[r * os + w];
 	g.sub = nsub;
-	if (g.uh === null) {
-		g.uh = new Uint32Array(1);
-		g.qh = new Uint32Array(1);
+	if (g.m === null) {
+		g.m = new Uint32Array(1);
+		g.i = new Uint32Array(1);
 	} else {
 		const u2 = new Uint32Array(ns - 1);
-		u2.set(g.uh);
-		g.uh = u2;
+		u2.set(g.m);
+		g.m = u2;
 		const q2 = new Uint32Array(ns - 1);
-		q2.set(g.qh!); // uh non-null (this branch) implies qh non-null (invariant)
-		g.qh = q2;
+		q2.set(g.i!); // m non-null (this branch) implies i non-null (invariant)
+		g.i = q2;
 	}
-	g.st = ns;
+	g.s = ns;
 };
 
 const relQ = (g: Graph): void => {
 	// cascade over: release quarantined ids. Sole caller is settle()'s
 	// finally, which only runs at depth 0 (nested settles bail up front) —
 	// so no depth guard is needed here anymore.
-	g.u &= ~g.q;
-	g.q = 0;
-	const uh = g.uh;
+	g.h &= ~g.r;
+	g.r = 0;
+	const uh = g.m;
 	if (uh !== null)
-		// uh non-null implies qh non-null (invariant); `!` erases, emit unchanged
+		// m non-null implies i non-null (invariant); `!` erases, emit unchanged
 		for (let k = 0; k < uh.length; k++) {
-			uh[k] &= ~g.qh![k];
-			g.qh![k] = 0;
+			uh[k] &= ~g.i![k];
+			g.i![k] = 0;
 		}
 };
 
@@ -182,13 +192,13 @@ const relQ = (g: Graph): void => {
 // next turn instead of cascading recursively. Skips when a batch() or an
 // outer settle is active — that drainer owns the queue.
 const settle = (g: Graph): void => {
-	if (g.bat > 0 || g.dep > 0) return;
-	g.dep++;
+	if (g.E > 0 || g.b > 0) return;
+	g.b++;
 	try {
-		while (g.pend !== null) {
-			const rows = g.pend;
-			g.pend = null; // writes during this turn queue the NEXT turn
-			const st = g.st,
+		while (g.t !== null) {
+			const rows = g.t;
+			g.t = null; // writes during this turn queue the NEXT turn
+			const st = g.s,
 				sub = g.sub;
 			for (let wi = 0; wi < st; wi++) {
 				// union the touched rows' masks — effect-level dedupe (Solid
@@ -204,14 +214,14 @@ const settle = (g: Graph): void => {
 			}
 		}
 	} finally {
-		g.dep--;
+		g.b--;
 		relQ(g);
 	}
 };
 
 const flush = (g: Graph, i: number): void => {
 	// defer + dedupe the row, then drain unless a batch/turn already owns it
-	const p = g.pend || (g.pend = []);
+	const p = g.t || (g.t = []);
 	if (p.indexOf(i) < 0)
 		// linear: turn queues are few rows (no Set — XS rule)
 		p.push(i);
@@ -232,11 +242,11 @@ class Signal<T> {
 		// eff[current] check: an effect disposed WHILE RUNNING (its subtree
 		// torn down by an outer effect it triggered) must not re-subscribe
 		// as a permanent zombie.
-		if (current >= 0 && G!.eff[current]) {
+		if (current >= 0 && G!.e[current]) {
 			const g = G!;
 			let i = this.i;
 			if (i < 0) i = this.i = grow(g);
-			g.sub[i * g.st + (current >> 5)] |= 1 << (current & 31);
+			g.sub[i * g.s + (current >> 5)] |= 1 << (current & 31);
 		}
 		return this.v;
 	}
@@ -387,7 +397,7 @@ function notify(e: number): void {
 
 const run = (e: number): void => {
 	const g = G!;
-	const fn = g.eff[e];
+	const fn = g.e[e];
 	if (!fn)
 		// disposed mid-notification — do not resurrect
 		return;
@@ -428,7 +438,7 @@ function unsubscribe(e: number): void {
 	}
 	// effect e lives in word (e>>5) of every row; clear just that word.
 	const sub = g.sub,
-		st = g.st,
+		st = g.s,
 		word = e >> 5,
 		m = ~(1 << (e & 31)),
 		rows = g.n;
@@ -447,7 +457,7 @@ export function signal<T>(value: T): Signal<T> {
 
 // ---- packed signals — the Stage 2 lowering target -------------------------
 // A packed signal is an INTEGER: the id doubles as its subscription row and
-// indexes G.val (ONE slot per value instead of a ~4-slot Signal object).
+// indexes G.f (ONE slot per value instead of a ~4-slot Signal object).
 // build.mts lowers `const [x, setX] = useState(v)` to this API at compile
 // time (tools/lower.py): x() -> S.get(x), setX(e) -> S.set(x, e). Authoring
 // DX is unchanged and the per-state getter/setter closures never exist at
@@ -462,7 +472,7 @@ export const S = {
 	sig(v: unknown): number {
 		const g = gi();
 		const i = grow(g);
-		g.val[i] = v;
+		g.f[i] = v;
 		return i;
 	},
 	/** Read packed signal `i` (subscribes the current effect; pulls a stale computed). */
@@ -476,7 +486,7 @@ export const S = {
 			// A disposed computed (forward effect gone) freezes at its last
 			// value instead of recomputing.
 			const fn = cx[0][i];
-			if (fn !== undefined && cx[1][i] !== g.y && g.eff[cx[2][i]]) {
+			if (fn !== undefined && cx[1][i] !== g.y && g.e[cx[2][i]]) {
 				cx[1][i] = g.y; // before fn: a re-entrant read sees "current"
 				const e = cx[2][i];
 				unsubscribe(e); // re-track sources on every recompute
@@ -485,22 +495,22 @@ export const S = {
 				current = e;
 				owner = e; // trackables created by fn belong to the computed
 				try {
-					g.val[i] = fn();
+					g.f[i] = fn();
 				} finally {
 					current = prev;
 					owner = po;
 				}
 			}
 		}
-		if (current >= 0 && g.eff[current]) g.sub[i * g.st + (current >> 5)] |= 1 << (current & 31);
-		return g.val[i] as T;
+		if (current >= 0 && g.e[current]) g.sub[i * g.s + (current >> 5)] |= 1 << (current & 31);
+		return g.f[i] as T;
 	},
 	/** Functional-update write (the `useState` setter contract). */
 	set<T>(i: number, v: T | ((prev: T) => T)): void {
 		const g = G!;
-		if (typeof v === "function") v = (v as (prev: unknown) => unknown)(g.val[i]) as T;
-		if (v === g.val[i]) return;
-		g.val[i] = v;
+		if (typeof v === "function") v = (v as (prev: unknown) => unknown)(g.f[i]) as T;
+		if (v === g.f[i]) return;
+		g.f[i] = v;
 		g.y++;
 		flush(g, i);
 	},
@@ -511,8 +521,8 @@ export const S = {
 	/** RAW write — stores a function verbatim (the `signal.value =` contract). */
 	put<T>(i: number, v: T): void {
 		const g = G!;
-		if (v === g.val[i]) return;
-		g.val[i] = v;
+		if (v === g.f[i]) return;
+		g.f[i] = v;
 		g.y++;
 		flush(g, i);
 	},
@@ -548,31 +558,31 @@ export const S = {
 export function effect(fn: EffectFn): number {
 	const g = gi();
 	let e!: number; // every branch below assigns it before use (definite-assign)
-	const m0 = ~(g.u | g.q); // word 0 — the fast path (effects 0-31)
+	const m0 = ~(g.h | g.r); // word 0 — the fast path (effects 0-31)
 	if (m0) {
 		const b = m0 & -m0;
 		e = 31 - Math.clz32(b);
-		g.u |= b;
+		g.h |= b;
 	} else {
 		// word 0 full: scan hi-words, else widen the stride by one word
 		let wi = 1;
-		for (; wi < g.st; wi++) {
-			const mh = ~(g.uh![wi - 1] | g.qh![wi - 1]);
+		for (; wi < g.s; wi++) {
+			const mh = ~(g.m![wi - 1] | g.i![wi - 1]);
 			if (mh) {
 				const b = mh & -mh;
 				e = (wi << 5) + 31 - Math.clz32(b);
-				g.uh![wi - 1] |= b;
+				g.m![wi - 1] |= b;
 				break;
 			}
 		}
-		if (wi === g.st) {
+		if (wi === g.s) {
 			// all words full — grow, take bit 0 of the new word
 			growStride(g);
-			g.uh![wi - 1] |= 1;
+			g.m![wi - 1] |= 1;
 			e = wi << 5;
 		}
 	}
-	g.eff[e] = fn;
+	g.e[e] = fn;
 	// ErrorBoundary capture: if an <ErrorBoundary> is in scope, remember which
 	// one owns this effect so a LATER re-run (which happens outside the build)
 	// still routes its throw to the fallback. `bnd` is allocated on the first
@@ -596,19 +606,19 @@ export function dispose(d: number | EffectFn): void {
 		return;
 	}
 	const g = G;
-	if (!g || !g.eff[d]) return;
-	g.eff[d] = null; // run() becomes a no-op — no resurrection
+	if (!g || !g.e[d]) return;
+	g.e[d] = null; // run() becomes a no-op — no resurrection
 	if (g.z) g.z[d] = undefined; // drop the boundary tag so a reused id can't inherit it
 	unsubscribe(d);
 	const word = d >> 5,
 		b = 1 << (d & 31);
-	if (g.dep > 0) {
+	if (g.b > 0) {
 		// freed mid-cascade: quarantine until it completes
-		if (word === 0) g.q |= b;
-		else g.qh![word - 1] |= b;
+		if (word === 0) g.r |= b;
+		else g.i![word - 1] |= b;
 	} else {
-		if (word === 0) g.u &= ~b;
-		else g.uh![word - 1] &= ~b;
+		if (word === 0) g.h &= ~b;
+		else g.m![word - 1] &= ~b;
 	}
 }
 
@@ -646,15 +656,15 @@ export function computed<T>(fn: () => T): ReadonlySignal<T> {
  */
 export function batch<T>(fn: () => T): T {
 	const g = gi();
-	g.bat++;
+	g.E++;
 	try {
 		return fn();
 	} finally {
-		--g.bat;
+		--g.E;
 		// settle() owns the coalescing (every write goes through the same
 		// union-of-masks turn since the glitch-free round); a batch just
 		// holds the turn open until it exits. No-op while nested.
-		if (g.pend !== null) settle(g);
+		if (g.t !== null) settle(g);
 	}
 }
 
