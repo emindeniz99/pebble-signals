@@ -705,6 +705,38 @@ necessary API names (`__spError`, `boundary`, `canPop`, `children`, `computed`,
 custom esbuild mangle charset (deferred — complex, uncertain); the flow-helper
 → component-local move is the next small lever.
 
+**Round 9 — "can we be an APP, not a mod, to get a bigger machine?" No (on
+4.17). Triggered by the official `piu/apps/words` example.**
+
+`words` ships `.stack=5120 .slot=31744 .chunk=19456` in `src/c/mdbl.c` AND a
+matching manifest `config.creation`, which looked like an escape hatch from
+both the 32 KB arena and the 384-slot stack. Investigated properly:
+
+- `words`'s manifest INCLUDES `$(MODDABLE)/examples/manifest_mod.json` — the
+  SAME mod-build include we use. So `words` is the SAME project type we are:
+  there is no separate "Pebble app" vs "Pebble mod" for Piu code. Every
+  third-party Piu app is a mod archive loaded into the firmware's machine,
+  fronted by a thin `mdbl.c` that calls `moddable_createMachine`.
+- `manifest_mod.json` itself carries NO creation/size block (just BUILD/MODULES/
+  PIU paths + esp32 USB flags) — it does not override sizes.
+- Replicated `words`'s EXACT machine config on our own app (both routes:
+  `mdbl.c` sizes = the words numbers, verified compiled to `mdbl.c.o` via
+  arm-none-eabi-gcc, AND the manifest `config.creation` block) and booted
+  emery. Machine BYTE-IDENTICAL to default: `Stack available` = 6144 not 5120,
+  `Slot available` = 19440 unchanged. Since the stack does not grow,
+  `Stack available` reflects `.stack` directly — proof the field is ignored,
+  through BOTH the C call and the manifest.
+
+Conclusion: on the 4.17 SDK firmware, `moddable_createMachine` validates the
+record (all sizes must be nonzero) then CLONES the firmware's built-in config
+regardless — so an app developer has NO path to a bigger machine, and being
+"an app not a mod" is a distinction without a difference here. `words`'s big
+numbers presumably target a newer firmware (upstream PebbleOS `main`'s
+`moddable.c` DOES map the record onto `xsCreation`). The genuine unlock is
+therefore firmware-level (roadmap 10: fork/rebuild PebbleOS, or a future SDK),
+NOT a build-config change we can make. This is exactly what upstream-issue §1
++ §11 argue — now with the strongest on-device confirmation.
+
 ## 6. Us vs. the official docs
 
 Where our empirical work landed relative to `mods.md`:
