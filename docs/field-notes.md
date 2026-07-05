@@ -785,16 +785,38 @@ just: a fresher SDK/QEMU image. (Building `main` firmware to prove it live
 remains roadmap 10 — a real Zephyr build, its own effort — but the source is
 now unambiguous.)
 
-*Round 10 refinement (owner pointed at the v4.17.0 blame):* the honoring is
-not `main`-only — the IDENTICAL block (with the `staticSize=0` malloc branch)
-is already in the **`v4.17.0` tag** source (verified via raw.githubusercontent;
-`main` only adds the `"evaluating creation record"` log). So our emulator
-firmware is older than the very `v4.17.0` tag the pebble-tool SDK is named for
-— a pebble-tool ↔ PebbleOS version gap. The live proof would be to boot a
-newer firmware (the `v4.19.2` release ships 110 assets, likely including a QEMU
-image) and re-run our apps requesting a big machine — blocked here only because
-the GitHub release API is out of scope (can't enumerate/download the asset);
-an asset URL or upload (like the pebble-examples S3 trick) would unblock it.
+*Round 10 CORRECTION (I over-claimed twice — walking it back honestly).* I
+wrote that the emulator firmware is "older than the v4.17.0 tag." The version
+CHECK (owner's idea) refutes that: `strings emery_sdk_debug.elf` → version
+`v4.17.0` (3×). So it IS v4.17.0. Worse for my story, its
+`__moddable_createMachine` DOES load `cr->stack/slot/chunk` (disasm:
+`ldr [r6,#4]/[#8]/[#12]`) — the binary reads the record. Yet the machine still
+comes out DEFAULT (measured, both stack and slot). It also lacks main's
+`"evaluating creation record"` log. I could not reconcile "source honors +
+binary reads the fields" with "machine stays default" from disassembly.
+Likely relevant: coredevices/pebble-tool says the SDK core is a *"patched
+version 4.3"* — so the QEMU firmware is probably NOT a clean modern-PebbleOS
+build, and the modern honoring code (in `coredevices/PebbleOS` main/v4.17.0,
+the codebase for the NEW Zephyr watches asterix/getafix/obelix) may simply not
+be the same firmware that runs in this classic QEMU. Two different codebases,
+tangled version labels.
+
+**What is CERTAIN (measured, stands):** on THIS shipped emulator, creation
+sizes are a no-op — apps get the fixed ~32KB machine; the 32KB / 384-stack /
+boot-floor limits are the operative reality here. **What is OPEN (untested):**
+whether current PebbleOS / a real device honors the sizes live. The live proof
+is blocked: PebbleOS releases ship only real-hardware firmware (no QEMU image —
+verified the v4.22.0 asset list: asterix/getafix/obelix `.bin/.elf/.hex/.pbz`
+only); `coredevices/qemu` is the CPU emulator, not firmware; and pebble-tool
+offers no SDK newer than 4.17. (NB the classic emery/gabbro firmware is the
+old waf-based Pebble OS, NOT Zephyr — Zephyr is only the new pt2/asterix
+watches, a separate lineage; so "rebuild the emulator firmware" would be a
+classic-PebbleOS waf build, not a Zephyr one, and even that targets the
+new-watch boards in the current repo, not emery/gabbro.) So a live
+bigger-machine test on OUR emulator has no clean path from here. The earlier
+confident "stale-emulator, unlock is proven" framing was premature; the honest
+state is "source suggests it should work; our emulator measurably doesn't;
+live behavior on current/new firmware is untested."
 
 ## 6. Us vs. the official docs
 

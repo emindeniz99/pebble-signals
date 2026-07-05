@@ -61,18 +61,28 @@ else {                              // request bigger than the static arena:
 }
 ```
 
-So on current firmware an app can not only pick its sizes but request a
-machine LARGER than the 32KB static arena (`staticSize = 0` mallocs from the
-~122KB app heap). And this is NOT a recent addition: the identical honoring
-block (including the `staticSize = 0` malloc branch) is already in the
-**`v4.17.0` tag's** source (verified via raw.githubusercontent) — `main` only
-adds an `"evaluating creation record"` log line. Yet the pebble-tool "SDK 4.17"
-emulator firmware measurably ignores the sizes (the real `words` build gets the
-default machine), and never logs `"evaluating creation record"`, and reports
-`"invalid ModdableCreationRecord"` at `moddable.c:79` (vs line 98 in v4.17.0+).
-So the shipped QEMU firmware BINARY is **older than the v4.17.0 source tag it
-is named after** — a pebble-tool-SDK ↔ PebbleOS-source version gap, not a
-design flaw in the firmware.
+On current firmware an app can, per this code, not only pick its sizes but
+request a machine LARGER than the 32KB static arena (`staticSize = 0` mallocs
+from the ~122KB app heap). The identical block is already in the **`v4.17.0`
+tag** source (verified via raw.githubusercontent); `main` only adds an
+`"evaluating creation record"` log.
+
+**Unresolved binary puzzle (stated honestly, not resolved):** the shipped
+`emery_sdk_debug.elf` carries the version string `v4.17.0`, its
+`__moddable_createMachine` DOES load the record's `stack`/`slot`/`chunk`
+(disassembled: `ldr [r6,#4]/[#8]/[#12]`), yet the machine still comes out at
+the DEFAULT sizes (measured via BOTH `Stack available`=6144≠5120 AND
+`Slot available` initial=8176≠31744, on the real `words` build). It also lacks
+`main`'s `"evaluating creation record"` log and reports `"invalid"` at
+`moddable.c:79` (vs line 98 in the current tag source). We could not reconcile
+"source honors + binary reads the fields" with "machine stays default" from
+disassembly alone — a build/branch/version nuance we did not pin down.
+
+**What is certain (measured):** on the shipped 4.17 QEMU emulator an app CANNOT
+enlarge its machine — the field is effectively a no-op there. **What is open:**
+whether a real device or a freshly-built current firmware honors it live
+(untested — the PebbleOS releases ship only real-hardware firmware, no QEMU
+image, and pebble-tool offers no SDK newer than 4.17).
 
 **Ask:** ship an updated SDK / QEMU emulator firmware built from a PebbleOS
 new enough to include the creation-honoring code (already present at `v4.17.0`

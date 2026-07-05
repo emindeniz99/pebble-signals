@@ -292,17 +292,19 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
   growing on demand into the arena (observed growing 8176 → 18416B before
   exhaustion), 6144B stack. Chunk space is whatever the slot heap hasn't
   claimed — long strings and concat garbage compete with your object graph.
-- `ModdableCreationRecord` cannot change this **on the 4.17 SDK emulator**:
+- `ModdableCreationRecord` cannot change this **on this emulator** (MEASURED):
   the firmware rejects the record unless `stack`/`slot`/`chunk` are all
   nonzero, then ignores the size fields (16K/16K and 32K/32K → byte-identical
   instrumentation; even the official `words` example's 31744-slot request gets
-  the default machine). **BUT this is stale-4.17-specific** — current PebbleOS
-  `main` (`src/fw/applib/moddable/moddable.c`) HONORS the record and, if you
-  request more than the static arena, sets `staticSize=0` to malloc a machine
-  bigger than 32KB from the app heap (source-verified; our 4.17 binary predates
-  it — see docs/field-notes Round 10). So the 32KB wall + the 384-slot JS
-  stack are a stale-emulator limit, not fundamental; a current-firmware build
-  lets an app size its own machine. Only `.flags` takes effect on 4.17.
+  the default machine). Only `.flags` takes effect. Nuance (source, untested
+  live): `coredevices/PebbleOS`'s `moddable.c` (the codebase for the *new*
+  watches) HONORS the record and can `staticSize=0`-malloc a machine bigger
+  than 32KB — but that is a DIFFERENT firmware lineage than the classic emery/
+  gabbro our QEMU runs (a "patched 4.3 SDK core" per pebble-tool), and no newer
+  QEMU-bootable classic image was obtainable to test it. So on our emulator the
+  32KB wall is the operative reality; whether current/new-watch firmware lifts
+  it live is untested. See docs/field-notes Round 10 for the full (partly
+  unresolved) version story.
 - **Watch the STACK, not just the heap — it is a third, separate boot-death
   budget.** That `6144B stack` is `384 slots` (16B each) of XS *call frames*,
   and a render that recurses too DEEP aborts with `fxAbort JavaScript stack

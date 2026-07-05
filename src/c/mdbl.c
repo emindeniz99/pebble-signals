@@ -25,19 +25,23 @@ int main(void) {
   //    unchanged. Stack does not grow, so StackAvail directly reflects the
   //    creation .stack — 6144 proves the field is ignored, via BOTH the C call
   //    and the manifest. §1 confirmed, not overturned.
-  //  - MAJOR CORRECTION (Rule 2, 2026-07): the "ignored" result is a STALE-4.17
-  //    thing, NOT how the firmware is meant to work. Read the CURRENT source:
-  //    coredevices/PebbleOS `main` src/fw/applib/moddable/moddable.c HONORS the
-  //    record — it sets creation.stackCount = stack/16, initialHeapCount =
-  //    slot/16, initialChunkSize = chunk; and if (stack+slot+chunk) EXCEEDS the
-  //    default staticSize it sets staticSize = 0 → the XS machine switches to
-  //    MALLOC-from-heap mode, i.e. a machine LARGER than the 32KB static arena
-  //    (bounded by the ~122KB app heap). Proof our 4.17 binary predates this:
-  //    main logs "evaluating creation record" (line 92) on every call — our
-  //    4.17 runs logged it 0 times; and main's "invalid" APP_LOG is at line 98,
-  //    while our 4.17 error was "moddable.c:79" — an older source. So the 32KB
-  //    wall + the 384-slot stack are a STALE-EMULATOR limit: a current-firmware
-  //    build lets an app request a bigger machine (words' 5120/31744/19456
+  //  - SOURCE vs BINARY (Rule 2, 2026-07 — honest, partly unresolved): the
+  //    CURRENT PebbleOS source (both `main` AND the `v4.17.0` tag) HONORS the
+  //    record — creation.stackCount = stack/16, initialHeapCount = slot/16,
+  //    initialChunkSize = chunk; and if (stack+slot+chunk) EXCEEDS staticSize it
+  //    sets staticSize = 0 → XS mallocs a machine LARGER than the 32KB static
+  //    arena. BUT our shipped emery_sdk_debug.elf is odd: its version string is
+  //    "v4.17.0" and its __moddable_createMachine DOES load cr->stack/slot/chunk
+  //    (disasm ldr [r6,#4]/[#8]/[#12]), yet the machine still comes out DEFAULT
+  //    (measured: StackAvail 6144≠5120 AND SlotAvail-initial 8176≠31744 on the
+  //    real words build). It also lacks main's "evaluating creation record" log.
+  //    Per coredevices/pebble-tool, the SDK core is a "patched version 4.3" — so
+  //    the QEMU firmware likely isn't a clean v4.17.0 build, which may explain
+  //    the mismatch. NOT fully reconciled. What's CERTAIN (measured): on THIS
+  //    emulator the sizes are a no-op. What's OPEN: whether a current firmware /
+  //    real device honors them live (untested — no newer QEMU image was
+  //    obtainable). So the 32KB wall + 384-slot stack are the operative limit on
+  //    our emulator; a current-firmware build MAY lift them (words' numbers
   //    numbers target exactly this). Retest when the SDK emulator updates.
   //    Other configurables on `main`: .flags (the two below only — Instrument +
   //    Debug, and both are no-ops without a BT log listener) and .fxBuildFFI
