@@ -83,12 +83,25 @@ strictly ordered except the "next batch".
       document (new item below).
       pypkjs version note: we run 2.0.7 from PyPI (coredevices' package,
       latest release) — the instability is environmental, not a stale version.
-- [ ] decide: should jsx-runtime guard CREATION-time binding throws (first
-      render of a `string={}` thunk) the way notify() guards re-runs? Today a
-      first-run throw aborts module load (fxAbort visible in logs — at least
-      it's loud now); catching it in the binding effect would keep the app up
-      with a blank label + a log line instead. Weigh Solid parity vs watch
-      resilience; add a conformance law either way.
+- [x] ~~decide: creation-time binding guard~~ **DECIDED + SHIPPED (2026-07):
+      bindings are guarded, first render included.** jsx-runtime wraps every
+      reactive binding in try/catch and reports with context (`binding
+      'string' on Label threw (kept last value)` + name/message/stack + raw
+      err via the new exported `report(err, ctx)`); the node keeps its last
+      good value, the app survives. Deliberate DIVERGE from Solid (watch
+      resilience > parity); a throwing render() BUILD still propagates.
+      Conformance law 24 pins it; DEVICE RECEIPT: per-second-throwing app
+      alive with 15 heartbeats / 0 fxAbort, screen frozen at "n=1".
+      (Old runtime: same app fxAbort'ed to the launcher.) 303 tests, 100%
+      cov, 24 XS-checked laws.
+- [ ] **Visible dev-log bridge (design):** on RELEASE firmware JS `trace` is
+      a no-op (xsHost.c: visible lines are C-side `modLog_transmit`/APP_LOG;
+      probes confirmed console.log/trace never reach `pebble logs` from a
+      mod). The channels that DO show: fxAbort (fatal), instruments (C),
+      and `pkjs>` lines (PKJS-side console). So build an opt-in dev bridge:
+      watch `report()` → AppMessage → our src/pkjs proxy `console.log` →
+      visible as `pkjs>`. Needs appKeys + size cap; lazy/dev-only module so
+      release apps pay nothing.
 - [ ] build-time lint: flag *calling* a `computed`/`signal` binding
 
 **New ideas:**

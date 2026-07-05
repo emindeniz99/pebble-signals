@@ -57,9 +57,13 @@ kill %1; grep instruments /tmp/cap.txt   # heartbeats = capture worked
 ```
 
 A capture with zero `instruments:` lines is a dead transport, not a quiet
-app — reset (above) and retry. After many boot-cycles in one session the
-stack stops booting entirely; that's session resource exhaustion, not your
-code — continue in a fresh session.
+app — reset (above) and retry; `pebble install -v` prints the qemu/pypkjs
+command lines and often succeeds where piped/backgrounded installs
+misleadingly "fail". Know the channels: on RELEASE firmware, JS
+`trace`/`console.log` from a mod is a NO-OP (never reaches `pebble logs`);
+what you CAN see is C-side APP_LOG (instruments, fxAbort + stack) and
+`pkjs>` lines (PKJS-side console). Route diagnostics through
+`globalThis.__spError` or the UI, not trace.
 
 ## Rule 4 — The XS heap is the scarcest resource
 

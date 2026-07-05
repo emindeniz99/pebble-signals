@@ -136,4 +136,68 @@ sandbox.Container.prototype.focus = origFocus;
 const app2 = render(() => jsx(Container, { name: "nodict" }));
 check("render without dict works", app2.contents[0].name === "nodict");
 
+// ---- guarded bindings (2026-07): a throwing thunk must not take the app down.
+// Errors route to __spError (set here; console fallback otherwise) WITH prop +
+// node-class context. Covers BOTH the first render (effect creation — used to
+// abort the whole module load) and re-runs (the notify path).
+{
+	const reported = [];
+	sandbox.__spError = (e) => reported.push(String(e && e.message ? e.message : e));
+	// (a) FIRST render throws: node still created, siblings still render
+	const sibsig = signal("sib");
+	const tree = jsx(Container, {
+		children: [
+			jsx(Label, {
+				name: "boomer",
+				string: () => {
+					throw new Error("first-render boom");
+				},
+			}),
+			jsx(Label, { name: "sibling", string: () => sibsig.value }),
+		],
+	});
+	check(
+		"first-render binding throw is contained",
+		reported.length === 1 && reported[0] === "first-render boom",
+	);
+	check("sibling binding still rendered", tree.contents[1].string === "sib");
+	// (b) RE-run throws: last good value kept, subscription survives
+	const val = signal(1);
+	const risky = jsx(Label, {
+		string: () => {
+			if (val.value === 2) throw new Error("re-run boom");
+			return "v" + val.value;
+		},
+	});
+	check("risky binding first value ok", risky.string === "v1");
+	val.value = 2; // throws inside the binding -> contained + reported
+	check(
+		"re-run binding throw keeps last value",
+		risky.string === "v1" && reported.some((m) => m === "re-run boom"),
+	);
+	val.value = 3; // recovers: the subscription survived the throwing run
+	check("binding recovers after a throwing run", risky.string === "v3");
+	sandbox.__spError = undefined; // (delete can be a no-op on a vm global)
+}
+
+// binding guard falls back to the console (no __spError): context string
+// includes the prop and the node class name
+{
+	const savedC = sandbox.console;
+	const lines = [];
+	sandbox.console = { log: (...a) => lines.push(a.map(String).join(" ")) };
+	jsx(Label, {
+		string: () => {
+			throw new Error("ctxboom");
+		},
+	});
+	check(
+		"guard logs prop + node class context",
+		// the sandbox stub's class is StubContent — asserting it proves the
+		// context includes the NODE CLASS name (on-device this reads "Label")
+		lines.some((l) => l.includes("binding 'string' on StubContent") && l.includes("ctxboom")),
+	);
+	sandbox.console = savedC;
+}
+
 done();

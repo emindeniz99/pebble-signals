@@ -1,7 +1,7 @@
 // JSX factory — Solid model, no virtual DOM. Components run ONCE; host
 // elements become real Piu nodes created once; function-valued props become
 // live effect bindings that assign single Piu properties on change.
-import { effect, createRoot } from "runtime/signals";
+import { createRoot, effect, report } from "runtime/signals";
 import type {
 	Application as PiuApplication,
 	ApplicationDictionary,
@@ -143,8 +143,32 @@ function createHost(type: any, props: Props): PiuContent {
 			// can be written reactively; a reactive position prop is the classic
 			// React-refugee surprise (Piu layout is construction-time).
 			if (REACTIVE_PROPS.indexOf(key) < 0) throw new Error(bindErr(key));
-			// effect() auto-registers with the innermost owner (running-owner round)
-			effect(() => setProp(node, key, thunk()));
+			// effect() auto-registers with the innermost owner (running-owner round).
+			// The binding body is GUARDED (2026-07 decision): a throwing thunk —
+			// including on the FIRST render, which runs during effect creation and
+			// would otherwise abort the whole module load — is contained here and
+			// reported WITH context (which prop, which node class), instead of
+			// taking the app down. The node keeps its previous (or dictionary)
+			// value; siblings and the rest of the app keep working. This is a
+			// deliberate DIVERGE from Solid (which propagates creation-time
+			// errors): on a watch, a stale/blank label beats exit-to-launcher.
+			// A throwing render() BUILD still propagates — a fully broken tree
+			// stays loud. Conformance law 24 pins this.
+			effect(() => {
+				try {
+					setProp(node, key, thunk());
+				} catch (err) {
+					const cls = (node as { constructor?: { name?: string } }).constructor;
+					report(
+						err,
+						"binding '" +
+							key +
+							"' on " +
+							((cls && cls.name) || "content") +
+							" threw (kept last value)",
+					);
+				}
+			});
 		}
 	}
 	if (children !== undefined) appendChild(node, children);

@@ -252,6 +252,92 @@ mistakes taught more than the wins.
 
 ---
 
+## 5b. Case study — making errors visible (the log-transport deep dive)
+
+The full story of one debugging campaign, kept as a teaching artifact. It
+produced two runtime fixes, one API decision, four overturned assumptions,
+and the log-capture recipe in `CLAUDE.md` Rule 3. If you only read one
+section of this file, read this one.
+
+**The itch.** A watchface rendered a blank label. The machine was healthy
+(instruments heartbeats flowing), no crash, nothing in `pebble logs`. The
+cause turned out to be a one-character API typo — calling a computed
+(`greeting()`) instead of reading it (`greeting.value`) — but NOTHING told
+us. A typo producing a silent blank screen is a development-killer.
+
+**Step 1 — why was the log empty?** Suspecting the transport, we read
+pebble-tool's own source (`pebble_tool/sdk/emulator.py`). Two smoking guns:
+`_spawn_pypkjs()` launches pypkjs with `stdout=stderr=black_hole` (devnull)
+unless the tool's logger is at DEBUG — so pypkjs's own crashes are
+invisible by design. And our captures, split across separate shell
+invocations, died with their processes. The fix is procedural, not code:
+run listener + install in ONE shell invocation, install in the foreground
+(recipe now in CLAUDE.md Rule 3; `pebble install -v` also surfaces the
+qemu/pypkjs command lines). First success: 17 lines — instruments, pkjs
+proxy chatter, heap reports.
+
+**Step 2 — the first live capture caught OUR bug.** With logs flowing, a
+deliberately broken binding produced, live from the device:
+
+```
+xsPlatform.c:125> fxAbort unhandled exception: TypeError: call: not a function (in q)
+ at q ()
+ at A ()
+```
+
+An error WITH a stack trace — visibility achieved. But the error was not
+the typo's `Error("boom")`… it was our own logger. The "make errors
+visible" fix called `console.error(...)`, and the Pebble host console is
+`Object.freeze({log})` — **no `.error`** (host main.js:45; our own vendored
+`interface Console { log }` had said so all along — a Rule 1 miss). The
+logger threw inside notify()'s catch and took the machine down. Fix:
+`(c.error || c.log).call(c, msg, rawErr)` — prefer error, fall back to
+log, pass both the formatted string (name + message + stack via
+`fmtError`) and the raw error object; the logger can never throw.
+
+**Step 3 — why did the ORIGINAL typo not log?** Because the first probe
+threw during the FIRST run of the binding effect — which executes inside
+`effect()` creation at module load, a path that never passes through
+notify()'s guard. Creation-time exceptions propagated out of render() and
+aborted the module load. Second finding: **only re-runs were guarded.**
+
+**Step 4 — where does JS logging actually GO on this firmware?** A probe
+app called `console.log` at module load, after 2.5 s, and `trace()`
+directly — none appeared, while C-side lines (instruments, fxAbort) did.
+Reading `xs/platforms/pebble/xsHost.c` explained it: the visible lines
+come from C's `modLog_transmit` → `APP_LOG`; JS `trace` on a release
+firmware (no `mxDebug`) is a **no-op**. So the console fallback is for
+debug hosts/xsbug/Node — on release firmware the reliable channels are
+`__spError` (app-installed handler), the UI itself, and fxAbort. A
+visible dev-log bridge (watch → AppMessage → PKJS `console.log`, which
+DOES show as `pkjs>` lines) is designed on the roadmap.
+
+**Step 5 — the API decision (binding guard).** Both findings pointed at
+the same fix: guard the JSX binding body itself. `jsx-runtime` now wraps
+every reactive binding in try/catch and reports with full context —
+`binding 'string' on Label threw (kept last value)` plus name, message,
+stack, and the raw error. This covers the first render too (the
+creation-time hole), keeps the last good value, and lets the rest of the
+app live. It is a deliberate DIVERGE from Solid (which propagates
+creation errors): on a watch, a stale label beats exit-to-launcher. A
+throwing render() BUILD still propagates — a fully broken tree stays
+loud. Conformance law 24 pins the contract; the device receipt is an app
+whose binding throws every second running with **15 heartbeats, 0
+fxAbort**, screen frozen at the last good value ("n=1").
+
+**Assumptions overturned along the way** (Rule 2 corrections): "pypkjs
+keeps dying" (partly environmental, but captures were the real issue);
+"the session's emulator died of resource exhaustion" (wrong — 14 GB RAM
+free; `install -v` booted fine; pipes/timeouts had misled us); "console
+has .error" (it doesn't); "trace reaches pebble logs" (it doesn't, on
+release).
+
+**The moral:** every layer of this stack can silently eat an error — the
+spawn (devnull), the shell (split invocations), the runtime (unguarded
+first runs), the logger itself (missing method), the firmware (trace
+no-op). Visibility had to be won at each layer separately, and each win
+was only trustworthy with a device receipt.
+
 ## 6. Us vs. the official docs
 
 Where our empirical work landed relative to `mods.md`:

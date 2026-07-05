@@ -259,42 +259,49 @@ function fmtError(err: unknown): string {
 	return String(err);
 }
 
+/**
+ * Report a caught reactive error — the shared "loud failure" channel.
+ * Routes to `globalThis.__spError` when the app installed a handler,
+ * else logs the FULL error (type, message, stack, plus the raw object)
+ * through the host console so the failure is visible instead of a silent
+ * blank Label — the classic footgun: a typo like calling a `computed`
+ * (`greeting()` instead of `greeting.value`) throws in a binding and used
+ * to just vanish.
+ *
+ * Hard-won constraints baked in (device receipts, 2026-07):
+ * - The Pebble host console is `Object.freeze({log})` — NO `.error`. An
+ *   unconditional `.error()` call here threw inside notify()'s catch and
+ *   fxAbort'ed the machine on gabbro. So: prefer error, fall back to log,
+ *   and the logger itself must NEVER throw.
+ * - On release firmware JS `trace` (which host console.log wraps) is a
+ *   no-op, so this line only reaches `pebble logs` on debug hosts/xsbug —
+ *   but `__spError` always works, Node tests always see it, and the
+ *   machine ALWAYS survives (a watch must not exit to the launcher
+ *   because one binding threw).
+ * - console/error/log are host-interned names — zero boot-symbol cost.
+ * Exported for the jsx-runtime binding guard (which adds prop/node
+ * context); apps may also call it from their own try/catch.
+ */
+export function report(err: unknown, ctx: string): void {
+	const h = globalThis.__spError;
+	if (h) h(err);
+	else {
+		const c = (globalThis as { console?: { error?: LogFn; log?: LogFn } }).console;
+		const f = c && (c.error || c.log);
+		// Pass BOTH a fully-formatted string (nothing lost on consoles that
+		// can't expand objects) AND the raw error (everything shown on ones
+		// that can). Over-logging is harmless on a rare failure path.
+		if (f) f.call(c, "[signal-piu] " + ctx + ":\n" + fmtError(err), err);
+	}
+}
+
 // diagnostic hook: surface subscriber exceptions instead of letting them
 // abort the machine (XS kills the app otherwise)
 function notify(e: number): void {
 	try {
 		run(e);
 	} catch (err) {
-		const report = globalThis.__spError;
-		if (report) report(err);
-		// No app handler: LOG the FULL error (type, message, stack, the effect
-		// id that threw) so the failure is visible in `pebble logs` instead of
-		// a silent blank Label — the classic footgun: a typo like calling a
-		// `computed` (`greeting()` instead of `greeting.value`) throws here and
-		// used to just vanish. console/error/log are host-interned, so this
-		// costs no boot symbol; the machine still survives — a watch must not
-		// exit to the launcher because one binding threw. Override via
-		// `globalThis.__spError`.
-		// DEVICE RECEIPT (2026-07): the Pebble host console has ONLY `log`
-		// (host main.js `Object.freeze({log})`; vendored typings agree) — an
-		// unconditional `.error()` call here THREW inside the catch and
-		// fxAbort'ed the machine on gabbro. So: prefer error, fall back to
-		// log, and never let the logger itself take the app down.
-		else {
-			const c = (globalThis as { console?: { error?: LogFn; log?: LogFn } }).console;
-			const f = c && (c.error || c.log);
-			// Pass BOTH a fully-formatted string (type + message + stack, so
-			// nothing is lost even if the host console can't expand objects) AND
-			// the raw error object (so a host console that DOES render objects
-			// shows every extra field). Over-logging is harmless — this path only
-			// runs on an otherwise-silent failure.
-			if (f)
-				f.call(
-					c,
-					"[signal-piu] uncaught in reactive update (effect #" + e + "):\n" + fmtError(err),
-					err,
-				);
-		}
+		report(err, "uncaught in reactive update (effect #" + e + ")");
 	}
 }
 

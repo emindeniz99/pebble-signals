@@ -549,6 +549,39 @@ const law = (name, verdict, cond, refs) => {
 	);
 }
 
+// --- Law 24: a throwing JSX BINDING is contained — the app survives ---------
+// DIVERGE (intentional, watch resilience): Solid propagates creation-time
+// errors (and routes render errors to ErrorBoundary); we contain a throwing
+// binding thunk AT the binding — first render AND re-runs — report it with
+// prop+node context, keep the last good value, and keep the rest of the app
+// alive. A watchface must not exit to the launcher because one label threw.
+// (A throwing render() BUILD still propagates — a fully broken tree is loud.)
+{
+	const reported = [];
+	sandbox.__spError = (e) => reported.push(String(e && e.message ? e.message : e));
+	const s = signal(1);
+	const node = jsx(sandbox.Label, {
+		string: () => {
+			if (s.value === 2) throw new Error("law24");
+			return "ok" + s.value;
+		},
+	});
+	s.value = 2; // binding throws — contained
+	const kept = node.string === "ok1" && reported.includes("law24");
+	s.value = 3; // still subscribed — recovers
+	law(
+		"throwing binding contained; app survives; binding recovers",
+		"DIVERGE",
+		kept && node.string === "ok3",
+		{
+			solid: "creation errors propagate; render errors go to ErrorBoundary",
+			preact: "effect errors propagate to the caller of the write",
+			react: "error boundaries unmount the subtree",
+		},
+	);
+	sandbox.__spError = undefined;
+}
+
 // --- parity summary ---------------------------------------------------------
 console.log("\n--- parity vs Solid / Preact / React ---");
 for (const p of parity)
