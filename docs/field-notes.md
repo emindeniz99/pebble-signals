@@ -157,6 +157,33 @@ does the rest. This is the whole point: the DX is React/Solid-shaped, the
 | `PRELOAD_PURE` / `--preload-pure` | **OFF** | Routes pure modules to the manifest (opt-in; see §2.1) | none |
 | `MINIFY` / `--no-minify` | ON | esbuild minify | none |
 
+### Why `PRELOAD_PURE` is OFF — and where the RAM actually goes
+
+A fair question: if a "pure" module ends up in the 32 KB arena either way,
+what does routing it to the manifest's preload list buy you? **For a mod:
+nothing.** On a Moddable *host*, `preload` executes the module at BUILD time
+and freezes its objects into ROM, so they cost zero RAM at runtime. But a mod
+**cannot preload** — `mcrun.js` nulls the preload list (§2.1). So a
+"preloaded" mod module still *executes at load* and builds its objects in the
+arena, exactly like a main-bundled one. Same RAM either way — and the manifest
+route *adds* cost (an extra module record + its new-to-host symbols). That is
+why it stays OFF: on a mod it is at best a wash, at worst fatal at a saturated
+app class.
+
+So where DO you put things to save arena? The real levers, ranked:
+
+| Want to move… | Lever | Cost in the 32 KB arena |
+|---|---|---|
+| **Data** (tables, strings) | `romTable()` → flash resource | **~0** — read in place with `resource.slice()`; one transient string per read |
+| **Code** you don't need yet | lazy `importNow` module | **0 until called**; only the active screen's objects live in RAM |
+| Unused runtime exports | `PRUNE` (default on) | removed entirely (symbol + bytes) |
+| Runtime export *names* | `SYMDIET` (default on) | one boot slot each, reclaimed |
+| Pure module → "preload" | `PRELOAD_PURE` | **no gain on a mod** (executes at load anyway); avoid |
+
+Bottom line: **`romTable` for data, lazy `importNow` for code.** `preload` is a
+host-only trick we can't use; `PRELOAD_PURE` exists only because it works on
+Moddable hosts and was worth measuring to confirm it does NOT help mods.
+
 Two things worth internalizing:
 
 1. **DX-neutral by construction.** The symbol diet renames `jsx`→`RGB332`

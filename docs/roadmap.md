@@ -51,10 +51,18 @@ Priority order the owner set; each is expanded in its own section below.
   `notify()` logs it via `console.error` ("[signal-piu] uncaught in reactive
   update: …") — visible in `pebble logs`, ZERO boot-slot cost (console/error
   are host-interned), machine still survives, still overridable via
-  `globalThis.__spError`. Unit-tested; on-device log confirmation pending a
-  non-wedged `pebble logs` session. STILL WANTED (cheaper-still): a build-time
-  lint that flags *calling* a `computed`/`signal` binding so the typo is
-  caught before device.
+  `globalThis.__spError`. Now dumps the FULL error (type, message, stack,
+  effect id — bcf7359). Unit-tested (291 tests, 100% cov).
+  **MUST DO next session (device-verify the log):** install a deliberately
+  broken app (a computed read as `g()` instead of `g.value`) and screenshot/
+  grep `pebble logs` for `[signal-piu] uncaught in reactive update`. Tried
+  this session but the emulator's `pebble logs` transport was WEDGED (0 lines
+  incl. the always-present instruments key; drive.py + screenshots also dead)
+  through hard resets + qemu/pypkjs kills. Behavior is deterministic + unit-
+  tested, but the owner wants the on-device receipt — do it first thing when
+  the log transport is healthy again.
+  STILL WANTED (cheaper-still): a build-time lint that flags *calling* a
+  `computed`/`signal` binding so the typo is caught before device.
 - **Read-syntax unification (ergonomics).** Three read syntaxes today:
   `useState`→`hh()`, `signal`→`.value`, `computed`→`.value`. This is the
   source of the footgun above. Consider making computed/signal also callable
