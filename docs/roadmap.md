@@ -252,9 +252,13 @@ Priority order the owner set; each is expanded in its own section below.
 8. **Machine restart from C (research)** — can `mdbl.c` kill + recreate the XS
    machine for a JS "process restart" (mode switch / OOM recovery)? Read
    PebbleOS `moddable.c` for `deleteMachine`; see the dedicated section below.
-9. **Heap-sizing retest (source-verify)** — read PebbleOS `main` `moddable.c`
-   to see if newer firmware honors stack/slot/chunk (our 4.17 ignores them);
-   can't run it, but can confirm from source.
+9. **Heap-sizing retest (source-verify)** ✅ DONE (2026-07). Read
+   `coredevices/PebbleOS` `moddable.c` (main + v4.17.0): the SOURCE honors
+   stack/slot/chunk and can `staticSize=0`-malloc a >32KB machine. BUT our
+   emulator (v4.17.0 string, "patched 4.3 SDK core") measurably ignores it —
+   different firmware lineage, partly-unresolved version tangle. See
+   field-notes Round 10 (with the honest correction). Live behavior on current
+   firmware remains untested (no QEMU-bootable newer image obtainable).
 10. **Fork + rebuild PebbleOS to test bigger machine defaults (owner ask:
     "roadmape ekleyelim, deneyelim").** PebbleOS + Moddable are open source now
     (coredevices/pebbleos, coredevices/moddable). The experiment: bump the
@@ -267,6 +271,14 @@ Priority order the owner set; each is expanded in its own section below.
     upstream issue). NOT 5 minutes: needs the firmware toolchain + a QEMU image
     build. Sequence per repo etiquette: file the issue FIRST (our draft is
     ready), then fork/PR with the QEMU-measured before/after as evidence.
+    **ATTEMPTED 2026-07 — BLOCKED, no clean path from here.** The classic emery/
+    gabbro emulator runs the OLD waf-based firmware (NOT Zephyr); `coredevices/
+    PebbleOS` main targets the NEW boards (asterix/getafix/obelix), so building
+    it may not even produce an emery image; PebbleOS releases ship only
+    real-hardware firmware (no QEMU image); `coredevices/qemu` is the CPU
+    emulator, not firmware; pebble-tool offers no SDK newer than 4.17. So a
+    live bigger-machine test on our emulator has no obtainable firmware. Parked
+    until a QEMU-bootable newer classic image exists (or the owner provides one).
 11. **CloudPebble tiers 1→2→3** — see the CloudPebble section; tier 2
     (browser layout preview) is the one we can build ourselves.
 
