@@ -277,6 +277,19 @@ minified output is byte/behavior-identical to its old hand-written form, and
   label pushed boot to 97% and scroll transients then crashed it (gotcha
   16 — per-row effects are the arena cost); three bound rows sit at ~85%.
 
+- **`Move`** (in `flow.ts`) — **reactive position**. Coordinate props are
+  construction-time statics on this port (bind-time coordinate writes are
+  rejected — gotcha), but `content.moveBy(dx,dy)` on a MOUNTED node is
+  device-proven safe. `<Move x={thunk} y={thunk}>` wraps its children in a
+  host at the base position and one effect applies the DELTA between the
+  last applied offset and the new one via `moveBy`. Offsets are rounded to
+  whole pixels before diffing, so a float source — an `animate()` tween —
+  never accumulates sub-pixel drift. Children build once; only position
+  changes. Offsets are RELATIVE to the base coordinates (0 = at rest).
+  Device-verified (`movebox`): UP/DOWN step a signal ±20px, SELECT eases
+  the box 60px down via `animate()` (receipts
+  `screenshots/movebox-steps-gabbro.png`, `movebox-tween-gabbro.png`).
+
 JSX wiring: the Moddable/Alloy build only recognizes `.ts` sources, so the
 SDK's own TypeScript integration can't transform `.tsx`. `build.mts` runs
 plain `tsc` (`jsx: react-jsx`, `jsxImportSource: "runtime"`, `noCheck`)

@@ -29,10 +29,14 @@ strictly ordered except the "next batch".
 - [x] autothunk bare-binding on-device verify ✅ (2026-07): gabbro boots,
       "Count: 0" -> 2x UP -> "Count: 2" — the lowered bare `string={"Count: "+count()}`
       binding updates LIVE (screenshots/autothunk-live-gabbro.png)
-- [ ] `moveBy` reactive position — FEASIBILITY PROVEN (2026-07 probe):
-      `content.moveBy(dx,dy)` WORKS on the port (box stepped 10px/s on gabbro,
-      6 heartbeats/0 aborts, screenshot-diff 1800px — unlike `visible`, which
-      crashes). The `<Move>` helper / reactive-position design can proceed.
+- [x] `moveBy` reactive position ✅ SHIPPED (2026-07): `<Move x={thunk}
+      y={thunk}>` in flow.ts — one effect applies rounded offset DELTAS via
+      the probe-proven `content.moveBy`. 8 unit tests (delta math, rounding/
+      no-drift, dispose, both axes), device-verified via `movebox` (UP/DOWN
+      ±20px signal steps + SELECT animate() tween 60px down; receipts
+      screenshots/movebox-steps-gabbro.png / movebox-tween-gabbro.png).
+      Canaries re-verified: navmany + navreactive boot & render, symbols
+      unchanged at 140 (unused Move export prunes out).
 - [ ] machine-restart from C — research (PebbleOS `moddable.c`)
 - [ ] heap-sizing source-verify (does newer firmware honor stack/slot/chunk?)
 - [ ] CloudPebble tier 1 → 2 → 3
@@ -265,8 +269,9 @@ Priority order the owner set; each is expanded in its own section below.
 6. **autothunk on-device (EMULATOR)** ✅ DONE (2026-07): boots on gabbro;
    UP/DOWN presses drive the lowered bare binding live ("Count: 0" -> "Count: 2");
    receipt screenshots/autothunk-live-gabbro.png.
-7. **moveBy reactive position** — `<Move>`/`animate()` imperative reposition
-   inside an effect; emulator repaint/timing check.
+7. **moveBy reactive position** ✅ DONE (2026-07) — `<Move>` shipped in
+   flow.ts (delta-applied, rounded offsets; pairs with `animate()`);
+   device-verified via `movebox` on gabbro.
 8. **Machine restart from C (research)** — can `mdbl.c` kill + recreate the XS
    machine for a JS "process restart" (mode switch / OOM recovery)? Read
    PebbleOS `moddable.c` for `deleteMachine`; see the dedicated section below.
@@ -611,11 +616,13 @@ notifications, device info.
   Four `useState` signals (candidate/buffer/count/last), all on-screen state is
   reactive `<Label>` bindings — proves text entry needs no special widget on a
   keyboard-less device. Device-verified on gabbro (typed "ab" → todo: 1).
-- **Reactive position via Piu moveBy.** Position/size props are construction-time
-  static (bind-time rejected today, shipped). The dynamic path: a `<Move>` helper
-  or `animate()`+`content.moveBy(dx,dy)` / Piu Transition binding that repositions
-  a mounted node imperatively inside an effect (NOT via a reactive dict prop).
-  Needs on-device timing/repaint verification.
+- **Reactive position via Piu moveBy.** ✅ SHIPPED (2026-07). Position/size
+  props stay construction-time static (bind-time rejected, unchanged); the
+  dynamic path is the `<Move>` helper — an effect repositions the mounted
+  host imperatively via `content.moveBy(dx,dy)` deltas (rounded before
+  diffing, so `animate()` float tweens don't drift). On-device verified
+  (`movebox` on gabbro): signal steps repaint instantly, a 1.2s eased tween
+  runs on the shared 30fps ticker with stack peak 210/6144 during ticks.
 
 ## Toolchain — RESOLVED (2026-07 research)
 - ~~Real Piu/Moddable `.d.ts`~~ FOUND: **`@moddable/typings`** (npm, v8.2.3,

@@ -79,6 +79,15 @@ export type VLRich<T> = VLBase<T> & {
 	format?: never;
 };
 
+export type MoveProps = BoxProps & {
+	/** Horizontal offset (px) from the base position — a thunk; read signals inside. */
+	x?: Thunk<number>;
+	/** Vertical offset (px) from the base position — a thunk; read signals inside. */
+	y?: Thunk<number>;
+	/** Static children, built once at mount (position moves; the subtree does not rebuild). */
+	children?: JSXNode;
+};
+
 export type NavHandle = {
 	push(build: (nav: NavHandle) => JSXNode): void;
 	pop(): void;
@@ -532,6 +541,45 @@ export function animate(
 	track(stop); // stop on owner dispose
 	get.stop = stop;
 	return get;
+}
+
+// Move({ x, y, children }) — reactive POSITION for a mounted subtree.
+// Coordinate props are construction-time statics on this port (jsx-runtime
+// rejects bind-time coordinate writes), but `content.moveBy(dx,dy)`
+// post-mount is device-proven safe (2026-07 probe: a box stepped across
+// gabbro for 6 heartbeats, 0 aborts — unlike `visible` writes, which crash
+// the port). Move wraps its children in a host container at the
+// construction-time base position (left/top/width/height props), then ONE
+// effect tracks the x()/y() offset thunks and applies the DELTA between the
+// last applied offset and the new one via moveBy. Offsets are rounded to
+// whole pixels BEFORE diffing, so float sources (an animate() tween) never
+// accumulate sub-pixel drift. The children build once at mount and never
+// rebuild — only their position changes (recycling, not reconcile).
+//   const x = animate(0, 80, 1200);
+//   <Move left={20} top={40} width={40} height={40} x={x}>
+//     <Label ... />
+//   </Move>
+// Size the host explicitly like any moving widget (makeHost's screen-width
+// default applies when you don't — fine for a marquee row, wrong for a
+// sprite). Offsets are RELATIVE to the base position, not absolute
+// coordinates: x/y = 0 means "at rest where you were constructed".
+export function Move(props: MoveProps): PiuContainer {
+	const host = makeHost(props, Column);
+	if (props.children !== undefined) appendChild(host, props.children);
+	const px = props.x,
+		py = props.y;
+	let lx = 0,
+		ly = 0;
+	effect(() => {
+		const nx = px ? Math.round(px()) : 0;
+		const ny = py ? Math.round(py()) : 0;
+		if (nx !== lx || ny !== ly) {
+			host.moveBy(nx - lx, ny - ly);
+			lx = nx;
+			ly = ny;
+		}
+	});
+	return host;
 }
 
 function makeHost(props: Props, Type: ColumnConstructor): PiuContainer {

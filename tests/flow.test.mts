@@ -825,4 +825,69 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 	check("U9 NaN key is stable across passes", built9 === 1 && h9.contents.length === 1);
 }
 
+// ---- Move: reactive position via moveBy (delta-applied, rounded) ----
+{
+	const { Move } = flow;
+	const mx = signal(0),
+		my = signal(0);
+	const kid = new StubContent(null, { string: "sprite" });
+	const [mv, dmv] = createRoot(() =>
+		Move({
+			left: 10,
+			top: 10,
+			width: 20,
+			height: 20,
+			x: () => mx.value,
+			y: () => my.value,
+			children: kid,
+		}),
+	);
+	check("Move mounts its children once", mv.contents[0] === kid);
+	check("Move at rest (0,0) never calls moveBy", mv.moveCalls === undefined);
+	mx.value = 30;
+	check(
+		"Move applies the x offset as a delta",
+		mv.moveCalls === 1 && mv.movedX === 30 && (mv.movedY || 0) === 0,
+	);
+	mx.value = 30; // same value -> signal dedupes, no move
+	check("Move ignores a same-value write", mv.moveCalls === 1);
+	my.value = 12;
+	mx.value = 5; // back toward base: delta must be NEGATIVE
+	check(
+		"Move tracks both axes and applies negative deltas",
+		mv.movedX === 5 && mv.movedY === 12 && mv.moveCalls === 3,
+	);
+	// float source (an animate() tween): rounds BEFORE diffing, no drift
+	mx.value = 5.4; // rounds to 5 -> no call
+	const callsAt54 = mv.moveCalls;
+	mx.value = 5.6; // rounds to 6 -> delta +1
+	check(
+		"Move rounds offsets before diffing (float tween, no drift)",
+		callsAt54 === 3 && mv.moveCalls === 4 && mv.movedX === 6,
+	);
+	dmv();
+	mx.value = 99; // disposed root: the effect must be dead
+	check("Move stops tracking after dispose", mv.moveCalls === 4 && mv.movedX === 6);
+}
+
+// Move without x/y: a static wrapper, zero effect traffic
+{
+	const { Move } = flow;
+	const [still] = createRoot(() => Move({ left: 0, top: 0, width: 10, height: 10 }));
+	check("Move without offsets never moves", still.moveCalls === undefined);
+}
+
+// Move with a nonzero INITIAL offset: applied on the mount run
+{
+	const { Move } = flow;
+	const ix = signal(25);
+	const [init] = createRoot(() =>
+		Move({ left: 0, top: 0, width: 10, height: 10, x: () => ix.value }),
+	);
+	check(
+		"Move applies a nonzero initial offset at mount",
+		init.movedX === 25 && init.moveCalls === 1,
+	);
+}
+
 done();

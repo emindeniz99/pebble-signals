@@ -54,6 +54,12 @@ export class StubContent {
 		this.contents.length = 0;
 	}
 	focus() {}
+	moveBy(dx, dy) {
+		// track cumulative offset + call count so Move's delta math is assertable
+		this.movedX = (this.movedX || 0) + dx;
+		this.movedY = (this.movedY || 0) + dy;
+		this.moveCalls = (this.moveCalls || 0) + 1;
+	}
 	get first() {
 		return this.contents.length ? this.contents[0] : null;
 	}
