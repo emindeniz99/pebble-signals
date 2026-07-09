@@ -78,15 +78,17 @@ strictly ordered except the "next batch".
       rootapp added to the smoke catalog. The `defineApp({...})` HELPER shape
       was deliberately not built: it would cost a runtime export + a boot
       symbol for pure sugar the sibling-export convention gives for free.
-- [ ] tighten `JSX.Element` `any` → precise — TRIED 2026-07, harder than it
-      looked. `= object` typechecks OUR repo clean but BREAKS the consumer
-      smoke (a JSX element as `object` is not assignable to a `JSXNode` slot:
-      `object ⊄ Content | primitives | array`). The correct type is the
-      runtime's `Content`/`JSXNode`, but those live in a MODULE — referencing
-      them from `globals.d.ts` needs an `import`, which turns the ambient file
-      into a module and drops the `JSX`/`importNow` GLOBALS. So it's a
-      restructure (e.g. a triple-slash `/// <reference>` or a global re-export
-      of `Content`), not a one-liner. Deferred; `any` stays for now.
+- [x] tighten `JSX.Element` `any` → precise ✅ SOLVED (2026-07): the missed
+      one-liner was the `import("…")` TYPE syntax — legal in an ambient file
+      WITHOUT converting it to a module, so `globals.d.ts` keeps its globals
+      and `JSX.Element = import("runtime/jsx-runtime").JSXNode` resolves via
+      tsconfig paths. All gates green (repo typecheck, 429 tests, consumer
+      tarball smoke — the `= object` failure mode is gone because a JSX
+      expression IS a JSXNode now). Precision pinned in types.test-d.tsx:
+      `@ts-expect-error` on JSX→number (fails if Element regresses to any)
+      + positive JSX→JSXNode assignment. (Historical context: `= object`
+      broke consumers — object ⊄ Content|primitives|array; a top-level
+      import would have dropped the ambient globals.)
 - [x] tutorial: teach BOTH state placements ✅ (2026-07): "Where does state
       go?" section in tutorial part 3 — module-scope vs in-component (typed
       with `Component<P>`), why both cost the same (no re-render), and when

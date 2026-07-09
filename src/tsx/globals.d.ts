@@ -10,7 +10,12 @@
 //   single typed truth — nothing to hand-maintain, nothing to drift.
 
 declare namespace JSX {
-	type Element = any;
+	// The real runtime type, pulled in with the `import("…")` TYPE syntax —
+	// legal in an ambient file WITHOUT turning it into a module (a top-level
+	// `import` statement would, and that drops these globals; the earlier
+	// `= object` attempt broke consumers because a JSX element stopped being
+	// assignable to JSXNode slots). Resolves via tsconfig `paths`.
+	type Element = import("runtime/jsx-runtime").JSXNode;
 	interface IntrinsicElements {}
 	interface ElementChildrenAttribute {
 		children: {};

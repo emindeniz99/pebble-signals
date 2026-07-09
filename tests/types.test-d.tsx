@@ -58,3 +58,13 @@ void cnt;
 void back;
 // @ts-expect-error — save() takes a string key
 store.save(123);
+
+// JSX.Element is the runtime's JSXNode now, not `any` — these pins FAIL if
+// it ever regresses (an unnecessary @ts-expect-error is itself an error).
+// @ts-expect-error — a JSX expression is not assignable to number
+const jsxNotAny: number = <Container width={10} />;
+void jsxNotAny;
+// positive: a JSX expression IS a JSXNode
+import type { JSXNode } from "runtime/jsx-runtime";
+const jsxIsNode: JSXNode = <Container width={10} />;
+void jsxIsNode;
