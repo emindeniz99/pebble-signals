@@ -1176,12 +1176,21 @@ const Store = class {
 	save(k: string): void {
 		const b = this.b,
 			t = this.t;
-		// Keep the exact original `globalThis.localStorage` access (byte-identical
-		// emit). globalThis's type lacks localStorage; the cast (via the vendored
-		// bare-global's type) is erased — no behavior change.
+		// CHUNKED stringify (S8): one whole-blob fromCharCode.apply pushes one
+		// argument PER BYTE onto the XS value stack — the exact shape the
+		// romTable work measured fxAborting on this port (and why Store.get's
+		// string path is capped at 255B). 128B slices keep the transient
+		// argument push far under the 384-slot stack; CPU for stack, as always.
+		let s = "";
+		for (let off = 0; off < t; off += 128)
+			s += String.fromCharCode.apply(
+				String,
+				b.subarray(off, off + 128 > t ? t : off + 128) as unknown as number[],
+			);
+		// globalThis's type lacks localStorage; the cast is erased.
 		(globalThis as typeof globalThis & { localStorage: typeof localStorage }).localStorage.setItem(
 			k,
-			t ? String.fromCharCode.apply(String, b.subarray(0, t) as unknown as number[]) : "",
+			s,
 		);
 	}
 	load(k: string): boolean {

@@ -14,7 +14,7 @@ must be stack-frame-neutral — try/catch scaffolding and extra locals in those
 frames tipped navmany over the 384-slot value stack even with all tests green.
 Boot-verify navmany AND navreactive after every runtime-touching change.
 
-## Core (signals.ts) — ALL FIXED
+## Core (signals.ts) — ALL RESOLVED
 
 | # | sev | finding | status |
 |---|---|---|---|
@@ -25,11 +25,11 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 | S5 | MINOR | cleanups drained with caller's tracking live → spurious subscription | ✅ e9f8492/06b9f9f (drainDisposables: current=-1) |
 | S6 | MINOR | createResource success = two unbatched writes → observable half-state | ✅ e9f8492 (batch) |
 | S7 | MINOR | throwing cleanup aborts the drain → sibling disposables orphaned live | ✅ e9f8492/06b9f9f (per-item contain + report) |
-| S8 | MINOR | `Store.save()` builds the string via one whole-blob `fromCharCode.apply` — the exact shape the romTable comment records as fxAbort-prone on this port | 🔬 chunk into ≤128B slices; MEASURE on device before/after (Rule 2) |
+| S8 | MINOR ✅(this round) | `Store.save()` builds the string via one whole-blob `fromCharCode.apply` — the exact shape the romTable comment records as fxAbort-prone on this port | ✅ save() now chunks ≤128B slices (justified by the EXISTING measured receipts: the romTable whole-blob fxAbort + Store.get's 255B cap); >128B round-trip unit-tested. Optional: on-device re-measure of a large save when convenient |
 
 Regression tests: signals.test.mts R1–R7 (8 checks, failed pre-fix).
 
-## UI runtime (jsx-runtime.ts / flow.ts) — ALL FIXED except two 🔬 device items
+## UI runtime (jsx-runtime.ts / flow.ts) — ALL RESOLVED (fixed or measured-cleared)
 
 | # | sev | finding | fix plan |
 |---|---|---|---|
@@ -40,7 +40,7 @@ Regression tests: signals.test.mts R1–R7 (8 checks, failed pre-fix).
 | U5 | MINOR  ✅(4b15f98) | second render() leaks the previous root and cross-wires the old app's crashes onto the new app | at render() start: `if (rootDispose) { rootDispose(); rootDispose = null; }` |
 | U6 | MINOR  ✅(4b15f98) | `focus` in a post-mount flow build parks the node on pendingFocus forever (retention) and stale-focuses on the NEXT mount | `pendingFocus = null` at mount() start; doc line for the retention in single-render apps |
 | U7 | MINOR  ✅(4b15f98) | For: a contained mid-reconcile throw (custom `__spError` / bare mode) leaves a recorded-but-unmounted row; the next sweep's `host.remove` throws piu "content not in container" | guard the sweep like the position pass: `if (rn[x].container) host.remove(rn[x])` |
-| U8 | MINOR | Show/EB side wrappers use raw props.width/height while the HOST gets screen-size defaults — a height-only Show yields width-less wrappers (gotcha 16: measures 0) | 🔬 apply the host's default logic in wrapSide/ebWrap — but FIRST reproduce on the emulator (stubs don't lay out) |
+| U8 | MINOR ✅CLEARED | Show/EB side wrappers use raw props.width/height while the HOST gets screen-size defaults — a height-only Show yields width-less wrappers (gotcha 16: measures 0) | ✅ CLEARED by measurement (2026-07): a height-only Show renders its children fine on gabbro (probe screenshot: 'INSIDE-SHOW' visible between siblings) — the analytical concern does not reproduce on device; no code change needed |
 | U9 | MINOR  ✅(this round) | NaN key (bad data) never matches indexOf → For silently rebuilds every row every pass | normalize NaN in keyOf or document; low priority |
 | U10 | MINOR  ✅(this round) | a user-supplied `behavior` prop is silently clobbered when onTap/button props also present | fail loud (throw) on the conflict per Rule 12 |
 

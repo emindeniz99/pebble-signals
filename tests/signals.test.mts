@@ -22,6 +22,7 @@ import {
 	S,
 	romTable,
 	createResource,
+	createStore,
 	setSink,
 	withBoundary,
 	getBoundary,
@@ -978,6 +979,35 @@ check("provide restores after build", useContext(Theme) === "light");
 	console.log = savedLog;
 	console.error = savedErr;
 	check("R7 sibling disposables survive a throwing cleanup", !disposerThrew && n7 === 1);
+}
+
+// S8: Store.save chunks the stringify (a whole-blob fromCharCode.apply pushes
+// one ARG PER BYTE onto the XS value stack — measured fxAbort shape). A >128B
+// store must round-trip byte-identically through save/load.
+{
+	const st8 = createStore(512);
+	// several records totalling >128B of store bytes -> a MULTI-chunk save
+	// (single strings are format-capped at 255B; that cap is not under test)
+	const s100 = "x".repeat(100);
+	st8.push(s100);
+	st8.push(s100);
+	st8.push(s100);
+	st8.push(12345);
+	const kv: Record<string, string> = {};
+	(globalThis as { localStorage?: unknown }).localStorage = {
+		setItem: (k: string, v: string) => {
+			kv[k] = v;
+		},
+		getItem: (k: string) => kv[k] ?? null,
+	};
+	st8.save("s8");
+	const st8b = createStore(512);
+	const loaded = st8b.load("s8");
+	check(
+		"S8 chunked save round-trips a >128B store",
+		loaded && st8b.get(0) === s100 && st8b.get(2) === s100 && st8b.get(3) === 12345,
+	);
+	(globalThis as { localStorage?: unknown }).localStorage = undefined;
 }
 
 done();
