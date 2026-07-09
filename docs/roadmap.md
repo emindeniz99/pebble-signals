@@ -80,12 +80,17 @@ strictly ordered except the "next batch".
       each is the right call (reusable components need in-component state).
 
 **Tutorial + docs:**
-- [ ] comprehensive watchface tutorial (fonts, images, Clay config, publish)
-      — ALL mechanics now device-proven: custom fonts ✅ (2026-07,
-      `fontface`: TTF → fonts/ convention → fontbm → serif on-watch,
-      screenshots/fontface-gabbro.png; gen-manifest deriveFonts + fontcheck
-      allowlist shipped), images ✅ (imgwatch), config ✅ (config example),
-      persistence ✅ (device.keyValue). Remaining: the writing itself.
+- [x] comprehensive watchface tutorial ✅ (2026-07):
+      `tutorials/complete-watchface/` — 6 parts (setup/time, custom fonts,
+      images, settings page, persistence, package/install), each backed by
+      a device-proven example + screenshot receipt; original content, the
+      official tutorial's arc in our words/code. Honest boundaries stated
+      in-text: device.keyValue not yet repo-verified (part 5 teaches the
+      proven localStorage/byte-store path), store publishing not performed
+      (part 6 stops at the .pbw + Rebble pointer). All mechanics were
+      device-proven first: fonts (`fontface`), images (imgwatch/slothvec),
+      config (config + config-drive), persistence (list), watchface flag
+      (lazyauto).
 - [x] Clay config-page research (PKJS-side) ✅ (2026-07): full mechanic
       mapped AND device-verified — `config` example + pkjs listeners +
       headless tools/config-drive.py; "hi from config" black-on-white
