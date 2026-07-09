@@ -295,8 +295,11 @@ proportional load cost that kills by 24KB. Consequences:
   71,069B archive WORKS ("sum(3) = 492831"); ~208KB source / 130,892B
   archive INSTALLS but dies at launch — practical archive limit is
   between 71KB and 131KB (bisect pending). Load speed: the 40KB and
-  104KB modules loaded + rendered within the 3-4s driver step
-  (no ms instrumentation yet).
+  104KB modules loaded + rendered within the 3-4s driver step; MEASURED
+  (2026-07, `loadms` example): a cold `importNow` of a ~2KB lazy module
+  is **2ms** on gabbro ("load 2ms acc=247700",
+  screenshots/loadms-gabbro.png) — lazy-load latency is a non-issue at
+  screen-module sizes.
 - **Timer-deferred load + TRUE WATCHFACE: both device-proven (`lazyauto`).**
   A 10ms `setTimeout` importNow — firing right after the module body, i.e.
   after boot pressure passes — auto-loads the 40KB module with no buttons

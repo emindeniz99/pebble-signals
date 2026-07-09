@@ -17,7 +17,10 @@ detailed in its section below; check it here when it ships. Grouped, not
 strictly ordered except the "next batch".
 
 **Next batch (owner order):**
-- [ ] load-time ms instrumentation (time an `importNow`; needs device)
+- [x] load-time ms instrumentation ✅ (2026-07, `loadms` example): SELECT
+      times a cold `importNow("app/heavy")` of a ~2KB lazy module on gabbro —
+      **2ms** ("load 2ms acc=247700", screenshots/loadms-gabbro.png). Lazy
+      screen-module load cost is negligible next to render/GC.
 - [x] conformance suite expansion — 19→23 laws (2026-07): write-in-untrack,
       untrack return value, nested-effect dispose on parent RE-RUN (all MATCH),
       + memo-equality (DIVERGE, documented). Most roadmap-listed laws already
@@ -250,8 +253,10 @@ Priority order the owner set; each is expanded in its own section below.
 3. **text-input example** ✅ DONE (`textinput`) — but do a SOTA/prior-art
    pass on watch text-entry (Pebble dictation, T9-style, scanning keyboards)
    and fold the best idea in.
-4. **load-time ms instrumentation** — time an `importNow` and quote the lazy
-   load latency in ms (one of the two genuinely-open playbook items).
+4. **load-time ms instrumentation** ✅ DONE (2026-07, `loadms` example) —
+   cold `importNow` of a ~2KB lazy module measured at **2ms** on gabbro
+   (receipt screenshots/loadms-gabbro.png). Closes one of the two
+   genuinely-open playbook items.
 5. **Conformance suite expansion** ✅ DONE (2026-07). Inventory showed the
    listed laws were already covered by the core-reactivity round; the three
    genuinely missing were added as laws 27-29 (self-write converges, throwing
@@ -751,9 +756,10 @@ notifications, device info.
   (round 3: it's the app heap, 116,816✓/117,042✗). The "merge many pure
   files into ONE frozen module" idea is ABANDONED by design — mods have no
   preload, so the direction is LAZY per-screen modules, not one frozen lib
-  (see mcrun mechanism above). REMAINING (only two, both minor):
-  - **load-time ms instrumentation** — time an importNow to quote the lazy
-    load cost in ms (today we only know it boots; no latency number).
+  (see mcrun mechanism above). REMAINING (only one, minor):
+  - ~~load-time ms instrumentation~~ ✅ DONE (2026-07, `loadms`): cold
+    importNow of a ~2KB lazy module = **2ms** on gabbro
+    (screenshots/loadms-gabbro.png). Lazy-load latency is a non-issue.
   - **symbol diet / export-rename** — see "data-to-Resource productize (b)"
     below; this is the one real library-wide lever left.
 - **v2 MECHANISM PROVEN (2026-07 deep dive): data-to-Resource.** The 4KB
