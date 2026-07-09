@@ -617,4 +617,16 @@ setSink(null);
 	setSink(null);
 }
 
+// U10: a user-supplied `behavior` silently clobbered by onTap/button props —
+// now a loud conflict error.
+{
+	let u10 = "";
+	try {
+		jsx(Container, { behavior: { onDisplaying() {} }, onTap: () => {} });
+	} catch (e) {
+		u10 = e.message;
+	}
+	check("U10 behavior + onTap conflict fails loud", /behavior.*conflicts/.test(u10));
+}
+
 done();

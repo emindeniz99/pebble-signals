@@ -212,8 +212,9 @@ export function For<T>(props: ForProps<T>): PiuContainer {
 			const pass = ++stamp;
 			const order: Content[] = []; // nodes in expected order this pass
 			for (let i = 0; i < items.length; i++) {
-				const item = items[i],
-					k = keyOf(item, i);
+				const item = items[i];
+				let k = keyOf(item, i);
+				if (k !== k) k = "\u0000NaN"; // NaN never indexOf-matches -> silent full churn (U9)
 				let x = rk.indexOf(k);
 				if (x >= 0) {
 					if (rs[x] === pass)
@@ -401,6 +402,13 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 				appendChild(wrapper, s as JSXNode);
 				return wrapper;
 			});
+			// re-entrant push()/pop() DURING this build (a redirecting screen)
+			// already mounted the real top — this orphan must not double-mount
+			// or clobber disposeTop (the pushed screen's root leaked; U3)
+			if (stack[stack.length - 1] !== build) {
+				r[1]();
+				return;
+			}
 			disposeTop = r[1];
 			host.add(r[0]);
 		});

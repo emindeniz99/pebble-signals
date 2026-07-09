@@ -155,6 +155,9 @@ function createHost(type: any, props: Props): PiuContent {
 		dict[k] = v;
 	}
 	if (tap || buttons) {
+		// a user-supplied `behavior` would be silently clobbered here — the
+		// custom behavior's other hooks (onDisplaying, ...) would vanish (U10)
+		if (dict.behavior) throw new Error("jsx: `behavior` prop conflicts with onTap/button props");
 		if (tap) dict.active = true;
 		dict.behavior = new HandlerBehavior(tap, buttons);
 	}
@@ -528,6 +531,7 @@ export const ErrorBoundary = (props: ErrorBoundaryProps): PiuContainer => {
 	const parent = getBoundary();
 	let disposer: (() => void) | null = null;
 	let shown = false; // currently showing the fallback (not the children)?
+	let dead = false; // owner tore this boundary down (see the tracked cleanup)
 	const clear = () => {
 		if (disposer) {
 			disposer();
@@ -543,7 +547,7 @@ export const ErrorBoundary = (props: ErrorBoundaryProps): PiuContainer => {
 		// exception escapes createRoot) but fires onError SYNCHRONOUSLY during
 		// the build — the fallback is already mounted. Drop this orphan children
 		// tree instead of stacking it on top (mirrors render()'s `panicked`).
-		if (shown) {
+		if (shown || dead) {
 			r[1]();
 			return;
 		}
@@ -581,6 +585,15 @@ export const ErrorBoundary = (props: ErrorBoundaryProps): PiuContainer => {
 				// (build-time or a later re-run) escalates OUT, matching Solid.
 				const build = () => ebWrap(() => props.fallback(err, reset));
 				const r = createRoot(() => withBoundary(parent, build));
+				// a creation-time BINDING throw inside the fallback fired the
+				// PARENT boundary/sink synchronously mid-build — the parent tore
+				// this boundary down while `disposer` was still null, so the
+				// in-flight root would leak UNDISPOSABLY (it re-crashed a
+				// successfully-retried app; review U4). Drop the orphan.
+				if (dead) {
+					r[1]();
+					return;
+				}
 				disposer = r[1];
 				host.add(r[0]);
 			} catch (err2) {
@@ -594,6 +607,7 @@ export const ErrorBoundary = (props: ErrorBoundaryProps): PiuContainer => {
 		onError(err); // first build threw synchronously (creation-time)
 	}
 	track(() => {
+		dead = true; // any in-flight build must drop its root (see above)
 		if (disposer) disposer();
 	});
 	return host;

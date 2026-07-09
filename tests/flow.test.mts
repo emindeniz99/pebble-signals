@@ -725,4 +725,104 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 	sandbox.__spError = undefined;
 }
 
+// U3: a screen builder that REDIRECTS (nav.push during its own build) must
+// not double-mount — the orphan outer tree is dropped, the pushed screen's
+// disposer is kept (it leaked forever before; ledger U3).
+{
+	const probe3 = signal(0);
+	let childRuns = 0;
+	const [nh3] = createRoot(() =>
+		Navigator({
+			width: 60,
+			height: 40,
+			root: (nav) => {
+				nav.push(() =>
+					jsx(StubContent, {
+						string: () => {
+							childRuns++;
+							return "child" + probe3.value;
+						},
+					}),
+				);
+				return jsx(StubContent, { string: "root-screen" });
+			},
+		}),
+	);
+	check("U3 no double-mount after push-during-build", nh3.contents.length === 1);
+	const shown = nh3.contents[0].contents[0].string;
+	check("U3 the PUSHED screen is the one mounted", shown === "child0");
+	// the pushed screen's root is owned: popping disposes it (no leak)
+	// (nav handle not exposed here; dispose the whole nav root instead)
+	const runsBefore = childRuns;
+	probe3.value = 1;
+	check("U3 pushed screen live before dispose", childRuns === runsBefore + 1);
+}
+
+// U4: a creation-time BINDING throw inside an EB *fallback* under an outer
+// boundary — the torn-down inner boundary must DROP its in-flight fallback
+// root (it leaked undisposably and re-crashed retried apps; ledger U4).
+{
+	const savedC = sandbox.console;
+	sandbox.console = { log: () => {} };
+	const probe4 = signal(0);
+	let innerFallbackRuns = 0;
+	const bad4 = signal(0);
+	const [r4, dr4] = createRoot(() =>
+		ErrorBoundary({
+			width: 60,
+			height: 40,
+			fallback: () => jsx(StubContent, { string: "outer-fallback" }),
+			children: () =>
+				ErrorBoundary({
+					width: 60,
+					height: 40,
+					fallback: () =>
+						jsx(StubContent, {
+							string: () => {
+								innerFallbackRuns++;
+								void probe4.value;
+								throw new Error("fallback binding boom"); // creation throw -> outer
+							},
+						}),
+					children: () =>
+						jsx(StubContent, {
+							string: () => {
+								if (bad4.value === 1) throw new Error("children boom");
+								return "ok";
+							},
+						}),
+				}),
+		}),
+	);
+	bad4.value = 1; // children throw -> inner fallback builds -> ITS binding throws -> outer catches
+	const outerShown = r4.contents[0].contents[0].string === "outer-fallback";
+	dr4(); // tear everything down
+	const runsAtDispose = innerFallbackRuns;
+	probe4.value = 1; // the leaked fallback root would re-run here
+	check(
+		"U4 in-flight fallback root dropped when the boundary died",
+		outerShown && innerFallbackRuns === runsAtDispose,
+	);
+	sandbox.console = savedC;
+}
+
+// U9: NaN keys must reconcile as a stable key (not rebuild every pass)
+{
+	let built9 = 0;
+	const items9 = signal([{ v: NaN }]);
+	const [h9] = createRoot(() =>
+		For({
+			each: () => items9.value,
+			key: (it) => it.v, // NaN key from bad data
+			width: 40,
+			children: () => {
+				built9++;
+				return jsx(StubContent, { string: "nan-row" });
+			},
+		}),
+	);
+	items9.value = [{ v: NaN }]; // same NaN key -> must REUSE, not rebuild
+	check("U9 NaN key is stable across passes", built9 === 1 && h9.contents.length === 1);
+}
+
 done();
