@@ -63,7 +63,16 @@ strictly ordered except the "next batch".
       screenshots/deviceinfo-gabbro.png. First-boot sanity app for new hardware.
 
 **Test infra:**
-- [ ] device-smoke catalog → `tools/device-smoke.mts` runner
+- [x] device-smoke catalog → `tools/device-smoke.mts` runner ✅ (2026-07):
+      `npm run smoke:device` — 7-app catalog (both stack canaries first, then
+      counter/autothunk/movebox/loadms/deviceinfo with cataloged button
+      drives). Per app: build → Rule-3 log-capture install (≥3 heartbeats, no
+      fxAbort) → drive.py buttons → screendump → non-blank pixel assert → PNG
+      receipt; reset+retry once on dead transport; exit 1 on any fail. First
+      full run: 7/7 PASS on gabbro. Catalog + manual recipe:
+      docs/device-smokes.md. Found while building it (measured): a fresh
+      direct-qemu client's AppLogShippingControl is NOT reliably honored —
+      heartbeats must come from the `pebble logs`-around-install recipe.
 
 **Must-do first thing when the log transport is healthy:**
 - [x] ~~device-verify the visible-error log~~ **SOLVED 2026-07 (deep dive).**
@@ -395,17 +404,16 @@ Priority order the owner set; each is expanded in its own section below.
     decode — relevant to the custom-fonts tutorial part).
 
 ### Test/verification infrastructure (owner ask, 2026-07)
-- **Smoke catalog + runner.** Today's automated gate is `npm run verify`
-  (SDK-free: typecheck + 100% coverage + XS conformance laws + consumer
-  tarball smoke) plus `npm run smoke:flags-off` (SDK). What we LACK is a
-  cataloged, repeatable set of on-device (emulator) smokes — "install app X,
-  press these buttons, assert this renders" — that we currently do by hand
-  each time. PLAN: (1) write down the manual device-smoke steps per example in
-  one file (a checklist), (2) then automate with a `tools/device-smoke.mts`
-  that drives `reset → install → drive.py → screenshot brightness/OCR assert`
-  for a list of apps. Start manual (document), automate incrementally. This is
-  the "list of smoke tests, run in sequence, prove we didn't break anything"
-  the owner wants.
+- **Smoke catalog + runner.** ✅ SHIPPED (2026-07). `npm run smoke:device`
+  (`tools/device-smoke.mts`) runs the cataloged on-device smokes in sequence:
+  build → log-capture install (heartbeats + no fxAbort) → drive.py buttons →
+  screendump → non-blank assert → PNG receipt, with the Rule-3 reset+retry
+  baked in. 7-app catalog (canaries first), 7/7 PASS on first full gabbro
+  run; checklist + what-a-PASS-means caveats in docs/device-smokes.md. The
+  original plan's OCR assert was deliberately NOT done: the pixel assert
+  proves "painted", heartbeats prove "alive", and the receipt is for human
+  eyes — OCR on 18px Gothic over QEMU dumps is fragile machinery for little
+  added proof (revisit only if a smoke ever passes wrongly).
 
 ### Genuinely NEW ideas (owner, 2026-07)
 - **Speech-to-text for todo entry — LIKELY REACHABLE.** `@moddable/typings`
