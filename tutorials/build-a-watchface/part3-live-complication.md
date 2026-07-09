@@ -79,6 +79,37 @@ allocation per update in steady state). On a watch that runs this face 24/7,
 battery. (`computed` also *caches*: read `greeting.value` ten times in one
 frame and the function body runs at most once.)
 
+## Where does state go? (both placements work)
+
+This tutorial declares its signals at **module scope** — next to the skins,
+above `render()`. If you come from React that looks like a global-variable
+sin: there, state must live inside the component so each instance gets its
+own copy across re-renders. signal-piu has **no re-render**, so a component
+function runs exactly once — and state is created once *wherever you declare
+it*. Both placements cost the same RAM and both are idiomatic:
+
+```tsx
+// A) module scope — clean for a single-screen app (this tutorial)
+const [ss, setSs] = useState(0);
+
+// B) inside the component — the React-familiar shape, and REQUIRED the
+//    moment a component is reusable (each call site needs its own state)
+import type { Component } from "runtime/jsx-runtime";
+
+type BlinkProps = { label: string };
+const Blink: Component<BlinkProps> = (props) => {
+  const [on, setOn] = useState(true);        // created once, at mount
+  setInterval(() => setOn((v) => !v), 1000);
+  return <Label string={() => (on() ? props.label : "")} />;
+};
+// <Blink label="⚑" /> twice on screen = two independent `on` signals
+```
+
+Rule of thumb: one screen, one owner → module scope reads cleanest; a
+component used more than once (or shipped for others) → state inside, props
+typed with `Component<P>`. There is no hooks-order rule and no "must be
+inside a component" rule — `useState` is an ordinary function call.
+
 ## Where to go next
 
 - **Mix in hand-written Piu:** the `coexist` example adds imperative

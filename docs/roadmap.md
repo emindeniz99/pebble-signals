@@ -61,7 +61,10 @@ strictly ordered except the "next batch".
       into a module and drops the `JSX`/`importNow` GLOBALS. So it's a
       restructure (e.g. a triple-slash `/// <reference>` or a global re-export
       of `Content`), not a one-liner. Deferred; `any` stays for now.
-- [ ] tutorial: teach BOTH state placements (module-scope vs in-component)
+- [x] tutorial: teach BOTH state placements ✅ (2026-07): "Where does state
+      go?" section in tutorial part 3 — module-scope vs in-component (typed
+      with `Component<P>`), why both cost the same (no re-render), and when
+      each is the right call (reusable components need in-component state).
 
 **Tutorial + docs:**
 - [ ] comprehensive watchface tutorial (fonts, images, Clay config, publish)
@@ -374,12 +377,12 @@ Priority order the owner set; each is expanded in its own section below.
   entry. Chose the sibling-export convention over a `defineApp({...})`
   runtime helper: the helper would cost a real export + boot symbol for
   the same ergonomics.
-- **Component patterns: teach BOTH state placements.** Most devs know React,
-  where state lives INSIDE the component. In signal-piu both work and cost the
-  same RAM (no re-render → state created once at mount, wherever declared).
-  The tutorial should show BOTH: module-scope signals (clean for a single
-  screen) AND state-inside-a-component (familiar to React devs, required for
-  reusable components). Add a short "where does state go?" section.
+- **Component patterns: teach BOTH state placements.** ✅ DONE (2026-07):
+  "Where does state go?" section added to tutorial part 3 — module-scope
+  (single-screen idiom) vs in-component (React-familiar, required for
+  reusable components), a `Component<P>`-typed Blink example, and the "no
+  hooks-order rule" point. Both placements cost the same RAM (no re-render
+  → state created once wherever declared).
 
 ### Bigger tutorial + docs push (owner, 2026-07)
 - **A second, COMPREHENSIVE watchface tutorial (0→published).** The existing
