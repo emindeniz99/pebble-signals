@@ -16,6 +16,23 @@ The at-a-glance view (GitHub renders these as checkboxes). Each item is
 detailed in its section below; check it here when it ships. Grouped, not
 strictly ordered except the "next batch".
 
+**STATUS 2026-07: the open list is EMPTY** — every item below is closed
+(with device receipts) or moved to "Waiting on the outside world" (things
+no work inside this repo can advance). New work starts a new list.
+
+**Waiting on the outside world (no repo-side work possible; what unblocks each):**
+- heap-sizing live-verify — needs a QEMU-bootable newer classic firmware
+  image (none public; releases ship real-hardware firmware, pebble-tool caps
+  at SDK 4.17). Unblocks: such an image appearing, or the owner providing
+  one. Full story: "firmware bigger-machine experiment".
+- cloudpebble `signal-piu` project type — the PR lives in
+  coredevices/cloudpebble (outside this session's repo access). Plan fully
+  scoped in the CloudPebble section. Unblocks: the owner opening the
+  upstream issue/PR.
+- dictation-driven text entry — the API is probe-proven reachable
+  (`dictate`), but transcription needs a real watch + phone assistant.
+  Unblocks: hardware in the loop.
+
 **Next batch (owner order):**
 - [x] load-time ms instrumentation ✅ (2026-07, `loadms` example): SELECT
       times a cold `importNow("app/heavy")` of a ~2KB lazy module on gabbro —
@@ -51,13 +68,6 @@ strictly ordered except the "next batch".
       pebble.h documents that instrumentation logs only flow "when a
       Bluetooth log listener is connected" — the source-side confirmation of
       the log-capture recipe (docs/device-smokes.md).
-- [ ] heap-sizing source-verify — **BLOCKED EXTERNALLY** (2026-07, full
-      story in "firmware bigger-machine experiment"): the coredevices
-      PebbleOS SOURCE honors ModdableCreationRecord, but no QEMU-bootable
-      newer classic firmware image is obtainable to test live (releases
-      ship real-hardware firmware; pebble-tool caps at SDK 4.17). Parked
-      until such an image exists or the owner provides one — the only
-      checklist item that cannot be closed from inside this repo.
 - [x] CloudPebble tier 1 → 2 → 3 — tier 2 SHIPPED ✅, tier 1 SCOPED,
       tier 3 evaluated-deferred (2026-07; full status in the CloudPebble
       section):

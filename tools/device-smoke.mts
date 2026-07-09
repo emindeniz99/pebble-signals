@@ -67,6 +67,13 @@ const SMOKES: Smoke[] = [
 	// drive that flow manually when touching the config path
 	{ app: "config", drive: [], expect: "no config yet (pebble/message channel open)" },
 	{ app: "fontface", drive: [], expect: "serif clock + 'Serif, from a TTF' (custom font)" },
+	{ app: "kvprobe", drive: [], expect: "kv works boot=N (device.keyValue persists)" },
+	// boot + SELECT sends a bridged log line; the runner's pixel assert only
+	// sees the label — the pkjs> line needs the log capture (kept manual)
+	{ app: "devlog", drive: ["b:select", "s:1"], expect: "sent 1 (dev-log bridge)" },
+	// boot-only ON PURPOSE: SELECT opens the SYSTEM dictation UI and BACK
+	// exits to the launcher (probe finding) — driving it would strand the run
+	{ app: "dictate", drive: [], expect: "SELECT starts dictation (probe)" },
 ];
 
 const MIN_HEARTBEATS = 3; // capture spans ~8s post-install; instruments ticks ~1/s
