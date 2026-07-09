@@ -37,7 +37,20 @@ strictly ordered except the "next batch".
       screenshots/movebox-steps-gabbro.png / movebox-tween-gabbro.png).
       Canaries re-verified: navmany + navreactive boot & render, symbols
       unchanged at 140 (unused Move export prunes out).
-- [ ] machine-restart from C — research (PebbleOS `moddable.c`)
+- [x] machine-restart from C — RESEARCHED, NOT POSSIBLE (2026-07, receipts):
+      `moddable_createMachine` is the ONLY Alloy API exported to apps —
+      `pebble.h` (4.17, gabbro) declares exactly one function in the Alloy
+      group and `libpebble.a` contains exactly one `moddable_*` symbol (nm
+      receipt); no delete/stop/restart exists, and createMachine BLOCKS for
+      the app's lifetime (mdbl.c's main falls off the end while the app
+      keeps running), so C can't loop it either. The `.fxBuildFFI` hook can
+      add native functions but has nothing to call for teardown. Only reset:
+      exit to launcher + relaunch (user-visible). Filed as upstream ask §13
+      (docs/upstream-issue.md) — expose deleteMachine/restartMachine; the
+      firmware already owns the teardown path at app exit. Bonus finding:
+      pebble.h documents that instrumentation logs only flow "when a
+      Bluetooth log listener is connected" — the source-side confirmation of
+      the log-capture recipe (docs/device-smokes.md).
 - [ ] heap-sizing source-verify (does newer firmware honor stack/slot/chunk?)
 - [ ] CloudPebble tier 1 → 2 → 3
 

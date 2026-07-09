@@ -298,6 +298,29 @@ own log path); (b) let a mod's `creation.stack` through `mcrun` and honor
 it (same fix as §11 for heap/keys); (c) document the mod JS-stack budget so
 a toolchain can estimate render-tree depth against it.
 
+## 13. No machine restart: one XS machine per app launch, forever
+
+`moddable_createMachine` is the ONLY Alloy entry point exported to apps —
+confirmed against the 4.17 SDK surface (`pebble.h`'s Alloy group declares
+exactly one function, and `libpebble.a` contains exactly one `moddable_*`
+symbol). There is no `moddable_deleteMachine`, no stop, no restart. The
+call also blocks for the app's lifetime (the app-side `main` in every
+template calls it and then falls off the end while the app keeps running),
+so app C code cannot even loop it. Consequence: when a long-running app's
+arena fragments or a recoverable JS fault leaves the machine wedged, the
+only reset is exiting to the launcher and relaunching the whole watchapp —
+user-visible, state-losing. A JS-level fault handler (our crash-screen
+boundary) can rebuild the TREE, but nothing can hand back a fresh 32KB
+arena.
+
+**Ask:** expose a machine teardown/recreate — either (a) a
+`moddable_deleteMachine()` + non-blocking create split, or (b) a
+`moddable_restartMachine()` that tears down the current machine and
+re-runs the archive's `main` in a fresh arena (the firmware already owns
+the full teardown path at app exit; this reuses it mid-run). Even a
+restart-on-next-event-loop-turn variant (deferred, no re-entrancy) would
+give apps a real recovery story.
+
 ## Repro availability
 
 All numbers come from XS instrumentation logs
