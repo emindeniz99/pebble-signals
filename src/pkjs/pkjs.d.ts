@@ -9,10 +9,21 @@ interface PebbleAppMessage {
 	payload: Record<string, number | string | number[]>;
 }
 
+/** `webviewclosed` event: `response` is the config page's return fragment. */
+interface PebbleWebviewClosed {
+	response?: string;
+}
+
 declare const Pebble: {
 	/** `ready` fires when the phone-side JS is up; `appmessage` on each watch message. */
 	addEventListener(type: "ready", cb: (e?: unknown) => void): void;
 	addEventListener(type: "appmessage", cb: (e: PebbleAppMessage) => void): void;
+	/** `showConfiguration` fires when the user opens the app's settings page. */
+	addEventListener(type: "showConfiguration", cb: (e?: unknown) => void): void;
+	/** `webviewclosed` fires when the settings page closes (response = URL fragment). */
+	addEventListener(type: "webviewclosed", cb: (e: PebbleWebviewClosed) => void): void;
+	/** Open the config page (the phone app / emulator serves it). */
+	openURL(url: string): void;
 	/** Send an AppMessage to the watch (keys must be declared in package.json). */
 	sendAppMessage(
 		payload: Record<string, number | string | number[]>,

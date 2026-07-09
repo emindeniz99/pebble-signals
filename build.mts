@@ -193,6 +193,11 @@ for (const closureFile of appClosure.filter(existsSync)) {
 		// dynamic import can only reach shipped-and-scanned modules
 		else if (/^"app\/screens\/"\s*\+/.test(m[1]) && existsSync(join("src/tsx/examples", APP, "screens"))) {
 			/* covered by the folder convention */
+		} else if (/^"(?:pebble\/|embedded:)[\w/:-]+"\s*$/.test(m[1])) {
+			/* HOST-preloaded module (pebble/message, embedded:storage/files, …):
+			   the mod compartment's loadNowHook maps these through to the host
+			   archive, so nothing in OUR manifest can be pruned out from under
+			   them — they don't defeat the scans */
 		} else unresolvedDynamicImport = true;
 	}
 }

@@ -81,7 +81,11 @@ strictly ordered except the "next batch".
 
 **Tutorial + docs:**
 - [ ] comprehensive watchface tutorial (fonts, images, Clay config, publish)
-- [ ] Clay config-page research (PKJS-side)
+- [x] Clay config-page research (PKJS-side) ✅ (2026-07): full mechanic
+      mapped AND device-verified — `config` example + pkjs listeners +
+      headless tools/config-drive.py; "hi from config" black-on-white
+      receipt (screenshots/config-roundtrip-gabbro.png). Clay = a page
+      generator on this exact flow; details in the Clay section below.
 - [ ] XS docs survey for more optimization lessons
 - [x] `deviceinfo` example ✅ (2026-07): screen size/round/color + clock +
       live uptime on-watch; gabbro receipt (260x260/round/color) at
@@ -430,9 +434,17 @@ Priority order the owner set; each is expanded in its own section below.
   - **Clay itself** is just a webview page generator on top of this exact
     flow — orthogonal as predicted; our tutorial can use a plain HTML page
     or Clay unchanged.
-  - REMAINING (the build): config example (watch signals <- Message
-    onReadable), pkjs config listener, a tools/config-drive.py speaking
-    0x0a, device round-trip receipt.
+  - ✅ BUILT & DEVICE-VERIFIED same day: `config` example (watch signals <-
+    Message onReadable; text + invert flip skin/style reactively), pkjs
+    showConfiguration/webviewclosed listeners forwarding the raw settings
+    JSON under key 10000, and `tools/config-drive.py` speaking the 0x0a
+    protocol. Full headless round-trip on gabbro: driver sends
+    `{"text":"hi from config","invert":1}` → watch renders "hi from
+    config" BLACK-ON-WHITE (both settings applied) — receipt
+    screenshots/config-roundtrip-gabbro.png. build.mts scan extended so
+    host-module importNow literals (pebble/*, embedded:*) don't defeat
+    treeshake (config ships 133 symbols, flow dropped). VERDICT: Clay
+    works with us — it's a page generator on exactly this flow.
   - **Bonus host-manifest findings (recorded):** the host also preloads
     `pebble/dictation` (the speech-to-text roadmap item has its module),
     `pebble/wakeup`, `pebble/vibes`, fetch/WebSocket/webstorage; and it
