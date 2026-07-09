@@ -420,6 +420,30 @@ const run = (e: number): void => {
 	}
 };
 
+// Drain a disposables list UNTRACKED and contained. Untracked (Solid):
+// cleanups can fire while ANOTHER effect is mid-run (a creation-run write
+// cascading into a re-run) — a signal read inside a cleanup must not
+// subscribe that on-stack effect (reproduced). Contained: a THROWING cleanup
+// must not orphan its sibling disposables (reproduced) — report() it, finish
+// the drain. Lives as a SEPARATE helper on purpose: its try/catch scaffolding
+// would otherwise sit in unsubscribe's frame, which is live at MAX render
+// depth on every effect creation (Round 7 stack budget — measured: inlining
+// this tipped navmany over the 384-slot value stack).
+const drainDisposables = (list: Disposable[]): void => {
+	const pc = current;
+	current = -1;
+	try {
+		for (let i = list.length - 1; i >= 0; i--)
+			try {
+				dispose(list[i]);
+			} catch (err) {
+				report(err, "cleanup threw during dispose");
+			}
+	} finally {
+		current = pc;
+	}
+};
+
 // Runs the user cleanup (if any) and drops every subscription of effect e
 // in ONE masked pass over the signal rows (CPU for RAM: rows are few and
 // the pass allocates nothing). Called both before every re-run and on
@@ -434,23 +458,7 @@ function unsubscribe(e: number): void {
 	const list = g.w !== null && g.w[e];
 	if (list) {
 		g.w![e] = null;
-		// Cleanups run UNTRACKED (Solid): this drain can fire while ANOTHER
-		// effect is mid-run (a creation-run write cascading here) — a signal
-		// read inside a cleanup must not subscribe that on-stack effect
-		// (reproduced). And a THROWING cleanup must not orphan its siblings:
-		// contain per item (reported, loud) so the drain always finishes.
-		const pc = current;
-		current = -1;
-		try {
-			for (let i = list.length - 1; i >= 0; i--)
-				try {
-					dispose(list[i]);
-				} catch (err) {
-					report(err, "cleanup threw during dispose");
-				}
-		} finally {
-			current = pc;
-		}
+		drainDisposables(list);
 	}
 	// effect e lives in word (e>>5) of every row; clear just that word.
 	const sub = g.sub,
@@ -510,15 +518,17 @@ export const S = {
 				const po = owner;
 				current = e;
 				owner = e; // trackables created by fn belong to the computed
+				let ok = false;
 				try {
 					g.f[i] = fn();
-				} catch (err) {
-					// stay INVALID: a poisoned computed must rethrow on EVERY read
-					// until a dep changes — never serve the stale cache as valid
-					// (reproduced: the 2nd read silently returned the old value).
-					cx[1][i] = -1;
-					throw err;
+					ok = true;
 				} finally {
+					// throw path: stay INVALID — a poisoned computed must rethrow
+					// on EVERY read until a dep changes, never serve the stale
+					// cache as valid (reproduced). Flag-in-finally instead of a
+					// catch clause: a catch adds XS value-stack scaffolding to a
+					// frame that is live at MAX render depth (Round 7 budget).
+					if (!ok) cx[1][i] = -1;
 					current = prev;
 					owner = po;
 				}
@@ -768,20 +778,7 @@ export function createRoot<T>(fn: () => T): [T, () => void] {
 	const prev = owner;
 	owner = o;
 	const disposer = () => {
-		// same contract as the w-list drain: untracked, and one throwing
-		// cleanup must not orphan the rest of the subtree (contained + logged)
-		const pc = current;
-		current = -1;
-		try {
-			for (let i = o.d.length - 1; i >= 0; i--)
-				try {
-					dispose(o.d[i]);
-				} catch (err) {
-					report(err, "cleanup threw during dispose");
-				}
-		} finally {
-			current = pc;
-		}
+		drainDisposables(o.d); // untracked + contained (see the helper)
 		o.d.length = 0;
 	};
 	let result: T;
