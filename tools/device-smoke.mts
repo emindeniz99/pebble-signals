@@ -62,6 +62,10 @@ const SMOKES: Smoke[] = [
 		drive: ["b:up", "s:1", "b:up", "s:1"],
 		expect: "root 2 (root-component entry via generated shim)",
 	},
+	// boot-only here: the settings round-trip needs pypkjs ALIVE (tools/
+	// config-drive.py), which this runner kills before driving buttons —
+	// drive that flow manually when touching the config path
+	{ app: "config", drive: [], expect: "no config yet (pebble/message channel open)" },
 ];
 
 const MIN_HEARTBEATS = 3; // capture spans ~8s post-install; instruments ticks ~1/s

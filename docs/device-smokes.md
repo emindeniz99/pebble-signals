@@ -47,6 +47,8 @@ transport (0 heartbeats) triggers one `tools/reset-emulator.sh` + retry
 | `movebox` | UP ×2 | "x=40", box shifted right 40px | `<Move>` applies moveBy deltas post-mount |
 | `loadms` | SELECT | "load _n_ms acc=247700" | importNow of a lazy module loads and runs |
 | `deviceinfo` | none | size/round/color + ticking clock | host surface probe; first-boot sanity for new hardware |
+| `rootapp` | UP ×2 | "root 2" | root-component entry mounts via the generated shim |
+| `config` | none | "no config yet" | `pebble/message` channel opens at boot (the full settings round-trip needs pypkjs alive — drive it manually with `tools/config-drive.py`) |
 
 Adding an entry: one line in `SMOKES` in `tools/device-smoke.mts` (app name,
 drive.py actions, the human-readable expectation). Keep boot-only canaries
