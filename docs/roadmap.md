@@ -407,12 +407,40 @@ Priority order the owner set; each is expanded in its own section below.
   **config pages** (see Clay below), persistence via `device.keyValue`, and
   publishing. Each part device-verified. This is the "port their tutorial
   outline to signal-piu, originally written" the owner asked for.
-- **Clay config pages — does it work with us?** Alloy tutorial part 6 uses
-  [pebble-dev/clay](https://github.com/pebble-dev/clay) for settings pages.
-  Clay runs PKJS-side (config webview + AppMessage), so it is orthogonal to
-  our XS/Piu runtime — likely works unchanged through `src/pkjs/`. RESEARCH:
-  wire Clay into the pkjs bridge, expose settings to the watchface as signals,
-  device-verify a color/toggle setting round-trips. Great tutorial payoff.
+- **Clay config pages — does it work with us?** RESEARCHED 2026-07 (sources
+  read end-to-end; implementation next). The full mechanic is available and
+  headless-drivable:
+  - **Watch side:** the Alloy HOST manifest (`build/devices/pebble/host/
+    manifest.json`) preloads `pebble/message` — a mod can `importNow
+    ("pebble/message")` at ~zero shipping cost. The `Message` class
+    (pebble-appmessage.js) takes `{keys: [...]}`, maps key NAMES to codes
+    **10000+index**, `read()` returns a Map (names restored), `write(map)`
+    sends. Moddable-IO callback convention (`onReadable`) for inbound.
+  - **pkjs side:** pypkjs 2.0.7 implements the full config flow:
+    `showConfiguration` event (fired by phonesim opcode `0x0a 0x01`),
+    `Pebble.openURL` routes to `open_config_page`, and the response comes
+    back as `webviewclosed` (opcode `0x0a 0x02 <len:be32> <query>`;
+    `0x03` = cancelled). pkjs then `sendAppMessage` with NUMERIC keys
+    (10000+i) to match the watch-side map.
+  - **Headless driving:** no browser needed — speak the phonesim websocket
+    protocol directly (the port is in /tmp/pb-emulator.json under
+    `[platform]["4.17"]["pypkjs"]["port"]`): send `0x0a 0x01`, catch the
+    broadcast URL, reply `0x0a 0x02` with the settings query. `pebble
+    emu-app-config --file` also exists but opens a browser.
+  - **Clay itself** is just a webview page generator on top of this exact
+    flow — orthogonal as predicted; our tutorial can use a plain HTML page
+    or Clay unchanged.
+  - REMAINING (the build): config example (watch signals <- Message
+    onReadable), pkjs config listener, a tools/config-drive.py speaking
+    0x0a, device round-trip receipt.
+  - **Bonus host-manifest findings (recorded):** the host also preloads
+    `pebble/dictation` (the speech-to-text roadmap item has its module),
+    `pebble/wakeup`, `pebble/vibes`, fetch/WebSocket/webstorage; and it
+    STRIPS `Proxy, Reflect, Atomics, WeakMap, WeakSet, BigInt, eval,
+    Function, Generator` — those primordials DO NOT EXIST in mods (playbook
+    note added). The device manifest's creation block is the source of the
+    measured numbers: static 32768, chunk initial 8192, slot heap initial
+    512 slots, **stack 384 slots** — the 384 wall, in source.
 - **XS docs survey for optimization lessons.** Read the rest of Moddable's
   `documentation/xs/*` the way we read `mods.md`/`preload.md`. `preload.md`
   already paid off (READ 2026-07): its guidance — "separate pure logic from

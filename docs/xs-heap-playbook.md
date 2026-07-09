@@ -754,6 +754,22 @@ Findings (evidence in the moddable toolchain sources):
   compiled in (`xs/sources/xsModule.c`: `fxImport`, `fxRunImportNow`). They
   resolve **precompiled bytecode** from the flash archive — `eval`/`Function`
   are stripped, so you cannot compile source on-device.
+- **The full strip list (host manifest, 2026-07):** the Alloy host strips
+  `Proxy, Reflect, Atomics, WeakMap, WeakSet, BigInt, eval, Function,
+  Generator`. None of these primordials exist in a mod — a library or
+  polyfill that touches them dies at load. (Also why our runtime never
+  reaches for WeakMap-keyed registries.)
+- **Host-preloaded device modules (importNow-able at ~zero shipping cost):**
+  the host manifest preloads `pebble/message` (AppMessage — keys map to
+  codes 10000+index), `pebble/dictation`, `pebble/wakeup`, `pebble/vibes`,
+  `pebble/battery`, `pebble/compass`, `pebble/location`, `pebble/
+  accelerometer`, plus `fetch`, `WebSocket`, and `webstorage`
+  (localStorage). A mod pays only the symbols it uses, not the module.
+- **The creation numbers, in source:** the device manifest's creation block
+  is exactly the measured machine — `static: 32768`, `chunk.initial: 8192`,
+  `heap.initial: 512` (slots), **`stack: 384`** (slots — the value-stack
+  wall of the postmortem, straight from
+  `build/devices/pebble/manifest.json`).
 - **`preload` = ROM-frozen**: modules in the manifest `preload` list run their
   bodies at build time and cost ~0 heap (our `runtime/*`). `main` is NOT
   preloaded — it loads into the 32KB heap on first import.
