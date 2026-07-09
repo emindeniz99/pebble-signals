@@ -99,7 +99,14 @@ strictly ordered except the "next batch".
       headless tools/config-drive.py; "hi from config" black-on-white
       receipt (screenshots/config-roundtrip-gabbro.png). Clay = a page
       generator on this exact flow; details in the Clay section below.
-- [ ] XS docs survey for more optimization lessons
+- [x] XS docs survey ✅ (2026-07): read the three optimization-relevant docs
+      (XS Scopes, ROM Colors, XS linker warnings) — closure slot-pair model,
+      sequential-blocks-reuse-indices (only NESTING costs depth), ROM
+      graph-coloring (keep preloaded shapes homogeneous), and the alias
+      budget stated in source ("one pointer per aliasable object, even
+      unmodified"). Findings + the deliberately-skipped list (FFI,
+      Marshalling, xsbug, …, each with why) in the playbook. mods.md and
+      preload.md were read in earlier rounds.
 - [x] `deviceinfo` example ✅ (2026-07): screen size/round/color + clock +
       live uptime on-watch; gabbro receipt (260x260/round/color) at
       screenshots/deviceinfo-gabbro.png. First-boot sanity app for new hardware.

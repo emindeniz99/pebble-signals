@@ -775,10 +775,36 @@ Findings (evidence in the moddable toolchain sources):
   mechanism). Cost model: the glyph atlas lives in FLASH, not the arena
   (fontface's archive grew 13→23KB for a 95-glyph 32px atlas); a `characters`
   subset shrinks it. fontcheck passes any family backed by a TTF.
+- **The creation numbers, in source:** the device manifest's creation block
   is exactly the measured machine — `static: 32768`, `chunk.initial: 8192`,
   `heap.initial: 512` (slots), **`stack: 384`** (slots — the value-stack
   wall of the postmortem, straight from
   `build/devices/pebble/manifest.json`).
+- **XS docs survey (2026-07 — Scopes / ROM Colors / linker warnings):**
+  - *Scopes:* a closure pairs slots — one on the machine stack pointing at
+    one on the heap — and captures ONLY the variables an inner function
+    actually uses (never whole scopes); parallel (sequential) blocks reuse
+    the same stack indices, so consecutive `{}` blocks cost no extra depth —
+    only NESTING does. The interpreter stack is its own slot array (never
+    the C stack), which is exactly why the 384-slot value stack is the
+    recursion budget and a big C stack doesn't help. `eval`/`with` would
+    force dynamic name lookup — stripped here anyway.
+  - *ROM Colors:* preloaded (ROM) property lookup is O(1) — the linker
+    graph-colors keys into array indices; keys that coexist in one instance
+    must differ, and heterogeneous instance shapes create conflicts AND
+    sparse (wasted) ROM slots. Our packed one-shape Graph with single-letter
+    fields is the ideal case for this; keep preloaded instances homogeneous.
+  - *Linker warnings:* "each aliasable closure and object consumes one
+    pointer at runtime, even if never modified" — the alias budget, in
+    source. Rules restated: `const` (not `let`) for module scope referenced
+    by exports; deep-freeze objects and any globals you add; avoid mutable
+    built-ins (Map/Set/Date) at preload scope. All three match what this
+    project measured the hard way (gotcha 13, the alias floor).
+  - Skipped deliberately: FFI (unusable machine layout, upstream §2),
+    Compartment (host-side; mods get theirs via the hook), Profiler/xsbug
+    (no debug channel on release firmware), Marshalling (workers die on
+    this port), xst (installed and in use), Conformance (we run our own
+    laws against real XS).
 - **`preload` = ROM-frozen**: modules in the manifest `preload` list run their
   bodies at build time and cost ~0 heap (our `runtime/*`). `main` is NOT
   preloaded — it loads into the 32KB heap on first import.
