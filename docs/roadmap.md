@@ -26,7 +26,10 @@ strictly ordered except the "next batch".
 - [x] autothunk bare-binding on-device verify ✅ (2026-07): gabbro boots,
       "Count: 0" -> 2x UP -> "Count: 2" — the lowered bare `string={"Count: "+count()}`
       binding updates LIVE (screenshots/autothunk-live-gabbro.png)
-- [ ] `moveBy` reactive position (emulator repaint/timing)
+- [ ] `moveBy` reactive position — FEASIBILITY PROVEN (2026-07 probe):
+      `content.moveBy(dx,dy)` WORKS on the port (box stepped 10px/s on gabbro,
+      6 heartbeats/0 aborts, screenshot-diff 1800px — unlike `visible`, which
+      crashes). The `<Move>` helper / reactive-position design can proceed.
 - [ ] machine-restart from C — research (PebbleOS `moddable.c`)
 - [ ] heap-sizing source-verify (does newer firmware honor stack/slot/chunk?)
 - [ ] CloudPebble tier 1 → 2 → 3
