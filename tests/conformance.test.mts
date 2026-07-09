@@ -696,6 +696,95 @@ const law = (name, verdict, cond, refs) => {
 	sandbox.console = savedC;
 }
 
+// --- Law 27: self-write inside an effect converges (no runaway settle) -------
+// An effect that WRITES a signal it also READS is the classic infinite-loop
+// hazard. Two guards make it safe here: an equal-value write is skipped
+// entirely (law 8's skip applies inside effects too), and a monotone write
+// re-runs once per settle TURN until the value stops changing — a fixpoint,
+// not a synchronous hang. A never-stabilizing write still loops (that is the
+// app's bug in every fine-grained library, Solid included).
+{
+	const s1 = signal(1);
+	let runs1 = 0;
+	const e1 = signals.effect(() => {
+		runs1++;
+		s1.value = s1.value; // equal → skipped → terminates immediately
+	});
+	s1.value = 2;
+	const equalTerminates = runs1 === 2; // initial + the one real change
+
+	const s2 = signal(0);
+	let runs2 = 0;
+	const e2 = signals.effect(() => {
+		runs2++;
+		if (s2.value < 3) s2.value = s2.value + 1; // monotone toward fixpoint
+	});
+	const converged = s2.value === 3 && runs2 === 4; // initial + one per turn
+	law(
+		"self-write in effect: equal-skip terminates; monotone converges",
+		"MATCH",
+		equalTerminates && converged,
+		{
+			solid: "createEffect writing its own dep re-runs until the value stabilizes",
+			preact: "effect writing its dep loops until stable (same fixpoint contract)",
+			react: "setState-in-effect re-renders until state stabilizes",
+		},
+	);
+	signals.dispose(e1);
+	signals.dispose(e2);
+}
+
+// --- Law 28: a throwing computed poisons the READ, then heals ----------------
+// Lazy computeds recompute on read, so a throwing fn propagates the error to
+// the READER (whose own guard — binding/notify/boundary — decides policy), and
+// a read AFTER the dependency changes recomputes cleanly. Solid's memo has the
+// same observable contract (the exception surfaces at read; recompute heals).
+{
+	const s = signal(1);
+	const c = computed(() => {
+		if (s.value === 2) throw new Error("law28");
+		return s.value * 10;
+	});
+	const okBefore = c.value === 10;
+	s.value = 2;
+	let threw = false;
+	try {
+		void c.value;
+	} catch (e) {
+		threw = e.message === "law28";
+	}
+	s.value = 3;
+	const healed = c.value === 30;
+	law("computed throw surfaces at read; recompute heals", "MATCH", okBefore && threw && healed, {
+		solid: "createMemo rethrows at read; recomputes once a dep changes",
+		preact: "computed rethrows on .value until a dependency changes",
+		react: "useMemo throw fails the render; next render recomputes",
+	});
+}
+
+// --- Law 29: effect() created inside untrack still tracks ITS OWN reads ------
+// untrack() suppresses subscriptions of the CURRENTLY-RUNNING computation; a
+// NEW effect created inside the untrack window runs with its own tracking
+// scope and must subscribe normally (untrack is about reads, not creation).
+{
+	const s = signal(1);
+	let runs = 0;
+	let id = -1;
+	untrack(() => {
+		id = signals.effect(() => {
+			runs++;
+			void s.value;
+		});
+	});
+	s.value = 2;
+	law("effect created inside untrack tracks its own reads", "MATCH", runs === 2, {
+		solid: "createEffect inside untrack still tracks its own scope",
+		preact: "effect() inside untracked() subscribes normally",
+		react: "n/a (no untrack primitive)",
+	});
+	signals.dispose(id);
+}
+
 // --- parity summary ---------------------------------------------------------
 console.log("\n--- parity vs Solid / Preact / React ---");
 for (const p of parity)
