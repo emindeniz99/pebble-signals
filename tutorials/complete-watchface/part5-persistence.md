@@ -32,14 +32,25 @@ when you roll your own strings:
 - building one giant string via a whole-blob `String.fromCharCode.apply`
   aborts the machine — chunk big payloads (the store slices at 128B).
 
-## `device.keyValue` — the host's other API
+## `device.keyValue` — the host's other API (also device-proven)
 
-The host also exposes `device.keyValue.open({path})` (per-app namespaced,
-the Moddable storage API — files-style, typed values). It is the right
-surface for bigger structured persistence, but this repo has NOT
-device-verified it yet — the roadmap tracks that probe. Until then the
-tutorial teaches what has receipts: `localStorage` for small state, the
-byte store for records.
+The host also exposes `device.keyValue.open({path})` — the Moddable storage
+API, per-app namespaced, with typed values via `format`. Device-verified by
+the `kvprobe` example (receipt `screenshots/kvprobe-gabbro.png`): it writes
+a string and a persistent launch counter, and after a REINSTALL the watch
+shows "kv works boot=2" — the data survived the relaunch:
+
+```tsx
+const kv = device.keyValue.open({ path: "probe" });
+kv.format = "string";
+kv.write("greet", "kv works");
+const back = String(kv.read("greet"));   // reads back across launches
+```
+
+Note `read()` THROWS on a missing key (wrap the first read), and the store
+speaks one `format` at a time. Pick by shape: `localStorage` for a settings
+blob, the byte store for record lists, `keyValue` when you want typed keys
+without JSON round-trips.
 
 ## Wire it to part 4
 

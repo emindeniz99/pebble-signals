@@ -85,12 +85,15 @@ strictly ordered except the "next batch".
       images, settings page, persistence, package/install), each backed by
       a device-proven example + screenshot receipt; original content, the
       official tutorial's arc in our words/code. Honest boundaries stated
-      in-text: device.keyValue not yet repo-verified (part 5 teaches the
-      proven localStorage/byte-store path), store publishing not performed
+      in-text: store publishing not performed
       (part 6 stops at the .pbw + Rebble pointer). All mechanics were
       device-proven first: fonts (`fontface`), images (imgwatch/slothvec),
       config (config + config-drive), persistence (list), watchface flag
-      (lazyauto).
+      (lazyauto). SAME-DAY follow-up: device.keyValue round-trip
+      device-proven too (`kvprobe`: "kv works boot=2" after a REINSTALL —
+      typed store persists across relaunch; receipt
+      screenshots/kvprobe-gabbro.png; read() throws on a missing key);
+      tutorial part 5 updated from "not yet verified" to the receipt.
 - [x] Clay config-page research (PKJS-side) ✅ (2026-07): full mechanic
       mapped AND device-verified — `config` example + pkjs listeners +
       headless tools/config-drive.py; "hi from config" black-on-white
