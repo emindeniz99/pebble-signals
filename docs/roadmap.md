@@ -23,7 +23,9 @@ strictly ordered except the "next batch".
       + memo-equality (DIVERGE, documented). Most roadmap-listed laws already
       existed (13-18). Found the memo-equality DIVERGE — candidate opt-in
       eager-memo later. 295 tests, 100% cov, XS green.
-- [ ] autothunk bare-binding on-device verify (emulator)
+- [x] autothunk bare-binding on-device verify ✅ (2026-07): gabbro boots,
+      "Count: 0" -> 2x UP -> "Count: 2" — the lowered bare `string={"Count: "+count()}`
+      binding updates LIVE (screenshots/autothunk-live-gabbro.png)
 - [ ] `moveBy` reactive position (emulator repaint/timing)
 - [ ] machine-restart from C — research (PebbleOS `moddable.c`)
 - [ ] heap-sizing source-verify (does newer firmware honor stack/slot/chunk?)
@@ -250,8 +252,9 @@ Priority order the owner set; each is expanded in its own section below.
    genuinely missing were added as laws 27-29 (self-write converges, throwing
    computed surfaces-at-read-then-heals, effect-in-untrack tracks) — 29 laws,
    24 MATCH / 5 DIVERGE.
-6. **autothunk on-device (EMULATOR)** — build `autothunk`, install on gabbro,
-   confirm the bare `string={"c"+count()}` binding updates live.
+6. **autothunk on-device (EMULATOR)** ✅ DONE (2026-07): boots on gabbro;
+   UP/DOWN presses drive the lowered bare binding live ("Count: 0" -> "Count: 2");
+   receipt screenshots/autothunk-live-gabbro.png.
 7. **moveBy reactive position** — `<Move>`/`animate()` imperative reposition
    inside an effect; emulator repaint/timing check.
 8. **Machine restart from C (research)** — can `mdbl.c` kill + recreate the XS
