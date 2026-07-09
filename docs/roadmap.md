@@ -304,7 +304,15 @@ strictly ordered except the "next batch".
       original third reason — inner boundaries don't log while the terminal
       must — was retired by the log-on-catch decision; the two above stand
       on their own.)
-- [ ] **Visible dev-log bridge (design):** on RELEASE firmware JS `trace` is
+- [x] **Visible dev-log bridge** ✅ BUILT & DEVICE-VERIFIED (2026-07):
+      `devlog` example + a pkjs tap. Watch sends "spdev:"-prefixed strings
+      through pebble/message (key "log" -> 10000) — a `log()` helper, a boot
+      line, and `__spError` wired so contained errors ship too; pkjs
+      console.logs any marked payload, and the line IS visible in `pebble
+      logs`: `pkjs> ./src/pkjs/index.js:20:0 spdev: boot hello from the
+      watch` (captured on gabbro). App-side and opt-in — apps that don't
+      wire it pay nothing; the marker keeps fetch-proxy/config traffic out
+      of the tap. Original design note: on RELEASE firmware JS `trace` is
       a no-op (xsHost.c: visible lines are C-side `modLog_transmit`/APP_LOG;
       probes confirmed console.log/trace never reach `pebble logs` from a
       mod). The channels that DO show: fxAbort (fatal), instruments (C),

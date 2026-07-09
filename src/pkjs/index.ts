@@ -9,6 +9,16 @@ moddableProxy.log = true;
 Pebble.addEventListener("ready", moddableProxy.readyReceived);
 Pebble.addEventListener("appmessage", moddableProxy.appMessageReceived);
 
+// Dev-log bridge (examples/devlog.tsx): watch-side strings arriving under
+// key 10000 with the "spdev:" marker are logged HERE, phone-side — the one
+// channel that shows up in `pebble logs` on RELEASE firmware (JS trace on
+// the watch is a no-op there). The marker keeps ordinary AppMessage traffic
+// (fetch proxy, config) out of the tap.
+Pebble.addEventListener("appmessage", (e) => {
+	const v = e.payload && e.payload["10000"];
+	if (typeof v === "string" && v.indexOf("spdev:") === 0) console.log(v);
+});
+
 // Config-page flow (Clay-style, generic): when the settings page closes, the
 // RAW result string is forwarded to the watch under one well-known
 // AppMessage key — 10000, the code the watch-side `pebble/message` Message

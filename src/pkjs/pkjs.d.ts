@@ -32,6 +32,13 @@ declare const Pebble: {
 	): void;
 };
 
+/** PKJS console — its lines DO reach `pebble logs` (as `pkjs>`), unlike watch-side trace. */
+declare const console: {
+	log(...args: unknown[]): void;
+	warn(...args: unknown[]): void;
+	error(...args: unknown[]): void;
+};
+
 /** Phone-side HTTP/fetch proxy for the watch (README gotcha 18). */
 declare module "@moddable/pebbleproxy" {
 	/** Set true to log proxy traffic to the PKJS console. */

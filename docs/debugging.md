@@ -114,6 +114,13 @@ globalThis.__spError = (e) => trace("effect error: " + e.message + "\n");
 - The 4.17 instrumentation stream not attaching (memtest "no instrumentation
   received") is a known open issue — heap numbers come from boot logs
   (`instruments:` lines) when they appear, not from memtest, until fixed.
+- **Live log LINES from release firmware — use the dev-log bridge** (the
+  `devlog` example): watch-side `trace`/`console.log` never reach `pebble
+  logs`, but AppMessage does. Send `"spdev: …"` strings through
+  `pebble/message` (key `"log"`) and the pkjs tap prints them phone-side —
+  visible as `pkjs> … spdev: …` lines (device-verified). Wire
+  `globalThis.__spError` to it and contained errors ship too. Needs pypkjs
+  ALIVE (it hosts pkjs) — the opposite of button driving above.
 
 ## What we cannot give you (yet)
 
