@@ -51,7 +51,9 @@ strictly ordered except the "next batch".
 - [ ] comprehensive watchface tutorial (fonts, images, Clay config, publish)
 - [ ] Clay config-page research (PKJS-side)
 - [ ] XS docs survey for more optimization lessons
-- [ ] `deviceinfo` example (surface everything the host injects)
+- [x] `deviceinfo` example ✅ (2026-07): screen size/round/color + clock +
+      live uptime on-watch; gabbro receipt (260x260/round/color) at
+      screenshots/deviceinfo-gabbro.png. First-boot sanity app for new hardware.
 
 **Test infra:**
 - [ ] device-smoke catalog → `tools/device-smoke.mts` runner
