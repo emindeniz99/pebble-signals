@@ -354,6 +354,20 @@ const [, disposeNavOwner] = createRoot(() => {
 disposeNavOwner(); // runs Navigator's `if (disposeTop) disposeTop()` cleanup
 check("Navigator owner-dispose runs cleanup", true);
 
+// coverage: a screen builder may return a THUNK (auto-thunk unwrap in swap —
+// the inlined asNode path where `typeof s === "function"` is TRUE)
+{
+	const [navHost, disposeThunkNav] = createRoot(() =>
+		Navigator({ root: () => () => jsx(StubContent, { string: "thunked" }) }),
+	);
+	const screenOf = (h) => h.contents[0].contents[0];
+	check(
+		"Navigator unwraps a thunk-returning screen builder",
+		screenOf(navHost).string === "thunked",
+	);
+	disposeThunkNav();
+}
+
 // coverage: dispose a NON-empty For -> cleanup loop runs over live rows (taken)
 const [fullFor, disposeFull] = createRoot(() =>
 	For({

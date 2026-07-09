@@ -523,4 +523,58 @@ setSink(null);
 	sandbox.Style = undefined;
 }
 
+// ---- __SP_CRASH_UI__ build flag (both DEFINED arms; undefined = every test
+// above). false = the lean --no-crash-ui sink: an escaped error still LOGS,
+// then CONTAINS — no crash screen, the node keeps its last good value, the
+// tree stays mounted. true = explicitly-defined ON (esbuild `define` in a
+// default build): identical to undefined — the crash screen paints.
+{
+	const savedC = sandbox.console;
+	const lines = [];
+	sandbox.console = { log: (...a) => lines.push(a.join(" ")) };
+
+	sandbox.__SP_CRASH_UI__ = false; // lean build: DCE would drop showCrash
+	const off = signal(1);
+	const appOff = render(() =>
+		jsx(Container, {
+			name: "lean-tree",
+			children: jsx(Label, {
+				string: () => {
+					if (off.value === 2) throw new Error("lean boom");
+					return "ok" + off.value;
+				},
+			}),
+		}),
+	);
+	off.value = 2; // escapes the binding — lean sink: log + contain
+	check(
+		"CRASH_UI=false: tree survives, label keeps last good value",
+		appOff.contents[0].name === "lean-tree" && appOff.contents[0].contents[0].string === "ok1",
+	);
+	check(
+		"CRASH_UI=false: the error still logged in full",
+		lines.some((l) => l.includes("lean boom")),
+	);
+
+	sandbox.__SP_CRASH_UI__ = true; // defined-ON build: same as undefined
+	const on = signal(1);
+	const appOn = render(() =>
+		jsx(Label, {
+			string: () => {
+				if (on.value === 2) throw new Error("on boom");
+				return "v" + on.value;
+			},
+		}),
+	);
+	on.value = 2;
+	check(
+		"CRASH_UI=true: crash screen paints as in a default build",
+		appOn.contents.length === 1 && appOn.contents[0].contents[0].string.includes("on boom"),
+	);
+
+	sandbox.__SP_CRASH_UI__ = undefined;
+	setSink(null);
+	sandbox.console = savedC;
+}
+
 done();
