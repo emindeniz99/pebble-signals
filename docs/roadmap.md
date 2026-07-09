@@ -52,7 +52,9 @@ strictly ordered except the "next batch".
       Bluetooth log listener is connected" — the source-side confirmation of
       the log-capture recipe (docs/device-smokes.md).
 - [ ] heap-sizing source-verify (does newer firmware honor stack/slot/chunk?)
-- [ ] CloudPebble tier 1 → 2 → 3 — **TIER 2 SHIPPED ✅ (2026-07)**:
+- [x] CloudPebble tier 1 → 2 → 3 — tier 2 SHIPPED ✅, tier 1 SCOPED,
+      tier 3 evaluated-deferred (2026-07; full status in the CloudPebble
+      section):
       `npm run preview -- <app>` (tools/preview.mts + tools/preview/
       piu-dom.js) — the REAL compiled runtime (import-mapped
       runtime-build/*.js) runs in a browser against DOM-rendering Piu stubs;
@@ -919,6 +921,37 @@ notifications, device info.
      someone else has done the heavy lifting).
   Owner decision: tiers 1 and 2 WILL be built; scope tier 1 by deep-diving
   coredevices/cloudpebble (build-server plugin surface, project-type registry).
+
+  **STATUS 2026-07: tier 2 SHIPPED, tier 1 SCOPED, tier 3 evaluated-deferred.**
+  - **Tier 2 ✅** — `npm run preview -- <app>`: the real compiled runtime in a
+    browser against DOM Piu stubs; Playwright-verified (see the checklist
+    entry; receipts screenshots/preview-*-browser.png).
+  - **Tier 1 SCOPED (sources read, 2026-07).** cloudpebble is 7 Docker
+    services; builds run in a CELERY WORKER that assembles project files,
+    runs `npm install` when deps exist (node IS in the build image), then
+    `pebble/waf configure build` and extracts the .pbw (limits: 120s CPU /
+    30MB / 20MB output). Project types live in `ide/models/project.py`
+    `PROJECT_TYPES` — five today (native, simplyjs, pebblejs, package,
+    rocky), each with per-type flags (rocky already models "SDK3+, CommonJS,
+    entry index.js" — the closest precedent for us). THE PLAN for a
+    `signal-piu` type: (1) add the PROJECT_TYPES entry + per-type flags
+    (SDK4.17+ only, TSX sources, entry src/tsx/examples-style layout);
+    (2) one celery build branch: `npm install signal-piu` + run its dist
+    build tools over the assembled sources, then the existing waf/pbw
+    extraction — our build already drives `pebble build` (waf) underneath;
+    (3) build image needs the moddable-enabled SDK (4.17+) — the main
+    packaging cost; (4) editor: TSX highlighting only (ycmd completion is
+    C-only — out of scope); emulator streaming comes free (their QEMU
+    controller runs the same qemu-pebble). Risks: Python 2.7 / Django
+    1.6 codebase (their README flags it), SDK version in the build image.
+    NEXT CONCRETE STEP (external, needs owner): open an upstream issue
+    proposing the type with this plan, then the PR — work in
+    coredevices/cloudpebble, not this repo (and outside this session's
+    repo scope).
+  - **Tier 3 evaluated → DEFERRED** per its own rule ("adopt only if
+    someone else has done the heavy lifting"): no complete
+    QEMU-pebble-in-WASM exists to adopt; tier 2 covers the instant-feedback
+    need and tier 1 covers true-emulation-in-browser via server-side QEMU.
 
 
 ## Machine restart from C (owner idea, 2026-07 — research)
