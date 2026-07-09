@@ -24,6 +24,9 @@ const uniq = (xs: string[]): string[] => [...new Set(xs)];
 /** Return the manifest with resources/data derived from `src`. Pure. */
 export function deriveResources(src: string, manifest: Manifest): Manifest {
 	const m: Manifest = { ...manifest };
+	// comments off first — a commented-out `new Texture(...)` must not ship a
+	// phantom resource (same strip build.mts's lazy-import scan uses)
+	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 	// `new Texture("x.png")` or `new Texture('x')` — .png optional
 	const tex = [...src.matchAll(/new\s+Texture\(\s*["']([^"']+?)(?:\.png)?["']/g)].map((x) => x[1]);
 	if (tex.length) m.resources = { "*": uniq(tex).map((n) => `../../assets/${n}`) };

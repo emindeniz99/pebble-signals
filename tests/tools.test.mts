@@ -402,3 +402,11 @@ test("lint-reads: every CORRECT read syntax is clean (zero false positives)", ()
 	);
 	assert.deepEqual(out, []);
 });
+
+test("gen-manifest: commented-out Texture refs do not ship phantom resources", () => {
+	const r = deriveResources(
+		'// new Texture("ghost.png")\n/* new Texture("ghost2") */\nconst x = 1;\n',
+		{},
+	);
+	assert.equal(r.resources, undefined);
+});

@@ -75,7 +75,7 @@ export function pruneDeadImports(source: string): { out: string; dropped: string
 }
 
 // CLI entry (skipped when imported by tests)
-if (process.argv[1]?.endsWith("import-prune-min.mts")) {
+if (import.meta.main) {
 	const file = process.argv[2];
 	const { out, dropped } = pruneDeadImports(readFileSync(file, "utf8"));
 	if (dropped.length) {
