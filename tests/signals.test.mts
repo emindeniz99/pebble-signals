@@ -21,6 +21,7 @@ import {
 	batch,
 	S,
 	romTable,
+	createResource,
 	setSink,
 	withBoundary,
 	getBoundary,
@@ -806,6 +807,177 @@ check("provide restores after build", useContext(Theme) === "light");
 	check("romTable wraps modulo count", t.get(5) === "charlie");
 	const e = romTable("empty.tbl");
 	check("romTable empty table", e.count === 0 && e.get(7) === "");
+}
+
+// ---- 2026-07 deep-review regressions (agent findings, each reproduced) -----
+
+// R1 (CRITICAL): a disposed computed must stay FROZEN even after its forward
+// effect's id is reused — and the reusing effect's own subscriptions must
+// survive a read of the frozen computed. (Before the fix: the id reuse made
+// `g.e[cx[2][i]]` truthy again, so S.get recomputed AND ran unsubscribe(e)
+// against the innocent new effect.)
+{
+	// learn the lowest free effect id, so we KNOW the computed's forward
+	// effect takes it and the later effect reuses it deterministically
+	const probe = effect(() => {});
+	dispose(probe);
+	const s = signal(1);
+	const r = createRoot(() => computed(() => s.value * 10));
+	const c = r[0];
+	check("R1 computed live", c.value === 10);
+	r[1](); // dispose the root -> forward effect freed -> c frozen at 10
+	const t = signal(0);
+	let reuseRuns = 0;
+	const reuse = effect(() => {
+		reuseRuns++;
+		void t.value;
+	}); // takes the freed id
+	s.value = 2; // bumps the write version; frozen c must NOT recompute
+	check("R1 frozen computed stays frozen after id reuse", c.value === 10);
+	t.value = 1;
+	check("R1 reusing effect's subscriptions intact", reuseRuns === 2);
+	dispose(reuse);
+}
+
+// R2 (MAJOR): a computed whose fn THROWS must stay INVALID — every read
+// until a dependency changes rethrows; it must never serve the stale
+// pre-throw value as if valid. (Before: the version was stamped before fn,
+// so the SECOND read silently returned the stale cache.)
+{
+	const s = signal(1);
+	const c = computed(() => {
+		if (s.value === 2) throw new Error("r2boom");
+		return s.value * 10;
+	});
+	check("R2 pre-throw value", c.value === 10);
+	s.value = 2;
+	let first = false;
+	let second = false;
+	try {
+		void c.value;
+	} catch {
+		first = true;
+	}
+	try {
+		void c.value; // the regression read: must THROW again, not return 10
+	} catch {
+		second = true;
+	}
+	check("R2 poisoned computed rethrows on EVERY read", first && second);
+	s.value = 3;
+	check("R2 heals after the dep changes", c.value === 30);
+}
+
+// R3 (MAJOR): a useState FUNCTIONAL update inside an effect must not
+// subscribe the effect to its own state (the updater's prev-read is raw).
+// (Before: setC(x => x+1) read s.value TRACKED -> spurious self-dep ->
+// unbounded settle turns.)
+{
+	const [c3, setC3] = useState(0);
+	const dep = signal(0);
+	let runs = 0;
+	const e3 = effect(() => {
+		runs++;
+		void dep.value;
+		if (runs <= 5) setC3((x: number) => x + 1); // cap so a regression can't hang the suite
+	});
+	dep.value = 1;
+	check("R3 functional update in effect: no self-subscription loop", runs === 2 && c3() === 2);
+	dispose(e3);
+}
+
+// R4 (MAJOR): registering a trackable AFTER the owner disposed itself
+// mid-run must dispose it NOW (not leak it onto a dead id where a future
+// id reuse fires it at a random moment).
+{
+	let cleanupRan = 0;
+	const trig = signal(0);
+	let disposeRoot: () => void = () => {};
+	const r4 = createRoot(() => {
+		effect(() => {
+			if (trig.value === 1) {
+				disposeRoot(); // the root (and this effect) dies mid-run
+				onCleanup(() => cleanupRan++); // lands AFTER self-dispose
+			}
+		});
+		return 0;
+	});
+	disposeRoot = r4[1];
+	trig.value = 1;
+	check("R4 late trackable on a dead owner is disposed immediately", cleanupRan === 1);
+	const unrelated = effect(() => {}); // reuses the dead id — must NOT re-fire it
+	check("R4 no stale fire on id reuse", cleanupRan === 1);
+	dispose(unrelated);
+}
+
+// R5 (MINOR): cleanups run UNTRACKED — a signal read inside a cleanup that
+// drains during another effect's (creation) run must not subscribe that
+// effect. (Before: unsubscribe drained w-lists with the caller's `current`
+// still live.)
+{
+	const a5 = signal(0);
+	const b5 = signal(0);
+	const x5 = effect(() => {
+		void a5.value;
+		onCleanup(() => {
+			void b5.value; // reads a signal inside a cleanup
+		});
+	});
+	let eRuns = 0;
+	const e5 = effect(() => {
+		eRuns++;
+		a5.value = 1; // creation-run write drains x5's cleanup synchronously
+	});
+	b5.value = 9; // must NOT re-run e5 (its only real dep is nothing)
+	check("R5 cleanup reads don't subscribe the draining effect", eRuns === 1);
+	dispose(e5);
+	dispose(x5);
+}
+
+// R6 (MINOR): createResource's success must flip data+loading ATOMICALLY —
+// no subscriber may observe [loading===true, data===value].
+{
+	const seen: string[] = [];
+	const res = createResource(() => Promise.resolve(42));
+	const e6 = effect(() => {
+		seen.push(`${res.loading()}:${res.data()}`);
+	});
+	await new Promise((r) => setTimeout(r, 0)); // let the fetcher settle
+	check("R6 no half-updated resource state", !seen.includes("true:42"));
+	check("R6 final state correct", seen[seen.length - 1] === "false:42");
+	dispose(e6);
+}
+
+// R7 (MINOR): a THROWING cleanup must not orphan its sibling disposables —
+// the drain finishes (contained + reported), so the root really tears down.
+{
+	const savedLog = console.log;
+	const savedErr = console.error;
+	// report() logs the contained cleanup error — keep the test output clean
+	console.log = () => {};
+	console.error = () => {};
+	const dep7 = signal(0);
+	let n7 = 0;
+	const [, dr7] = createRoot(() => {
+		effect(() => {
+			void dep7.value;
+			n7++;
+		});
+		onCleanup(() => {
+			throw new Error("bad cleanup");
+		});
+		return 0;
+	});
+	let disposerThrew = false;
+	try {
+		dr7();
+	} catch {
+		disposerThrew = true;
+	}
+	dep7.value = 1;
+	console.log = savedLog;
+	console.error = savedErr;
+	check("R7 sibling disposables survive a throwing cleanup", !disposerThrew && n7 === 1);
 }
 
 done();

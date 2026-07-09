@@ -59,7 +59,7 @@ interface Graph {
 	// lazy-computed state (SoA triple, one property): x[0][row] fn,
 	// x[1][row] last-validated version (-1 = never), x[2][row]
 	// forward-effect id. null until the first computed exists.
-	x: [(() => unknown)[], number[], number[]] | null;
+	x: [((() => unknown) | undefined)[], number[], number[]] | null;
 	// running-owner: w[e] = disposables created while effect e ran — nested
 	// effects AND tracked cleanups (this subsumed the old separate cln
 	// array: a tracked cleanup closure has the exact same timing). null
@@ -434,7 +434,23 @@ function unsubscribe(e: number): void {
 	const list = g.w !== null && g.w[e];
 	if (list) {
 		g.w![e] = null;
-		for (let i = list.length - 1; i >= 0; i--) dispose(list[i]);
+		// Cleanups run UNTRACKED (Solid): this drain can fire while ANOTHER
+		// effect is mid-run (a creation-run write cascading here) — a signal
+		// read inside a cleanup must not subscribe that on-stack effect
+		// (reproduced). And a THROWING cleanup must not orphan its siblings:
+		// contain per item (reported, loud) so the drain always finishes.
+		const pc = current;
+		current = -1;
+		try {
+			for (let i = list.length - 1; i >= 0; i--)
+				try {
+					dispose(list[i]);
+				} catch (err) {
+					report(err, "cleanup threw during dispose");
+				}
+		} finally {
+			current = pc;
+		}
 	}
 	// effect e lives in word (e>>5) of every row; clear just that word.
 	const sub = g.sub,
@@ -496,6 +512,12 @@ export const S = {
 				owner = e; // trackables created by fn belong to the computed
 				try {
 					g.f[i] = fn();
+				} catch (err) {
+					// stay INVALID: a poisoned computed must rethrow on EVERY read
+					// until a dep changes — never serve the stale cache as valid
+					// (reproduced: the 2nd read silently returned the old value).
+					cx[1][i] = -1;
+					throw err;
 				} finally {
 					current = prev;
 					owner = po;
@@ -609,6 +631,20 @@ export function dispose(d: number | EffectFn): void {
 	if (!g || !g.e[d]) return;
 	g.e[d] = null; // run() becomes a no-op — no resurrection
 	if (g.z) g.z[d] = undefined; // drop the boundary tag so a reused id can't inherit it
+	// If d was a computed's FORWARD effect, clear the computed's fn so the
+	// freeze is permanent: without this, a later reuse of the id makes
+	// `g.e[cx[2][i]]` truthy again and S.get resurrects the recompute path —
+	// running unsubscribe(d) against the INNOCENT reusing effect (reproduced:
+	// wiped its subscriptions and re-ran the "frozen" computed).
+	const cx = g.x;
+	if (cx !== null) {
+		const fw = cx[2];
+		for (let k = 0; k < fw.length; k++)
+			if (fw[k] === d) {
+				cx[0][k] = undefined;
+				break;
+			}
+	}
 	unsubscribe(d);
 	const word = d >> 5,
 		b = 1 << (d & 31);
@@ -732,7 +768,20 @@ export function createRoot<T>(fn: () => T): [T, () => void] {
 	const prev = owner;
 	owner = o;
 	const disposer = () => {
-		for (let i = o.d.length - 1; i >= 0; i--) dispose(o.d[i]);
+		// same contract as the w-list drain: untracked, and one throwing
+		// cleanup must not orphan the rest of the subtree (contained + logged)
+		const pc = current;
+		current = -1;
+		try {
+			for (let i = o.d.length - 1; i >= 0; i--)
+				try {
+					dispose(o.d[i]);
+				} catch (err) {
+					report(err, "cleanup threw during dispose");
+				}
+		} finally {
+			current = pc;
+		}
 		o.d.length = 0;
 	};
 	let result: T;
@@ -763,6 +812,14 @@ export function track(disposable: Disposable): Disposable {
 	if (o !== null) {
 		if (typeof o === "number") {
 			const g = G!; // a numeric owner implies a running effect, so G exists
+			// Owner already disposed ITSELF mid-run (an effect that stops its own
+			// root): nothing will ever drain w[o] again — dispose the trackable
+			// NOW instead of parking it on a dead id, where it would leak and
+			// then fire when an unrelated effect reuses the id (reproduced).
+			if (!g.e[o]) {
+				dispose(disposable);
+				return disposable;
+			}
 			const own = g.w || (g.w = []);
 			(own[o] || (own[o] = [])).push(disposable);
 		} else o.d.push(disposable);
@@ -784,7 +841,11 @@ export function useState<T>(init: T): [() => T, (v: T | ((prev: T) => T)) => voi
 	return [
 		() => s.value as T,
 		(v: T | ((prev: T) => T)) => {
-			s.value = typeof v === "function" ? (v as (prev: T) => T)(s.value as T) : v;
+			// the updater's prev-read is RAW (s.v, not s.value): a tracked read
+			// would subscribe the CALLING effect to its own state — an idiomatic
+			// setCount(c => c+1) inside an effect then loops settle forever
+			// (reproduced). Also matches the lowered S.set, which reads g.f raw.
+			s.value = typeof v === "function" ? (v as (prev: T) => T)(s.v as T) : v;
 		},
 	];
 }
@@ -908,8 +969,11 @@ export function createResource<T>(fetcher: () => Promise<T>): Resource<T> {
 		fetcher().then(
 			(value) => {
 				if (id !== gen) return; // a newer refetch superseded this one
-				v.value = value;
-				st.value = 1;
+				// atomic flip: no subscriber may observe [loading, data] half-updated
+				batch(() => {
+					v.value = value;
+					st.value = 1;
+				});
 			},
 			(err) => {
 				if (id !== gen) return;
