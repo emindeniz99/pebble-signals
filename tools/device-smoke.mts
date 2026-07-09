@@ -66,6 +66,7 @@ const SMOKES: Smoke[] = [
 	// config-drive.py), which this runner kills before driving buttons —
 	// drive that flow manually when touching the config path
 	{ app: "config", drive: [], expect: "no config yet (pebble/message channel open)" },
+	{ app: "fontface", drive: [], expect: "serif clock + 'Serif, from a TTF' (custom font)" },
 ];
 
 const MIN_HEARTBEATS = 3; // capture spans ~8s post-install; instruments ticks ~1/s

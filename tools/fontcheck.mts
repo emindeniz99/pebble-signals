@@ -5,7 +5,7 @@
 // build.mts) bypasses it for custom/new fonts.
 //
 // Usage (CLI): node tools/fontcheck.mts <appSrc>   (exit 1 on a bad font)
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 
 // Pebble system fonts reachable via piu "['bold '][N]px Family" strings, keyed
 // "family|size|bold" — from the official FONT_KEY_* table.
@@ -24,13 +24,21 @@ for (const k of [
 ])
 	VALID.add(k);
 
-/** Return the list of invalid `font:` literals in `src` (empty = all valid). Pure. */
-export function badFonts(src: string): string[] {
+/**
+ * Return the list of invalid `font:` literals in `src` (empty = all valid).
+ * `customFamilies` = families backed by a shipped TTF (the fonts/ convention,
+ * see gen-manifest's deriveFonts) — any size/weight of those is legal, the
+ * rasterizer builds exactly what the literal asks for. Pure.
+ */
+export function badFonts(src: string, customFamilies?: Set<string>): string[] {
 	const bad: string[] = [];
-	for (const m of src.matchAll(/font:\s*["'](?:(bold)\s+)?(\d+)px\s+([A-Za-z]+)["']/g)) {
+	for (const m of src.matchAll(
+		/font:\s*["'](?:italic\s+)?(?:(bold)\s+)?(\d+)px\s+([A-Za-z]+)["']/g,
+	)) {
 		const bold = m[1] != null;
 		const size = Number(m[2]);
 		const fam = m[3].toLowerCase();
+		if (customFamilies?.has(fam)) continue;
 		if (!VALID.has(`${fam}|${size}|${bold}`)) bad.push(m[0]);
 	}
 	return bad;
@@ -38,14 +46,22 @@ export function badFonts(src: string): string[] {
 
 if (import.meta.main) {
 	const src = readFileSync(process.argv[2], "utf8");
-	const bad = badFonts(src);
+	// optional 2nd arg: the app's fonts/ dir — its TTF basenames become the
+	// custom-family allowlist (family = the part before the -Suffix)
+	const fontsDir = process.argv[3];
+	const custom = new Set<string>();
+	if (fontsDir && existsSync(fontsDir))
+		for (const f of readdirSync(fontsDir))
+			if (f.endsWith(".ttf")) custom.add(f.replace(/-\w+\.ttf$/, "").toLowerCase());
+	const bad = badFonts(src, custom);
 	if (bad.length) {
 		console.error("FONTCHECK FAIL (gotcha 20 — invalid font renders BLANK, no error):");
 		for (const b of bad) console.error(`  ${b}  <- not a Pebble system font key`);
 		console.error("  valid: [bold] 14|18|24|28px Gothic, bold 30px Bitham, [bold] 42px Bitham,");
 		console.error(
-			"         21px Roboto, bold 49px Roboto, bold 28px Droid  (SKIP_FONTCHECK=1 to override)",
+			"         21px Roboto, bold 49px Roboto, bold 28px Droid  (SKIP_FONTCHECK=1 to override,",
 		);
+		console.error("         or ship a TTF at src/tsx/examples/<app>/fonts/<Family>-<Suffix>.ttf)");
 		process.exit(1);
 	}
 }

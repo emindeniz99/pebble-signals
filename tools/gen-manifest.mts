@@ -7,16 +7,59 @@
 //    (the png2bmp pipeline; the .png extension is optional in the source).
 //  - vectors: every referenced `*.pdc` -> data["*"] += ../../assets/x.pdc
 //    (read on the watch via `new Resource("x.pdc")`, the SVGImage route).
+//  - CUSTOM FONTS: every `font:` literal whose family is NOT a system font,
+//    with a matching TTF at src/tsx/examples/<app>/fonts/<Family>-<Suffix>.ttf
+//    -> resources["*-alpha"] += { source, size, characters } — mcrun
+//    rasterizes the TTF into <Family>-<Suffix>-<size>.fnt + .png at build,
+//    exactly what the port's PiuStyleLookupFont falls back to when
+//    modFindPebbleFont misses (the `words` example's mechanism). <Suffix>
+//    mirrors that lookup: bold -> Bold, italic -> Italic, both ->
+//    BoldItalic, neither -> Regular.
 //
 // Usage (CLI): node tools/gen-manifest.mts <appSrc> <manifestPath>
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+
+/** A "*-alpha" font resource entry (mcrun's TTF -> .fnt/.png rasterizer). */
+export interface FontEntry {
+	source: string;
+	size: number;
+	characters: string;
+}
 
 interface Manifest {
 	modules?: Record<string, string>;
 	preload?: string[];
-	resources?: { "*": string[] };
+	resources?: { "*"?: string[]; "*-alpha"?: (string | FontEntry)[] };
 	data?: { "*": string[] };
 	[k: string]: unknown;
+}
+
+// Full printable ASCII — generic default. Each glyph costs atlas pixels in
+// FLASH (not arena), so a tighter `characters` set is a size optimization,
+// not a correctness one; revisit if a face ever needs the flash back.
+const ASCII =
+	" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+
+/**
+ * Derive "*-alpha" font entries from the app source's `font:` literals.
+ * `ttfs` = available TTF paths (as the manifest should reference them, WITH
+ * the .ttf extension); only literals whose <Family>-<Suffix> matches one are
+ * emitted — everything else is presumed a system font (fontcheck's job).
+ * Pure.
+ */
+export function deriveFonts(src: string, ttfs: string[]): FontEntry[] {
+	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+	const out: FontEntry[] = [];
+	for (const m of src.matchAll(/font:\s*["'](?:(italic)\s+)?(?:(bold)\s+)?(\d+)px\s+(\w+)["']/g)) {
+		const suffix = m[2] && m[1] ? "BoldItalic" : m[2] ? "Bold" : m[1] ? "Italic" : "Regular";
+		const ttf = ttfs.find((t) => t.endsWith(`/${m[4]}-${suffix}.ttf`));
+		if (!ttf) continue;
+		const source = ttf.slice(0, -4); // manifest wants the path sans .ttf
+		const size = Number(m[3]);
+		if (!out.some((e) => e.source === source && e.size === size))
+			out.push({ source, size, characters: ASCII });
+	}
+	return out;
 }
 
 const uniq = (xs: string[]): string[] => [...new Set(xs)];
@@ -33,7 +76,11 @@ export function deriveResources(src: string, manifest: Manifest): Manifest {
 	// wholesale clobbered a consumer's hand-added entries (review finding P8)
 	const prevRes = (m.resources && m.resources["*"]) || [];
 	if (tex.length || prevRes.length)
-		m.resources = { "*": uniq([...prevRes, ...tex.map((n) => `../../assets/${n}`)]) };
+		// spread keeps sibling keys ("*-alpha" font entries) intact
+		m.resources = {
+			...m.resources,
+			"*": uniq([...prevRes, ...tex.map((n) => `../../assets/${n}`)]),
+		};
 	// any referenced `*.pdc` file, plus any romTable("<name>") blob (the
 	// packed string tables written by tools/pack-table.mts)
 	const pdc = [...src.matchAll(/["']([^"']+?\.pdc)["']/g)].map((x) => x[1]);
@@ -51,7 +98,22 @@ if (import.meta.main) {
 	const [appSrc, manifestPath, ...moreSrcs] = process.argv.slice(2);
 	const src = [appSrc, ...moreSrcs].map((p) => readFileSync(p, "utf8")).join("\n");
 	const m = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
-	const out = deriveResources(src, m);
+	let out = deriveResources(src, m);
+	// custom fonts: TTFs under src/tsx/examples/<app>/fonts/, referenced
+	// relative to the manifest's directory (src/embeddedjs/)
+	const app = appSrc.replace(/^.*\/([\w-]+)\.tsx$/, "$1");
+	const fontDir = `src/tsx/examples/${app}/fonts`;
+	const ttfs = existsSync(fontDir)
+		? readdirSync(fontDir)
+				.filter((f) => f.endsWith(".ttf"))
+				.map((f) => `../tsx/examples/${app}/fonts/${f}`)
+		: [];
+	const fonts = deriveFonts(src, ttfs);
+	if (fonts.length) {
+		const prev = out.resources?.["*-alpha"] || [];
+		out = { ...out, resources: { ...out.resources, "*-alpha": [...prev, ...fonts] } };
+		for (const f of fonts) console.log(`font: ${f.source}.ttf @${f.size}px -> .fnt/.png (flash)`);
+	}
 	// only rewrite when something changed (match the Python's `changed` guard)
 	if (out.resources || out.data)
 		writeFileSync(manifestPath, `${JSON.stringify(out, null, "\t")}\n`);

@@ -231,8 +231,14 @@ if (treeshake)
 // Font sanity check (gotcha 20): an invalid font string renders NOTHING — blank
 // text, no error, hours lost. Validate every `font:` literal against the Pebble
 // system-font table at COMPILE time and fail loud. SKIP_FONTCHECK=1 to escape.
+// Families backed by a TTF under the app's fonts/ dir are custom fonts (the
+// gen-manifest deriveFonts convention) and pass.
 if (!flag(cli["skip-fontcheck"], "SKIP_FONTCHECK", "1", false))
-	run(process.execPath, [join(TOOLS, `fontcheck${EXT}`), appSrc]);
+	run(process.execPath, [
+		join(TOOLS, `fontcheck${EXT}`),
+		appSrc,
+		join("src/tsx/examples", APP, "fonts"),
+	]);
 
 // Reactive-read lint (the ".value footgun"): the app tsconfig is noCheck, so
 // tsc never catches calling/stringifying a Signal object or stringifying a

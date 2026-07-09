@@ -3,7 +3,7 @@
 // natively (Node >=22.18 type-stripping). Run: node --test tests/tools.test.mts
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { deriveResources } from "../tools/gen-manifest.mts";
+import { deriveFonts, deriveResources } from "../tools/gen-manifest.mts";
 import { badFonts } from "../tools/fontcheck.mts";
 import { neededModules, pruneManifest } from "../tools/treeshake.mts";
 import { classify } from "../tools/classify-module.mts";
@@ -441,4 +441,49 @@ test("P5: namespace-imported runtime module's exports are never renamed", () => 
 	const { map } = renameRuntimeExports(files, new Set(["rt/signals.js", "rt/jsx-runtime.js"]));
 	assert.equal(map.effect, undefined); // namespace-consumed module: untouched
 	assert.ok(map.jsx); // named-import module still renamed
+});
+
+// ---- custom fonts: the fonts/ convention (deriveFonts + fontcheck) ----
+test("deriveFonts: bold literal + matching TTF -> *-alpha entry", () => {
+	const ttfs = ["../tsx/examples/x/fonts/LiberationSerif-Bold.ttf"];
+	const out = deriveFonts('font: "bold 32px LiberationSerif"', ttfs);
+	assert.equal(out.length, 1);
+	assert.equal(out[0].source, "../tsx/examples/x/fonts/LiberationSerif-Bold");
+	assert.equal(out[0].size, 32);
+	assert.ok(out[0].characters.includes("0") && out[0].characters.includes("z"));
+});
+
+test("deriveFonts: suffix mirrors the port's lookup (Regular/Italic/BoldItalic)", () => {
+	const ttfs = ["f/Fam-Regular.ttf", "f/Fam-Italic.ttf", "f/Fam-BoldItalic.ttf"];
+	assert.equal(deriveFonts('font: "20px Fam"', ttfs)[0].source, "f/Fam-Regular");
+	assert.equal(deriveFonts('font: "italic 20px Fam"', ttfs)[0].source, "f/Fam-Italic");
+	assert.equal(deriveFonts('font: "italic bold 20px Fam"', ttfs)[0].source, "f/Fam-BoldItalic");
+});
+
+test("deriveFonts: no matching TTF -> no entry; same source+size dedupes", () => {
+	assert.deepEqual(deriveFonts('font: "bold 32px LiberationSerif"', []), []);
+	const ttfs = ["f/Fam-Bold.ttf"];
+	const twice = 'font: "bold 20px Fam" font: "bold 20px Fam" font: "bold 24px Fam"';
+	assert.equal(deriveFonts(twice, ttfs).length, 2); // 20px deduped, 24px distinct
+});
+
+test("deriveFonts: commented-out literal ships nothing (phantom guard)", () => {
+	const ttfs = ["f/Fam-Bold.ttf"];
+	assert.deepEqual(deriveFonts('// font: "bold 20px Fam"', ttfs), []);
+});
+
+test("fontcheck: custom families backed by a TTF pass at any size", () => {
+	const custom = new Set(["liberationserif"]);
+	assert.deepEqual(badFonts('font: "bold 32px LiberationSerif"', custom), []);
+	// still flags non-system fonts WITHOUT a TTF behind them
+	assert.equal(badFonts('font: "bold 32px LiberationSerif"').length, 1);
+});
+
+test("deriveResources: derived textures keep sibling *-alpha entries intact", () => {
+	const base = {
+		resources: { "*-alpha": [{ source: "f/Fam-Bold", size: 20, characters: "ab" }] },
+	};
+	const m = deriveResources('new Texture("pic.png")', base as never);
+	assert.equal((m.resources!["*-alpha"] as unknown[]).length, 1);
+	assert.deepEqual(m.resources!["*"], ["../../assets/pic"]);
 });

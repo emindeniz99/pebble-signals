@@ -765,7 +765,16 @@ Findings (evidence in the moddable toolchain sources):
   `pebble/battery`, `pebble/compass`, `pebble/location`, `pebble/
   accelerometer`, plus `fetch`, `WebSocket`, and `webstorage`
   (localStorage). A mod pays only the symbols it uses, not the module.
-- **The creation numbers, in source:** the device manifest's creation block
+- **CUSTOM FONTS work in mods (device-proven 2026-07, `fontface`):** ship a
+  TTF at `src/tsx/examples/<app>/fonts/<Family>-<Suffix>.ttf` (Suffix ∈
+  Regular/Bold/Italic/BoldItalic) and just write `font: "bold 32px
+  <Family>"` — gen-manifest derives the `"*-alpha"` resource entry, the
+  toolchain's fontbm rasterizes TTF → `<Family>-<Suffix>-<size>.fnt` +
+  `.png` at build, and the port's `PiuStyleLookupFont` falls back to those
+  ARCHIVE RESOURCES when the system table misses (the `words` example's
+  mechanism). Cost model: the glyph atlas lives in FLASH, not the arena
+  (fontface's archive grew 13→23KB for a 95-glyph 32px atlas); a `characters`
+  subset shrinks it. fontcheck passes any family backed by a TTF.
   is exactly the measured machine — `static: 32768`, `chunk.initial: 8192`,
   `heap.initial: 512` (slots), **`stack: 384`** (slots — the value-stack
   wall of the postmortem, straight from

@@ -81,6 +81,11 @@ strictly ordered except the "next batch".
 
 **Tutorial + docs:**
 - [ ] comprehensive watchface tutorial (fonts, images, Clay config, publish)
+      — ALL mechanics now device-proven: custom fonts ✅ (2026-07,
+      `fontface`: TTF → fonts/ convention → fontbm → serif on-watch,
+      screenshots/fontface-gabbro.png; gen-manifest deriveFonts + fontcheck
+      allowlist shipped), images ✅ (imgwatch), config ✅ (config example),
+      persistence ✅ (device.keyValue). Remaining: the writing itself.
 - [x] Clay config-page research (PKJS-side) ✅ (2026-07): full mechanic
       mapped AND device-verified — `config` example + pkjs listeners +
       headless tools/config-drive.py; "hi from config" black-on-white
