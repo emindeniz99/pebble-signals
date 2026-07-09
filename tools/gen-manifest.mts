@@ -29,19 +29,27 @@ export function deriveResources(src: string, manifest: Manifest): Manifest {
 	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 	// `new Texture("x.png")` or `new Texture('x')` — .png optional
 	const tex = [...src.matchAll(/new\s+Texture\(\s*["']([^"']+?)(?:\.png)?["']/g)].map((x) => x[1]);
-	if (tex.length) m.resources = { "*": uniq(tex).map((n) => `../../assets/${n}`) };
+	// UNION with anything a custom manifest.base already carries — assigning
+	// wholesale clobbered a consumer's hand-added entries (review finding P8)
+	const prevRes = (m.resources && m.resources["*"]) || [];
+	if (tex.length || prevRes.length)
+		m.resources = { "*": uniq([...prevRes, ...tex.map((n) => `../../assets/${n}`)]) };
 	// any referenced `*.pdc` file, plus any romTable("<name>") blob (the
 	// packed string tables written by tools/pack-table.mts)
 	const pdc = [...src.matchAll(/["']([^"']+?\.pdc)["']/g)].map((x) => x[1]);
 	const tbl = [...src.matchAll(/romTable\(\s*["']([^"']+)["']/g)].map((x) => x[1]);
 	const data = uniq([...pdc, ...tbl]);
-	if (data.length) m.data = { "*": data.map((n) => `../../assets/${n}`) };
+	const prevData = (m.data && m.data["*"]) || [];
+	if (data.length || prevData.length)
+		m.data = { "*": uniq([...prevData, ...data.map((n) => `../../assets/${n}`)]) };
 	return m;
 }
 
 if (import.meta.main) {
-	const [appSrc, manifestPath] = process.argv.slice(2);
-	const src = readFileSync(appSrc, "utf8");
+	// extra args = MORE source files (the entry's bundled ./helpers + lazy
+	// screens) — their Texture/pdc/romTable refs must ship too (finding P2)
+	const [appSrc, manifestPath, ...moreSrcs] = process.argv.slice(2);
+	const src = [appSrc, ...moreSrcs].map((p) => readFileSync(p, "utf8")).join("\n");
 	const m = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
 	const out = deriveResources(src, m);
 	// only rewrite when something changed (match the Python's `changed` guard)

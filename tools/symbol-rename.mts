@@ -93,6 +93,22 @@ export function renameRuntimeExports(
 		}
 	}
 
+	// 1b. a module consumed ANYWHERE via `import * as X from "runtime/<mod>"`
+	//     (or re-exported with `export * from`) is read by PROPERTY NAME at
+	//     runtime — renaming its exports breaks `X.effect` silently on device
+	//     (review finding P5). Drop every wire owned by such a module,
+	//     mirroring the prune pass's namespace-import "all" rule.
+	const nsModules = new Set<string>();
+	for (const src of Object.values(files))
+		for (const m of src.matchAll(
+			/(?:import\s*\*\s*as\s+\w+\s*from|export\s*\*\s*from)\s*["']runtime\/([\w-]+)["']/g,
+		))
+			nsModules.add(m[1]);
+	if (nsModules.size)
+		for (const [wire, path] of owner)
+			if (path !== null && [...nsModules].some((mod) => path.includes(`${mod}.js`)))
+				owner.set(wire, null); // treat as ambiguous -> never renamed
+
 	// 2. assign each renameable wire a fresh, collision-free host-known target.
 	//    Collision = the candidate appears as a word token in ANY shipped file.
 	const used = new Set<string>();

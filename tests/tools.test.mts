@@ -410,3 +410,35 @@ test("gen-manifest: commented-out Texture refs do not ship phantom resources", (
 	);
 	assert.equal(r.resources, undefined);
 });
+
+// ---- deep-review pipeline regressions ---------------------------------------
+import { relativeClosure, neededModules as nm2 } from "../tools/treeshake.mts";
+
+test("P1: relativeClosure walks the entry's ./-import graph (cycles safe)", () => {
+	const fs2: Record<string, string> = {
+		"src/app.tsx": 'import { h } from "./util/helper";\nimport "runtime/signals";',
+		"src/util/helper.tsx":
+			'import { d } from "../data"; // -> src/data.ts\nimport { h2 } from "./helper"; // self-cycle\nexport const h = 1;',
+		"src/data.ts": 'import { h } from "./app"; // cycle back (resolves .tsx)\nexport const d = 2;',
+	};
+	const read = (p: string) => fs2[p] ?? null;
+	const out = relativeClosure("src/app.tsx", read);
+	assert.deepEqual(out, ["src/app.tsx", "src/util/helper.tsx", "src/data.ts"]);
+});
+
+test("P9: an unknown runtime module seed is KEPT, not silently pruned", () => {
+	const need = nm2('import { x } from "runtime/newthing";');
+	assert.ok(need.has("runtime/newthing"));
+});
+
+test("P5: namespace-imported runtime module's exports are never renamed", () => {
+	const files = {
+		"rt/signals.js": "const a1=1;export{a1 as effect};",
+		"rt/jsx-runtime.js": "const b1=1;export{b1 as jsx};",
+		"app/main.js":
+			'import * as sig from "runtime/signals";sig.effect();import{jsx}from"runtime/jsx-runtime";jsx();',
+	};
+	const { map } = renameRuntimeExports(files, new Set(["rt/signals.js", "rt/jsx-runtime.js"]));
+	assert.equal(map.effect, undefined); // namespace-consumed module: untouched
+	assert.ok(map.jsx); // named-import module still renamed
+});

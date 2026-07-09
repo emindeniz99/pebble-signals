@@ -3,8 +3,10 @@
 // src/embeddedjs/runtime-min (the manifest ships THAT copy — the mod archive
 // has a hard ~15.9KB startup ceiling, README gotcha 15, and minifying
 // module-scope identifiers buys back ~370B of it), then run the Pebble build.
-// No npm RUNTIME dependencies; tsc + esbuild come from devDeps. If esbuild is
-// unavailable the runtime ships unminified — correctness is identical either way.
+// No npm RUNTIME dependencies; tsc + esbuild come from devDeps. esbuild is a
+// hard requirement (static import — a missing install fails loud at load);
+// the tryEsbuild fallback below only covers esbuild ERRORING on a file, in
+// which case that file ships unminified (correctness identical).
 //
 // Run: node build.mts [flags]   (npm run build [-- flags]). Flags come as CLI
 // args (discoverable, typo-checked by parseArgs) with env vars as equivalents —
@@ -44,6 +46,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import * as esbuild from "esbuild";
 import { classify } from "./tools/classify-module.mts";
+import { relativeClosure } from "./tools/treeshake.mts";
 import { packageRoot } from "./tools/pkg-root.mts";
 import { renameRuntimeExports } from "./tools/symbol-rename.mts";
 
@@ -134,6 +137,14 @@ const err = (msg: string) => process.stderr.write(`${msg}\n`);
 // its local ./imports) into app/main.js below, runtime/* left external.
 const APP = cli.app ?? env("APP", "list");
 const appSrc = `src/tsx/examples/${APP}.tsx`;
+// The entry's transitive ./-import closure: the bundle inlines all of it into
+// main.js, so EVERY app-source scan below (dynamic-import safety, treeshake
+// seeds, gen-manifest resources, lint-reads) must read the same set — the
+// entry alone silently missed helpers' runtime imports (P1: pruned module ->
+// boot death) and their assets (P2).
+const appClosure = existsSync(appSrc)
+	? relativeClosure(appSrc, (p) => (existsSync(p) ? readFileSync(p, "utf8") : null))
+	: [appSrc];
 
 // Generate the mod manifest from the base; image/vector resources are DERIVED
 // from the app's own `new Texture("x.png")` refs (each mapped to assets/x), so
@@ -142,7 +153,12 @@ const manifestBase = existsSync("src/embeddedjs/manifest.base.json")
 	? "src/embeddedjs/manifest.base.json" // the project's own
 	: join(PKG, "src/embeddedjs/manifest.base.json"); // package default
 copyFileSync(manifestBase, "src/embeddedjs/manifest.json");
-run(process.execPath, [join(TOOLS, `gen-manifest${EXT}`), appSrc, "src/embeddedjs/manifest.json"]);
+run(
+	process.execPath,
+	[join(TOOLS, `gen-manifest${EXT}`), appSrc, "src/embeddedjs/manifest.json"].concat(
+		appClosure.slice(1),
+	),
+);
 
 // Per-app runtime tree-shaking. Runtime modules are frozen into ROM by
 // `preload`, and each preloaded module still costs a few XS aliases at boot. An
@@ -159,10 +175,12 @@ run(process.execPath, [join(TOOLS, `gen-manifest${EXT}`), appSrc, "src/embeddedj
 // treeshake/prune stay ON; any OTHER dynamic import still self-disables.
 const lazySet = new Set<string>();
 let unresolvedDynamicImport = false;
-if (existsSync(appSrc)) {
+for (const closureFile of appClosure.filter(existsSync)) {
 	// comments off first — the scan must see CODE only (a mention of
-	// importNow() in a doc comment is not a dynamic import)
-	const src = readFileSync(appSrc, "utf8")
+	// importNow() in a doc comment is not a dynamic import). The WHOLE
+	// closure is scanned: a helper's importNow()/import() was invisible
+	// before (P1b) — its lazy target went unshipped with the guard silent.
+	const src = readFileSync(closureFile, "utf8")
 		.replace(/\/\*[\s\S]*?\*\//g, "")
 		.replace(/\/\/[^\n]*/g, "");
 	for (const m of src.matchAll(/import(?:Now)?\s*\(\s*([^)]*)\)/g)) {
@@ -196,7 +214,7 @@ if (treeshake && !flag(cli["treeshake-force"], "TREESHAKE_FORCE", "1", false)) {
 }
 // lazy modules' own runtime imports count toward the treeshake keep-set
 const shakeSources = [
-	appSrc,
+	...appClosure,
 	...lazyBases.map((b) => {
 		const tsx = join("src/tsx/examples", APP, `${b}.tsx`);
 		return existsSync(tsx) ? tsx : join("src/tsx/examples", APP, `${b}.ts`);
@@ -392,6 +410,15 @@ if (lazyBases.length) {
 			err(`lazy: module id ${id} already taken — failing loud`);
 			process.exit(1);
 		}
+		// split-brain guard (review P6): a lazy module's RELATIVE import gets
+		// INLINED as a SECOND copy by its own bundle step — shared *stateful*
+		// modules (a signal store) then split between main and the screen.
+		// Loud warning, not fatal: duplicating a PURE helper is harmless.
+		if (/from\s*["']\.\.?\//.test(readFileSync(file, "utf8")))
+			err(
+				`lazy: WARNING app/${base} has relative imports — they are DUPLICATED into this ` +
+					"module (split-brain risk for stateful shared code; import runtime/* or inline instead)",
+			);
 		manifest.modules[id] = `./app/${rel}`;
 		// SQUASH pass (default ON): array-of-arrows -> ONE dispatch fn — the
 		// device-proven lazymany->lazypack fix, applied mechanically. Narrow
@@ -564,6 +591,15 @@ const emitRuntime = (preScanPrevious: boolean): Map<string, string> => {
 // argument into a build-time assertion; if a future runtime-module cycle (or a
 // pipeline bug) makes keep-sets order-dependent, the loop converges within 3
 // rounds or fails LOUD instead of shipping a silently mis-pruned runtime.
+// P3 (review): LOWER orphans the original `useState`/`computed` import
+// specifiers (rewritten to packed S.*), and esbuild keeps dead EXTERNAL
+// specifiers in minified lazy/pure files — the keep-set scan then counted
+// them as demand and shipped dead runtime exports (+9 symbols/+540B class,
+// on-disk receipt in docs/review-findings.md). Drop dead runtime imports
+// from every scanned app artifact BEFORE the first keep-set read.
+if (prune)
+	for (const f of ["src/embeddedjs/app/main.js", ...lazyFiles, ...pureFiles])
+		run(process.execPath, [join(TOOLS, `import-prune-min${EXT}`), f]);
 let emitted = emitRuntime(false);
 if (prune && minify) {
 	for (let round = 2; round <= 3; round++) {

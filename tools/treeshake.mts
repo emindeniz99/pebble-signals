@@ -28,11 +28,55 @@ export function neededModules(src: string): Set<string> {
 	const stack = [...seed];
 	while (stack.length) {
 		const mod = stack.pop() as string;
-		if (need.has(mod) || !(mod in DEPS)) continue;
+		if (need.has(mod)) continue;
+		// FAIL-SAFE for a runtime module the DEPS map doesn't know: KEEP it
+		// (it just can't contribute edges). The old `continue` silently
+		// PRUNED it from the manifest — a boot death if a 4th runtime module
+		// ever ships without updating DEPS (review finding P9).
 		need.add(mod);
-		stack.push(...DEPS[mod]);
+		if (mod in DEPS) stack.push(...DEPS[mod]);
 	}
 	return need;
+}
+
+// The transitive RELATIVE-import closure of an app entry (entry first). The
+// bundle step inlines the entry's whole ./-import graph into main.js, so
+// every scan that reads "what does the app use" (treeshake seeds, the
+// dynamic-import safety scan, gen-manifest resources, lint-reads) must see
+// the SAME set — scanning only the entry silently missed a helper's
+// `import "runtime/flow"` (pruned -> boot death) or its Texture refs
+// (review findings P1/P2). Comments are stripped before matching.
+/** Transitive relative-import closure of `entry` (existing files only). Pure-ish (fs reads). */
+export function relativeClosure(entry: string, read: (p: string) => string | null): string[] {
+	const out: string[] = [];
+	const seen = new Set<string>();
+	// collapse `./` and `x/../` so paths dedupe and read() sees canonical keys
+	const clean = (p: string): string => {
+		let n = p.replace(/\\/g, "/").replace(/\/\.\//g, "/");
+		while (/[^/.]+\/\.\.\//.test(n)) n = n.replace(/[^/.]+\/\.\.\//, "");
+		return n;
+	};
+	const visit = (file: string): void => {
+		const norm = clean(file);
+		if (seen.has(norm)) return;
+		seen.add(norm);
+		const raw = read(norm);
+		if (raw === null) return;
+		out.push(norm);
+		const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+		const dir = norm.slice(0, norm.lastIndexOf("/") + 1);
+		for (const m of src.matchAll(/from\s+["'](\.\.?\/[^"']+)["']/g)) {
+			const spec = clean(dir + m[1]);
+			// resolve like the bundler: exact, then +.tsx, then +.ts
+			for (const cand of [spec, `${spec}.tsx`, `${spec}.ts`])
+				if (read(cand) !== null) {
+					visit(cand);
+					break;
+				}
+		}
+	};
+	visit(entry);
+	return out;
 }
 
 /** Prune the manifest to `main` + the needed runtime modules. Pure. */
