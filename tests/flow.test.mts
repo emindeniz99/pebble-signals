@@ -682,4 +682,47 @@ sandbox.console = { log: () => {} };
 
 sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 
+// ---- deep-review regressions (flow) ----------------------------------------
+
+// U2: a tween whose completion write cascades into stopping ANOTHER tween
+// must still remove ITSELF (stale-index splice removed the wrong one; the
+// shifted tween froze forever and the shared timer leaked).
+{
+	const a2 = animate(0, 100, 10000); // long tween, sits at index 0
+	const b2 = animate(0, 1, 1); // completes on the first tick
+	const e2 = signals.effect(() => {
+		if (b2() >= 1) a2.stop(); // subscriber of B stops A mid-tick
+	});
+	tick(1); // B completes -> write -> effect stops A -> B must STILL remove itself
+	check("U2 completed tween removes itself after a cascade", liveTimers() === 0);
+	signals.dispose(e2);
+}
+
+// U7: a CONTAINED mid-reconcile throw (custom __spError) leaves a recorded
+// row unmounted — the next pass's sweep must tolerate it, not crash piu.
+{
+	sandbox.__spError = () => {}; // contain-mode: errors swallowed by the app hook
+	const items7 = signal([{ id: 3 }]); // healthy initial mount
+	const [h7] = createRoot(() =>
+		For({
+			each: () => items7.value,
+			key: (it) => it.id,
+			width: 40,
+			children: (it) => {
+				if (it.id === 2) throw new Error("row boom");
+				return jsx(StubContent, { string: "r" + it.id });
+			},
+		}),
+	);
+	items7.value = [{ id: 3 }, { id: 2 }]; // RE-RUN pass: row 2 throws, CONTAINED
+	let swept = true;
+	try {
+		items7.value = [{ id: 1 }]; // sweep of the half-recorded pass
+	} catch {
+		swept = false;
+	}
+	check("U7 sweep tolerates a recorded-but-unmounted row", swept && h7.contents.length === 1);
+	sandbox.__spError = undefined;
+}
+
 done();

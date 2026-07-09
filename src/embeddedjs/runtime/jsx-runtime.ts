@@ -50,9 +50,22 @@ export function Fragment(props: Props): JSXNode {
 }
 
 /** JSX factory (automatic runtime). Host Piu type → real node; function → component call. */
-export function jsx(type: any, props: Props): JSXNode {
+// react-jsx HOISTS a JSX `key` attribute out of props into the third argument
+// (its reserved-prop rule) — without accepting it here, `<For key={...}>`
+// (the documented usage) silently lost its key function and fell back to
+// identity keys = full row churn per update. Components get it re-injected
+// as props.key; host Piu elements ignore it (no keyed semantics there).
+// Depth-safe: jsx frames never nest (children evaluate before the outer
+// call), so the extra parameter is one live stack slot, not xdepth.
+export function jsx(type: any, props: Props, key?: unknown): JSXNode {
 	if (isPiu(type)) return createHost(type, props);
-	if (typeof type === "function") return type(props || {});
+	if (typeof type === "function") {
+		if (key !== undefined) {
+			props = props || {};
+			if (props.key === undefined) props.key = key;
+		}
+		return type(props || {});
+	}
 	throw new Error("jsx:type");
 }
 
@@ -284,6 +297,7 @@ let panicked = false; // first crash wins; also tells render() a mid-build panic
 // the crash screen from inside createRoot — in that case the orphan tree is
 // dropped (its effects disposed) instead of mounted over the crash screen.
 const mount = (app: PiuApplication, build: () => JSXNode): void => {
+	pendingFocus = null; // drop any STALE focus target from a post-mount flow build
 	const r = createRoot(build);
 	if (panicked) {
 		r[1]();
@@ -402,6 +416,12 @@ export function render(
 	dict?: ApplicationDictionary,
 	opts?: RenderOptions,
 ): PiuApplication {
+	// a SECOND render() must not leak the previous tree (nor cross-wire its
+	// crashes onto the new app) — tear the old root down first
+	if (rootDispose) {
+		rootDispose();
+		rootDispose = null;
+	}
 	const app = new Application(null, dict || {});
 	theApp = app;
 	theBuild = build;

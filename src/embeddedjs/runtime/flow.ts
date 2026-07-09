@@ -241,7 +241,7 @@ export function For<T>(props: ForProps<T>): PiuContainer {
 			// screen order comes from the position pass below).
 			for (let x = rk.length - 1; x >= 0; x--) {
 				if (rs[x] !== pass) {
-					host.remove(rn[x]);
+					if (rn[x].container) host.remove(rn[x]); // contained-throw pass may leave a row unmounted
 					rd[x]();
 					const last = rk.length - 1;
 					if (x !== last) {
@@ -385,7 +385,11 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 				width: props.width || screen.width,
 				height: props.height || screen.height,
 			});
-			const [tree, d] = createRoot(() => {
+			// r-tuple used WITHOUT destructuring: two locals -> one. This function
+			// is chain-resident at max render depth (Round 7); the jsx key param
+			// (U1 fix) costs one slot per nested component jsx frame, and this
+			// buys it back — navreactive sits ONE slot from the 384 wall.
+			const r = createRoot(() => {
 				// asNode INLINED (build(nav) called directly, not asNode(() => …)):
 				// the INITIAL swap runs deep inside render()'s build, and every frame
 				// here counts against the mod's fixed JS value stack — a Navigator
@@ -397,8 +401,8 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 				appendChild(wrapper, s as JSXNode);
 				return wrapper;
 			});
-			disposeTop = d;
-			host.add(tree);
+			disposeTop = r[1];
+			host.add(r[0]);
 		});
 	const nav: NavHandle = {
 		push(build: (nav: NavHandle) => JSXNode) {
@@ -458,10 +462,19 @@ const tickAll = () => {
 	// walk downward so splicing a finished tween doesn't skip its neighbor
 	for (let i = a.length - 1; i >= 0; i--) {
 		const r = a[i];
+		// a cascade below us (a completion write stopping other tweens) can
+		// shrink the array past this index — the slot may now be empty
+		if (r === undefined) continue;
 		r.elapsed += STEP;
 		const p = r.elapsed >= r.dur ? 1 : r.elapsed / r.dur;
 		r.sig.value = r.from + (r.to - r.from) * r.ease(p);
-		if (p >= 1) a.splice(i, 1);
+		if (p >= 1) {
+			// re-resolve: the value write above can cascade into stop()/dispose of
+			// ANOTHER tween below us, shifting indices — splice(i) would then
+			// remove the wrong tween (it froze forever; reproduced). Mirror stop().
+			const j = a.indexOf(r);
+			if (j >= 0) a.splice(j, 1);
+		}
 	}
 	if (a.length === 0) {
 		clearInterval(t.timer); // last tween done — release the native timer

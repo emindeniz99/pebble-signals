@@ -577,4 +577,44 @@ setSink(null);
 	sandbox.console = savedC;
 }
 
+// ---- deep-review regressions (jsx-runtime) ---------------------------------
+
+// U1: react-jsx hoists `key` to the third argument — components must get it
+// back as props.key (For's keyed reconcile depends on it), hosts ignore it.
+{
+	const gotKeys = [];
+	const C = (p) => {
+		gotKeys.push(p.key);
+		return jsx(Label, { string: "k" });
+	};
+	jsx(C, { a: 1 }, "K1");
+	jsx(C, null, "K2"); // transform may pass null props with a key
+	const hk = jsx(Container, { name: "hostkey" }, "KH"); // host: ignored, no throw
+	check("U1 hoisted key re-injected into component props", gotKeys.join(",") === "K1,K2");
+	check("U1 host element ignores the key argument", hk.name === "hostkey");
+	// an explicit props.key wins over the argument (never clobber)
+	jsx(C, { key: "explicit" }, "arg");
+	check("U1 explicit props.key wins", gotKeys[2] === "explicit");
+}
+
+// U5: a SECOND render() disposes the previous tree — its bindings must not
+// keep running (and its crashes must not cross-wire onto the new app).
+{
+	const s5 = signal(0);
+	let oldRuns = 0;
+	render(() =>
+		jsx(Label, {
+			string: () => {
+				oldRuns++;
+				return "old" + s5.value;
+			},
+		}),
+	);
+	const after = oldRuns;
+	render(() => jsx(Label, { string: "new" }));
+	s5.value = 1; // must NOT re-run the old app's binding
+	check("U5 second render disposes the previous root", oldRuns === after);
+	setSink(null);
+}
+
 done();
