@@ -42,7 +42,16 @@ strictly ordered except the "next batch".
 - [ ] CloudPebble tier 1 → 2 → 3
 
 **DX:**
-- [ ] `defineApp` / `root.tsx` typesafe entry (tsrafce-style, generic props)
+- [x] `defineApp` / `root.tsx` typesafe entry ✅ SHIPPED (2026-07) as the
+      ROOT-COMPONENT convention: `export default` a `Component` (+ optional
+      `export const app: AppDict` / `opts: RenderOptions`) and build.mts
+      generates the render() shim. `Component<P>`/`AppDict` types are
+      compile-time only — rootapp ships 124 symbols, same as hand-rendered
+      counter. `sprafce`/`sprc` editor snippets in .vscode/. Device-verified
+      via the smoke runner ("root 2", screenshots/rootapp-gabbro.png);
+      rootapp added to the smoke catalog. The `defineApp({...})` HELPER shape
+      was deliberately not built: it would cost a runtime export + a boot
+      symbol for pure sugar the sibling-export convention gives for free.
 - [ ] tighten `JSX.Element` `any` → precise — TRIED 2026-07, harder than it
       looked. `= object` typechecks OUR repo clean but BREAKS the consumer
       smoke (a JSX element as `object` is not assignable to a `JSXNode` slot:
@@ -351,15 +360,20 @@ Priority order the owner set; each is expanded in its own section below.
 
 ### DX: typesafe component entry + component patterns (owner, 2026-07)
 - **Auto-render entry (`root.tsx` convention) — typesafe, `tsrafce`-style.**
-  Today every app hand-writes `render(() => <App/>, { skin, style })`. Add a
-  convention: an app can `export default` a root component and the build wraps
-  it in `render(...)` automatically (the skin/style dict via a sibling export
-  or a `defineApp({...})` helper). Keep it fully TYPESAFE — a component is
-  `(props: P) => JSXNode`, props typed with generics like React FC but WITHOUT
-  the re-render model. Deliverable: `defineApp`/`root.tsx` support in build.mts
-  + a typed `Component<P>` type + a `tsrafce`-equivalent snippet for editors.
-  This is the "people shouldn't hand-write render(); write a component like
-  React, typesafe with props" ask — record it in DETAIL, it's high-value DX.
+  ✅ SHIPPED (2026-07). An app `export default`s a root component and
+  build.mts generates the shim entry (`render(M.default, M.app, M.opts)`)
+  when the source has a default export and no render() call of its own.
+  Typesafe via `Component<P = void>` (`(props: P) => JSXNode` — generic
+  props like React FC, no re-render model; the void default makes a
+  prop-less root callable exactly the way the shim mounts it) and
+  `AppDict` (the Application dictionary sibling export). Editor snippets:
+  `sprafce` (root entry) + `sprc` (typed component) in
+  `.vscode/signal-piu.code-snippets`. Measured: zero cost — the types
+  erase and rootapp ships 124 symbols, identical to hand-rendered counter.
+  Device-verified through the smoke runner; `rootapp` is now a catalog
+  entry. Chose the sibling-export convention over a `defineApp({...})`
+  runtime helper: the helper would cost a real export + boot symbol for
+  the same ergonomics.
 - **Component patterns: teach BOTH state placements.** Most devs know React,
   where state lives INSIDE the component. In signal-piu both work and cost the
   same RAM (no re-render → state created once at mount, wherever declared).

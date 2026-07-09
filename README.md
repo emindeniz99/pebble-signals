@@ -143,6 +143,32 @@ in an app file — purely stylistic (in a *preloaded* `runtime/*` module,
 top-level `function` is banned, gotcha 13, so `const C = () =>` there). See
 `examples/component.tsx` for both forms.
 
+### Root component entry — skip render() entirely (typesafe)
+
+Instead of hand-writing `render(() => <App/>, { skin, style })`, an app can
+`export default` a root component and the build generates the render() shim
+(device-verified, `examples/rootapp.tsx`; the `sprafce` editor snippet in
+`.vscode/signal-piu.code-snippets` scaffolds it):
+
+```tsx
+import type { AppDict, Component } from "runtime/jsx-runtime";
+
+export const app: AppDict = { skin: bg, style: st };  // optional Application dict
+
+const App: Component = () => (
+  <Container left={0} right={0} top={0} bottom={0} focus={true}>…</Container>
+);
+export default App;
+```
+
+`Component<P>` types component props generically (React-FC-style, without
+the re-render model); the prop-less `Component` default is exactly the shape
+the shim mounts. An optional `export const opts` (RenderOptions) covers the
+error-boundary opt-out. The types erase at compile time and the shim is two
+lines — a rootapp build ships the same symbol count as its hand-rendered
+twin (124, measured). An app that calls `render()` itself is left untouched
+(no shim), so both styles coexist.
+
 ## Solid-flavored, NOT a React drop-in
 
 > Wondering *why not just use React / a VDOM / Solid directly*, and how we got

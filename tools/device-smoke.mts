@@ -57,6 +57,11 @@ const SMOKES: Smoke[] = [
 		expect: "load <n>ms acc=247700 (importNow latency)",
 	},
 	{ app: "deviceinfo", drive: [], expect: "screen size/round/color + ticking clock" },
+	{
+		app: "rootapp",
+		drive: ["b:up", "s:1", "b:up", "s:1"],
+		expect: "root 2 (root-component entry via generated shim)",
+	},
 ];
 
 const MIN_HEARTBEATS = 3; // capture spans ~8s post-install; instruments ticks ~1/s

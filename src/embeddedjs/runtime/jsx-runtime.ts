@@ -24,6 +24,19 @@ import type {
 
 // A JSX result: a Piu node, a primitive child, an array of them, or nullish.
 export type JSXNode = PiuContent | string | number | boolean | null | undefined | JSXNode[];
+/**
+ * A component: a plain function that runs ONCE at mount (no re-render model)
+ * and returns its subtree. Type props with the generic — `Component<{ n:
+ * number }>`. The `P = void` default makes a prop-less ROOT component
+ * callable with no arguments, which is exactly how the root-entry shim
+ * mounts it (see README "root component entry"). Types only — zero runtime.
+ */
+export type Component<P = void> = (props: P) => JSXNode;
+/**
+ * Shape of a root-entry's optional `export const app` — the Application
+ * dictionary (skin/style/…) the generated shim passes to {@link render}.
+ */
+export type AppDict = ApplicationDictionary;
 // The factory is inherently dynamic (host class OR component fn), so the
 // dispatch boundary is loosely typed — like React's own jsx-runtime.
 type Props = Record<string, any>;

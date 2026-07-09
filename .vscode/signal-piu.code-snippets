@@ -1,0 +1,35 @@
+{
+	"signal-piu root app (typesafe entry)": {
+		"scope": "typescriptreact",
+		"prefix": "sprafce",
+		"description": "signal-piu root component entry — the build generates render()",
+		"body": [
+			"import type { AppDict, Component } from \"runtime/jsx-runtime\";",
+			"",
+			"const bg = new Skin({ fill: \"black\" });",
+			"const st = new Style({ font: \"bold 24px Gothic\", color: \"white\" });",
+			"",
+			"export const app: AppDict = { skin: bg, style: st };",
+			"",
+			"const ${1:App}: Component = () => (",
+			"\t<Container left={0} right={0} top={0} bottom={0} focus={true}>",
+			"\t\t<Column>",
+			"\t\t\t<Label style={st} string=\"${2:hello}\" />",
+			"\t\t</Column>",
+			"\t</Container>",
+			");",
+			"export default ${1:App};"
+		]
+	},
+	"signal-piu typed component": {
+		"scope": "typescriptreact",
+		"prefix": "sprc",
+		"description": "signal-piu component with typed props (runs once, no re-render)",
+		"body": [
+			"type ${1:Name}Props = { ${2:label: string} };",
+			"const ${1:Name}: Component<${1:Name}Props> = (props) => (",
+			"\t$0",
+			");"
+		]
+	}
+}

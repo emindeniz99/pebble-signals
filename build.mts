@@ -360,11 +360,32 @@ if ((cli.bundle ?? env("BUNDLE", "all")) === "preload") {
 	err("bundle: 'preload' strategy — see src/tsx/examples/multilazy.tsx (device-verified");
 	err("        lazy-import of a preloaded screen). Falling back to BUNDLE=all for this build.");
 }
+// Root-component entry: an app that `export default`s a component and never
+// calls render() itself gets a generated shim entry mounting it —
+// `render(M.default, M.app, M.opts)` (README "root component entry"). The
+// shim is plain JS written NEXT to the compiled entry so every downstream
+// pass (lower, prune keep-sets off the final main.js) sees a normal bundle;
+// the source scans (closure/lint/manifest) still read the real .tsx. An app
+// that both exports default AND calls render() keeps its own render (no shim).
+let bundleEntry = `src/embeddedjs/app/examples/${APP}.js`;
+{
+	const bare = readFileSync(appSrc, "utf8")
+		.replace(/\/\*[\s\S]*?\*\//g, "")
+		.replace(/\/\/[^\n]*/g, "");
+	if (/^export default\b/m.test(bare) && !/\brender\s*\(/.test(bare)) {
+		bundleEntry = `src/embeddedjs/app/examples/${APP}__root.js`;
+		writeFileSync(
+			bundleEntry,
+			`import * as M from "./${APP}";\nimport { render } from "runtime/jsx-runtime";\nrender(M.default, M.app, M.opts);\n`,
+		);
+		console.log(`root-entry: ${APP} exports a default component — generated render() shim`);
+	}
+}
 // treeShaking:true is explicit (DCE unreferenced app exports/branches during the
 // bundle) even without minify, so BUNDLE stays lean when MINIFY=0. This one must
 // succeed — buildSync throws on error, aborting the build (no verbatim fallback).
 esbuild.buildSync({
-	entryPoints: [`src/embeddedjs/app/examples/${APP}.js`],
+	entryPoints: [bundleEntry],
 	bundle: true,
 	external: ["runtime/*", "app/*"],
 	format: "esm",
