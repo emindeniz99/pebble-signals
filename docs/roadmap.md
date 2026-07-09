@@ -51,7 +51,13 @@ strictly ordered except the "next batch".
       pebble.h documents that instrumentation logs only flow "when a
       Bluetooth log listener is connected" — the source-side confirmation of
       the log-capture recipe (docs/device-smokes.md).
-- [ ] heap-sizing source-verify (does newer firmware honor stack/slot/chunk?)
+- [ ] heap-sizing source-verify — **BLOCKED EXTERNALLY** (2026-07, full
+      story in "firmware bigger-machine experiment"): the coredevices
+      PebbleOS SOURCE honors ModdableCreationRecord, but no QEMU-bootable
+      newer classic firmware image is obtainable to test live (releases
+      ship real-hardware firmware; pebble-tool caps at SDK 4.17). Parked
+      until such an image exists or the owner provides one — the only
+      checklist item that cannot be closed from inside this repo.
 - [x] CloudPebble tier 1 → 2 → 3 — tier 2 SHIPPED ✅, tier 1 SCOPED,
       tier 3 evaluated-deferred (2026-07; full status in the CloudPebble
       section):
