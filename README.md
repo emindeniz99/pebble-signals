@@ -562,6 +562,13 @@ the measurement tools we built, the wrong turns we kept on purpose, the
 flag-gated (DX-neutral) optimization model, and a cross-check of our
 numbers against Moddable's official `mods.md`. Start here for the "why".
 
+[`docs/perf-battery.md`](docs/perf-battery.md) is the performance & battery
+story: what drains a Pebble, the runtime's battery posture (no standing
+timers, equal-skip, coalesced turns), the measured allocation-flat receipt
+(55 s at 25 writes/s → GC and heap byte-flat), and app-side rules ranked by
+impact. [`docs/postmortem-navreactive-stack.md`](docs/postmortem-navreactive-stack.md)
+is the JS-value-stack post-mortem (the third fixed budget: 384 slots).
+
 ## XS / Piu gotchas actually hit
 
 1. **Every fatal error looks identical**: `fxAbort` (memory full, unhandled
