@@ -329,7 +329,16 @@ strictly ordered except the "next batch".
       in every build, zero false positives across all 45 examples
 
 **New ideas:**
-- [ ] speech-to-text via `pebble/dictation` (todo entry) — typing exists
+- [x] speech-to-text via `pebble/dictation` — PROBED on-device (2026-07,
+      `dictate` example): the session STARTS on the emulator and the
+      firmware's dictation UI takes over the screen (mic indicator; receipt
+      screenshots/dictate-ui-gabbro.png) — the API surface is real and
+      reachable from a mod. But QEMU has no microphone/phone assistant, so
+      no transcription ever arrives, and BACK from the dictation UI exits
+      to the launcher rather than returning to the app. VERDICT: a
+      dictation-driven todo entry is buildable but only VERIFIABLE on real
+      hardware — parked until hardware; the button-based `textinput` stays
+      the shipping text-entry story.
 
 ## Owner-queued next batch (2026-07, do in order)
 Priority order the owner set; each is expanded in its own section below.
