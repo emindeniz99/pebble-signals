@@ -329,3 +329,76 @@ test("import-prune: no dead specifiers -> byte-identical no-op", () => {
 	assert.equal(dropped.length, 0);
 	assert.equal(out, src);
 });
+
+// ---- lint-reads: the ".value footgun" gate ---------------------------------
+// Real files in a temp dir (the tool needs a TS Program over the runtime
+// sources); each fixture is one misuse shape from the watchface incident
+// family. The clean fixture doubles as the zero-false-positive pin — every
+// correct read syntax in one file.
+import { mkdtempSync, rmSync as rmTmp, writeFileSync as writeTmp } from "node:fs";
+import { tmpdir } from "node:os";
+import { join as joinTmp } from "node:path";
+import { lintReads } from "../tools/lint-reads.mts";
+
+const lintFixture = (code: string) => {
+	const dir = mkdtempSync(joinTmp(tmpdir(), "sp-lint-"));
+	const f = joinTmp(dir, "app.tsx");
+	writeTmp(
+		f,
+		'import { render } from "runtime/jsx-runtime";\nimport { signal, computed, useState } from "runtime/signals";\n' +
+			code,
+	);
+	try {
+		return lintReads([f]);
+	} finally {
+		rmTmp(dir, { recursive: true, force: true });
+	}
+};
+
+test("lint-reads: flags calling a computed/signal (the watchface greeting() bug)", () => {
+	const out = lintFixture("const c = computed(() => 1);\nexport const x = c();\n");
+	assert.equal(out.length, 1);
+	assert.equal(out[0].rule, "call-signal");
+	assert.match(out[0].msg, /c\.value/);
+});
+
+test("lint-reads: flags Signal stringify in + and templates, and String()", () => {
+	const out = lintFixture(
+		'const s = signal(1);\nexport const a = "v" + s;\nexport const b = `v ${s}`;\nexport const c2 = String(s);\n',
+	);
+	assert.deepEqual(
+		out.map((f) => f.rule),
+		["stringify-signal", "stringify-signal", "stringify-signal"],
+	);
+});
+
+test("lint-reads: flags a bare Signal object as a JSX prop", () => {
+	const out = lintFixture(
+		"const c = computed(() => 1);\nexport const app = render(() => <Label string={c} />, {});\n",
+	);
+	assert.equal(out.length, 1);
+	assert.equal(out[0].rule, "prop-signal");
+	assert.match(out[0].msg, /\(\) => c\.value/);
+});
+
+test("lint-reads: flags stringifying a useState getter (missing ())", () => {
+	const out = lintFixture(
+		'const [n] = useState(0);\nexport const app = render(() => <Label string={() => "n " + n} />, {});\n',
+	);
+	assert.equal(out.length, 1);
+	assert.equal(out[0].rule, "stringify-fn");
+	assert.match(out[0].msg, /n\(\)/);
+});
+
+test("lint-reads: every CORRECT read syntax is clean (zero false positives)", () => {
+	const out = lintFixture(
+		"const s = signal(1);\nconst c = computed(() => s.value * 2);\nconst [n, setN] = useState(0);\n" +
+			"setN(5);\n" +
+			"export const app = render(\n" +
+			"\t() => <Label string={() => `s=${s.value} c=${c.value} n=${n()}`} />,\n" +
+			"\t{},\n" +
+			");\n" +
+			'export const plain = "txt" + String(n()) + s.value;\n',
+	);
+	assert.deepEqual(out, []);
+});

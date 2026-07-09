@@ -21,6 +21,8 @@
 //                                         (object API still works) but costs
 //                                         ~2x slots per state and bare reactive
 //                                         props need hand-written thunks
+//   --no-lint-reads     LINT_READS=0      skip the reactive-read lint (".value
+//                                         footgun" — Signal stringify/call/bare-prop)
 //   --no-crash-ui       CRASH_UI=0        drop render()'s on-watch crash SCREEN;
 //                                         escaped errors still log + contain (the
 //                                         node keeps its last good value). DCEs
@@ -94,6 +96,7 @@ const cli = parseArgs({
 		squash: { type: "boolean" },
 		symdiet: { type: "boolean" },
 		"crash-ui": { type: "boolean" },
+		"lint-reads": { type: "boolean" },
 	},
 	allowNegative: true, // --no-minify / --no-treeshake / --no-check-c / --no-lower
 }).values;
@@ -207,6 +210,15 @@ if (treeshake)
 // system-font table at COMPILE time and fail loud. SKIP_FONTCHECK=1 to escape.
 if (!flag(cli["skip-fontcheck"], "SKIP_FONTCHECK", "1", false))
 	run(process.execPath, [join(TOOLS, `fontcheck${EXT}`), appSrc]);
+
+// Reactive-read lint (the ".value footgun"): the app tsconfig is noCheck, so
+// tsc never catches calling/stringifying a Signal object or stringifying a
+// useState getter — all of which render garbage or crash ON DEVICE only
+// (the watchface `greeting()` incident). Type-check exactly those shapes on
+// the app entry + shipped sibling modules and fail loud. --no-lint-reads /
+// LINT_READS=0 to bypass.
+if (flag(cli["lint-reads"], "LINT_READS", "1", true))
+	run(process.execPath, [join(TOOLS, `lint-reads${EXT}`), ...shakeSources.filter(existsSync)]);
 
 // Minify (DCE + identifier mangling) is DEFAULT ON — buys back ~370B of the
 // ~15.9KB startup ceiling (gotcha 15) and DCEs unused runtime branches. MINIFY=0
