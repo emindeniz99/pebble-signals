@@ -228,7 +228,10 @@ strictly ordered except the "next batch".
       today with zero code — a rethrowing `__spError` handler (dev strict
       mode, pinned by tests; field-notes §5b has the matrix) — the bridge is
       only needed for live release-firmware log LINES.
-- [ ] build-time lint: flag *calling* a `computed`/`signal` binding
+- [x] ~~build-time lint: flag *calling* a `computed`/`signal` binding~~ ✅
+      SHIPPED as `tools/lint-reads.mts` (2026-07): type-aware gate, 4 rules
+      (call-signal / stringify-signal / prop-signal / stringify-fn), default ON
+      in every build, zero false positives across all 45 examples
 
 **New ideas:**
 - [ ] speech-to-text via `pebble/dictation` (todo entry) — typing exists
@@ -242,9 +245,11 @@ Priority order the owner set; each is expanded in its own section below.
    and fold the best idea in.
 4. **load-time ms instrumentation** — time an `importNow` and quote the lazy
    load latency in ms (one of the two genuinely-open playbook items).
-5. **Conformance suite expansion** — new laws (same-value-no-notify,
-   nested-effect ownership, effect-in-effect disposal, memo-of-memo, error
-   isolation, batch nesting, untrack-in-effect).
+5. **Conformance suite expansion** ✅ DONE (2026-07). Inventory showed the
+   listed laws were already covered by the core-reactivity round; the three
+   genuinely missing were added as laws 27-29 (self-write converges, throwing
+   computed surfaces-at-read-then-heals, effect-in-untrack tracks) — 29 laws,
+   24 MATCH / 5 DIVERGE.
 6. **autothunk on-device (EMULATOR)** — build `autothunk`, install on gabbro,
    confirm the bare `string={"c"+count()}` binding updates live.
 7. **moveBy reactive position** — `<Move>`/`animate()` imperative reposition
