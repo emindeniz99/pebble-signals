@@ -52,7 +52,18 @@ strictly ordered except the "next batch".
       Bluetooth log listener is connected" — the source-side confirmation of
       the log-capture recipe (docs/device-smokes.md).
 - [ ] heap-sizing source-verify (does newer firmware honor stack/slot/chunk?)
-- [ ] CloudPebble tier 1 → 2 → 3
+- [ ] CloudPebble tier 1 → 2 → 3 — **TIER 2 SHIPPED ✅ (2026-07)**:
+      `npm run preview -- <app>` (tools/preview.mts + tools/preview/
+      piu-dom.js) — the REAL compiled runtime (import-mapped
+      runtime-build/*.js) runs in a browser against DOM-rendering Piu stubs;
+      keys map to buttons, round/emery shapes via ?shape=. Verified headless
+      in Chromium (Playwright): counter "Count: 2" after 2×↑
+      (screenshots/preview-counter-browser.png) and movebox "x=40" +
+      box shifted (preview-movebox-browser.png — matches the on-device
+      receipt). Honest limits stated in-page: layout approximate, unlowered
+      source (bare bindings stay static — write thunks), no lazy modules,
+      no bitmaps — QEMU stays the truth. Tier 1 (cloudpebble project-type
+      PR scoping) and tier 3 (QEMU-in-WASM eval) remain.
 
 **DX:**
 - [x] `defineApp` / `root.tsx` typesafe entry ✅ SHIPPED (2026-07) as the
