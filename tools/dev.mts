@@ -8,7 +8,7 @@
 //     rebuild + reinstall automatically (the emulator install ~5-10s IS the
 //     reload). Ctrl-C exits.
 //
-// Usage: npm run dev -- --app clock [--watch] [--platform gabbro] [--no-logs]
+// Usage: pnpm run dev -- --app clock [--watch] [--platform gabbro] [--no-logs]
 // Works in-repo (tools/dev.mts) and from the packed tarball (dist/tools/
 // dev.mjs) — same PKG/PROJ rules as build.mts.
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";

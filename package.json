@@ -1,105 +1,106 @@
 {
-  "name": "signal-piu",
-  "author": "MakeAwesomeHappen",
-  "version": "1.0.0",
-  "description": "Fine-grained reactive UI (Solid-style signals + JSX, no VDOM) for Pebble watches on Moddable XS/Piu",
-  "keywords": [
-    "pebble-app"
+ "name": "signal-piu",
+ "author": "MakeAwesomeHappen",
+ "version": "1.0.0",
+ "description": "Fine-grained reactive UI (Solid-style signals + JSX, no VDOM) for Pebble watches on Moddable XS/Piu",
+ "keywords": [
+  "pebble-app"
+ ],
+ "private": true,
+ "exports": {
+  "./signals": {
+   "types": "./src/embeddedjs/runtime-types/signals.d.ts",
+   "default": "./src/embeddedjs/runtime/signals.ts"
+  },
+  "./jsx-runtime": {
+   "types": "./src/embeddedjs/runtime-types/jsx-runtime.d.ts",
+   "default": "./src/embeddedjs/runtime/jsx-runtime.ts"
+  },
+  "./flow": {
+   "types": "./src/embeddedjs/runtime-types/flow.d.ts",
+   "default": "./src/embeddedjs/runtime/flow.ts"
+  },
+  "./runtime/*": "./src/embeddedjs/runtime/*",
+  "./tools/*": "./tools/*",
+  "./build.mts": "./build.mts",
+  "./package.json": "./package.json",
+  "./build.mjs": "./dist/build.mjs"
+ },
+ "files": [
+  "dist/",
+  "templates/",
+  "src/embeddedjs/runtime/",
+  "src/embeddedjs/runtime-types/",
+  "src/embeddedjs/manifest.base.json",
+  "src/tsx/globals.d.ts",
+  "tools/",
+  "types/moddable/",
+  "build.mts",
+  "tsconfig.runtime-build.json",
+  "docs/packaging.md",
+  "docs/xst-setup.md",
+  "docs/xs-heap-playbook.md"
+ ],
+ "dependencies": {
+  "@moddable/pebbleproxy": "^0.1.8"
+ },
+ "packageManager": "pnpm@11.10.0",
+ "engines": {
+  "node": ">=24",
+  "pnpm": ">=11"
+ },
+ "devDependencies": {
+  "@biomejs/biome": "2.5.3",
+  "@types/node": "~24.13.3",
+  "esbuild": "^0.28.1",
+  "typescript": "^6.0.3"
+ },
+ "pebble": {
+  "displayName": "signal-piu",
+  "uuid": "8cfdaad8-76b2-462f-b5a1-72fbac90ab23",
+  "projectType": "moddable",
+  "sdkVersion": "3",
+  "enableMultiJS": true,
+  "targetPlatforms": [
+   "emery",
+   "gabbro"
   ],
-  "private": true,
-  "exports": {
-    "./signals": {
-      "types": "./src/embeddedjs/runtime-types/signals.d.ts",
-      "default": "./src/embeddedjs/runtime/signals.ts"
-    },
-    "./jsx-runtime": {
-      "types": "./src/embeddedjs/runtime-types/jsx-runtime.d.ts",
-      "default": "./src/embeddedjs/runtime/jsx-runtime.ts"
-    },
-    "./flow": {
-      "types": "./src/embeddedjs/runtime-types/flow.d.ts",
-      "default": "./src/embeddedjs/runtime/flow.ts"
-    },
-    "./runtime/*": "./src/embeddedjs/runtime/*",
-    "./tools/*": "./tools/*",
-    "./build.mts": "./build.mts",
-    "./package.json": "./package.json",
-    "./build.mjs": "./dist/build.mjs"
+  "watchapp": {
+   "watchface": false
   },
-  "files": [
-    "dist/",
-    "templates/",
-    "src/embeddedjs/runtime/",
-    "src/embeddedjs/runtime-types/",
-    "src/embeddedjs/manifest.base.json",
-    "src/tsx/globals.d.ts",
-    "tools/",
-    "types/moddable/",
-    "build.mts",
-    "tsconfig.runtime-build.json",
-    "docs/packaging.md",
-    "docs/xst-setup.md",
-    "docs/xs-heap-playbook.md"
+  "messageKeys": [
+   "dummy"
   ],
-  "dependencies": {
-    "@moddable/pebbleproxy": "^0.1.8"
-  },
-  "packageManager": "pnpm@10.33.0",
-  "engines": {
-    "node": ">=24"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.5.3",
-    "@types/node": "~24.13.3",
-    "esbuild": "^0.28.1",
-    "typescript": "^6.0.3"
-  },
-  "pebble": {
-    "displayName": "signal-piu",
-    "uuid": "8cfdaad8-76b2-462f-b5a1-72fbac90ab23",
-    "projectType": "moddable",
-    "sdkVersion": "3",
-    "enableMultiJS": true,
-    "targetPlatforms": [
-      "emery",
-      "gabbro"
-    ],
-    "watchapp": {
-      "watchface": false
-    },
-    "messageKeys": [
-      "dummy"
-    ],
-    "resources": {
-      "media": []
-    }
-  },
-  "scripts": {
-    "build:runtime": "tsc -p tsconfig.runtime-build.json",
-    "build:types": "tsc -p tsconfig.runtime-build.json --declaration --emitDeclarationOnly --outDir src/embeddedjs/runtime-types",
-    "prepack": "npm run build:types && npm run build:dist",
-    "test": "npm run build:runtime && node --test --experimental-vm-modules tests/*.test.mts",
-    "test:xs": "npm run build:runtime && node tools/xstest.mts",
-    "test:consumer": "node tools/consumer-smoke.mts",
-    "smoke:flags-off": "node tools/flags-off-smoke.mts",
-    "smoke:device": "node tools/device-smoke.mts",
-    "preview": "node tools/preview.mts",
-    "typecheck": "tsc -p tsconfig.check.json && tsc -p tsconfig.runtime-build.json && tsc -p tsconfig.tools.json && tsc -p tsconfig.pkjs.json --noEmit",
-    "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/ build.mts",
-    "format:c": "clang-format -i src/c/*.c",
-    "check:c": "clang-format --dry-run --Werror src/c/*.c",
-    "lint": "biome lint src/embeddedjs/runtime/ tools/ tests/ build.mts",
-    "check": "biome check src/embeddedjs/runtime/ tools/ tests/ build.mts",
-    "docs": "npx -y -p typedoc@0.28 -p typedoc-plugin-markdown@4 typedoc",
-    "coverage": "npm run build:runtime && node --test --experimental-vm-modules --experimental-test-coverage --test-coverage-include='src/embeddedjs/runtime-build/**' --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 tests/*.test.mts",
-    "build": "node build.mts",
-    "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",
-    "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20",
-    "build:dist": "tsc -p tsconfig.dist.json",
-    "dev": "node tools/dev.mts",
-    "verify": "npm run typecheck && npm run coverage && npm run test:xs && npm run test:consumer"
-  },
-  "bin": {
-    "create-signal-piu": "dist/tools/create-app.mjs"
+  "resources": {
+   "media": []
   }
+ },
+ "scripts": {
+  "build:runtime": "tsc -p tsconfig.runtime-build.json",
+  "build:types": "tsc -p tsconfig.runtime-build.json --declaration --emitDeclarationOnly --outDir src/embeddedjs/runtime-types",
+  "prepack": "pnpm run build:types && pnpm run build:dist",
+  "test": "pnpm run build:runtime && node --test --experimental-vm-modules tests/*.test.mts",
+  "test:xs": "pnpm run build:runtime && node tools/xstest.mts",
+  "test:consumer": "node tools/consumer-smoke.mts",
+  "smoke:flags-off": "node tools/flags-off-smoke.mts",
+  "smoke:device": "node tools/device-smoke.mts",
+  "preview": "node tools/preview.mts",
+  "typecheck": "tsc -p tsconfig.check.json && tsc -p tsconfig.runtime-build.json && tsc -p tsconfig.tools.json && tsc -p tsconfig.pkjs.json --noEmit",
+  "format": "biome format --write src/embeddedjs/runtime/ tools/ tests/ build.mts",
+  "format:c": "clang-format -i src/c/*.c",
+  "check:c": "clang-format --dry-run --Werror src/c/*.c",
+  "lint": "biome lint src/embeddedjs/runtime/ tools/ tests/ build.mts",
+  "check": "biome check src/embeddedjs/runtime/ tools/ tests/ build.mts",
+  "docs": "pnpm dlx --package typedoc@0.28 --package typedoc-plugin-markdown@4 typedoc",
+  "coverage": "pnpm run build:runtime && node --test --experimental-vm-modules --experimental-test-coverage --test-coverage-include='src/embeddedjs/runtime-build/**' --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 tests/*.test.mts",
+  "build": "node build.mts",
+  "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",
+  "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20",
+  "build:dist": "tsc -p tsconfig.dist.json",
+  "dev": "node tools/dev.mts",
+  "verify": "pnpm run typecheck && pnpm run coverage && pnpm run test:xs && pnpm run test:consumer"
+ },
+ "bin": {
+  "create-signal-piu": "dist/tools/create-app.mjs"
+ }
 }

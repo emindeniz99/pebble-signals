@@ -1,6 +1,9 @@
 // Consumer smoke test (C11 packaging gate, docs/packaging.md) — proves
 // signal-piu works as an INSTALLED library, not just via in-repo imports.
 // Every step fails LOUD (nonzero exit, clear message) instead of limping on:
+// NOTE: this smoke uses NPM on purpose even though the repo itself is
+// pnpm-managed — it simulates an EXTERNAL npm consumer installing the
+// packed tarball, which is exactly the audience the package must serve.
 //   a. `npm pack` the real tarball (whatever `files`/`exports` ship today)
 //   b. `npm install --no-save` it into examples/consumer, like an external
 //      consumer would
@@ -9,7 +12,7 @@
 //      node_modules against a throwaway useState snippet and assert it
 //      rewrote the packed-signal calls
 //
-// Usage: npm run test:consumer   (from the signal-piu repo root)
+// Usage: ppnpm run test:consumer   (from the signal-piu repo root)
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

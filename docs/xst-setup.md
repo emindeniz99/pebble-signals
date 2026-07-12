@@ -1,13 +1,13 @@
 # xst — running the conformance laws on the real XS engine
 
-The fast test suite (`npm test`, 240+ tests, 100% coverage) runs the runtime in
+The fast test suite (`pnpm test`, 240+ tests, 100% coverage) runs the runtime in
 a Node `vm.SourceTextModule` sandbox — that is **V8**, not the **XS** engine the
 watch actually ships. V8 and XS agree on the ECMAScript spec but not on every
 edge (freeze semantics, ROM aliasing, error behavior), so the pure-signal
 conformance laws also run on real XS as a slower, high-fidelity gate:
 
 ```sh
-npm run test:xs
+pnpm run test:xs
 ```
 
 This builds the runtime (`tsc`), locates an XS engine binary, and runs
@@ -67,6 +67,6 @@ So the test architecture is three tiers, each catching what the others cannot:
 
 | Tier | Engine | Speed | Catches |
 |---|---|---|---|
-| `npm test` (vm sandbox) | V8 | ~1s, 100% cov | logic bugs, regressions |
-| `npm run test:xs` | **XS** | ~1s, laws only | engine-semantics divergence |
+| `pnpm test` (vm sandbox) | V8 | ~1s, 100% cov | logic bugs, regressions |
+| `pnpm run test:xs` | **XS** | ~1s, laws only | engine-semantics divergence |
 | QEMU emulator (`drive.py`) | XS + firmware | minutes | ROM/heap/Piu port reality |

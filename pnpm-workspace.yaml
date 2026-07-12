@@ -1,0 +1,18 @@
+# signal-piu is its own SINGLE-PACKAGE pnpm workspace — deliberately not a
+# member of the repo-root workspace (whose membership is curated to the
+# FlatBuffers family; markets/Python is excluded the same way). This file's
+# presence stops pnpm's upward workspace traversal, and since pnpm 11 it is
+# also the home of pnpm-specific settings (.npmrc keys are ignored).
+packages:
+  - "."
+
+# Supply-chain hardening: refuse dependency versions published less than
+# 3 days ago (minutes). Blunts the "malicious version published minutes
+# ago" attack window. ACTIVE under pnpm (the npm era had to enforce this
+# by hand — see the 2026-07 upgrade round).
+minimumReleaseAge: 4320
+
+# Lifecycle scripts stay sandboxed by default; esbuild's postinstall is a
+# binary-presence validation and is the only one we allow to run.
+allowBuilds:
+  esbuild: true

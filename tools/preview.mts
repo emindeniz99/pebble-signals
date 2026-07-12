@@ -28,7 +28,7 @@ if (!APP || !existsSync(entry)) {
 }
 const RUNTIME = join(ROOT, "src/embeddedjs/runtime-build");
 if (!existsSync(join(RUNTIME, "signals.js"))) {
-	console.error("preview: run `npm run build:runtime` first (runtime-build/ missing)");
+	console.error("preview: run `pnpm run build:runtime` first (runtime-build/ missing)");
 	process.exit(1);
 }
 

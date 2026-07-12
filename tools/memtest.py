@@ -10,7 +10,7 @@ instrumentation while idling and while driving buttons.
 
 Reports slot/chunk/stack usage, the post-GC floor, headroom against the
 firmware-fixed 32KB arena, and exits nonzero if the app dies or usage
-crosses the red line. Wire into CI as: npm run test:mem
+crosses the red line. Wire into CI as: pnpm run test:mem
 
 Usage: memtest.py [platform] [--idle SEC] [--presses N]
        memtest.py [platform] --ramp [--max N] [--min N]

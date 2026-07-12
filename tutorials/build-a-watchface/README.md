@@ -17,7 +17,7 @@ signals that compile down to the same Piu nodes.
 - One terminal command you'll reuse:
 
   ```bash
-  npm run dev -- --app watchface     # build + install + stream logs on gabbro
+  pnpm run dev -- --app watchface     # build + install + stream logs on gabbro
   ```
 
 ## The finished result

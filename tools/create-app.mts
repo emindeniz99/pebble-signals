@@ -89,5 +89,5 @@ console.log(`create-signal-piu: scaffolded ${appName} in ${targetDir}\n`);
 console.log("Next steps:");
 console.log(`  cd ${targetArg}`);
 console.log("  npm install signal-piu typescript esbuild @moddable/pebbleproxy");
-console.log("  npm run build");
+console.log("  pnpm run build");
 console.log("  pebble install --emulator gabbro");

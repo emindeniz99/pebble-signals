@@ -71,7 +71,7 @@ no work inside this repo can advance). New work starts a new list.
 - [x] CloudPebble tier 1 → 2 → 3 — tier 2 SHIPPED ✅, tier 1 SCOPED,
       tier 3 evaluated-deferred (2026-07; full status in the CloudPebble
       section):
-      `npm run preview -- <app>` (tools/preview.mts + tools/preview/
+      `pnpm run preview -- <app>` (tools/preview.mts + tools/preview/
       piu-dom.js) — the REAL compiled runtime (import-mapped
       runtime-build/*.js) runs in a browser against DOM-rendering Piu stubs;
       keys map to buttons, round/emery shapes via ?shape=. Verified headless
@@ -144,7 +144,7 @@ no work inside this repo can advance). New work starts a new list.
 
 **Test infra:**
 - [x] device-smoke catalog → `tools/device-smoke.mts` runner ✅ (2026-07):
-      `npm run smoke:device` — 7-app catalog (both stack canaries first, then
+      `pnpm run smoke:device` — 7-app catalog (both stack canaries first, then
       counter/autothunk/movebox/loadms/deviceinfo with cataloged button
       drives). Per app: build → Rule-3 log-capture install (≥3 heartbeats, no
       fxAbort) → drive.py buttons → screendump → non-blank pixel assert → PNG
@@ -542,7 +542,7 @@ Priority order the owner set; each is expanded in its own section below.
     decode — relevant to the custom-fonts tutorial part).
 
 ### Test/verification infrastructure (owner ask, 2026-07)
-- **Smoke catalog + runner.** ✅ SHIPPED (2026-07). `npm run smoke:device`
+- **Smoke catalog + runner.** ✅ SHIPPED (2026-07). `pnpm run smoke:device`
   (`tools/device-smoke.mts`) runs the cataloged on-device smokes in sequence:
   build → log-capture install (heartbeats + no fxAbort) → drive.py buttons →
   screendump → non-blank assert → PNG receipt, with the Rule-3 reset+retry
@@ -567,7 +567,7 @@ Priority order the owner set; each is expanded in its own section below.
   `ReactElement`, Solid a big renderable union; our principled type is the
   `JSXNode` we already define (Content | primitive | array | nullish). Swapping
   it gives real typechecking of JSX expressions but can ripple through
-  inference — do it behind the typecheck gate, one pass, verify `npm run
+  inference — do it behind the typecheck gate, one pass, verify `ppnpm run
   typecheck` stays green. Low risk, nice-to-have.
 - **Vendor `modules.d.ts`** (Moddable's `Modules.importNow`/`has`/`host`/
   `archive`) into `types/moddable/` via `sync-moddable-typings.sh`, so the
@@ -584,7 +584,7 @@ Priority order the owner set; each is expanded in its own section below.
   `device.keyValue` round-trip, and platform (gabbro/emery) — both a demo and
   a probe of what the emulator actually returns vs. real hardware. `keyValue`
   is the proper persist path (vs. localStorage); worth adopting in examples.
-- ~~**Flags-OFF smoke test**~~ ✅ DONE (2026-07): `npm run smoke:flags-off`
+- ~~**Flags-OFF smoke test**~~ ✅ DONE (2026-07): `pnpm run smoke:flags-off`
   (`tools/flags-off-smoke.mts`) rebuilds `counter` with EACH flag off in turn
   and asserts a valid mod archive. Finding (measured, device): each flag off
   INDIVIDUALLY still boots (arena rebalances — counter boots with `--no-prune`
@@ -592,7 +592,7 @@ Priority order the owner set; each is expanded in its own section below.
   (`fxAbort memory full`, slot heap pinned at 8176) — so `prune`+`lower` are
   load-bearing for the 32KB fit, not cosmetic. Corrected the field-notes §4
   overstatement accordingly. (Requires the SDK, so it's separate from the
-  SDK-free `npm run verify`.)
+  SDK-free `pnpm run verify`.)
 - **SDK currency note (2026-07):** we build on Pebble SDK 4.17 (Moddable
   tools 8.2.3). Upstream Moddable shipped 7.1 (ES2026) + 8.0 (ESP-IDF v6) in
   early 2026; coredevices/moddable trails upstream public by ~49 commits. Not
@@ -610,7 +610,7 @@ Priority order the owner set; each is expanded in its own section below.
   via `tsconfig.tools.json`. Toolchain on TS 6 + target/lib es2025. `build.sh` is
   now `build.mts` (C14 done — verified byte-identical artifacts + successful
   `pebble build`). B6 FULLY DONE: EVERYTHING is auto — runtime-API `.d.ts`
-  via `npm run build:types` (`tsc --declaration` → `runtime-types/*.d.ts`),
+  via `pnpm run build:types` (`tsc --declaration` → `runtime-types/*.d.ts`),
   Piu host globals from the vendored `@moddable/typings` (types/moddable/,
   `tools/sync-moddable-typings.sh`), and `runtime/*` resolves straight to
   the `.ts` sources via tsconfig `paths`. `src/tsx/globals.d.ts` is now just
@@ -668,7 +668,7 @@ Priority order the owner set; each is expanded in its own section below.
 ## Node / compile-time — ready to do
 - ~~**Node/Content type split**~~ ✅ SHIPPED (2026-07): the THREE aliases below
   landed as designed (`JSXNode`/`Container`/`Content` across flow.ts +
-  jsx-runtime.ts; consumer placeholders fixed; `npm run verify` bundles all
+  jsx-runtime.ts; consumer placeholders fixed; `pnpm run verify` bundles all
   gates so the consumer smoke can't be skipped again). Original analysis:
 - **(original analysis)** The audit
   (51 occurrences: 33 deliberate, 13 fixed, 5 deferred) proved `type Node = any`
@@ -700,7 +700,7 @@ Priority order the owner set; each is expanded in its own section below.
   compression over speed, so esbuild stays. Cheap experiment if ever curious:
   minify runtime-min A/B with oxc-minify and diff byte counts (Rule 2 —
   measure before switching anything).
-- ~~**Higher-fidelity tests on real XS**~~ ✅ SHIPPED: `npm run test:xs` runs the
+- ~~**Higher-fidelity tests on real XS**~~ ✅ SHIPPED: `pnpm run test:xs` runs the
   19 pure-signal conformance laws on the real XS engine (verified on XS 17.9.1).
   `tests/xs/laws.js` + `tools/xstest.mts` (binary auto-detect: XS_BIN → jsvu →
   PATH); install is a one-liner (`npx jsvu --engines=xs --os=linux64`), fully
@@ -958,7 +958,7 @@ notifications, device info.
   coredevices/cloudpebble (build-server plugin surface, project-type registry).
 
   **STATUS 2026-07: tier 2 SHIPPED, tier 1 SCOPED, tier 3 evaluated-deferred.**
-  - **Tier 2 ✅** — `npm run preview -- <app>`: the real compiled runtime in a
+  - **Tier 2 ✅** — `pnpm run preview -- <app>`: the real compiled runtime in a
     browser against DOM Piu stubs; Playwright-verified (see the checklist
     entry; receipts screenshots/preview-*-browser.png).
   - **Tier 1 SCOPED (sources read, 2026-07).** cloudpebble is 7 Docker

@@ -3,7 +3,7 @@
 Device errors are terse (XS gives no stack traces or line numbers on the
 Pebble port), so debugging is pattern-matching against known failure shapes.
 This is the collected triage table — every entry has a receipt in this repo's
-history. Start with `npm run dev -- --app <name>` (build → install → live
+history. Start with `pnpm run dev -- --app <name>` (build → install → live
 logs in one command; `--watch` rebuilds on save).
 
 ## `fxAbort memory full:` at boot (app bounces to the watchface)
@@ -36,7 +36,7 @@ effect with no owner is still yours to `dispose()`).
 A DIFFERENT limit than the arena — the mod's fixed JS value stack (the mod
 cannot grow it; creation is ignored). The render→effect call chain went too
 DEEP, not too wide. This is finite recursion hitting a low ceiling, so it
-reproduces on device but NOT under Node (`npm test`, huge host stack) — do
+reproduces on device but NOT under Node (`pnpm test`, huge host stack) — do
 not expect the sandbox to catch it. Distinguish it from `memory full` by
 reading the actual abort line in the boot log, not by symbol counts.
 
@@ -60,7 +60,7 @@ Checklist:
 ## App installs but never appears / bounces instantly with NO logs
 
 - Boot abort happened before the log listener attached. Re-run with
-  `npm run dev` (logs attach right after install) or use the screenshot
+  `pnpm run dev` (logs attach right after install) or use the screenshot
   verdict: black screen = app, gray watchface = it died (tools/drive.py
   `d:<name>` dumps a frame; the brightness heuristic in the repo history
   separates them cleanly).
@@ -106,7 +106,7 @@ globalThis.__spError = (e) => trace("effect error: " + e.message + "\n");
 ## Emulator misbehaving (installs hang, buttons drop)
 
 - Rule 3: `tools/reset-emulator.sh gabbro`, then retry the first cold-boot
-  install once. `npm run dev` already does this automatically.
+  install once. `pnpm run dev` already does this automatically.
 - NEVER run `pebble logs` while an install is in flight — the channel races
   and the install times out (measured repeatedly; dev.mts sequences them).
 - Button/menu driving: kill pypkjs first (`pkill -9 -f '[p]ypkjs'` — the qemu
@@ -127,5 +127,5 @@ globalThis.__spError = (e) => trace("effect error: " + e.message + "\n");
 - **Line numbers / stack traces on device** — the port strips them; XS debug
   builds need `kModdableCreationFlagDebug` + a BT debugger connection the
   emulator setup here doesn't provide. Node-side reproduction is the tool:
-  the same runtime runs under `npm test`'s vm sandbox and `npm run test:xs`
+  the same runtime runs under `pnpm test`'s vm sandbox and `pnpm run test:xs`
   (real XS!) — reproduce the logic there, where you have real errors.

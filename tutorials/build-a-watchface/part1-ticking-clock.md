@@ -37,7 +37,7 @@ render(() => (
 Build it:
 
 ```bash
-npm run dev -- --app watchface
+pnpm run dev -- --app watchface
 ```
 
 ## What just happened

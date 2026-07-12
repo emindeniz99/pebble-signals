@@ -17,7 +17,7 @@ a separate project can install and get the **typed runtime + the build tools**.
 }
 ```
 
-- **Types are generated, not hand-written** (`prepack` → `npm run build:types` →
+- **Types are generated, not hand-written** (`prepack` → `pnpm run build:types` →
   `tsc --declaration` from the runtime source; B6). The tarball ships whatever
   the source says — `signal<T>`, `ReadonlySignal<T>`, `ForProps<T>`, the typed
   `ByteStore` — so consumer DX equals in-repo DX.

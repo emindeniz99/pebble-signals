@@ -23,7 +23,7 @@
 // for the per-app manual checklist this automates.
 //
 // Requires the Pebble SDK + a bootable emulator. Run:
-//   npm run smoke:device                    # whole catalog on gabbro
+//   pnpm run smoke:device                    # whole catalog on gabbro
 //   node tools/device-smoke.mts --apps counter,movebox --platform gabbro
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";

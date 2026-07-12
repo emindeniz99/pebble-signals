@@ -888,7 +888,7 @@ was answered with a measurement, not a preference:
 Decision: keep the runtime as **typed-.js**. Its PUBLIC contracts are already
 type-checked — `src/tsx/globals.d.ts` declares every export and
 `tests/types.test-d.tsx` asserts the prop contracts under the strict
-`tsconfig.check.json` (`npm run typecheck`). On top of that, `npm run
+`tsconfig.check.json` (`pnpm run typecheck`). On top of that, `npm run
 typecheck:runtime` runs a **lenient checkJs** over the runtime bodies as a
 regression guard: it stays at 0 and will flag a genuine type error (wrong arg,
 bad index) without the annotation burden. Convert to `.ts` only if/when a

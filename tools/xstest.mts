@@ -10,7 +10,7 @@
 //
 // Install (see docs/xst-setup.md):  npx jsvu --engines=xs --os=linux64
 //
-// Usage: npm run test:xs   (builds the runtime first, then runs this)
+// Usage: pnpm run test:xs   (builds the runtime first, then runs this)
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";

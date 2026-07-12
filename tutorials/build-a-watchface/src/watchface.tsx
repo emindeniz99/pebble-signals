@@ -3,7 +3,7 @@
 // line. `hh/mm/ss` are useState signals; `greeting` is a computed DERIVED from
 // hh — so it re-evaluates only when the hour changes while seconds tick every
 // second. Each Label subscribes to only what it reads: fine-grained updates,
-// no VDOM diff, flat heap in steady state. Build: npm run dev -- --app
+// no VDOM diff, flat heap in steady state. Build: pnpm run dev -- --app
 // watchface (flip package.json watchapp.watchface=true for a real face).
 //
 // NOTE the read syntax — signal-piu has THREE, by source kind:

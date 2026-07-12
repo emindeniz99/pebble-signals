@@ -35,11 +35,11 @@ Demo controls (buttons, because of an emulator touch bug — see gotcha 2):
 list in a byte pool with a 3-row window — 40+ records with a flat arena.
 
 ```sh
-npm test          # reactive core + store (real modules) + flow (piu stubs)
-npm run test:mem    # on-device memory audit (needs the app installed on the
+pnpm test          # reactive core + store (real modules) + flow (piu stubs)
+pnpm run test:mem    # on-device memory audit (needs the app installed on the
                     # gabbro emulator and pypkjs killed: pkill -9 -f '[p]ypkjs' —
                     # the [p] stops -f matching YOUR OWN shell's command line)
-npm run test:limit  # limit finder / regression canary: adds todo rows until
+pnpm run test:limit  # limit finder / regression canary: adds todo rows until
                     # the arena dies and reports the exact item count
 python3 tools/drive.py gabbro b:select s:1 d:shot   # deterministic emu driver
 ```
@@ -194,7 +194,7 @@ concrete differences:
 
 Full hook/primitive parity table (what we have, what we skip, and why) is in
 [`docs/api-parity.md`](docs/api-parity.md); the generated API reference
-(`npm run docs`) is in [`docs/api/`](docs/api/).
+(`pnpm run docs`) is in [`docs/api/`](docs/api/).
 
 ### What's NOT supported (know the edges up front)
 
@@ -238,8 +238,8 @@ The runtime is **strict TypeScript** (`signals.ts` / `jsx-runtime.ts` /
 `flow.ts`); `tsc` emits behavior-identical `.js` (types erase — every file's
 minified output is byte/behavior-identical to its old hand-written form, and
 `target: es2022` injects no helpers, so the gotcha-13 alias budget is unchanged).
-`npm run typecheck` runs both the app prop-contracts and the strict runtime emit;
-`npm test` compiles the runtime first, then runs the suites against the output.
+`pnpm run typecheck` runs both the app prop-contracts and the strict runtime emit;
+`pnpm test` compiles the runtime first, then runs the suites against the output.
 
 - **`signals.ts`** — `signal/effect/computed/untrack` (auto-tracked,
   class-based so per-instance cost is fields only), `createRoot/onCleanup/
@@ -356,7 +356,7 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
 - **Piu nodes are comparatively cheap for the arena** (their weight lands in
   the 122KB native app heap); closures, signals, effects, behavior handlers
   and module records are what exhaust the 32KB. Budget accordingly.
-- **Live audit** (`npm run test:mem`, M9 demo on gabbro): under button load
+- **Live audit** (`pnpm run test:mem`, M9 demo on gabbro): under button load
   the pre-GC peak hits 24520B = 92% of the 26.6KB heap budget, post-GC
   floor **21840B = 82%**, ~2.7KB transient reclaimed per GC. The test
   fails the build if the post-GC floor crosses 90%. (The M7 combined demo
@@ -371,7 +371,7 @@ fallback; the `jsxImportSource` route through the SDK doesn't fire.
 - `For` stress (1 row/s ramp): **"fxAbort memory full" at ~10–12 bare-Label
   rows** (~450B slots per row) or ~6–8 skinned Container+Label rows, from a
   baseline app. That is the realistic list ceiling on this firmware.
-- **Limit finder** (`npm run test:limit` = `memtest.py --ramp`): one record
+- **Limit finder** (`pnpm run test:limit` = `memtest.py --ramp`): one record
   added per button press until the machine dies, memory logged per item.
   History of the same test across designs tells the whole story:
   - M7 arena-resident `For` rows (~450B slots/row): died adding row 4
@@ -702,7 +702,7 @@ is the JS-value-stack post-mortem (the third fixed budget: 384 slots).
    ~2.0KB — and **the `manifest_typings.json` include was embedding
    2,734B of pure build-time junk** (tsconfig doc strings, module maps)
    into the archive. Dropping that include (it only feeds editor
-   typings; `npm test` and the on-device suite are unaffected) took the
+   typings; `pnpm test` and the on-device suite are unaffected) took the
    demo from 15,806B to 13,081B — ~2.8KB of headroom below the cliff.
    Minifying the runtime (build.mts runs esbuild into
    `src/embeddedjs/runtime-min/`, which is what the manifest ships) buys

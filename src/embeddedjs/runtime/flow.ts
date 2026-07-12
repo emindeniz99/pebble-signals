@@ -18,7 +18,7 @@ import type {
 // dynamic boundary of the library. Children/build thunks return `JSXNode`
 // (defined in jsx-runtime); hosts are the vendored `Container`, and per-row
 // reconcile slots are the vendored `Content`. The prop contracts below are the
-// PUBLIC types — `npm run typecheck` resolves `runtime/flow` straight to this
+// PUBLIC types — `pnpm run typecheck` resolves `runtime/flow` straight to this
 // file, so misuse (e.g. passing both `format` and `renderRow`) is a compile
 // error in app code. They are `type` aliases, not interfaces, so they stay
 // assignable to the loose internal `Props` (implicit index signature).

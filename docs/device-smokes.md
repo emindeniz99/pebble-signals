@@ -1,6 +1,6 @@
 # Device smokes — the on-emulator verification catalog
 
-The SDK-free gates (`npm run verify`: typecheck + 100% coverage + XS
+The SDK-free gates (`pnpm run verify`: typecheck + 100% coverage + XS
 conformance laws + consumer smoke) prove the LIBRARY is correct. They cannot
 prove an app still BOOTS on the firmware — the three fixed budgets (slot
 heap, boot symbols, the 384-slot value stack) only exist on-device, and a
@@ -12,7 +12,7 @@ the whole table.
 ## Run it
 
 ```bash
-npm run smoke:device                                  # whole catalog, gabbro
+pnpm run smoke:device                                  # whole catalog, gabbro
 node tools/device-smoke.mts --apps navmany,navreactive   # just the canaries
 node tools/device-smoke.mts --platform emery              # rect watch
 ```

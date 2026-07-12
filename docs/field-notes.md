@@ -223,7 +223,7 @@ mistakes taught more than the wins.
   §4. Each flag off *individually* still fits, but ALL off at once exhausts
   the arena (`counter` → `fxAbort memory full`). Found by actually building
   the all-off path (owner asked "do we test flags-off?"). Lesson: `prune` +
-  `lower` are load-bearing, not cosmetic. Guarded now by `npm run
+  `lower` are load-bearing, not cosmetic. Guarded now by `ppnpm run
   smoke:flags-off`.
 - **"importNow isn't in @moddable/typings."** Wrong. `Modules.importNow` is
   standard Moddable (modules.d.ts, mods.md); Pebble only wraps it as a bare

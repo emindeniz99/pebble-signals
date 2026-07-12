@@ -8,10 +8,10 @@
 // the tryEsbuild fallback below only covers esbuild ERRORING on a file, in
 // which case that file ships unminified (correctness identical).
 //
-// Run: node build.mts [flags]   (npm run build [-- flags]). Flags come as CLI
+// Run: node build.mts [flags]   (pnpm run build [-- flags]). Flags come as CLI
 // args (discoverable, typo-checked by parseArgs) with env vars as equivalents —
-// env stays supported because `APP=anim npm run build` composes better with npm
-// scripts than `npm run build -- --app anim`. CLI wins over env when both given.
+// env stays supported because `APP=anim pnpm run build` composes better with pnpm
+// scripts than `pnpm run build -- --app anim`. CLI wins over env when both given.
 //   --app <name>        APP=<name>        example to build (default: list)
 //   --no-minify         MINIFY=0          ship readable modules
 //   --no-treeshake      TREESHAKE=0       keep the full runtime preloaded
@@ -664,7 +664,7 @@ if (minify)
 
 // Native C clang-format gate — DEFAULT ON, self-disabling: if clang-format isn't
 // installed we skip with a note rather than fail. A misformatted src/c/*.c fails
-// loud (CHECK_C=0 to override). Fix with `npm run format:c`.
+// loud (CHECK_C=0 to override). Fix with `pnpm run format:c`.
 if (flag(cli["check-c"], "CHECK_C", "1", true)) {
 	const cFiles = readdirSync("src/c")
 		.filter((f) => f.endsWith(".c"))
@@ -676,7 +676,7 @@ if (flag(cli["check-c"], "CHECK_C", "1", true)) {
 			// clang-format not installed — skip (build.sh parity), don't fail.
 			err("build: clang-format not found — skipping native C format check");
 		} else {
-			err("build: native C is misformatted — run 'npm run format:c' (CHECK_C=0 to skip)");
+			err("build: native C is misformatted — run 'pnpm run format:c' (CHECK_C=0 to skip)");
 			process.exit(1);
 		}
 	}

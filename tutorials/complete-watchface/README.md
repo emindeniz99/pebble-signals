@@ -18,7 +18,7 @@ walks, written originally for signal-piu. Every mechanic here is
 | [6 — package & install](part6-package.md) | the installable `.pbw` | every build in this repo |
 
 Prerequisites: the repo set up per the top-level README (Pebble SDK 4.17,
-emulator working — `npm run smoke:device` green is the proof), and part 1-3
+emulator working — `pnpm run smoke:device` green is the proof), and part 1-3
 of the intro tutorial for the reactive concepts this series leans on.
 
 One rule carried through every part, because it is the platform's rule: the
