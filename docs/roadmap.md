@@ -666,6 +666,28 @@ Priority order the owner set; each is expanded in its own section below.
     — never the half-measure. Closes the footgun; pairs with glitch-free above.
 
 ## Node / compile-time — ready to do
+- **TypeScript 7 migration plan — DECIDED 2026-07: WAIT on 6.0.x, single
+  port at 7.1.** TS 7 (the native/Go compiler) does not ship the JS
+  Compiler API this project's toolchain is built on — attempting 7.0.2
+  produced dozens of TS2339/TS2694 errors across the 10 API-consuming
+  files (lower/×4, lint-reads, classify-module, prune-exports,
+  symbol-rename, squash, import-prune-min); the replacement API is NEW
+  and different, targeted at TS 7.1 (~Oct 2026, "at least 7.1").
+  - **Why not the hybrid now** (tools on 6-API + builds on 7-tsc via
+    Microsoft's `@typescript/typescript6` compat package — verified on
+    the registry, 6.0.2): our full 4-config typecheck is **2.8s
+    measured**, so tsgo's speedup buys ~2.5s while costing import churn
+    in 10 files, two TS packages side by side, a parser-skew risk (6.0
+    parser in tools vs 7.x compiler — impossible today with one version),
+    a DOUBLE consumer break (dist tools import "typescript"; consumers
+    install typescript@6 per docs — they'd migrate twice), and a second
+    port anyway when 7.1's API lands. Device builds are dominated by
+    pebble/waf + QEMU, not tsc.
+  - **The plan:** stay wholesale on 6.0.x (maintained; 6.0.3 current, no
+    security issues). When 7.1's stable API ships: ONE port of the
+    10-file surface (expect a port, not a version bump — the API is
+    different by design). Escape hatch if typecheck time ever hurts
+    before then: the `@typescript/typescript6` bridge, recipe above.
 - ~~**Node/Content type split**~~ ✅ SHIPPED (2026-07): the THREE aliases below
   landed as designed (`JSXNode`/`Container`/`Content` across flow.ts +
   jsx-runtime.ts; consumer placeholders fixed; `pnpm run verify` bundles all
