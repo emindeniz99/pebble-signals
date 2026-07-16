@@ -53,6 +53,8 @@
   "@biomejs/biome": "2.5.3",
   "@types/node": "~24.13.3",
   "esbuild": "^0.28.1",
+  "typedoc": "0.28.20",
+  "typedoc-plugin-markdown": "4.12.0",
   "typescript": "^6.0.3"
  },
  "pebble": {
@@ -91,7 +93,7 @@
   "check:c": "clang-format --dry-run --Werror src/c/*.c",
   "lint": "biome lint src/embeddedjs/runtime/ tools/ tests/ build.mts",
   "check": "biome check src/embeddedjs/runtime/ tools/ tests/ build.mts",
-  "docs": "pnpm dlx --package typedoc@0.28 --package typedoc-plugin-markdown@4 typedoc",
+  "docs": "typedoc",
   "coverage": "pnpm run build:runtime && node --test --experimental-vm-modules --experimental-test-coverage --test-coverage-include='src/embeddedjs/runtime-build/**' --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 tests/*.test.mts",
   "build": "node build.mts",
   "test:mem": "python3 tools/memtest.py gabbro --idle 12 --presses 8",

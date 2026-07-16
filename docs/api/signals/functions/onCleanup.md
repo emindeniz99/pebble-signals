@@ -8,7 +8,7 @@
 
 > **onCleanup**(`fn`): `void`
 
-Defined in: signals.ts:743
+Defined in: signals.ts:807
 
 Register a cleanup to run when the current owner is disposed.
 
@@ -16,7 +16,7 @@ Register a cleanup to run when the current owner is disposed.
 
 ### fn
 
-`EffectFn`
+[`EffectFn`](../type-aliases/EffectFn.md)
 
 ## Returns
 

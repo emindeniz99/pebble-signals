@@ -8,7 +8,7 @@
 
 > **report**(`err`, `ctx`): `void`
 
-Defined in: signals.ts:333
+Defined in: signals.ts:350
 
 Report a caught reactive error — the shared "loud failure" channel. The
 escalation ladder (2026-07 redesign — owner decision: telling the wearer

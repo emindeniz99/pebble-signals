@@ -8,7 +8,7 @@
 
 > `const` **S**: `object`
 
-Defined in: signals.ts:460
+Defined in: signals.ts:501
 
 Packed lowering target — integer-id signals with zero per-signal objects.
 `build.mts` rewrites `useState`/`signal`/`computed` to this at compile time;

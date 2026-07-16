@@ -6,7 +6,7 @@
 
 # Interface: RenderOptions
 
-Defined in: jsx-runtime.ts:374
+Defined in: jsx-runtime.ts:416
 
 Options for [render](../functions/render.md).
 
@@ -16,7 +16,7 @@ Options for [render](../functions/render.md).
 
 > `optional` **boundary?**: `boolean`
 
-Defined in: jsx-runtime.ts:384
+Defined in: jsx-runtime.ts:426
 
 Top-level error boundary (default ON). `true`/omitted: an escaped
 reactive or build error disposes the whole tree and paints a crash

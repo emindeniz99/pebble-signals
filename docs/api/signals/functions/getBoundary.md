@@ -8,7 +8,7 @@
 
 > **getBoundary**(): ((`e`) => `void`) \| `null`
 
-Defined in: signals.ts:698
+Defined in: signals.ts:761
 
 The ErrorBoundary handler currently in scope (null = none) — for nesting a fallback under its parent.
 

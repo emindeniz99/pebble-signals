@@ -8,7 +8,11 @@
 
 > **useRef**\<`T`\>(`v`): `object`
 
-Defined in: signals.ts:816
+Defined in: signals.ts:894
+
+Mutable box that never notifies — React's useRef. (useCallback is
+deliberately absent: components run ONCE here, so a plain closure is
+already stable; there is nothing to memoize against.)
 
 ## Type Parameters
 

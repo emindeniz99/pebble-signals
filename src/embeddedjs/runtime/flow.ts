@@ -24,16 +24,22 @@ import type {
 // assignable to the loose internal `Props` (implicit index signature).
 type Props = Record<string, any>;
 type Disposer = () => void;
-type Thunk<T> = () => T;
-// animate()'s return: a getter you can call for the current value, with a
-// .stop() to cancel the tween.
-interface Tween {
+/** A lazy reactive read — call it to get the current value (read signals inside). */
+export type Thunk<T> = () => T;
+/** {@link animate}'s return: CALL it for the current eased value; `.stop()` cancels the tween. */
+export interface Tween {
 	(): number;
 	stop: () => void;
 }
 
-// Host-box coordinates shared by every control-flow component (construction-
-// time statics — Piu lays out at construction; see jsx-runtime's bind reject).
+/**
+ * Host-box coordinates shared by every control-flow component. These are
+ * CONSTRUCTION-TIME STATICS — Piu lays out at construction and this port
+ * rejects reactive coordinate writes (use {@link Move} for dynamic
+ * position). GOTCHA: an unconstrained container measures at ZERO when
+ * empty — pass `width`/`height` (or `left`+`right`/`top`+`bottom`) for
+ * stable layout; a width-less host defaults to the full screen width.
+ */
 export type BoxProps = {
 	width?: number;
 	height?: number;
@@ -45,16 +51,34 @@ export type BoxProps = {
 	style?: Style | StyleDictionary;
 };
 
+/** Props for {@link Show}. */
 export type ShowProps = BoxProps & {
+	/** The condition — a thunk; read signals inside to make it live. */
 	when: Thunk<boolean>;
+	/** The truthy side — a THUNK returning nodes (built lazily per toggle). */
 	children: Thunk<JSXNode>;
+	/** The falsy side; omitted = an empty placeholder (layout stays stable). */
 	fallback?: Thunk<JSXNode>;
+	/**
+	 * Build BOTH sides once at mount and swap by reference — zero allocation
+	 * per toggle, but both subtrees stay live (their effects keep running
+	 * off-screen). Default (false) rebuilds the active side per toggle:
+	 * cheaper memory, costlier toggles.
+	 */
 	keepAlive?: boolean;
 };
 
+/** Props for {@link For}. */
 export type ForProps<T> = BoxProps & {
+	/** The array — a thunk; read a signal inside so the list is live. */
 	each: Thunk<T[]>;
+	/**
+	 * item -> unique key (default: item identity). Rows whose keys survive
+	 * are KEPT (minimal Piu ops); a DUPLICATE key keeps its first occurrence
+	 * and later items are skipped; NaN keys are normalized to stay stable.
+	 */
 	key?: (item: T, i: number) => unknown;
+	/** Row builder — each row runs under its own root and disposes on removal. */
 	children: (item: T, i: number) => JSXNode;
 };
 
@@ -64,17 +88,30 @@ export type DataSource<T> = {
 	get(i: number): T;
 };
 type VLBase<T> = BoxProps & {
+	/** The data — `get(i)` is called ONLY for the visible window (lazy-fetch friendly). */
 	data: DataSource<T>;
+	/** Visible row count (default 3). Each row is LIVE Piu nodes on the 32KB heap — keep small. */
 	rows?: number;
+	/** Thunk -> window start index; read a signal inside it to scroll. */
 	at?: Thunk<number>;
 };
-// simple mode: recycled Labels via `format`. `renderRow` forbidden.
+/**
+ * {@link VirtualList} simple mode: one recycled Label per slot, text via
+ * `format`. Mutually exclusive with `renderRow` (compile error if both).
+ */
 export type VLSimple<T> = VLBase<T> & {
+	/** value -> row text (default `String(value)`). */
 	format?: (v: T, i: number) => string;
 	renderRow?: never;
 };
-// rich mode: a recycled subtree per slot via `renderRow`. `format` forbidden.
+/**
+ * {@link VirtualList} rich mode: a recycled SUBTREE per slot via `renderRow`
+ * (built once, never destroyed). Mutually exclusive with `format`. Each
+ * extra node per row costs arena — the measured ceiling is brutal (see the
+ * `richlist` example); prefer simple mode for scrollable multi-row lists.
+ */
 export type VLRich<T> = VLBase<T> & {
+	/** Slot builder: `indexThunk()` is the slot's CURRENT record index (reads live). */
 	renderRow: (indexThunk: Thunk<number>, data: DataSource<T>) => JSXNode;
 	format?: never;
 };
@@ -88,13 +125,25 @@ export type MoveProps = BoxProps & {
 	children?: JSXNode;
 };
 
+/** The handle every {@link Navigator} screen builder receives. */
 export type NavHandle = {
+	/** Push a child screen — the CURRENT screen is disposed (one screen lives at a time). */
 	push(build: (nav: NavHandle) => JSXNode): void;
+	/** Pop to the parent (no-op at the root) — the parent REBUILDS from its builder. */
 	pop(): void;
+	/** Reactive current depth (1 = root). */
 	depth(): number;
+	/** Reactive: is there a parent to pop to. */
 	canPop(): boolean;
 };
+/** Props for {@link Navigator}. */
 export type NavigatorProps = BoxProps & {
+	/**
+	 * The root screen builder. Every screen builder MUST return a CONTAINER
+	 * element (a bare Label crashes the swap), and screen state does NOT
+	 * survive a pop+rebuild — persist anything that must live in a signal
+	 * OUTSIDE the builder.
+	 */
 	root: (nav: NavHandle) => JSXNode;
 };
 // NOTE: flow deliberately does NOT import consumePendingFocus — calling a
@@ -103,38 +152,40 @@ export type NavigatorProps = BoxProps & {
 // appendChild is safe because it never touches jsx-runtime module state).
 // Consequence: the `focus` prop only works in the initial render() tree.
 
-// Show({ when, children, fallback, keepAlive }) — `when` is a thunk;
-// children/fallback are thunks returning nodes. The host is sized by the
-// caller via coordinate props (an unconstrained Piu container measures at
-// zero when empty, so pass width/height or left/right/top/bottom for
-// stable layout).
-//
-// Each side is automatically wrapped in a Container sized like the host
-// before it is swapped in: the piu Pebble port crashes the firmware when a
-// bare Label is swapped as a container's direct child (measured — both
-// fresh rebuilds and prebuilt re-binds die), while Container-wrapped
-// subtrees swap and re-bind indefinitely.
-//
-// Two modes:
-//  - default: Solid semantics — swap subtrees, disposing the outgoing root
-//    (heap returns to its floor; verified in M5). The swap allocates the
-//    incoming subtree, which on the firmware-fixed 32KB arena can be the
-//    difference between running and "fxAbort memory full".
-//  - keepAlive: build children AND fallback once at mount and swap them by
-//    reference with the atomic replace() — zero allocation per toggle.
-//    (Not `visible`: setting visible on bound content crashes the port;
-//    not remove-now/re-add-later either: the re-add crashes.) A missing
-//    side becomes an empty placeholder wrapper so every transition still
-//    goes through replace(). Both subtrees stay live — their effects keep
-//    running while off-screen. The right default when memory is tighter
-//    than update cost.
-//
-// PERF: Show is the most expensive control-flow node — a host container plus a
-// per-side wrapper subtree. For a one-widget toggle prefer a reactive string
-// (`string={() => cond() ? a : b}`) — no subtree. Reach for `keepAlive` when
-// the same two sides toggle often (builds both once, swaps by reference — zero
-// allocation per toggle) and for the default rebuild mode when memory is
-// tighter than update cost (only one side is ever allocated).
+/**
+ * Show({ when, children, fallback, keepAlive }) — `when` is a thunk;
+ * children/fallback are thunks returning nodes. The host is sized by the
+ * caller via coordinate props (an unconstrained Piu container measures at
+ * zero when empty, so pass width/height or left/right/top/bottom for
+ * stable layout).
+ *
+ * Each side is automatically wrapped in a Container sized like the host
+ * before it is swapped in: the piu Pebble port crashes the firmware when a
+ * bare Label is swapped as a container's direct child (measured — both
+ * fresh rebuilds and prebuilt re-binds die), while Container-wrapped
+ * subtrees swap and re-bind indefinitely.
+ *
+ * Two modes:
+ *  - default: Solid semantics — swap subtrees, disposing the outgoing root
+ *    (heap returns to its floor; verified in M5). The swap allocates the
+ *    incoming subtree, which on the firmware-fixed 32KB arena can be the
+ *    difference between running and "fxAbort memory full".
+ *  - keepAlive: build children AND fallback once at mount and swap them by
+ *    reference with the atomic replace() — zero allocation per toggle.
+ *    (Not `visible`: setting visible on bound content crashes the port;
+ *    not remove-now/re-add-later either: the re-add crashes.) A missing
+ *    side becomes an empty placeholder wrapper so every transition still
+ *    goes through replace(). Both subtrees stay live — their effects keep
+ *    running while off-screen. The right default when memory is tighter
+ *    than update cost.
+ *
+ * PERF: Show is the most expensive control-flow node — a host container plus a
+ * per-side wrapper subtree. For a one-widget toggle prefer a reactive string
+ * (`string={() => cond() ? a : b}`) — no subtree. Reach for `keepAlive` when
+ * the same two sides toggle often (builds both once, swaps by reference — zero
+ * allocation per toggle) and for the default rebuild mode when memory is
+ * tighter than update cost (only one side is ever allocated).
+ */
 export function Show(props: ShowProps): PiuContainer {
 	const host = makeHost(props, Column);
 	if (props.keepAlive) {
@@ -191,15 +242,17 @@ function wrapSide(props: Props, build: (() => JSXNode) | undefined): PiuContaine
 // a saturated app's boot floor. It lives in jsx-runtime now, so a lean app
 // gets local error containment without flow.
 
-// For({ each, key, children }) — keyed reconcile. `each` is a thunk
-// returning an array; `key` maps item -> unique key (default: identity);
-// `children` is (item, index) -> node. Rows whose keys survive are kept;
-// new keys mount in their own root; removed keys dispose; a DUPLICATE key
-// keeps its first occurrence and the later items are skipped. Reconcile
-// does MINIMAL piu ops (remove departed, insert/move only misplaced
-// nodes) — a full empty()+re-add per update destabilizes the piu Pebble
-// port and costs native churn per row (measured: app death after ~15-25
-// cycles).
+/**
+ * For({ each, key, children }) — keyed reconcile. `each` is a thunk
+ * returning an array; `key` maps item -> unique key (default: identity);
+ * `children` is (item, index) -> node. Rows whose keys survive are kept;
+ * new keys mount in their own root; removed keys dispose; a DUPLICATE key
+ * keeps its first occurrence and the later items are skipped. Reconcile
+ * does MINIMAL piu ops (remove departed, insert/move only misplaced
+ * nodes) — a full empty()+re-add per update destabilizes the piu Pebble
+ * port and costs native churn per row (measured: app death after ~15-25
+ * cycles).
+ */
 export function For<T>(props: ForProps<T>): PiuContainer {
 	const host = makeHost(props, Column);
 	const keyOf = props.key || ((item: T) => item);
@@ -287,27 +340,29 @@ export function For<T>(props: ForProps<T>): PiuContainer {
 	return host;
 }
 
-// VirtualList({ data, rows, at, format, ... }) — a virtualized ("windowed")
-// list; our FlatList. Creates a FIXED set of `rows` Labels ONCE and rewrites
-// their .string as the window moves — CELL RECYCLING: nodes are never
-// created or destroyed on scroll, so RAM is O(rows), not O(items). Any data
-// source with count() and get(i) works (the byte-record store is one), so
-// item DATA lives outside the arena (bytes) while only `rows` Piu nodes
-// exist — that is the whole trick behind an unbounded list on 32KB.
-//   data:   { count(): number, get(i): value }
-//   rows:   visible row count (default 3)
-//   at:     thunk -> window start index (read a signal inside it to scroll)
-//   format: (value, index) -> string  (default String(value))
-//
-// PERF / LAZY DATA: only `rows` nodes ever exist (recycled), and get(i) is
-// called ONLY for the visible window — so the data source can lazy-fetch or
-// lazy-compute inside get(i) and an "unbounded" list costs O(rows) RAM. Keep
-// `rows` small (each row is live Piu nodes on the 32KB heap); use `format`
-// (one Label/row, cheap) over `renderRow` (a subtree/row) unless you need it.
-// A const arrow, not a `function` declaration (preloaded-module alias rule,
-// gotcha 13). Overscan is intentionally omitted: this port redraws text
-// instantly with no pixel/momentum scroll, so pre-mounting off-screen rows
-// buys nothing (there is no lazy mount to warm) — we render exactly `rows`.
+/**
+ * VirtualList({ data, rows, at, format, ... }) — a virtualized ("windowed")
+ * list; our FlatList. Creates a FIXED set of `rows` Labels ONCE and rewrites
+ * their .string as the window moves — CELL RECYCLING: nodes are never
+ * created or destroyed on scroll, so RAM is O(rows), not O(items). Any data
+ * source with count() and get(i) works (the byte-record store is one), so
+ * item DATA lives outside the arena (bytes) while only `rows` Piu nodes
+ * exist — that is the whole trick behind an unbounded list on 32KB.
+ *   data:   { count(): number, get(i): value }
+ *   rows:   visible row count (default 3)
+ *   at:     thunk -> window start index (read a signal inside it to scroll)
+ *   format: (value, index) -> string  (default String(value))
+ *
+ * PERF / LAZY DATA: only `rows` nodes ever exist (recycled), and get(i) is
+ * called ONLY for the visible window — so the data source can lazy-fetch or
+ * lazy-compute inside get(i) and an "unbounded" list costs O(rows) RAM. Keep
+ * `rows` small (each row is live Piu nodes on the 32KB heap); use `format`
+ * (one Label/row, cheap) over `renderRow` (a subtree/row) unless you need it.
+ * A const arrow, not a `function` declaration (preloaded-module alias rule,
+ * gotcha 13). Overscan is intentionally omitted: this port redraws text
+ * instantly with no pixel/momentum scroll, so pre-mounting off-screen rows
+ * buys nothing (there is no lazy mount to warm) — we render exactly `rows`.
+ */
 export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): PiuContainer => {
 	const host = makeHost(props, Column);
 	const rows = props.rows || 3;
@@ -343,37 +398,39 @@ export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): PiuContainer => 
 	return host;
 };
 
-// Navigator({ root }) — a screen STACK for infinitely-deep navigation on the
-// 32KB heap. Only the TOP screen is ever BUILT: pushing a child disposes the
-// current screen's nodes+effects and builds the child; popping disposes the
-// child and REBUILDS the parent from its stored builder. So the arena holds
-// exactly ONE screen regardless of stack depth — you can drill 100 levels and
-// the heap stays flat (the stack itself is just an array of small builder
-// closures). This is #13's lazy-swap generalized into a back-stack.
-//
-// `root` is a builder (nav) => node|thunk. Every screen builder receives the
-// same `nav` handle:
-//   nav.push(build)  push a child screen (build is (nav) => node)
-//   nav.pop()        pop to the parent (no-op at the root)
-//   nav.depth()      reactive current depth (1 = root)
-//   nav.canPop()     reactive: is there a parent to pop to
-// Parent screen state does NOT survive a pop+rebuild — keep anything that must
-// persist in a signal OUTSIDE the screen builder (the standard swap tradeoff).
-//
-// GOTCHAS (measured):
-//  - do NOT make a Navigator the DIRECT child of a focused Container — the piu
-//    port crashes at mount resolving focus into a dynamically-built direct
-//    child. Wrap it in a Column (like Show).
-//  - each screen builder MUST return a CONTAINER element (a Column/Container),
-//    not a bare Label — the screen node is added straight to the host (the
-//    proven multilazy shape). A bare-Label child crashes the swap; a Column
-//    wrapping your content is safe.
-//  - the host is given a CONCRETE width AND height (full screen unless the
-//    caller passes them). multilazy's host is 180x140 for a reason: a host
-//    with no height gives a multi-child column no vertical box and the port
-//    crashes laying it out (measured — 1 label survived, 2+ died).
-// Buttons go on the outer focused Container and drive nav via the handle
-// screens hand back.
+/**
+ * Navigator({ root }) — a screen STACK for infinitely-deep navigation on the
+ * 32KB heap. Only the TOP screen is ever BUILT: pushing a child disposes the
+ * current screen's nodes+effects and builds the child; popping disposes the
+ * child and REBUILDS the parent from its stored builder. So the arena holds
+ * exactly ONE screen regardless of stack depth — you can drill 100 levels and
+ * the heap stays flat (the stack itself is just an array of small builder
+ * closures). This is #13's lazy-swap generalized into a back-stack.
+ *
+ * `root` is a builder (nav) => node|thunk. Every screen builder receives the
+ * same `nav` handle:
+ *   nav.push(build)  push a child screen (build is (nav) => node)
+ *   nav.pop()        pop to the parent (no-op at the root)
+ *   nav.depth()      reactive current depth (1 = root)
+ *   nav.canPop()     reactive: is there a parent to pop to
+ * Parent screen state does NOT survive a pop+rebuild — keep anything that must
+ * persist in a signal OUTSIDE the screen builder (the standard swap tradeoff).
+ *
+ * GOTCHAS (measured):
+ *  - do NOT make a Navigator the DIRECT child of a focused Container — the piu
+ *    port crashes at mount resolving focus into a dynamically-built direct
+ *    child. Wrap it in a Column (like Show).
+ *  - each screen builder MUST return a CONTAINER element (a Column/Container),
+ *    not a bare Label — the screen node is added straight to the host (the
+ *    proven multilazy shape). A bare-Label child crashes the swap; a Column
+ *    wrapping your content is safe.
+ *  - the host is given a CONCRETE width AND height (full screen unless the
+ *    caller passes them). multilazy's host is 180x140 for a reason: a host
+ *    with no height gives a multi-child column no vertical box and the port
+ *    crashes laying it out (measured — 1 label survived, 2+ died).
+ * Buttons go on the outer focused Container and drive nav via the handle
+ * screens hand back.
+ */
 export const Navigator = (props: NavigatorProps): PiuContainer => {
 	const host = makeHost(props, Column);
 	const stack: ((nav: NavHandle) => JSXNode)[] = [props.root];
@@ -499,17 +556,19 @@ const tickAll = () => {
 	}
 };
 
-// animate(from, to, ms, easing?) — a Reanimated-style tween. Returns a getter
-// thunk backed by a signal; the shared ~30fps ticker eases the value from -> to
-// over `ms` and drops it when it lands. Read it in a binding to drive UI:
-//   const x = animate(0, 100, 400);
-//   <Label string={() => "x " + Math.round(x())} />
-// `easing` maps progress 0..1 -> 0..1 (default linear). The tween is registered
-// with the current owner, so disposing the subtree that created it stops it;
-// `.stop()` cancels manually. setInterval is always present on device (the base
-// mod manifest provides the timer module) — no no-timer fallback: if it is ever
-// absent the throw is the correct fail-loud signal (a missing timer module),
-// not a silently frozen tween.
+/**
+ * animate(from, to, ms, easing?) — a Reanimated-style tween. Returns a getter
+ * thunk backed by a signal; the shared ~30fps ticker eases the value from -> to
+ * over `ms` and drops it when it lands. Read it in a binding to drive UI:
+ *   const x = animate(0, 100, 400);
+ *   <Label string={() => "x " + Math.round(x())} />
+ * `easing` maps progress 0..1 -> 0..1 (default linear). The tween is registered
+ * with the current owner, so disposing the subtree that created it stops it;
+ * `.stop()` cancels manually. setInterval is always present on device (the base
+ * mod manifest provides the timer module) — no no-timer fallback: if it is ever
+ * absent the throw is the correct fail-loud signal (a missing timer module),
+ * not a silently frozen tween.
+ */
 export function animate(
 	from: number,
 	to: number,
@@ -543,26 +602,28 @@ export function animate(
 	return get;
 }
 
-// Move({ x, y, children }) — reactive POSITION for a mounted subtree.
-// Coordinate props are construction-time statics on this port (jsx-runtime
-// rejects bind-time coordinate writes), but `content.moveBy(dx,dy)`
-// post-mount is device-proven safe (2026-07 probe: a box stepped across
-// gabbro for 6 heartbeats, 0 aborts — unlike `visible` writes, which crash
-// the port). Move wraps its children in a host container at the
-// construction-time base position (left/top/width/height props), then ONE
-// effect tracks the x()/y() offset thunks and applies the DELTA between the
-// last applied offset and the new one via moveBy. Offsets are rounded to
-// whole pixels BEFORE diffing, so float sources (an animate() tween) never
-// accumulate sub-pixel drift. The children build once at mount and never
-// rebuild — only their position changes (recycling, not reconcile).
-//   const x = animate(0, 80, 1200);
-//   <Move left={20} top={40} width={40} height={40} x={x}>
-//     <Label ... />
-//   </Move>
-// Size the host explicitly like any moving widget (makeHost's screen-width
-// default applies when you don't — fine for a marquee row, wrong for a
-// sprite). Offsets are RELATIVE to the base position, not absolute
-// coordinates: x/y = 0 means "at rest where you were constructed".
+/**
+ * Move({ x, y, children }) — reactive POSITION for a mounted subtree.
+ * Coordinate props are construction-time statics on this port (jsx-runtime
+ * rejects bind-time coordinate writes), but `content.moveBy(dx,dy)`
+ * post-mount is device-proven safe (2026-07 probe: a box stepped across
+ * gabbro for 6 heartbeats, 0 aborts — unlike `visible` writes, which crash
+ * the port). Move wraps its children in a host container at the
+ * construction-time base position (left/top/width/height props), then ONE
+ * effect tracks the x()/y() offset thunks and applies the DELTA between the
+ * last applied offset and the new one via moveBy. Offsets are rounded to
+ * whole pixels BEFORE diffing, so float sources (an animate() tween) never
+ * accumulate sub-pixel drift. The children build once at mount and never
+ * rebuild — only their position changes (recycling, not reconcile).
+ *   const x = animate(0, 80, 1200);
+ *   <Move left={20} top={40} width={40} height={40} x={x}>
+ *     <Label ... />
+ *   </Move>
+ * Size the host explicitly like any moving widget (makeHost's screen-width
+ * default applies when you don't — fine for a marquee row, wrong for a
+ * sprite). Offsets are RELATIVE to the base position, not absolute
+ * coordinates: x/y = 0 means "at rest where you were constructed".
+ */
 export function Move(props: MoveProps): PiuContainer {
 	const host = makeHost(props, Column);
 	if (props.children !== undefined) appendChild(host, props.children);

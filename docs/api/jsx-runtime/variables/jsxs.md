@@ -6,9 +6,9 @@
 
 # Variable: jsxs
 
-> `const` **jsxs**: (`type`, `props`) => [`JSXNode`](../type-aliases/JSXNode.md) = `jsx`
+> `const` **jsxs**: (`type`, `props`, `key?`) => [`JSXNode`](../type-aliases/JSXNode.md) = `jsx`
 
-Defined in: jsx-runtime.ts:60
+Defined in: jsx-runtime.ts:88
 
 JSX factory for elements with static children (same behavior as [jsx](../functions/jsx.md)).
 
@@ -23,6 +23,10 @@ JSX factory (automatic runtime). Host Piu type → real node; function → compo
 ### props
 
 `Props`
+
+### key?
+
+`unknown`
 
 ## Returns
 

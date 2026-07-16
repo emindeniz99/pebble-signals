@@ -19,7 +19,28 @@ receipt (screenshot or measurement); that discipline is [Rule 2](../CLAUDE.md).
 ## Guides & reference
 
 - [API parity with React/Solid](api-parity.md) — what exists, what's skipped, why
-- [Generated API reference](api/) (`pnpm run docs` regenerates)
+- [Generated API reference](api/) — `pnpm run docs` regenerates; CI fails if it drifts.
+  The full public surface at a glance:
+  - **runtime/signals** — [`useState`](api/signals/functions/useState.md) ·
+    [`signal`](api/signals/functions/signal.md) ([`Signal`](api/signals/interfaces/Signal.md)) ·
+    [`computed`](api/signals/functions/computed.md) ([`ReadonlySignal`](api/signals/interfaces/ReadonlySignal.md)) ·
+    [`effect`](api/signals/functions/effect.md) · [`batch`](api/signals/functions/batch.md) ·
+    [`untrack`](api/signals/functions/untrack.md) · [`track`](api/signals/functions/track.md) ·
+    [`dispose`](api/signals/functions/dispose.md) · [`createRoot`](api/signals/functions/createRoot.md) ·
+    [`useMemo`](api/signals/functions/useMemo.md) · [`useRef`](api/signals/functions/useRef.md) ·
+    [`useReducer`](api/signals/functions/useReducer.md) · [`onMount`](api/signals/functions/onMount.md) ·
+    [`onCleanup`](api/signals/functions/onCleanup.md) · [`createContext`](api/signals/functions/createContext.md) ·
+    [`useContext`](api/signals/functions/useContext.md) · [`createResource`](api/signals/functions/createResource.md) ·
+    [`createStore`](api/signals/functions/createStore.md) · [`romTable`](api/signals/functions/romTable.md)
+  - **runtime/jsx-runtime** — [`render`](api/jsx-runtime/functions/render.md) ·
+    [`ErrorBoundary`](api/jsx-runtime/functions/ErrorBoundary.md) ·
+    [`screen`](api/jsx-runtime/variables/screen.md) · [`appendChild`](api/jsx-runtime/functions/appendChild.md) ·
+    types [`JSXNode`](api/jsx-runtime/type-aliases/JSXNode.md) ·
+    [`Component`](api/jsx-runtime/type-aliases/Component.md) · [`AppDict`](api/jsx-runtime/type-aliases/AppDict.md)
+  - **runtime/flow** — [`Show`](api/flow/functions/Show.md) · [`For`](api/flow/functions/For.md) ·
+    [`VirtualList`](api/flow/functions/VirtualList.md) · [`Navigator`](api/flow/functions/Navigator.md) ·
+    [`Move`](api/flow/functions/Move.md) · [`animate`](api/flow/functions/animate.md)
+- [Changelog](../CHANGELOG.md) — versioned releases, each with an **Upgrading** section
 - [Component lifecycle](lifecycle.md) — mount/dispose/ownership
 - [Migration from classic Piu/Alloy](migration.md) — one screen at a time
 - [Custom fonts, images, settings pages, persistence](../tutorials/complete-watchface/README.md) — the feature guides live as tutorial parts, each device-verified

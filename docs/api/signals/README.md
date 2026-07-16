@@ -12,10 +12,13 @@
 - [ReadonlySignal](interfaces/ReadonlySignal.md)
 - [Resource](interfaces/Resource.md)
 - [RomTable](interfaces/RomTable.md)
+- [Signal](interfaces/Signal.md)
 
 ## Type Aliases
 
 - [Decode](type-aliases/Decode.md)
+- [Disposable](type-aliases/Disposable.md)
+- [EffectFn](type-aliases/EffectFn.md)
 - [Encode](type-aliases/Encode.md)
 
 ## Variables

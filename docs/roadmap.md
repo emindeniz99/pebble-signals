@@ -21,10 +21,19 @@ strictly ordered except the "next batch".
 no work inside this repo can advance). New work starts a new list.
 
 **New (2026-07, round 2 status):**
-- [ ] docs audit: the API-REFERENCE lens is still owed — it died twice on
-      API 529s while the other two lenses completed and their confirmed
-      gaps were all filled (82b3447). Re-run the lens (resume run
-      wf_5c0d1912-d2a) and fix whatever it confirms.
+- [x] docs audit API-REFERENCE lens ✅ (2026-07, third run — 19/19 agents):
+      7 confirmed findings, all fixed: docs/api regenerated (Move/Component/
+      AppDict/Signal pages now exist), the rich `//` doc blocks above every
+      public export converted to JSDoc so TypeDoc renders them (Show/For/
+      VirtualList/Navigator/ErrorBoundary/JSXNode/hooks), per-field JSDoc on
+      all flow props (the device gotchas now reach the API pages),
+      Signal/Tween/Thunk/EffectFn/Disposable exported as TYPES (erased —
+      zero device cost; canaries re-verified), a CI freshness gate
+      (`pnpm run docs && git diff --exit-code docs/api`), a flat API index
+      in docs/README.md, and Changelog linked. Bonus regression caught: the
+      pnpm migration had silently broken `pnpm run docs` (dlx multi-package
+      isolation) — typedoc is now a pinned devDep, which the CI gate needs
+      anyway.
 - [x] emery full matrix ✅ (2026-07): all 13 catalog apps PASS on emery
       (8 heartbeats each, all painted) — zero platform-specific failures;
       key emery receipts committed (fontface/kvprobe/movebox/config/devlog/

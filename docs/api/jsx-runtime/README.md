@@ -13,6 +13,8 @@
 
 ## Type Aliases
 
+- [AppDict](type-aliases/AppDict.md)
+- [Component](type-aliases/Component.md)
 - [JSXNode](type-aliases/JSXNode.md)
 
 ## Variables

@@ -6,7 +6,7 @@
 
 # Interface: ReadonlySignal\<T\>
 
-Defined in: signals.ts:261
+Defined in: signals.ts:278
 
 A derived, read-only reactive value — what [computed](../functions/computed.md) returns. Reading
 `.value` inside an effect subscribes; writing it is a type error (a computed
@@ -24,4 +24,4 @@ is recomputed from its dependencies, never assigned).
 
 > `readonly` **value**: `T`
 
-Defined in: signals.ts:262
+Defined in: signals.ts:279

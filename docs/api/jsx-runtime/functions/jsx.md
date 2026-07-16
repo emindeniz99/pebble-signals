@@ -6,9 +6,9 @@
 
 # Function: jsx()
 
-> **jsx**(`type`, `props`): [`JSXNode`](../type-aliases/JSXNode.md)
+> **jsx**(`type`, `props`, `key?`): [`JSXNode`](../type-aliases/JSXNode.md)
 
-Defined in: jsx-runtime.ts:53
+Defined in: jsx-runtime.ts:75
 
 JSX factory (automatic runtime). Host Piu type → real node; function → component call.
 
@@ -21,6 +21,10 @@ JSX factory (automatic runtime). Host Piu type → real node; function → compo
 ### props
 
 `Props`
+
+### key?
+
+`unknown`
 
 ## Returns
 

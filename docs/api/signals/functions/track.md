@@ -6,9 +6,9 @@
 
 # Function: track()
 
-> **track**(`disposable`): `Disposable`
+> **track**(`disposable`): [`Disposable`](../type-aliases/Disposable.md)
 
-Defined in: signals.ts:751
+Defined in: signals.ts:815
 
 Register an effect id / disposer with the current owner; returns it.
 
@@ -16,8 +16,8 @@ Register an effect id / disposer with the current owner; returns it.
 
 ### disposable
 
-`Disposable`
+[`Disposable`](../type-aliases/Disposable.md)
 
 ## Returns
 
-`Disposable`
+[`Disposable`](../type-aliases/Disposable.md)

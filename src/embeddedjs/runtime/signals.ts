@@ -23,7 +23,8 @@ declare global {
 }
 
 // A reaction is a plain thunk; an effect id indexes into the graph below.
-type EffectFn = () => void;
+/** A zero-arg effect/cleanup function — the currency of {@link effect}, {@link dispose} and {@link onCleanup}. */
+export type EffectFn = () => void;
 // console method shape for the notify() fallback logger (the Pebble host
 // console only has `log`; Node/browsers have `error` too)
 type LogFn = (...args: unknown[]) => void;
@@ -231,6 +232,12 @@ const flush = (g: Graph, i: number): void => {
 // Signals keep the object API (`.value`) — Stage 1 packs only the graph.
 // `i` is the signal's row in G.sub, allocated LAZILY on first subscribe:
 // never-watched signals own no row at all.
+/**
+ * The object-API signal cell returned by {@link signal}: read/write through
+ * `.value` (reads inside an effect/binding subscribe; same-value writes are
+ * dropped). Exported as a TYPE ONLY — construct with `signal(v)`, never
+ * `new`; the class itself stays module-private (packed-core internals).
+ */
 class Signal<T> {
 	v: T;
 	i: number;
@@ -763,7 +770,8 @@ export const getBoundary = (): ((e: unknown) => void) | null => (G ? G.c : null)
 // root's Owner OBJECT or the NUMERIC id of the currently-running effect —
 // the numeric form costs nothing per run; its disposables list (G.own[e])
 // is only allocated when a run actually tracks something.
-type Disposable = number | EffectFn;
+/** What {@link track} accepts: a cleanup function, or an effect id returned by {@link effect}. */
+export type Disposable = number | EffectFn;
 interface Owner {
 	d: Disposable[];
 }
@@ -878,15 +886,19 @@ export function useMemo<T>(fn: () => T): () => T {
 	return () => c.value;
 }
 
-// Mutable box that never notifies — React's useRef. (useCallback is
-// deliberately absent: components run ONCE here, so a plain closure is
-// already stable; there is nothing to memoize against.)
+/**
+ * Mutable box that never notifies — React's useRef. (useCallback is
+ * deliberately absent: components run ONCE here, so a plain closure is
+ * already stable; there is nothing to memoize against.)
+ */
 export function useRef<T>(v: T): { current: T } {
 	return { current: v };
 }
 
-// React's useReducer, trivially over useState. `dispatch(action)` applies the
-// reducer as a functional update, so it composes with batching and lowering.
+/**
+ * React's useReducer, trivially over useState. `dispatch(action)` applies the
+ * reducer as a functional update, so it composes with batching and lowering.
+ */
 export function useReducer<S, A>(
 	reducer: (s: S, a: A) => S,
 	init: S,
@@ -895,20 +907,24 @@ export function useReducer<S, A>(
 	return [get, (action: A) => set((s: S) => reducer(s, action))];
 }
 
-// onMount(fn): run fn ONCE, untracked. In this run-once model a component body
-// already executes a single time as it builds, so this is just "do it once,
-// without subscribing" — the place to start a timer or kick a fetch. (There is
-// no separate post-layout phase like the DOM's; fn runs during the build.)
+/**
+ * onMount(fn): run fn ONCE, untracked. In this run-once model a component body
+ * already executes a single time as it builds, so this is just "do it once,
+ * without subscribing" — the place to start a timer or kick a fetch. (There is
+ * no separate post-layout phase like the DOM's; fn runs during the build.)
+ */
 export function onMount(fn: () => void): void {
 	untrack(fn);
 }
 
-// Context — pass a value down the (synchronous, run-once) build without
-// threading props. createContext(default) -> ctx; provide(ctx, value, build)
-// sets ctx for the duration of build() (children read it via useContext);
-// useContext(ctx) reads the current value. No Symbol/Map (XS rule): a context
-// is a one-field record and provide() is a save/restore around the subtree,
-// which is exactly right because children build synchronously inside build().
+/**
+ * Context — pass a value down the (synchronous, run-once) build without
+ * threading props. createContext(default) -> ctx; provide(ctx, value, build)
+ * sets ctx for the duration of build() (children read it via useContext);
+ * useContext(ctx) reads the current value. No Symbol/Map (XS rule): a context
+ * is a one-field record and provide() is a save/restore around the subtree,
+ * which is exactly right because children build synchronously inside build().
+ */
 export function createContext<T>(defaultValue: T): { v: T } {
 	return { v: defaultValue };
 }
@@ -1271,3 +1287,5 @@ export function romTable(name: string): RomTable {
 		},
 	};
 }
+
+export type { Signal };

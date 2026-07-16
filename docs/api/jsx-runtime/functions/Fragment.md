@@ -8,7 +8,7 @@
 
 > **Fragment**(`props`): [`JSXNode`](../type-aliases/JSXNode.md)
 
-Defined in: jsx-runtime.ts:48
+Defined in: jsx-runtime.ts:63
 
 `<>...</>` — returns its children unchanged.
 

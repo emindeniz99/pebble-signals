@@ -6,9 +6,9 @@
 
 # Function: signal()
 
-> **signal**\<`T`\>(`value`): `Signal`\<`T`\>
+> **signal**\<`T`\>(`value`): [`Signal`](../interfaces/Signal.md)\<`T`\>
 
-Defined in: signals.ts:444
+Defined in: signals.ts:485
 
 Create a reactive value. Reading `.value` inside an [effect](effect.md) (or a JSX
 binding thunk) subscribes to it; writing `.value` notifies subscribers. The
@@ -30,4 +30,4 @@ initial value
 
 ## Returns
 
-`Signal`\<`T`\>
+[`Signal`](../interfaces/Signal.md)\<`T`\>

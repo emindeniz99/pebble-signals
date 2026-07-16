@@ -8,7 +8,7 @@
 
 > **createResource**\<`T`\>(`fetcher`): [`Resource`](../interfaces/Resource.md)\<`T`\>
 
-Defined in: signals.ts:888
+Defined in: signals.ts:972
 
 Async data: run `fetcher` now, expose `{loading, error, data, refetch}` as
 reactive thunks. Out-of-order completions are dropped (only the newest call
