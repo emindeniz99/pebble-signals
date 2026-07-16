@@ -1,5 +1,11 @@
 # Design journey — why signal-piu is the way it is
 
+> This is also the **comparison-to-alternatives** page: the options table
+> below covers React/VDOM ports, compile-time reactivity (react-pebble) and
+> hand-written Piu; the measured react-pebble head-to-head lives in the
+> README ("vs react-pebble"), and the per-API mapping in
+> [api-parity.md](api-parity.md).
+
 This is the long version of "what did we evaluate, and why did we land here?"
 If you're wondering *"why not just use React / a VDOM / Solid directly?"*, this
 is the answer. Every decision below is forced by ONE fact: the Pebble

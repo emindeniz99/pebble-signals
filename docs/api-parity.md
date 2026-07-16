@@ -27,7 +27,7 @@ with Solid's primitives, not identical signatures to React's.
 | `useReducer` | React | ✅ SHIPPED (trivial over useState) |
 | `useContext`/`createContext`/`provide` | React/Solid | ✅ SHIPPED (save/restore around the synchronous build) |
 | `useCallback` | React | 🔴 pointless — components run once, closures are already stable |
-| `createResource` | Solid | 🟡 real gap for async data (fetch → loading/error/data). Would pair with VirtualList. Not yet built |
+| `createResource` | Solid | ✅ SHIPPED (2026-07): fetch → `{loading/error/data}` signals, success batched; see [api/signals/functions/createResource](api/signals/functions/createResource.md) and the `fetchtest` example |
 | `onMount` | Solid | ✅ SHIPPED (run once, untracked) |
 | `createSelector` / `mapArray` | Solid | 🔴 niche; `For` covers the list case |
 | `mergeProps` / `splitProps` | Solid | 🔴 props are plain objects; not needed |

@@ -6,6 +6,15 @@ This is the collected triage table — every entry has a receipt in this repo's
 history. Start with `pnpm run dev -- --app <name>` (build → install → live
 logs in one command; `--watch` rebuilds on save).
 
+**Jump by symptom:** app bounces to watchface at boot → [memory full at
+boot](#fxabort-memory-full-at-boot-app-bounces-to-the-watchface) · dies on
+interaction → [memory full at runtime](#fxabort-memory-full-at-runtime-app-dies-on-interaction)
+· boots on Node but not the watch → [stack overflow](#fxabort-javascript-stack-overflow-at-boot-not-memory-full)
+· installs but never appears → [silent boot](#app-installs-but-never-appears--bounces-instantly-with-no-logs)
+· a binding shows nothing → README gotchas 16/20 (blank font, width-less
+container, `.value` misuse — the build's fontcheck + lint-reads catch most) ·
+need a live log line → [the dev-log bridge](#emulator-misbehaving-installs-hang-buttons-drop).
+
 ## `fxAbort memory full:` at boot (app bounces to the watchface)
 
 The 32KB XS arena ran out DURING boot. Checklist, in order:

@@ -2,10 +2,24 @@
 
 **Runtime fine-grained reactive UI for Pebble (Alloy / Piu / Moddable XS).**
 
-Solid-style signals + JSX + components — no virtual DOM — rendering to the
-Piu scene graph on the new Pebble watches (Time 2 / Round 2). The UI tree is
-built **once**; every update is a single Piu property assignment or a minimal
-scene-graph edit driven by a signal.
+Write Pebble watchfaces and watchapps in **TypeScript + JSX**, React-style —
+components, `useState`, live bindings — and they run ON the watch, inside its
+32KB JavaScript heap. Fine-grained signals (the Solid model) are what makes
+that fit: the UI tree is built **once**, there is no virtual DOM and no
+re-render, and every update is a single Piu property assignment driven by
+the one signal that changed.
+
+> **Coming from React?** Three differences carry the whole model:
+> ① components run ONCE (no re-render — state works anywhere);
+> ② read state by CALLING the getter — `count()`, not `count`;
+> ③ reactive props are thunks — `string={() => "c" + count()}` (the build
+> auto-wraps bare reactive reads). Full story: [Core concepts](docs/concepts.md)
+> · [API parity](docs/api-parity.md).
+
+**Start here:** [Getting started](docs/getting-started.md) (SDK setup → first
+face) · [Tutorials](#tutorials) · [Use it in your project](#use-it-in-your-own-project-npm)
+· [Examples gallery](docs/examples.md) · [All docs](docs/README.md) ·
+[Troubleshooting](docs/debugging.md).
 
 This is (as far as we know) the first **runtime**-reactive UI running on this
 hardware. The existing React-like option, [react-pebble], resolves all
@@ -23,25 +37,59 @@ on-device bisection — none are estimates.
 
 ## Quick start
 
+Prerequisites (pebble tool v5 + SDK 4.17 with the QEMU emulators, Node ≥ 24,
+pnpm): install steps in [Getting started](docs/getting-started.md).
+
 ```sh
-# prerequisites: pebble tool v5 + SDK 4.17, tsc >= 5.5 on PATH
-./build.mts                            # tsc (JSX -> src/embeddedjs/app) + pebble build
-pebble install --emulator gabbro
+git clone <this-repo> && cd playground/projects/signal-piu
+pnpm install
+pnpm run dev -- --app watchface     # build + install + live logs, one command
 ```
 
-Demo controls (buttons, because of an emulator touch bug — see gotcha 2):
-**up** = push a record (odd ids are strings `sN`, even ids are int32 `#N`) ·
-**down** = remove the first record. The demo (M9) is a dynamic mixed-type
-list in a byte pool with a 3-row window — 40+ records with a flat arena.
+**Success looks like:** the gabbro emulator shows a black face with a big
+HH:MM, a ticking seconds line and the date, while the terminal streams
+`instruments:` heartbeats about once a second. (Zero heartbeats = dead
+transport, not a quiet app — [troubleshooting](docs/debugging.md).) Any
+other example works the same way: `pnpm run dev -- --app pulse` runs the
+[flagship face](docs/examples.md).
+
+The default `./build.mts` + `pebble install --emulator gabbro` builds the
+`list` demo — a dynamic mixed-type list in a byte pool with a 3-row window
+(**up** pushes a record, **down** removes; buttons because of an emulator
+touch bug, gotcha 2) — 40+ records with a flat arena.
+
+### Tutorials
+
+- **[Build a watchface](tutorials/build-a-watchface/README.md)** — the
+  reactive core in 3 short parts (signal → binding → computed complication).
+- **[The complete watchface](tutorials/complete-watchface/README.md)** — the
+  full shipping arc in 6 parts: custom fonts, images, a settings page,
+  persistence, the installable `.pbw`. Every part backed by a device-verified
+  example.
+
+### Use it in your own project (npm)
 
 ```sh
-pnpm test          # reactive core + store (real modules) + flow (piu stubs)
+npx -p signal-piu create-signal-piu my-watch
+cd my-watch && npm install && node node_modules/signal-piu/build.mjs
+```
+
+The package ships the runtime sources, the whole compile pipeline and typed
+host globals — [packaging & consuming](docs/packaging.md) has the exports
+map, upgrade rules and the worked [consumer project](examples/consumer/).
+
+### Development & testing (this repo)
+
+```sh
+pnpm run verify      # SDK-free gates: typecheck + tests @100% cov + consumer smoke
+pnpm run smoke:device  # the 14-app on-emulator verification matrix
 pnpm run test:mem    # on-device memory audit (needs the app installed on the
                     # gabbro emulator and pypkjs killed: pkill -9 -f '[p]ypkjs' —
                     # the [p] stops -f matching YOUR OWN shell's command line)
 pnpm run test:limit  # limit finder / regression canary: adds todo rows until
                     # the arena dies and reports the exact item count
 python3 tools/drive.py gabbro b:select s:1 d:shot   # deterministic emu driver
+pnpm run preview -- counter   # browser layout preview (no emulator; approximate)
 ```
 
 ## Examples — one app per example (react-pebble style)
