@@ -17,3 +17,6 @@ examples/consumer/src/embeddedjs/runtime-min/
 examples/consumer/src/embeddedjs/runtime-build/
 examples/consumer/src/embeddedjs/runtime-types/
 examples/consumer/src/embeddedjs/manifest.json
+# npm debris — this project is pnpm-managed (pnpm-lock.yaml is the lockfile);
+# the consumer smoke shells out to npm and can drop one of these at the root
+package-lock.json
