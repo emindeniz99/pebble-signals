@@ -9,6 +9,17 @@ No registry releases yet; entries accumulate under Unreleased until the first
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.0.0] - 2026-07-16
+
+First cut. Everything below accumulated as Unreleased during the build-out;
+device receipts for each claim live in `screenshots/` and the docs.
+
+### Upgrading
+First release — nothing to upgrade from. New projects:
+`npx create-signal-piu` (or see docs/packaging.md).
+
 ### Added
 - **`romTable(name)`** — typed read-only access to packed string tables in
   the flash resource area (zero boot RAM; one transient string per read).

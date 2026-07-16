@@ -6,7 +6,6 @@
  "keywords": [
   "pebble-app"
  ],
- "private": true,
  "exports": {
   "./signals": {
    "types": "./src/embeddedjs/runtime-types/signals.d.ts",
@@ -27,6 +26,7 @@
   "./build.mjs": "./dist/build.mjs"
  },
  "files": [
+  "LICENSE",
   "dist/",
   "templates/",
   "src/embeddedjs/runtime/",
@@ -102,5 +102,6 @@
  },
  "bin": {
   "create-signal-piu": "dist/tools/create-app.mjs"
- }
+ },
+ "license": "MIT"
 }
