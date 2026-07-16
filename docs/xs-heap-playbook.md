@@ -780,6 +780,25 @@ Findings (evidence in the moddable toolchain sources):
   `heap.initial: 512` (slots), **`stack: 384`** (slots — the value-stack
   wall of the postmortem, straight from
   `build/devices/pebble/manifest.json`).
+- **The ~150-symbol boot floor, re-measured by the flagship (2026-07,
+  `pulse`):** the full-composition face (Navigator + custom font + Message +
+  store + Move/animate) died `fxAbort memory full` AT MODULE LOAD with
+  byte-identical death instruments at 201, 200, 191, 186 and 184 total SYMB
+  entries — across a font A/B (custom vs system: NOT the font) and a
+  main-slimming pass — and booted at **148** once `runtime/flow` dropped
+  out. Same wall the EB round measured (boundary@147 dead, watchface@144
+  alive). Consequences, now proven twice: (a) an app CANNOT afford the
+  union of every mechanism at boot — budget features against the floor;
+  (b) **main = FIRST PAINT ONLY** — move channel/store init into a lazy
+  `app/boot` module fired off a 400ms timer (pulse's shipped shape);
+  (c) treeshake dropping a whole runtime module is worth ~35+ symbols —
+  the single biggest lever an app controls.
+- **Lowering footgun (found by pulse, planned as lint-reads rule 5):** a
+  `useState` SETTER passed as a VALUE (`{ setName }`, a callback table, a
+  prop) emits a DANGLING identifier — the lowering rewrites setter CALLS to
+  the packed API and the binding itself no longer exists; the app dies at
+  that line's first evaluation with `TypeError: call: not a function`.
+  Wrap it: `setName: (v) => setName(v)` keeps it a call the pass rewrites.
 - **XS docs survey (2026-07 — Scopes / ROM Colors / linker warnings):**
   - *Scopes:* a closure pairs slots — one on the machine stack pointing at
     one on the heap — and captures ONLY the variables an inner function

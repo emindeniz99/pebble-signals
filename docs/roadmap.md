@@ -20,6 +20,12 @@ strictly ordered except the "next batch".
 (with device receipts) or moved to "Waiting on the outside world" (things
 no work inside this repo can advance). New work starts a new list.
 
+**New (2026-07, found by the flagship):**
+- [ ] lint-reads rule 5: flag a `useState` setter passed as a VALUE (the
+      lowering removes the binding — dangling identifier, device-fatal;
+      pulse died on `{ setName }`; the arrow-wrap is the fix and the lint
+      should say so).
+
 **Waiting on the outside world (no repo-side work possible; what unblocks each):**
 - heap-sizing live-verify — needs a QEMU-bootable newer classic firmware
   image (none public; releases ship real-hardware firmware, pebble-tool caps

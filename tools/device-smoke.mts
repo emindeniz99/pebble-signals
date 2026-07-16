@@ -74,6 +74,11 @@ const SMOKES: Smoke[] = [
 	// boot-only ON PURPOSE: SELECT opens the SYSTEM dictation UI and BACK
 	// exits to the launcher (probe finding) — driving it would strand the run
 	{ app: "dictate", drive: [], expect: "SELECT starts dictation (probe)" },
+	{
+		app: "pulse",
+		drive: ["b:up", "s:1"],
+		expect: "serif clock + date/secs + accent dot turns green (flagship)",
+	},
 ];
 
 const MIN_HEARTBEATS = 3; // capture spans ~8s post-install; instruments ticks ~1/s
