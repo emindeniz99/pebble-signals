@@ -21,6 +21,10 @@ strictly ordered except the "next batch".
 no work inside this repo can advance). New work starts a new list.
 
 **New (2026-07, round 2 status):**
+- [ ] docs audit: the API-REFERENCE lens is still owed — it died twice on
+      API 529s while the other two lenses completed and their confirmed
+      gaps were all filled (82b3447). Re-run the lens (resume run
+      wf_5c0d1912-d2a) and fix whatever it confirms.
 - [x] emery full matrix ✅ (2026-07): all 13 catalog apps PASS on emery
       (8 heartbeats each, all painted) — zero platform-specific failures;
       key emery receipts committed (fontface/kvprobe/movebox/config/devlog/
