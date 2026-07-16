@@ -17,6 +17,12 @@ node tools/device-smoke.mts --apps navmany,navreactive   # just the canaries
 node tools/device-smoke.mts --platform emery              # rect watch
 ```
 
+**Both-platform status (2026-07): the full catalog is green on gabbro AND
+emery** (13/13 each at the matrix runs; pulse joined after — see its
+receipts). Emery receipts for the newer examples are committed
+(`screenshots/*-emery.png`); the emery run found ZERO platform-specific
+failures — `screen.width/round` adaptation carried every app unchanged.
+
 Requires the Pebble SDK and a bootable emulator. Each app: build → `pebble
 logs` capture attached around a foreground install (~8s of heartbeats — the
 proven Rule-3 recipe; a fresh direct-qemu client's log-shipping enable is NOT

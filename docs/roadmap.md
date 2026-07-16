@@ -20,6 +20,12 @@ strictly ordered except the "next batch".
 (with device receipts) or moved to "Waiting on the outside world" (things
 no work inside this repo can advance). New work starts a new list.
 
+**New (2026-07, round 2 status):**
+- [x] emery full matrix ✅ (2026-07): all 13 catalog apps PASS on emery
+      (8 heartbeats each, all painted) — zero platform-specific failures;
+      key emery receipts committed (fontface/kvprobe/movebox/config/devlog/
+      deviceinfo-emery.png). The screen.width/round adaptation story holds.
+
 **New (2026-07, found by the flagship):**
 - [ ] lint-reads rule 5: flag a `useState` setter passed as a VALUE (the
       lowering removes the binding — dangling identifier, device-fatal;
