@@ -184,10 +184,11 @@ for (const closureFile of appClosure.filter(existsSync)) {
 		.replace(/\/\*[\s\S]*?\*\//g, "")
 		.replace(/\/\/[^\n]*/g, "");
 	for (const m of src.matchAll(/import(?:Now)?\s*\(\s*([^)]*)\)/g)) {
-		// both quote styles: `importNow('app/s1')` is as valid as "…" and must
-		// resolve, else the lazy module never joins the manifest and the app
-		// dies on first navigation to it (build passes, device fails).
-		const lit = /^['"]app\/((?:screens\/)?[\w-]+)['"]\s*$/.exec(m[1]);
+		// any string form — 'x', "x", or a no-substitution `x` template — is a
+		// valid, statically resolvable specifier and must join the manifest,
+		// else the lazy module dies on first navigation (build passes, device
+		// fails).
+		const lit = /^[`'"]app\/((?:screens\/)?[\w-]+)[`'"]\s*$/.exec(m[1]);
 		const base = lit?.[1];
 		if (base && existsSync(join("src/tsx/examples", APP, `${base}.tsx`))) lazySet.add(base);
 		else if (base && existsSync(join("src/tsx/examples", APP, `${base}.ts`))) lazySet.add(base);
@@ -199,7 +200,7 @@ for (const closureFile of appClosure.filter(existsSync)) {
 			existsSync(join("src/tsx/examples", APP, "screens"))
 		) {
 			/* covered by the folder convention */
-		} else if (/^['"](?:pebble\/|embedded:)[\w/:-]+['"]\s*$/.test(m[1])) {
+		} else if (/^[`'"](?:pebble\/|embedded:)[\w/:-]+[`'"]\s*$/.test(m[1])) {
 			/* HOST-preloaded module (pebble/message, embedded:storage/files, …):
 			   the mod compartment's loadNowHook maps these through to the host
 			   archive, so nothing in OUR manifest can be pruned out from under
@@ -213,7 +214,10 @@ for (const closureFile of appClosure.filter(existsSync)) {
 const screensDir = join("src/tsx/examples", APP, "screens");
 if (existsSync(screensDir))
 	for (const f of readdirSync(screensDir))
-		if (/\.tsx?$/.test(f)) lazySet.add(`screens/${f.replace(/\.tsx?$/, "")}`);
+		// `.d.ts` matches `.tsx?$` but emits no JS — a screens/types.d.ts would
+		// register a lazy module with no compiled output and fail staging.
+		if (/\.tsx?$/.test(f) && !f.endsWith(".d.ts"))
+			lazySet.add(`screens/${f.replace(/\.tsx?$/, "")}`);
 const lazyBases = [...lazySet];
 let treeshake = flag(cli.treeshake, "TREESHAKE", "1", true);
 if (treeshake && !flag(cli["treeshake-force"], "TREESHAKE_FORCE", "1", false)) {

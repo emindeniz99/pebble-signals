@@ -534,6 +534,15 @@ test("relativeClosure follows bare side-effect imports and re-exports (no `from`
 	assert.deepEqual(out, ["src/app.tsx", "src/api.ts", "src/setup.tsx"]);
 });
 
+test("relativeClosure resolves a directory index module (./setup -> setup/index.tsx)", () => {
+	const fs2: Record<string, string> = {
+		"src/app.tsx": 'import "./setup";',
+		"src/setup/index.tsx": 'import "runtime/flow"; // must reach treeshake seeds',
+	};
+	const out = relativeClosure("src/app.tsx", (p) => fs2[p] ?? null);
+	assert.deepEqual(out, ["src/app.tsx", "src/setup/index.tsx"]);
+});
+
 test("relativeClosure does not mistake importNow(...) for a bare import", () => {
 	const fs2: Record<string, string> = {
 		"src/app.tsx": 'importNow("app/screen");\nimport "./real";',

@@ -67,8 +67,16 @@ export function relativeClosure(entry: string, read: (p: string) => string | nul
 		const dir = norm.slice(0, norm.lastIndexOf("/") + 1);
 		const follow = (rel: string): void => {
 			const spec = clean(dir + rel);
-			// resolve like the bundler: exact, then +.tsx, then +.ts
-			for (const cand of [spec, `${spec}.tsx`, `${spec}.ts`])
+			// resolve like the bundler: exact, then +.tsx/.ts, then a directory
+			// index (`./setup` -> `setup/index.tsx`) — esbuild resolves all of
+			// these, so the closure scan must too.
+			for (const cand of [
+				spec,
+				`${spec}.tsx`,
+				`${spec}.ts`,
+				`${spec}/index.tsx`,
+				`${spec}/index.ts`,
+			])
 				if (read(cand) !== null) {
 					visit(cand);
 					break;
