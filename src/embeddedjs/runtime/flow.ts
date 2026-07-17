@@ -78,7 +78,15 @@ export type ForProps<T> = BoxProps & {
 	 * and later items are skipped; NaN keys are normalized to stay stable.
 	 */
 	key?: (item: T, i: number) => unknown;
-	/** Row builder — each row runs under its own root and disposes on removal. */
+	/**
+	 * Row builder — each row runs under its own root and disposes on removal.
+	 * Must return ONE element (or a primitive, wrapped into a Label); an
+	 * array/null row throws loud — a port constraint (one row = one mounted
+	 * piu node), not Solid parity. `i` is the CREATION-TIME index: a kept
+	 * row's builder never re-runs, so reorders do NOT update a captured `i`
+	 * (contract; a per-row index signal would cost arena per row — Rule 4).
+	 * Key rows by identity, not by index.
+	 */
 	children: (item: T, i: number) => JSXNode;
 };
 
@@ -111,7 +119,11 @@ export type VLSimple<T> = VLBase<T> & {
  * `richlist` example); prefer simple mode for scrollable multi-row lists.
  */
 export type VLRich<T> = VLBase<T> & {
-	/** Slot builder: `indexThunk()` is the slot's CURRENT record index (reads live). */
+	/**
+	 * Slot builder: `indexThunk()` is the slot's CURRENT record index (reads
+	 * live). Must return ONE element per slot (array/null throws loud — same
+	 * port constraint as {@link ForProps.children}).
+	 */
 	renderRow: (indexThunk: Thunk<number>, data: DataSource<T>) => JSXNode;
 	format?: never;
 };
@@ -298,13 +310,11 @@ export function For<T>(props: ForProps<T>): PiuContainer {
 						// duplicate key: first occurrence wins
 						continue;
 				} else {
-					// `children` may legally return a primitive (JSXNode); asNode
-					// wraps a string/number into a Label (as appendChild does), so
-					// the reconcile slot is always a real mounted node — the cast
-					// is then type-only.
-					const [node, dispose] = createRoot(
-						() => asNode(() => props.children(item, i)) as Content,
-					);
+					// `children` may legally return a primitive (JSXNode); asRow
+					// wraps a string/number into a Label (as appendChild does) and
+					// fails LOUD on an array/null row, so the reconcile slot is
+					// always a real mounted node.
+					const [node, dispose] = createRoot(() => asRow(() => props.children(item, i), "For"));
 					x = rk.length;
 					rk.push(k);
 					rn.push(node);
@@ -394,9 +404,10 @@ export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): PiuContainer => 
 		for (let slot = 0; slot < rows; slot++) {
 			const at = props.at;
 			// renderRow's return is JSXNode (may be a primitive per the type
-			// surface); asNode wraps a string/number into a Label (as For and
-			// appendChild do) so host.add never gets a raw value.
-			host.add(asNode(() => props.renderRow(() => (at ? at() : 0) + slot, data)) as Content);
+			// surface); asRow wraps a string/number into a Label (as For and
+			// appendChild do) and rejects array/null slots loud, so host.add
+			// never gets a raw value.
+			host.add(asRow(() => props.renderRow(() => (at ? at() : 0) + slot, data), "VirtualList"));
 		}
 		return host;
 	}
@@ -700,4 +711,22 @@ function asNode(build: unknown): JSXNode {
 	return (
 		typeof n === "string" || typeof n === "number" ? new Label(null, { string: String(n) }) : n
 	) as JSXNode;
+}
+
+// A For/VirtualList row is ONE mounted node handed to piu add/insert. An
+// array or null/undefined row has no single-node meaning there — a raw array
+// lands in the piu tree as garbage and null dies later inside reconcile with
+// an unactionable TypeError. PORT CONSTRAINT (not Solid parity — Solid
+// accepts fragment/array rows): fail loud at row build, like bindErr. Show
+// sides don't come through here — appendChild legally flattens arrays and
+// skips null for them.
+function asRow(build: unknown, who: string): Content {
+	const n = asNode(build);
+	// booleans too: appendChild SKIPS true/false as children, but a skipped
+	// row has no single-node meaning either — same loud refusal.
+	if (n === null || n === undefined || typeof n === "boolean" || Array.isArray(n))
+		throw new Error(
+			`${who}: row must be a single element (got ${Array.isArray(n) ? "an array" : String(n)})`,
+		);
+	return n as Content;
 }

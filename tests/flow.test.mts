@@ -75,6 +75,63 @@ check(
 );
 disposePrim();
 
+// --- For/VirtualList rows that are an ARRAY or null fail LOUD — a port
+// constraint (one row = one mounted node; a raw array corrupts the piu tree,
+// null died later in reconcile with an unactionable TypeError). NOT a Solid
+// parity point: Solid accepts fragment rows; this port refuses them audibly. ---
+{
+	// mount-time (synchronous — propagates out of the initial effect run)
+	let arrErr = "";
+	try {
+		createRoot(() => For({ each: () => [["a", "b"]], width: 30, children: (r) => r }));
+	} catch (e) {
+		arrErr = String((e && e.message) || e);
+	}
+	check("For array row fails loud at mount", arrErr.includes("For: row must be a single element"));
+	// booleans are legal JSXNode CHILDREN (skipped) but not rows — same refusal
+	let boolErr = "";
+	try {
+		createRoot(() => For({ each: () => [false], width: 30, children: (r) => r }));
+	} catch (e) {
+		boolErr = String((e && e.message) || e);
+	}
+	check("For boolean row fails loud", boolErr.includes("For: row must be a single element"));
+	// update-time (notification path — contained, healthy rows survive)
+	const caught = [];
+	sandbox.__spError = (e) => caught.push(String((e && e.message) || e));
+	const rows9 = signal([1]);
+	const [nulHost] = createRoot(() =>
+		For({ each: () => rows9.value, width: 30, children: (r) => r }),
+	);
+	rows9.value = [1, null]; // the null row throws inside the pass — CONTAINED
+	check(
+		"For null row fails loud on update (contained; healthy row survives)",
+		caught.length === 1 &&
+			caught[0].includes("For: row must be a single element") &&
+			nulHost.contents.length === 1 &&
+			nulHost.contents[0].string === "1",
+	);
+	sandbox.__spError = undefined;
+	// VirtualList rich mode: an array slot is the same defect, at build time
+	let vlErr = "";
+	try {
+		createRoot(() =>
+			VirtualList({
+				data: { count: () => 2, get: (i) => i },
+				rows: 1,
+				width: 30,
+				renderRow: () => ["x", "y"],
+			}),
+		);
+	} catch (e) {
+		vlErr = String((e && e.message) || e);
+	}
+	check(
+		"VirtualList array slot fails loud",
+		vlErr.includes("VirtualList: row must be a single element"),
+	);
+}
+
 // --- Show default mode: swap + dispose, auto-wrapped ---
 const on = signal(false),
 	n = signal(0);
