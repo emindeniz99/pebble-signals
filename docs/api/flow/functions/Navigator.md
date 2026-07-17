@@ -8,7 +8,7 @@
 
 > **Navigator**(`props`): `Container`
 
-Defined in: flow.ts:466
+Defined in: flow.ts:472
 
 Navigator({ root }) — a screen STACK for infinitely-deep navigation on the
 32KB heap. Only the TOP screen is ever BUILT: pushing a child disposes the

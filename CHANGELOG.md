@@ -34,8 +34,34 @@ No registry releases yet; entries accumulate under Unreleased until the first
   latched BEFORE the build, so a side whose builder threw (contained by the
   runtime) left the host empty while `Show` believed the side was mounted —
   suppressing every retry at that truthiness. The memo now resets to
-  "unbuilt" until a build lands; any next re-run rebuilds (same self-heal
-  contract as For's mid-reconcile-throw pin).
+  "unbuilt" when a build throws; any next re-run rebuilds (same self-heal
+  contract as For's mid-reconcile-throw pin). The latch itself stays BEFORE
+  the build: a builder that writes a `when` dependency during its own build
+  re-enters the effect, and the early-return guard must catch it (an
+  unlatched memo double-mounted the side and leaked a root — adversarial
+  refuter probe).
+- **`createResource` drops a superseded fetcher's SYNCHRONOUS throw.** The
+  loading write notifies, a subscriber may re-entrantly `refetch()` during
+  it, and the superseded frame's fetcher then runs after the newer one — its
+  sync throw now checks the generation like the rejection handler instead of
+  clobbering the newer request's loading state (codex review).
+- **`asRow` also refuses FUNCTION rows.** `asNode` unwraps exactly one thunk
+  level, so a double-thunk row mounted a raw function into the piu tree —
+  the same silent-garbage class the row guard exists to kill (refuter probe).
+- **Build: lazy-module closures scanned; lazy bundling must succeed; an
+  aliased `render` call blocks the root shim** (codex review). A lazy root's
+  `./helper` now joins the scan set via its relative closure (its
+  Texture/pdc/romTable assets ship and its runtime imports count toward the
+  keep-set); a failed lazy esbuild bundle fails the build instead of
+  shipping dead `./x` specifiers; `import { render as mount }` + `mount(...)`
+  counts as self-rendering (a shim on top would mount twice).
+
+### Added (lint)
+- **lint-reads `child-signal`:** a bare signal/computed/`useMemo` OBJECT as a
+  JSX child (`<Column>{total}</Column>`) fails the build. appendChild only
+  rejects function children, so the object landed in the piu tree as silent
+  garbage — and the `useMemo` `.value` unification turned the once-loud
+  function-child shape into exactly this silent one (refuter probe).
 - **Computed core hardening.** A computed's reader now subscribes BEFORE the
   recompute (a mid-recompute disposal can no longer drop the reader's
   subscription), and `dispose()` clears EVERY forward id it finds — a

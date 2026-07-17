@@ -8,7 +8,7 @@
 
 > **romTable**(`name`): [`RomTable`](../interfaces/RomTable.md)
 
-Defined in: signals.ts:1327
+Defined in: signals.ts:1331
 
 Open a packed string table from the flash resource area (zero boot RAM;
 one transient string per read). Pack with `tools/pack-table.mts`; the
