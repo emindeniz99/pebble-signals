@@ -511,6 +511,29 @@ test("P1: relativeClosure walks the entry's ./-import graph (cycles safe)", () =
 	assert.deepEqual(out, ["src/app.tsx", "src/util/helper.tsx", "src/data.ts"]);
 });
 
+test("relativeClosure follows bare side-effect imports and re-exports (no `from`)", () => {
+	const fs2: Record<string, string> = {
+		// bare side-effect import (no `from`) + a re-export (`export … from`)
+		"src/app.tsx": 'import "./setup";\nexport { x } from "./api";',
+		"src/setup.tsx": 'import "runtime/flow"; // must reach treeshake seeds',
+		"src/api.ts": "export const x = 1;",
+	};
+	const out = relativeClosure("src/app.tsx", (p) => fs2[p] ?? null);
+	// `from` (re-export) is scanned before the bare-import pass, so api precedes
+	// setup; both are in the closure, which is what matters.
+	assert.deepEqual(out, ["src/app.tsx", "src/api.ts", "src/setup.tsx"]);
+});
+
+test("relativeClosure does not mistake importNow(...) for a bare import", () => {
+	const fs2: Record<string, string> = {
+		"src/app.tsx": 'importNow("app/screen");\nimport "./real";',
+		"src/real.tsx": "export const r = 1;",
+	};
+	// `importNow("app/screen")` is a dynamic call, not a static relative import
+	const out = relativeClosure("src/app.tsx", (p) => fs2[p] ?? null);
+	assert.deepEqual(out, ["src/app.tsx", "src/real.tsx"]);
+});
+
 test("P9: an unknown runtime module seed is KEPT, not silently pruned", () => {
 	const need = nm2('import { x } from "runtime/newthing";');
 	assert.ok(need.has("runtime/newthing"));

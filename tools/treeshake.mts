@@ -65,15 +65,21 @@ export function relativeClosure(entry: string, read: (p: string) => string | nul
 		out.push(norm);
 		const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 		const dir = norm.slice(0, norm.lastIndexOf("/") + 1);
-		for (const m of src.matchAll(/from\s+["'](\.\.?\/[^"']+)["']/g)) {
-			const spec = clean(dir + m[1]);
+		const follow = (rel: string): void => {
+			const spec = clean(dir + rel);
 			// resolve like the bundler: exact, then +.tsx, then +.ts
 			for (const cand of [spec, `${spec}.tsx`, `${spec}.ts`])
 				if (read(cand) !== null) {
 					visit(cand);
 					break;
 				}
-		}
+		};
+		// `from "./x"` covers static imports AND `export … from "./x"` re-exports
+		for (const m of src.matchAll(/from\s+["'](\.\.?\/[^"']+)["']/g)) follow(m[1]);
+		// bare side-effect imports carry NO `from` clause (`import "./setup"`) —
+		// esbuild still bundles them, so their runtime imports / assets / reads
+		// must join the closure too. `\bimport\s+["']` won't match `importNow(`.
+		for (const m of src.matchAll(/\bimport\s+["'](\.\.?\/[^"']+)["']/g)) follow(m[1]);
 	};
 	visit(entry);
 	return out;

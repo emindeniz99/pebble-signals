@@ -184,16 +184,22 @@ for (const closureFile of appClosure.filter(existsSync)) {
 		.replace(/\/\*[\s\S]*?\*\//g, "")
 		.replace(/\/\/[^\n]*/g, "");
 	for (const m of src.matchAll(/import(?:Now)?\s*\(\s*([^)]*)\)/g)) {
-		const lit = /^"app\/((?:screens\/)?[\w-]+)"\s*$/.exec(m[1]);
+		// both quote styles: `importNow('app/s1')` is as valid as "…" and must
+		// resolve, else the lazy module never joins the manifest and the app
+		// dies on first navigation to it (build passes, device fails).
+		const lit = /^['"]app\/((?:screens\/)?[\w-]+)['"]\s*$/.exec(m[1]);
 		const base = lit?.[1];
 		if (base && existsSync(join("src/tsx/examples", APP, `${base}.tsx`))) lazySet.add(base);
 		else if (base && existsSync(join("src/tsx/examples", APP, `${base}.ts`))) lazySet.add(base);
 		// a COMPUTED name under the screens/ folder convention is still
 		// resolvable: EVERY screens/* file ships (enumerated below), so the
 		// dynamic import can only reach shipped-and-scanned modules
-		else if (/^"app\/screens\/"\s*\+/.test(m[1]) && existsSync(join("src/tsx/examples", APP, "screens"))) {
+		else if (
+			/^['"]app\/screens\/['"]\s*\+/.test(m[1]) &&
+			existsSync(join("src/tsx/examples", APP, "screens"))
+		) {
 			/* covered by the folder convention */
-		} else if (/^"(?:pebble\/|embedded:)[\w/:-]+"\s*$/.test(m[1])) {
+		} else if (/^['"](?:pebble\/|embedded:)[\w/:-]+['"]\s*$/.test(m[1])) {
 			/* HOST-preloaded module (pebble/message, embedded:storage/files, …):
 			   the mod compartment's loadNowHook maps these through to the host
 			   archive, so nothing in OUR manifest can be pruned out from under
