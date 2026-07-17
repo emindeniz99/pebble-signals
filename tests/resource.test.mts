@@ -109,6 +109,41 @@ const tick = () => Promise.resolve(); // flush the shared microtask queue
 	check("binding re-ran to the value", seen.join(",") === "…,done");
 }
 
+// --- re-entrant refetch DURING the loading notification: the superseded
+// frame's fetcher runs AFTER the newer one, and its SYNC throw must drop
+// like a stale rejection (not clobber the newer request's loading state) ---
+{
+	const d = defer();
+	let call = 0;
+	let armed = false;
+	const r = createResource(() => {
+		call++;
+		if (call === 1) return Promise.resolve("first");
+		if (call === 2) return d.promise; // the re-entrant (NEWEST) refetch
+		throw new Error("stale sync boom"); // the superseded outer refetch
+	});
+	await tick();
+	check("re-entrant setup: first value in", r.data() === "first");
+	effect(() => {
+		if (r.loading() && armed) {
+			armed = false;
+			r.refetch(); // re-entrant: supersedes the outer frame mid-notification
+		}
+	});
+	armed = true;
+	r.refetch(); // outer frame's own fetcher call happens AFTER the re-entrant one
+	check(
+		"stale sync throw dropped (newest request still loading)",
+		r.loading() === true && r.error() === undefined,
+	);
+	d.resolve("newest");
+	await tick();
+	check(
+		"newest request settles normally after the stale sync throw",
+		r.data() === "newest" && r.error() === undefined && r.loading() === false,
+	);
+}
+
 // --- a fetcher that throws SYNCHRONOUSLY lands in error(), not stuck loading ---
 {
 	const boom = new Error("sync boom");

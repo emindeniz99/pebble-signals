@@ -999,7 +999,11 @@ export function createResource<T>(fetcher: () => Promise<T>): Resource<T> {
 		try {
 			p = fetcher();
 		} catch (err) {
-			st.value = err;
+			// same staleness rule as the rejection handler below: the loading
+			// write above NOTIFIES, and a subscriber may re-entrantly refetch()
+			// during it — this frame's fetcher then runs SUPERSEDED, and its
+			// sync throw must drop, not clobber the newer request's state.
+			if (id === gen) st.value = err;
 			return;
 		}
 		p.then(
