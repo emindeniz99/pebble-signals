@@ -30,6 +30,27 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Root disposal is idempotent and re-entrancy-safe.** A cleanup that
+  called its own root's disposer (or a plain double dispose) re-drained the
+  still-attached disposables list — siblings ran twice and the re-entrant
+  path recursed without bound. The disposer now detaches the list before
+  draining.
+- **A throwing initial effect run no longer leaks a zombie subscriber.**
+  `effect()` whose first run throws never returns an id, so an unowned
+  effect stayed allocated and subscribed to whatever it read before the
+  throw — re-running (and re-throwing) on every later write with no handle
+  to dispose it. The runtime now disposes the effect eagerly and rethrows.
+- **Navigator drops a same-builder redirect's orphan.** A screen that
+  redirected by pushing the SAME builder function object passed the
+  stack-top identity guard (top === build), double-mounting the screen and
+  clobbering the real mount's disposer. A nested swap installing
+  `disposeTop` is now a second bail signal.
+- **Root shim: self-render detection resolves the actual runtime import.**
+  A raw `render(` text test suppressed the shim for any unrelated
+  occurrence (`view.render()`, a local helper named render) — the default
+  component then shipped without a mount and booted blank. Self-rendering
+  now means the `runtime/jsx-runtime` render is imported (named, aliased,
+  or namespaced) AND called.
 - **`Show` self-heals after a contained throwing side.** The truthiness memo
   latched BEFORE the build, so a side whose builder threw (contained by the
   runtime) left the host empty while `Show` believed the side was mounted —
