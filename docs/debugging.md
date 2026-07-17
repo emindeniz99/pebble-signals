@@ -11,6 +11,7 @@ boot](#fxabort-memory-full-at-boot-app-bounces-to-the-watchface) · dies on
 interaction → [memory full at runtime](#fxabort-memory-full-at-runtime-app-dies-on-interaction)
 · boots on Node but not the watch → [stack overflow](#fxabort-javascript-stack-overflow-at-boot-not-memory-full)
 · installs but never appears → [silent boot](#app-installs-but-never-appears--bounces-instantly-with-no-logs)
+· `TypeError: call: not a function` → [an escaped useState accessor](#typeerror-call-not-a-function-an-escaped-usestate-accessor)
 · a binding shows nothing → README gotchas 16/20 (blank font, width-less
 container, `.value` misuse — the build's fontcheck + lint-reads catch most) ·
 need a live log line → [the dev-log bridge](#emulator-misbehaving-installs-hang-buttons-drop).
@@ -65,6 +66,27 @@ Checklist:
    heartbeat counts — a crash screen ALSO emits `instruments:` heartbeats,
    so "8 heartbeats" is not proof of a healthy boot; screenshot to confirm
    real content vs the crash UI.
+
+## `TypeError: call: not a function` (an escaped useState accessor)
+
+A callback reached through an object turned out to be `undefined`. The
+historical cause (the pulse incident): passing a `useState` getter/setter as
+a VALUE — `boot({ setName })` — while the lowering rewrote the pair and
+removed the binding, leaving `setName` dangling. Two guards now stand between
+you and this crash, so on a current build you should never see it:
+
+1. **Build time:** lint-reads rule 5 fails the build on any accessor escape
+   (`[setter-as-value]` / `[getter-as-value]`) and names the fix — wrap it:
+   `boot({ setName: (v) => setName(v) })`.
+2. **Compile time:** even with the lint bypassed (`LINT_READS=0`), the
+   lowering now SEES shorthand/export escapes and bails the pair to the heap
+   object API instead of miscompiling (device-verified:
+   `screenshots/rule5-escape-bail-gabbro.png` boots the once-fatal shape).
+
+If you still hit this error, the failing callee is your own object plumbing
+(a ctx field never assigned, a lazy module loaded before its wiring ran) —
+not the reactive pair. Prefer the wrap over the bypass regardless: a bailed
+pair costs arena bytes (Rule 4).
 
 ## App installs but never appears / bounces instantly with NO logs
 

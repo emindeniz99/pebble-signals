@@ -20,6 +20,13 @@ One of the three silent budgets: 32KB arena, ~150-symbol boot floor, or the
 overflow`), then [the playbook](xs-heap-playbook.md). The flagship `pulse`
 died twice on the way to shipping — its lessons are written down.
 
+**Can I pass a setter (or getter) to another module / callback table?**
+Wrap it: `boot({ setName: (v) => setName(v) })`. A bare `{ setName }`
+escape costs the pair its packed lowering, and that exact shape once killed
+the flagship on device — the build now fails loud with the wrap in the
+message (`[setter-as-value]`).
+[Debugging](debugging.md#typeerror-call-not-a-function-an-escaped-usestate-accessor).
+
 **Can I use `fetch` / talk to the internet?**
 Yes, through the phone: the pkjs proxy ships with every build. A full
 `fetch()` from the watch works (with arena-sized responses);

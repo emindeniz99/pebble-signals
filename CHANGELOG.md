@@ -9,7 +9,24 @@ No registry releases yet; entries accumulate under Unreleased until the first
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+- **Lowering miscompile on invisible value-escapes.** A `useState` pair (or
+  `signal`/`computed` binding) referenced through a shorthand property
+  (`{ setName }`) or an export specifier (`export { setA }`) still lowered —
+  the declaration was removed while the reference survived, leaving a
+  dangling identifier that died on device (`TypeError: call: not a
+  function`; the pulse incident). The reference scan now resolves those
+  shapes (`valueSymbol()`), so every escape correctly BAILS the binding to
+  the heap object API. Measured: 3 of 6 escape shapes miscompiled before,
+  0 after; all 6 selftest-pinned.
+
+### Added
+- **lint-reads rule 5** (`setter-as-value` / `getter-as-value`): a `useState`
+  getter/setter escaping as a VALUE now fails the build with the wrap fix in
+  the message (`(v) => setName(v)` / `() => name()`) — an escaped pair
+  silently loses the packed lowering, and the shorthand shape used to be
+  device-fatal. Type-position references (`typeof setN`) are exempt, and a
+  site already flagged by a sharper rule is not double-reported.
 
 ## [1.0.0] - 2026-07-16
 

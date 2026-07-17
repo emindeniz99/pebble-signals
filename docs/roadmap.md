@@ -40,10 +40,32 @@ no work inside this repo can advance). New work starts a new list.
       deviceinfo-emery.png). The screen.width/round adaptation story holds.
 
 **New (2026-07, found by the flagship):**
-- [ ] lint-reads rule 5: flag a `useState` setter passed as a VALUE (the
-      lowering removes the binding — dangling identifier, device-fatal;
-      pulse died on `{ setName }`; the arrow-wrap is the fix and the lint
-      should say so).
+- [x] lint-reads rule 5: flag a `useState` setter passed as a VALUE ✅
+      (2026-07). Went deeper than the ask — probing the lowering showed the
+      real bug class: `getSymbolAtLocation` can't see shorthand-property
+      (`{ setName }`) or export-specifier (`export { setA }`) references, so
+      those pairs LOWERED with live references left dangling (measured: 3 of
+      6 escape shapes miscompiled; the other 3 already bailed). Fixed at the
+      root — `valueSymbol()` in tools/lower/program.mts makes every escape
+      visible, so all 6 shapes now bail to the object API (selftest-pinned) —
+      AND rule 5 makes the cost loud at build time: `[setter-as-value]` /
+      `[getter-as-value]` findings name the wrap fix (`(v) => setName(v)`).
+      Type-position refs (`typeof setN`) exempt; sharper rules keep their
+      sites (no double findings). An adversarial verify round (hunter +
+      refuter agents over the fix) surfaced and closed three MORE lowering
+      miscompiles in the family — an `export` MODIFIER on a pair/signal
+      declaration lowered away the exported bindings (importers died at
+      module instantiation), a lowerable reference inside `useState(...)`'s
+      initializer produced overlapping edits (garbled output), and
+      parenthesized `(s.value)++` mutations evaded the bail (SyntaxError
+      output) — plus one shipped-code false positive: a getter as a JSX
+      prop (`<Readout value={count} />`) is the documented thunk contract
+      and is now exempt by design. All selftest-pinned. Receipts: build of
+      the pulse death shape fails loud (exit 1, exact line/col); same shape
+      with `LINT_READS=0` now boots on gabbro
+      (screenshots/rule5-escape-bail-gabbro.png) where it used to die with
+      `TypeError: call: not a function`; pulse canary re-booted unchanged
+      (148 symbols, painted).
 
 **Waiting on the outside world (no repo-side work possible; what unblocks each):**
 - heap-sizing live-verify — needs a QEMU-bootable newer classic firmware
@@ -367,7 +389,9 @@ no work inside this repo can advance). New work starts a new list.
 - [x] ~~build-time lint: flag *calling* a `computed`/`signal` binding~~ ✅
       SHIPPED as `tools/lint-reads.mts` (2026-07): type-aware gate, 4 rules
       (call-signal / stringify-signal / prop-signal / stringify-fn), default ON
-      in every build, zero false positives across all 45 examples
+      in every build, zero false positives across all 45 examples (rule 5,
+      setter/getter-as-value, added later the same month — see the flagship
+      item under "New (2026-07, found by the flagship)" above)
 
 **New ideas:**
 - [x] speech-to-text via `pebble/dictation` — PROBED on-device (2026-07,

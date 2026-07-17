@@ -616,8 +616,10 @@ Reviewed: signals.js, flow.js, jsx-runtime.js, tools/lower.py, build.mts.
    transform is now AST-based on the TypeScript compiler API — python is
    out of the pipeline, rewrites are binding-symbol-exact. RAM-neutral;
    the tooling-robustness win is banked.
-5. **Stage 3 lowering**: same treatment for bare `signal()`/`computed()`
-   in app code (→ S.sig / plain fn): ~50 B/signal. Effort S.
+5. ~~Stage 3 lowering~~ **DONE** (tools/lower/lower.mts): bare
+   `signal()`/`computed()`/`useMemo()` in app code lower to
+   `S.sig`/`S.computed` with `.value` reads/writes → `S.get`/`S.put`;
+   any non-`.value` use bails to the object API. ~50 B/signal banked.
 6. **Constant tables → preloaded ROM**: DOW/month names etc. as consts in
    the preloaded runtime instead of app modules: ~50-150 B/app. Effort XS.
 7. **Runtime export pruning**: each export costs alias RAM; audit rarely
@@ -691,13 +693,11 @@ is NET-NEGATIVE, the same reason #17 failed.
 - **Owner packing** (createRoot {d:[]} → parallel table): same story at 1-4
   owners/app. DEFERRED.
 - **Stage-3 signal()/computed lowering**: `signal()` → `S.sig` IS a real
-  object→index win (no fixed table, same as the shipped useState lowering)
-  — but ZERO current benefit: every example uses useState, none call
-  signal() directly, and computed() is inherently runtime. SPEC'd for when
-  direct signal() usage appears (extend lower.mts: `const s = signal(v)` →
-  `S.sig`, `s.value` read → `S.get(s)`, `s.value = e` statement → `S.set(s,
-  e)`, bail on any non-.value use). Not implemented to avoid adding
-  untested-in-practice complexity to a working tool for no current gain.
+  object→index win (no fixed table, same as the shipped useState lowering).
+  SHIPPED since — the spec below landed in lower.mts as written, kept here
+  for the record: `const s = signal(v)` → `S.sig`, `s.value` read →
+  `S.get(s)`, `s.value = e` statement → `S.put(s, e)` (raw put, not set —
+  set would unwrap stored functions), bail on any non-.value use.
 - **ROM const tables**: moving app-specific arrays (DOW) into the shared
   preloaded runtime ROMs them but charges every app; marginal. DEFERRED.
 
@@ -793,12 +793,19 @@ Findings (evidence in the moddable toolchain sources):
   `app/boot` module fired off a 400ms timer (pulse's shipped shape);
   (c) treeshake dropping a whole runtime module is worth ~35+ symbols —
   the single biggest lever an app controls.
-- **Lowering footgun (found by pulse, planned as lint-reads rule 5):** a
-  `useState` SETTER passed as a VALUE (`{ setName }`, a callback table, a
-  prop) emits a DANGLING identifier — the lowering rewrites setter CALLS to
-  the packed API and the binding itself no longer exists; the app dies at
-  that line's first evaluation with `TypeError: call: not a function`.
-  Wrap it: `setName: (v) => setName(v)` keeps it a call the pass rewrites.
+- **Lowering footgun (found by pulse — CLOSED 2026-07):** a `useState`
+  getter/setter passed as a VALUE (`{ setName }`, a callback table, an
+  `export { setA }` or `export const [a, setA]`) used to emit a DANGLING
+  identifier — those references were invisible to `getSymbolAtLocation`, so
+  the pair lowered while the reference survived and the app died at that
+  line's first evaluation with `TypeError: call: not a function`. Fixed at
+  the root (`valueSymbol()` in tools/lower/program.mts + export-modifier
+  candidacy check — every probed escape shape now BAILS to the object API,
+  selftest-pinned) and made loud at build time: lint-reads rule 5 fails the
+  build naming the wrap fix (`setName: (v) => setName(v)`), which also
+  keeps the pair on the packed API. The once-fatal shape boots with the
+  lint bypassed (screenshots/rule5-escape-bail-gabbro.png); symptom
+  section: docs/debugging.md.
 - **XS docs survey (2026-07 — Scopes / ROM Colors / linker warnings):**
   - *Scopes:* a closure pairs slots — one on the machine stack pointing at
     one on the heap — and captures ONLY the variables an inner function

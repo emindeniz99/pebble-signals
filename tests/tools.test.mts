@@ -403,6 +403,91 @@ test("lint-reads: every CORRECT read syntax is clean (zero false positives)", ()
 	assert.deepEqual(out, []);
 });
 
+// ---- lint-reads rule 5: useState accessors escaping as VALUES ---------------
+// The pulse incident: `{ setName }` compiled to a dangling identifier and died
+// on device (`TypeError: call: not a function`). The lowering now BAILS on
+// every escape (selftest pins that); rule 5 makes the cost loud + names the
+// wrap fix, since a bailed pair silently falls back to the heap object API.
+
+test("lint-reads rule 5: every setter escape shape is flagged with the wrap fix", () => {
+	const out = lintFixture(
+		"const [n, setN] = useState(0);\n" +
+			"const boot = (c: unknown) => c;\n" +
+			"boot({ setN });\n" + // shorthand — the killer shape
+			"boot({ set: setN });\n" + // longhand property
+			"boot(setN);\n" + // call argument
+			"export { setN };\n" + // export specifier
+			"export { setN as pub };\n" + // aliased export: ONE finding (local side only)
+			"setN(n() + 1);\n",
+	);
+	assert.deepEqual(
+		out.map((f) => f.rule),
+		["setter-as-value", "setter-as-value", "setter-as-value", "setter-as-value", "setter-as-value"],
+	);
+	for (const f of out) assert.match(f.msg, /\(v\) => setN\(v\)/);
+});
+
+test("lint-reads rule 5: an exported useState pair is flagged once, with the wrapper advice", () => {
+	const out = lintFixture("export const [n, setN] = useState(0);\nsetN(n() + 1);\n");
+	assert.deepEqual(
+		out.map((f) => f.rule),
+		["setter-as-value"],
+	);
+	assert.match(out[0].msg, /exported with its useState pair/);
+	assert.match(out[0].msg, /export const set = \(v\) => setN\(v\)/);
+});
+
+test("lint-reads rule 5: JSX prop — getter is a thunk position (clean), setter still flagged", () => {
+	const out = lintFixture(
+		"const [n, setN] = useState(0);\nsetN(1);\n" +
+			"export const app = render(() => <Readout value={n} onPick={setN} />, {});\n",
+	);
+	assert.deepEqual(
+		out.map((f) => f.rule),
+		["setter-as-value"], // value={n} is the shipped component.tsx pattern — allowed
+	);
+});
+
+test("lint-reads rule 5: getter as a value / getter called with args", () => {
+	const out = lintFixture(
+		"const [n, setN] = useState(0);\n" +
+			"export const ctx = { n };\n" + // getter shorthand escape
+			"export const bad = n(42);\n" + // getters take no arguments
+			"setN(1);\n",
+	);
+	assert.deepEqual(
+		out.map((f) => f.rule),
+		["getter-as-value", "getter-as-value"],
+	);
+	assert.match(out[0].msg, /\(\) => n\(\)/);
+	assert.match(out[1].msg, /takes no arguments/);
+});
+
+test("lint-reads rule 5: wraps, shadows, keys, foreign useState, unlowerable pairs stay clean", () => {
+	const out = lintFixture(
+		'import { useState as rUS } from "react";\n' +
+			"const [n, setN] = useState(0);\n" +
+			"export const ok = { setN: (v: number) => setN(v), read: () => n() };\n" + // the wrap fix
+			"const keys = { setN: 1, n: 2 };\n" + // property KEYS, not references
+			"function shadow(setN: (v: number) => void) { const p = setN; return p; }\n" + // different symbol
+			"const [x, sX] = rUS(0);\nexport const foreign = { sX, x };\n" + // not OUR useState
+			"const [solo] = useState(1);\nexport const single = { solo };\n" + // 1-element pair: lowering never touches it
+			"const [, setOnly] = useState(9);\nexport const so = { setOnly };\n" + // omitted element: not a candidate either
+			"const typed: typeof setN = (v) => setN(v);\n" + // TYPE-position ref is erased at emit
+			"const arity: typeof setN.length = 1;\n" + // qualified type query climbs to the TypeQuery
+			"setN(n() + keys.n + arity);\nshadow((v) => setN(v));\ntyped(2);\nsetOnly(3);\n",
+	);
+	assert.deepEqual(out, []);
+});
+
+test("lint-reads rule 5: defers when a sharper rule already flagged the site", () => {
+	const out = lintFixture('const [n, setN] = useState(0);\nsetN(1);\nexport const t = "x " + n;\n');
+	assert.deepEqual(
+		out.map((f) => f.rule),
+		["stringify-fn"], // one finding, not stringify-fn + getter-as-value
+	);
+});
+
 test("gen-manifest: commented-out Texture refs do not ship phantom resources", () => {
 	const r = deriveResources(
 		'// new Texture("ghost.png")\n/* new Texture("ghost2") */\nconst x = 1;\n',

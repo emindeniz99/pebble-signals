@@ -115,6 +115,7 @@ debugging) or *force* it past its self-disable.
 | `TREESHAKE` | `1` | prune the manifest to the runtime modules the app actually imports (a pure-signal watchface drops `runtime/flow` from preload). **Self-disables** when the app uses a dynamic `import()`/`importNow()` the static scan can't follow — pruning could drop a module reached at runtime. A LITERAL `importNow("app/<x>")` does NOT self-disable: build.mts resolves it to `src/tsx/examples/<app>/<x>.tsx`, ships it as a non-preloaded manifest module, and counts its runtime imports in the keep-set (`lazyscreen` example). `TREESHAKE=0` forces the full runtime; `TREESHAKE_FORCE=1` prunes anyway. |
 | `BUNDLE` | `all` | app-submodule strategy. `all` inlines the app's own `./`-imports into `main.js` (loaded into the 32KB heap). `preload` targets a large static shared submodule frozen into ROM — its device-verified realization is the lazy-import path in `multilazy.tsx` (build.mts points there rather than ship an unmeasured eager-preload path, Rule 2). `runtime/*` is always left external/preloaded in both. |
 | `SKIP_FONTCHECK` | `0` | skip the compile-time Pebble system-font validation (gotcha 20). Set to `1` for custom/new fonts. |
+| `LINT_READS` | `1` | fail the build on reactive-read bugs — calling a `.value` signal, stringifying a getter, passing a `useState` getter/setter as a VALUE (rule 5; the pulse `{ setName }` death shape, gotcha 23). Each finding names its fix (e.g. wrap: `(v) => setName(v)`). `LINT_READS=0` bypasses — prefer the wrap. |
 
 Every app below is verified on BOTH watches — **gabbro** (Round 2, round
 260×260) and **emery** (Time 2, square 200×228) — from the SAME source,
@@ -865,6 +866,18 @@ is the JS-value-stack post-mortem (the third fixed budget: 384 slots).
    Only `string/state/variant/skin/style/active` accept a reactive binding.
    (This is a Piu limitation, not a signals one — Solid can set `style.left`
    because the DOM allows it; Piu does not.)
+
+23. **A `useState` getter/setter passed as a VALUE (`boot({ setName })`)
+   used to MISCOMPILE** — the lowering removed the pair's binding while the
+   shorthand reference survived, and the app died at first evaluation with
+   `TypeError: call: not a function` (the pulse incident, 2026-07). Two
+   guards now stand: the lowering sees shorthand/export escapes and BAILS
+   the pair to the object API (all probed escape shapes, selftest-pinned),
+   and lint-reads rule 5 fails the build with the fix in the message —
+   wrap it: `boot({ setName: (v) => setName(v) })`, which also keeps the
+   pair on the cheap packed API. (Exception by design: a getter as a JSX
+   prop — `<Readout value={count} />` — IS the documented thunk contract
+   and stays clean.) Symptom walkthrough: docs/debugging.md.
 
 ## vs react-pebble
 

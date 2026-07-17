@@ -17,6 +17,19 @@
 // `signal`/`computed` (resolved straight to the runtime sources, like
 // tsconfig.check.json) and zero regex guessing. Fails the build loudly.
 //
+// Rule 5 (the pulse `{ setName }` incident): a useState getter/setter
+// ESCAPING as a value. The lowering rewrites CALLS only; any other reference
+// forces the whole pair off the packed lowering onto the heap object API —
+// and the shorthand escape used to compile to a dangling identifier and die
+// on device before the lowering learned to bail on it. The wrap is the fix:
+//
+//   const [name, setName] = useState("");
+//   boot({ setName });                       // rule 5 — escape
+//   boot({ setName: (v) => setName(v) });    // lowers, packed
+//
+// Symbol-resolved exactly like the lowering (shadows don't trip it; a
+// foreign `useState` import is ignored).
+//
 // Deliberately NOT a full type-check: examples stay loose by design (see
 // tsconfig.check.json's note); we flag only provable read-syntax misuse.
 //
@@ -25,13 +38,20 @@
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import ts from "typescript";
+import { collectIdentifiers, importSymbol, valueSymbol } from "./lower/program.mts";
 import { packageRoot } from "./pkg-root.mts";
 
 export interface Finding {
 	file: string;
 	line: number; // 1-based
 	col: number; // 1-based
-	rule: "call-signal" | "stringify-signal" | "prop-signal" | "stringify-fn";
+	rule:
+		| "call-signal"
+		| "stringify-signal"
+		| "prop-signal"
+		| "stringify-fn"
+		| "setter-as-value"
+		| "getter-as-value";
 	msg: string;
 }
 
@@ -115,6 +135,7 @@ export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
 	const checker = prog.getTypeChecker();
 	const findings: Finding[] = [];
 	const seen = new Set<string>(); // one finding per site
+	const seenPos = new Set<string>(); // any rule at this site (rule 5 defers)
 
 	const report = (n: ts.Node, rule: Finding["rule"], msg: string) => {
 		const sf = n.getSourceFile();
@@ -122,6 +143,7 @@ export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
 		const key = `${sf.fileName}:${line}:${character}:${rule}`;
 		if (seen.has(key)) return;
 		seen.add(key);
+		seenPos.add(`${sf.fileName}:${line}:${character}`);
 		findings.push({ file: sf.fileName, line: line + 1, col: character + 1, rule, msg });
 	};
 
@@ -185,6 +207,110 @@ export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
 			ts.forEachChild(node, visit);
 		};
 		visit(sf);
+
+		// Rule 5: useState pair bindings escaping as VALUES. Candidacy mirrors
+		// the lowering exactly (const [g, s] = useState(init) of OUR useState,
+		// both plain identifiers) — a pair the lowering never touches can't
+		// dangle and isn't flagged. Runs after visit() so a site the type
+		// rules already flagged (e.g. stringifying a getter) isn't doubled.
+		const useSym = importSymbol(checker, sf, "useState");
+		if (!useSym) continue;
+		const declIds = new Set<ts.Node>();
+		const pairBindings = new Map<ts.Symbol, { name: string; kind: "getter" | "setter" }>();
+		(function walkPairs(n: ts.Node): void {
+			if (
+				ts.isVariableDeclaration(n) &&
+				n.initializer &&
+				ts.isCallExpression(n.initializer) &&
+				ts.isIdentifier(n.initializer.expression) &&
+				checker.getSymbolAtLocation(n.initializer.expression) === useSym &&
+				ts.isArrayBindingPattern(n.name) &&
+				n.name.elements.length === 2
+			) {
+				const [ge, se] = n.name.elements;
+				if (
+					!ts.isOmittedExpression(ge) &&
+					!ts.isOmittedExpression(se) &&
+					ts.isIdentifier(ge.name) &&
+					ts.isIdentifier(se.name)
+				) {
+					// an EXPORTED pair escapes by module contract — the lowering
+					// skips it (object API, correct) but the packed form is lost.
+					// One finding on the setter; the bindings stay untracked
+					// (they are real functions, later refs are legit).
+					if (
+						ts.isVariableStatement(n.parent.parent) &&
+						ts.getModifiers(n.parent.parent)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+					) {
+						report(
+							se.name,
+							"setter-as-value",
+							`\`${se.name.text}\` is exported with its useState pair — the pair can't lower (heap object API). Keep it module-local and export wrappers: \`export const set = (v) => ${se.name.text}(v)\``,
+						);
+						return ts.forEachChild(n, walkPairs);
+					}
+					for (const [el, kind] of [
+						[ge, "getter"],
+						[se, "setter"],
+					] as const) {
+						const sym = checker.getSymbolAtLocation((el as ts.BindingElement).name);
+						if (sym)
+							pairBindings.set(sym, {
+								name: ((el as ts.BindingElement).name as ts.Identifier).text,
+								kind,
+							});
+						declIds.add((el as ts.BindingElement).name);
+					}
+				}
+			}
+			ts.forEachChild(n, walkPairs);
+		})(sf);
+		if (!pairBindings.size) continue;
+		for (const id of collectIdentifiers(sf)) {
+			if (declIds.has(id)) continue;
+			// a TYPE-position reference (`typeof setN`, `Foo<typeof setN>`) is
+			// erased at emit — no runtime escape. isPartOfTypeNode misses type
+			// QUERIES (their name resolves in value space), so climb qualified
+			// names to the enclosing TypeQuery explicitly. (The lowering still
+			// conservatively bails on these.)
+			if (ts.isPartOfTypeNode(id)) continue;
+			let q: ts.Node = id;
+			while (ts.isQualifiedName(q.parent)) q = q.parent;
+			if (ts.isTypeQueryNode(q.parent)) continue;
+			const sym = valueSymbol(checker, id);
+			const hit = sym && pairBindings.get(sym);
+			if (!hit) continue;
+			const asCall =
+				ts.isCallExpression(id.parent) && id.parent.expression === id ? id.parent : undefined;
+			if (hit.kind === "setter" ? !!asCall : asCall && asCall.arguments.length === 0) continue;
+			// a GETTER as a JSX ATTRIBUTE value is a thunk position — the getter
+			// IS `() => T`, the documented reactive contract for props (shipped
+			// pattern: component.tsx `<Readout value={count} />`). The pair
+			// bails (A1: component props are never auto-thunked) — allowed.
+			if (
+				hit.kind === "getter" &&
+				ts.isJsxExpression(id.parent) &&
+				id.parent.expression === id &&
+				ts.isJsxAttribute(id.parent.parent)
+			)
+				continue;
+			const { line, character } = sf.getLineAndCharacterOfPosition(id.getStart());
+			if (seenPos.has(`${sf.fileName}:${line}:${character}`)) continue; // sharper rule spoke
+			if (hit.kind === "setter")
+				report(
+					id,
+					"setter-as-value",
+					`\`${hit.name}\` is a useState setter passed as a VALUE — wrap: \`(v) => ${hit.name}(v)\`. An escaped pair loses the packed lowering (heap object API); the \`{ ${hit.name} }\` shorthand shape used to die on device`,
+				);
+			else
+				report(
+					id,
+					"getter-as-value",
+					asCall
+						? `\`${hit.name}\` is a useState getter — it takes no arguments: \`${hit.name}()\``
+						: `\`${hit.name}\` is a useState getter used as a VALUE — call it (\`${hit.name}()\`) or pass \`() => ${hit.name}()\`. An escaped pair loses the packed lowering (heap object API)`,
+				);
+		}
 	}
 	return findings;
 }
