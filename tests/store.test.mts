@@ -28,6 +28,10 @@ check("remove middle count", s.count() === 8);
 check("remove middle shift", s.get(3) === "hi tödo" && s.get(7) === null);
 check("remove bad index", s.remove(99) === -1);
 check("get bad index", s.get(99) === undefined);
+// a non-integer index must return undefined, NOT hang: `while (i--)` never
+// reaches 0 from a fraction (a VirtualList at() returning 0.5 would freeze)
+check("get fractional index is undefined (no hang)", s.get(0.5) === undefined);
+check("get NaN index is undefined", s.get(NaN) === undefined);
 
 // custom type: {id, done, title}
 const TODO = 8;
@@ -155,6 +159,45 @@ try {
 	threw = /no codec for tag 200/.test(e.message);
 }
 check("push with unregistered tag throws clear error", threw);
+
+// def() enforces the 8..255 custom-tag contract — a codec on a built-in tag
+// (0-7) would be silently read back as an int/bool/etc; a tag past 255
+// truncates into the byte header. Fail loud at registration.
+const defThrows = (tag) => {
+	try {
+		createStore(16).def(
+			tag,
+			() => 0,
+			() => 0,
+		);
+		return false;
+	} catch (e) {
+		return /custom tag must be 8\.\.255/.test(e.message);
+	}
+};
+check("def rejects a built-in tag (5)", defThrows(5));
+check("def rejects tag 7 (reserved)", defThrows(7));
+check("def rejects a tag past 255", defThrows(256));
+{
+	// positive: tag 8 and 255 register without throwing
+	const sd = createStore(16);
+	let ok = true;
+	try {
+		sd.def(
+			8,
+			() => 0,
+			() => 0,
+		);
+		sd.def(
+			255,
+			() => 0,
+			() => 0,
+		);
+	} catch {
+		ok = false;
+	}
+	check("def accepts the 8..255 range ends", ok);
+}
 
 // coverage: custom codec push when the store is already FULL (max < 0 path)
 const sfull = createStore(6); // 2-byte header + 4-byte payload = one i32

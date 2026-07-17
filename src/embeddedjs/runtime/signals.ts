@@ -1077,6 +1077,11 @@ const Store = class {
 	// max) writes the payload and returns its length, or -1 if it needs more
 	// than max; decode(bytes, offset, length) returns the value.
 	def(tag: number, encode: Encode, decode: Decode): void {
+		// tags 0-7 are reserved for built-ins (I32/F64/STR/TRUE/FALSE/NULL +
+		// two spare) and a codec registered there would be silently misread by
+		// get() as a built-in; a tag past 255 truncates into the byte header.
+		// Fail loud instead of corrupting on read.
+		if (tag < 8 || tag > 255) throw new Error("store: custom tag must be 8..255, got " + tag);
 		if (this.c === null) this.c = {};
 		this.c[tag] = [encode, decode];
 	}
@@ -1181,7 +1186,11 @@ const Store = class {
 	}
 	// byte offset of record i, or -1
 	o(i: number): number {
-		if (i < 0 || i >= this.n) return -1;
+		// reject non-integers too: `while (i--)` never terminates for a
+		// fractional i (0.5 -> -0.5 -> … stays truthy forever) — a VirtualList
+		// whose at() returns a fraction would HANG the app. `(i | 0) !== i`
+		// also catches NaN (NaN | 0 === 0).
+		if (i < 0 || i >= this.n || (i | 0) !== i) return -1;
 		let p = 0;
 		while (i--) p += 2 + this.b[p + 1];
 		return p;
@@ -1304,7 +1313,10 @@ export function romTable(name: string): RomTable {
 		count,
 		get(i: number): string {
 			if (!count) return "";
-			const k = i % count;
+			// wrap modulo count — JS `%` keeps the sign, so a negative probe
+			// (get(-1) for "last entry", or a scroll offset that dips below 0)
+			// must be normalized or u16() reads a negative offset.
+			const k = (((i % count) + count) % count) | 0;
 			const s = k ? u16(2 * k) : 0;
 			return S2.fromArrayBuffer(r.slice(base + s, base + u16(2 * k + 2)));
 		},

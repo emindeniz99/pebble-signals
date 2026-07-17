@@ -8,7 +8,7 @@
 
 > **createStore**(`size`): [`ByteStore`](../interfaces/ByteStore.md)
 
-Defined in: signals.ts:1265
+Defined in: signals.ts:1274
 
 Byte-record store: records live as BYTES in one Uint8Array, not as slots.
 

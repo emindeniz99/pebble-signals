@@ -806,6 +806,9 @@ check("provide restores after build", useContext(Theme) === "light");
 	check("romTable first entry (offset-0 branch)", t.get(0) === "alpha");
 	check("romTable middle entry", t.get(1) === "bravo");
 	check("romTable wraps modulo count", t.get(5) === "charlie");
+	// negative probes wrap to the tail (JS % keeps the sign; must normalize)
+	check("romTable get(-1) wraps to last entry", t.get(-1) === "charlie");
+	check("romTable get(-3) wraps to first entry", t.get(-3) === "alpha");
 	const e = romTable("empty.tbl");
 	check("romTable empty table", e.count === 0 && e.get(7) === "");
 }
