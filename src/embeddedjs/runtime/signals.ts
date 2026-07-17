@@ -637,7 +637,17 @@ export function effect(fn: EffectFn): number {
 	// throwing initial run is still torn down by its root. A top-level
 	// effect (no context) stays manual, as before.
 	track(e);
-	run(e);
+	try {
+		run(e);
+	} catch (err) {
+		// a THROWING initial run: the caller never receives the id, so an
+		// UNOWNED effect would stay allocated and subscribed to whatever it
+		// read before throwing — a zombie re-run on every later write, with
+		// no handle to dispose it. Owned effects are torn down by their root
+		// anyway; dispose() is idempotent, so clean up eagerly and rethrow.
+		dispose(e);
+		throw err;
+	}
 	return e;
 }
 
@@ -793,8 +803,15 @@ export function createRoot<T>(fn: () => T): [T, () => void] {
 	const prev = owner;
 	owner = o;
 	const disposer = () => {
-		drainDisposables(o.d); // untracked + contained (see the helper)
-		o.d.length = 0;
+		// DETACH before draining: a cleanup that re-enters this same disposer
+		// (or a plain double dispose) must find an empty list — draining the
+		// still-attached list re-ran siblings and recursed without bound.
+		// Idempotency makes root disposal safe from any cleanup path.
+		const list = o.d;
+		if (list.length === 0) return;
+		o.d = [];
+		drainDisposables(list); // untracked + contained (see the helper)
+		list.length = 0;
 	};
 	let result: T;
 	try {

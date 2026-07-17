@@ -1017,4 +1017,50 @@ check("provide restores after build", useContext(Theme) === "light");
 	(globalThis as { localStorage?: unknown }).localStorage = undefined;
 }
 
+// re-entrant root disposal: a cleanup that calls its OWN root's disposer
+// (or a plain double dispose) must be a no-op — the disposer detaches the
+// list before draining, so siblings run exactly once instead of the drain
+// recursing through the still-attached list
+{
+	let aRuns = 0;
+	let bRuns = 0;
+	let disposeSelf: (() => void) | null = null;
+	const [, dRoot] = createRoot(() => {
+		onCleanup(() => {
+			aRuns++;
+			disposeSelf?.();
+		});
+		onCleanup(() => bRuns++);
+	});
+	disposeSelf = dRoot;
+	dRoot();
+	check("re-entrant root dispose runs each cleanup exactly once", aRuns === 1 && bRuns === 1);
+	dRoot();
+	check("root dispose is idempotent", aRuns === 1 && bRuns === 1);
+}
+
+// a top-level effect whose FIRST run throws: the throw escapes effect() and
+// the caller never receives an id — the runtime must dispose the effect
+// eagerly, or it stays subscribed as an UNDISPOSABLE zombie re-running on
+// every later write to whatever it read before throwing
+{
+	const zsig = signal(0);
+	let zRuns = 0;
+	let threw = false;
+	globalThis.__spError = () => {}; // a pre-fix zombie re-run throws inside notify
+	try {
+		effect(() => {
+			zRuns++;
+			zsig.value; // subscribes BEFORE the throw
+			throw new Error("init boom");
+		});
+	} catch {
+		threw = true;
+	}
+	check("initial-run throw escapes effect()", threw && zRuns === 1);
+	zsig.value = 1;
+	check("no zombie: later writes do not re-run the leaked effect", zRuns === 1);
+	delete globalThis.__spError;
+}
+
 done();
