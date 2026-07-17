@@ -236,8 +236,8 @@ if (treeshake)
 if (!flag(cli["skip-fontcheck"], "SKIP_FONTCHECK", "1", false))
 	run(process.execPath, [
 		join(TOOLS, `fontcheck${EXT}`),
-		appSrc,
 		join("src/tsx/examples", APP, "fonts"),
+		...shakeSources.filter(existsSync),
 	]);
 
 // Reactive-read lint (the ".value footgun"): the app tsconfig is noCheck, so

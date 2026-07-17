@@ -4,7 +4,10 @@
 // from build.mts's Python heredoc to a testable module. SKIP_FONTCHECK=1 (in
 // build.mts) bypasses it for custom/new fonts.
 //
-// Usage (CLI): node tools/fontcheck.mts <appSrc>   (exit 1 on a bad font)
+// Usage (CLI): node tools/fontcheck.mts <fontsDir> <src...>  (exit 1 on a bad
+// font). Scans EVERY app-closure source, not just the entry — a `font:` literal
+// in a bundled helper or lazy screen ships to the device and renders blank the
+// same way (build.mts passes the full closure, matching gen-manifest/lint-reads).
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 
 // Pebble system fonts reachable via piu "['bold '][N]px Family" strings, keyed
@@ -45,15 +48,19 @@ export function badFonts(src: string, customFamilies?: Set<string>): string[] {
 }
 
 if (import.meta.main) {
-	const src = readFileSync(process.argv[2], "utf8");
-	// optional 2nd arg: the app's fonts/ dir — its TTF basenames become the
-	// custom-family allowlist (family = the part before the -Suffix)
-	const fontsDir = process.argv[3];
+	// arg 1: the app's fonts/ dir — its TTF basenames become the custom-family
+	// allowlist (family = the part before the -Suffix); may not exist (no custom
+	// fonts). args 2+: every app-closure source to scan.
+	const fontsDir = process.argv[2];
+	const srcFiles = process.argv.slice(3);
 	const custom = new Set<string>();
 	if (fontsDir && existsSync(fontsDir))
 		for (const f of readdirSync(fontsDir))
 			if (f.endsWith(".ttf")) custom.add(f.replace(/-\w+\.ttf$/, "").toLowerCase());
-	const bad = badFonts(src, custom);
+	const bad: string[] = [];
+	for (const f of srcFiles)
+		if (existsSync(f))
+			for (const b of badFonts(readFileSync(f, "utf8"), custom)) bad.push(`${f}: ${b}`);
 	if (bad.length) {
 		console.error("FONTCHECK FAIL (gotcha 20 — invalid font renders BLANK, no error):");
 		for (const b of bad) console.error(`  ${b}  <- not a Pebble system font key`);
