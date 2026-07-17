@@ -202,8 +202,16 @@ export function Show(props: ShowProps): PiuContainer {
 		return host;
 	}
 	let dispose: Disposer | null = null;
+	let cur = -1; // last rendered side: -1 unbuilt, 0 fallback, 1 children
 	effect(() => {
-		const on = !!props.when();
+		const on = props.when() ? 1 : 0;
+		// only rebuild when truthiness actually FLIPS — a predicate like
+		// `() => count() > 0` re-runs this effect on every count change, but
+		// while it stays truthy the shown subtree (its state/effects/timers)
+		// must survive, not be disposed and rebuilt (mirrors keepAlive's
+		// `next === mounted` guard, minus the both-sides-live allocation).
+		if (on === cur) return;
+		cur = on;
 		untrack(() => {
 			if (dispose) {
 				dispose();

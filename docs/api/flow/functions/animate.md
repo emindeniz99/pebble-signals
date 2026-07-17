@@ -8,7 +8,7 @@
 
 > **animate**(`from`, `to`, `ms`, `easing?`): [`Tween`](../interfaces/Tween.md)
 
-Defined in: flow.ts:572
+Defined in: flow.ts:580
 
 animate(from, to, ms, easing?) — a Reanimated-style tween. Returns a getter
 thunk backed by a signal; the shared ~30fps ticker eases the value from -> to

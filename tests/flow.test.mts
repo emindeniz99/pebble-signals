@@ -80,6 +80,38 @@ on.value = false;
 n.value = 6;
 check("disposed binding dead after swap", inner(showHost).string === "off");
 
+// --- Show default mode: a predicate re-eval that does NOT flip truthiness
+// must NOT rebuild the shown subtree (its state/effects survive) ---
+const gate = signal(1);
+let dbuilt = 0;
+const [memoHost] = createRoot(() =>
+	Show({
+		when: () => gate.value > 0,
+		width: 10,
+		height: 10,
+		children: () => {
+			dbuilt++;
+			return jsx(StubContent, { string: () => "g=" + gate.value });
+		},
+		fallback: () => {
+			dbuilt++;
+			return jsx(StubContent, { string: "off" });
+		},
+	}),
+);
+const dBuiltAtMount = dbuilt; // children built once
+gate.value = 2; // still > 0 — same side, must be a no-op rebuild-wise
+check("default same-truthiness re-eval does not rebuild", dbuilt === dBuiltAtMount);
+check(
+	"shown subtree stayed live (nested binding updated in place)",
+	inner(memoHost).string === "g=2",
+);
+gate.value = 0; // flips false — NOW it rebuilds to the fallback
+check(
+	"truthiness flip still swaps",
+	dbuilt === dBuiltAtMount + 1 && inner(memoHost).string === "off",
+);
+
 // --- Show keepAlive: prebuilt sides, replace-based swap, both stay live ---
 const on2 = signal(false),
 	m = signal(0);
