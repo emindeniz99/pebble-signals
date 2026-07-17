@@ -30,6 +30,25 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **treeshake ignores type-only runtime imports.** `import type { ForProps }
+  from "runtime/flow"` erases at emit, but the raw seed scan kept the whole
+  flow/jsx/signals stack preloaded against the boot floor. Type-only
+  clauses (and commented-out imports) no longer seed; inline `{ type X, y }`
+  mixes still do. A form the scan misses now fails LOUD at build time via
+  the unmapped-import tripwire instead of dying on device.
+- **Literal relative dynamic imports join the source closure.**
+  `import("./art")` is inlined into the bundle by esbuild, so its
+  Texture/pdc/romTable refs SHIP — but the closure scan never followed it
+  (assets silently missing from the PBW). relativeClosure now follows
+  literal relative `import(...)` specifiers, and the build treats them as
+  statically resolved (they no longer self-disable treeshake); computed
+  specifiers still do.
+- **For's duplicate late sweeper removed.** The cleanup-ordering fix
+  registered For's row sweeper before the effect but left the old
+  post-effect registration in place — owner drain is LIFO, so the LATE copy
+  ran first and rows disposed while the reconcile effect was still
+  subscribed (a row cleanup writing an `each()` dependency could re-enter a
+  half-dead pass). Single pre-effect registration is the contract, pinned.
 - **Flow cleanups register with the owner BEFORE the first build.** In
   For/Show/Navigator the owner-cleanup (`track`) call sat after the initial
   effect/swap — a row or side that threw during the FIRST pass aborted the
