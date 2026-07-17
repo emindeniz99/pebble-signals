@@ -1112,4 +1112,32 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 	);
 }
 
+// U3b: a screen that REDIRECTS by pushing the SAME builder function object —
+// stack-top identity alone cannot see it (top === build compares equal), so
+// the disposeTop signal must drop the outer orphan. Pre-guard, the orphan
+// double-mounted AND clobbered disposeTop, losing the real screen's disposer.
+{
+	const p9 = signal(0);
+	let builds9 = 0;
+	const screen9 = (nav) => {
+		builds9++;
+		if (builds9 === 1) nav.push(screen9); // redirect: the SAME function object
+		return jsx(StubContent, { string: () => "s" + p9.value });
+	};
+	const [nh9, disposeNav9] = createRoot(() => Navigator({ width: 60, height: 40, root: screen9 }));
+	check(
+		"U3b same-builder redirect mounts exactly one screen",
+		nh9.contents.length === 1 && builds9 === 2,
+	);
+	check("U3b the mounted screen is live", nh9.contents[0].contents[0].string === "s0");
+	// the LIVE disposer must belong to the real (inner) mount: disposing the
+	// nav owner must kill the screen's binding, not a dropped orphan's
+	disposeNav9();
+	p9.value = 5;
+	check(
+		"U3b nav dispose kills the real screen's binding (no orphaned disposer)",
+		nh9.contents.length === 0 || nh9.contents[0].contents[0].string === "s0",
+	);
+}
+
 done();

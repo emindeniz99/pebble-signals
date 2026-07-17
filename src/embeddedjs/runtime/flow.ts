@@ -508,8 +508,13 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 			});
 			// re-entrant push()/pop() DURING this build (a redirecting screen)
 			// already mounted the real top — this orphan must not double-mount
-			// or clobber disposeTop (the pushed screen's root leaked; U3)
-			if (stack[stack.length - 1] !== build) {
+			// or clobber disposeTop (the pushed screen's root leaked; U3). Two
+			// signals, both required: the stack top moved past `build`, OR a
+			// nested swap already installed a disposer — the latter catches a
+			// redirect that pushes the SAME builder function object (the stack
+			// top then compares EQUAL while the inner mount already happened;
+			// clobbering disposeTop lost the real screen's disposer).
+			if (stack[stack.length - 1] !== build || disposeTop !== null) {
 				r[1]();
 				return;
 			}
