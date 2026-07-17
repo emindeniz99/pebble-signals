@@ -505,7 +505,12 @@ const prune = flag(cli.prune, "PRUNE", "1", true) && treeshake;
 // the SOURCE name: `import { S as __sp }` needs export S)
 const importScan = (file: string, keeps: Map<string, Set<string> | "all">) => {
 	const src = readFileSync(file, "utf8");
-	for (const m of src.matchAll(/import\s*(\*\s*as\s+\w+|{[^}]*})\s*from\s*"runtime\/([\w-]+)"/g)) {
+	// both quote styles: TS preserves the source quote in --no-minify builds, so
+	// a lazy/pure module's `import { X } from 'runtime/flow'` must be seen here
+	// or prune-exports could demote X while the shipped module still imports it.
+	for (const m of src.matchAll(
+		/import\s*(\*\s*as\s+\w+|{[^}]*})\s*from\s*['"]runtime\/([\w-]+)['"]/g,
+	)) {
 		const mod = m[2];
 		if (m[1].startsWith("*")) {
 			keeps.set(mod, "all"); // namespace import — cannot prune this module
