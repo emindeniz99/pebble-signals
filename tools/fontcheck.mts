@@ -36,13 +36,17 @@ for (const k of [
 export function badFonts(src: string, customFamilies?: Set<string>): string[] {
 	const bad: string[] = [];
 	for (const m of src.matchAll(
-		/font:\s*["'](?:italic\s+)?(?:(bold)\s+)?(\d+)px\s+([A-Za-z]+)["']/g,
+		/font:\s*["'](italic\s+)?(?:(bold)\s+)?(\d+)px\s+([A-Za-z]+)["']/g,
 	)) {
-		const bold = m[1] != null;
-		const size = Number(m[2]);
-		const fam = m[3].toLowerCase();
+		const italic = m[1] != null;
+		const bold = m[2] != null;
+		const size = Number(m[3]);
+		const fam = m[4].toLowerCase();
+		// a TTF-backed custom family may carry any face (the italic/bold face
+		// resolution is the rasterizer's job); system fonts are regular/bold
+		// ONLY, so an `italic` on one is invalid and renders blank.
 		if (customFamilies?.has(fam)) continue;
-		if (!VALID.has(`${fam}|${size}|${bold}`)) bad.push(m[0]);
+		if (italic || !VALID.has(`${fam}|${size}|${bold}`)) bad.push(m[0]);
 	}
 	return bad;
 }

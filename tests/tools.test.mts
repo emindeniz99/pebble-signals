@@ -80,6 +80,16 @@ test("fontcheck: bold matters (bold 30px Bitham valid, 30px Bitham not)", () => 
 	assert.deepEqual(badFonts('font: "30px Bitham"'), ['font: "30px Bitham"']);
 });
 
+test("fontcheck: italic on a system font is rejected (no italic face → blank)", () => {
+	// the size/family are otherwise valid; the italic token is the defect
+	assert.deepEqual(badFonts('font: "italic 24px Gothic"'), ['font: "italic 24px Gothic"']);
+	assert.deepEqual(badFonts('font: "italic bold 42px Bitham"'), [
+		'font: "italic bold 42px Bitham"',
+	]);
+	// a TTF-backed custom family MAY be italic (rasterizer resolves the face)
+	assert.deepEqual(badFonts('font: "italic 20px Fam"', new Set(["fam"])), []);
+});
+
 // --- classify-module: PURE (preload-eligible) vs IMPURE (stays in main) ---
 test("classify: const tables + pure functions/classes are PURE", () => {
 	const src = `
