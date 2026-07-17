@@ -496,6 +496,27 @@ const [, dStop] = createRoot(() => {
 });
 dStop();
 
+// a completion write that CASCADES — stops the finishing tween and starts a
+// replacement in the same tick — must not let tickAll null the fresh ticker
+const [, dCascade] = createRoot(() => {
+	const first = animate(0, 10, 33); // dur == STEP -> completes in one tick
+	let replacement;
+	signals.effect(() => {
+		if (first() >= 10 && !replacement) {
+			first.stop();
+			replacement = animate(0, 20, 9999); // fresh ticker installed mid-tick
+		}
+	});
+	tick(1); // first completes -> effect stops it and starts the replacement
+	check("cascade restart keeps a live timer (not orphaned)", liveTimers() === 1);
+	const before = replacement();
+	tick(1);
+	check("cascade replacement tween still advances", replacement() > before);
+	replacement.stop();
+	return 0;
+});
+dCascade();
+
 // --- ErrorBoundary: per-subtree catch, fallback, reset, nesting ------------
 // Solid's opt-in local boundary. Catches BUILD-time and RE-RUN throws in its
 // subtree, swaps in fallback(err, reset), keeps the rest of the app alive.

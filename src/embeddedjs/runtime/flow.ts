@@ -560,7 +560,11 @@ const tickAll = () => {
 	}
 	if (a.length === 0) {
 		clearInterval(t.timer); // last tween done — release the native timer
-		ticker = null;
+		// a completion write above may have CASCADED — stopping the last tween
+		// (nulling `ticker`) and then starting a replacement, which installs a
+		// FRESH ticker. Only clear the global when it is still the one this
+		// tick captured, or we orphan the replacement's timer/active list.
+		if (ticker === t) ticker = null;
 	}
 };
 
