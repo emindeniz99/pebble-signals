@@ -131,6 +131,44 @@ check(
 	dbuilt === dBuiltAtMount + 1 && inner(memoHost).string === "off",
 );
 
+// --- Show default mode: a CONTAINED throwing side must not latch `cur` —
+// the memo guard would then suppress every retry while the predicate keeps
+// that truthiness (sticky blank side). Reset-then-latch self-heals in BOTH
+// directions (mirrors For's U7 contract). ---
+{
+	sandbox.__spError = () => {}; // contain-mode: errors swallowed by the app hook
+	const g5 = signal(0); // start on the healthy fallback side
+	let boom5 = true;
+	let childBuilds = 0;
+	const [healHost] = createRoot(() =>
+		Show({
+			when: () => g5.value > 0,
+			width: 20,
+			height: 20,
+			fallback: () => jsx(StubContent, { string: "off" }),
+			children: () => {
+				childBuilds++;
+				if (boom5) throw new Error("side boom");
+				return jsx(StubContent, { string: "healed" });
+			},
+		}),
+	);
+	g5.value = 1; // flip to the THROWING side — contained, host left empty
+	check("contained throwing side leaves the host empty", healHost.contents.length === 0);
+	g5.value = 0; // flip BACK: a latched cur=0 would claim 'fallback mounted' and skip
+	check(
+		"flip back after a contained throw rebuilds the fallback",
+		inner(healHost).string === "off",
+	);
+	boom5 = false;
+	g5.value = 2; // the side heals once its builder stops throwing
+	check("throwing side retries and heals on the next flip", inner(healHost).string === "healed");
+	const buildsAtHeal = childBuilds;
+	g5.value = 3; // same truthiness, healthy subtree — memoization back in force
+	check("healed side memoizes again (no rebuild)", childBuilds === buildsAtHeal);
+	sandbox.__spError = undefined;
+}
+
 // --- Show keepAlive: prebuilt sides, replace-based swap, both stay live ---
 const on2 = signal(false),
 	m = signal(0);

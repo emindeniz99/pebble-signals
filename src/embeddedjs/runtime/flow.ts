@@ -211,7 +211,13 @@ export function Show(props: ShowProps): PiuContainer {
 		// must survive, not be disposed and rebuilt (mirrors keepAlive's
 		// `next === mounted` guard, minus the both-sides-live allocation).
 		if (on === cur) return;
-		cur = on;
+		// back to UNBUILT until the build lands: a throwing side is CONTAINED
+		// upstream (notify/report), and a pre-latched `cur` would then claim a
+		// side is mounted while the host sits empty — suppressing every retry
+		// with that truthiness (sticky blank side, audit F1). Reset-then-latch
+		// makes ANY next re-run rebuild after a contained throw, in either
+		// direction, with no try/catch frame (same self-heal contract as U7).
+		cur = -1;
 		untrack(() => {
 			if (dispose) {
 				dispose();
@@ -224,6 +230,7 @@ export function Show(props: ShowProps): PiuContainer {
 			dispose = d;
 			host.add(tree);
 		});
+		cur = on; // latch only a SUCCESSFUL build
 	});
 	track(() => {
 		if (dispose) {
