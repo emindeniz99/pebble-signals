@@ -56,6 +56,25 @@ check("clear -> 0 rows", host.contents.length === 0);
 
 disposeFor();
 
+// --- For children returning a PRIMITIVE: wrapped into a Label, not passed
+// raw to piu add/insert (which crashes the port) ---
+const prims = signal([1, 2, 3]);
+const [primHost, disposePrim] = createRoot(() =>
+	For({
+		each: () => prims.value,
+		key: (n) => n,
+		width: 100,
+		children: (n) => n, // a bare number — legal on the JSXNode type surface
+	}),
+);
+check("primitive rows mount as 3 nodes", primHost.contents.length === 3);
+check(
+	"each primitive row is a Label with its stringified value",
+	primHost.contents.every((c) => c instanceof StubContent) &&
+		primHost.contents.map((c) => c.string).join(",") === "1,2,3",
+);
+disposePrim();
+
 // --- Show default mode: swap + dispose, auto-wrapped ---
 const on = signal(false),
 	n = signal(0);

@@ -291,10 +291,10 @@ export function For<T>(props: ForProps<T>): PiuContainer {
 						// duplicate key: first occurrence wins
 						continue;
 				} else {
-					// `children` may legally return a primitive (JSXNode) for the
-					// type surface (see tests/types.test-d.tsx), but a reconcile
-					// slot is always a real mounted node in practice — the cast is
-					// type-only, matching the same boundary appendChild handles.
+					// `children` may legally return a primitive (JSXNode); asNode
+					// wraps a string/number into a Label (as appendChild does), so
+					// the reconcile slot is always a real mounted node — the cast
+					// is then type-only.
 					const [node, dispose] = createRoot(
 						() => asNode(() => props.children(item, i)) as Content,
 					);
@@ -680,5 +680,13 @@ function asNode(build: unknown): JSXNode {
 	// `result` is `unknown` (the auto-thunk unwrap is a genuinely dynamic
 	// boundary); the cast is type-only and matches jsx-runtime's setProp/
 	// appendChild casts at the same kind of boundary.
-	return (typeof result === "function" ? (result as () => unknown)() : result) as JSXNode;
+	const n = typeof result === "function" ? (result as () => unknown)() : result;
+	// A PRIMITIVE row/child is legal on the JSXNode type surface (`() => n`),
+	// but a For slot / Show side becomes a real mounted node handed to piu
+	// add/insert — a raw string there crashes the port. Wrap it in a Label
+	// exactly as appendChild does (a caller that re-appends through
+	// appendChild just gets an already-mounted Content — no double wrap).
+	return (
+		typeof n === "string" || typeof n === "number" ? new Label(null, { string: String(n) }) : n
+	) as JSXNode;
 }
