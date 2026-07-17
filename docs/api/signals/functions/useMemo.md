@@ -6,11 +6,15 @@
 
 # Function: useMemo()
 
-> **useMemo**\<`T`\>(`fn`): () => `T`
+> **useMemo**\<`T`\>(`fn`): [`ReadonlySignal`](../interfaces/ReadonlySignal.md)\<`T`\>
 
-Defined in: signals.ts:891
+Defined in: signals.ts:897
 
-Memoized getter over [computed](computed.md): `const total = useMemo(() => a() + b())`.
+Memoized derived value — [computed](computed.md) under the React-flavored name:
+`const total = useMemo(() => a() + b()); total.value`. Read via `.value`,
+exactly like computed — ONE contract across the runtime, the packed
+lowering and auto-thunk (which all treat useMemo as computed). A
+call-style read is not a function and lint-reads flags it loudly.
 
 ## Type Parameters
 
@@ -26,4 +30,4 @@ Memoized getter over [computed](computed.md): `const total = useMemo(() => a() +
 
 ## Returns
 
-() => `T`
+[`ReadonlySignal`](../interfaces/ReadonlySignal.md)\<`T`\>

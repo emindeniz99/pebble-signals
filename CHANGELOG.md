@@ -9,7 +9,80 @@ No registry releases yet; entries accumulate under Unreleased until the first
 
 ## [Unreleased]
 
+### Changed
+- **`Show` (default mode) no longer rebuilds on a same-truthiness predicate
+  re-eval.** `when: () => count() > 0` used to dispose+rebuild the shown
+  subtree on EVERY `count` change; now it swaps only when truthiness flips,
+  so the subtree's state/effects/timers survive (mirrors `keepAlive`'s
+  same-side guard). Observable change for any app that relied on
+  rebuild-per-re-eval — flip the predicate (or key the subtree off the
+  value) if you need a rebuild.
+- **`useMemo` now returns the computed itself — read `total.value`, not
+  `total()`.** The runtime used to hand back a getter thunk while the packed
+  lowering and auto-thunk both treated `useMemo` as `computed` (`.value`
+  contract) — each style silently broke in the other's configuration. One
+  contract now; a leftover call-style read fails loud in lint-reads
+  (`ReadonlySignal` is not callable). No shipped example used `useMemo`.
+- **`For`/`VirtualList` rows must be a single element — array/null rows now
+  throw** `"row must be a single element"` instead of landing a raw array in
+  the piu tree (garbage) or dying later in reconcile with an unactionable
+  `TypeError`. A PORT constraint (one row = one mounted node), not Solid
+  parity. Primitive rows still auto-wrap into a Label.
+
 ### Fixed
+- **`Show` self-heals after a contained throwing side.** The truthiness memo
+  latched BEFORE the build, so a side whose builder threw (contained by the
+  runtime) left the host empty while `Show` believed the side was mounted —
+  suppressing every retry at that truthiness. The memo now resets to
+  "unbuilt" until a build lands; any next re-run rebuilds (same self-heal
+  contract as For's mid-reconcile-throw pin).
+- **Computed core hardening.** A computed's reader now subscribes BEFORE the
+  recompute (a mid-recompute disposal can no longer drop the reader's
+  subscription), and `dispose()` clears EVERY forward id it finds — a
+  disposed-then-reused effect id no longer resurrects a frozen computed or
+  wipes the reusing effect's subscriptions.
+- **Byte store hardening.** `load()` validates the whole blob (tag widths,
+  reserved tags 6/7, header bounds, overrun) BEFORE committing bytes — a
+  rejected load is now a true no-op instead of clobbering live records;
+  `o(i)` rejects negative/fractional/out-of-range indices (a fractional
+  index used to hang the record walk); `def(tag)` requires an integer
+  8..255; `romTable` wraps negative/huge indices exactly.
+- **`animate` ticker survives a same-tick restart cascade.** A completion
+  write that stopped the last other tween and started a replacement used to
+  orphan the replacement's timer (double `clearInterval` state); the ticker
+  now only releases the global when it is still the one this tick captured.
+- **`createResource` routes a synchronous fetcher throw to `error()`** —
+  previously it escaped at module init (or left the resource stuck loading);
+  refetch after a sync throw recovers.
+- **`For`/`VirtualList` primitive rows wrap into Labels** (a raw
+  string/number handed to piu add/insert crashes the port).
+- **fontcheck: full-closure scan, italic rejection, token order.** Every
+  app-closure file is scanned (a helper's/lazy screen's bad `font:` literal
+  ships and renders blank the same way); `italic` on a system font is
+  rejected (no italic face exists); style tokens now match in EITHER order —
+  `"bold italic 42px Bitham"` used to escape the scan entirely.
+  `deriveFonts` gained the same order tolerance (both orders name the same
+  `-BoldItalic.ttf` face).
+- **gen-manifest sees lazy modules and keeps sibling `data` keys.** The
+  resource scan now runs AFTER lazy-module discovery over the same source
+  set as treeshake (a lazy screen's `Texture`/`.pdc`/`romTable` refs ship);
+  the derived `data["*"]` merge no longer clobbers platform-qualified keys a
+  hand-written `manifest.base` carries (same union rule resources already
+  had).
+- **`MINIFY=0` no longer ships lazy modules unbundled.** An unbundled lazy
+  module kept `./x` relative specifiers the manifest never maps — dead on
+  first `importNow`. Lazy modules now always bundle; only the identifier
+  mangling follows the minify flag.
+- **Root-component shim: narrowed trigger + treeshake seed (fetchtest was
+  boot-dead).** `export default <ident>` only generates the render() shim
+  when the default is statically a function (declaration/arrow/in-file
+  binding) — an `Application`-instance default (fetchtest) is a BARE app
+  again, not a shim call on a non-component. The shim decision moved BEFORE
+  the treeshake run and seeds `runtime/jsx-runtime`, so a root-component app
+  with no explicit runtime import no longer gets the shim's own import
+  pruned into a mod-load death. Device receipt:
+  `screenshots/fetchtest-boot-gabbro.png` (the previously boot-dead app
+  rendering "SELECT to fetch" on gabbro).
 - **Lowering miscompile on invisible value-escapes.** A `useState` pair (or
   `signal`/`computed` binding) referenced through a shorthand property
   (`{ setName }`) or an export specifier (`export { setA }`) still lowered —
@@ -27,6 +100,13 @@ No registry releases yet; entries accumulate under Unreleased until the first
   silently loses the packed lowering, and the shorthand shape used to be
   device-fatal. Type-position references (`typeof setN`) are exempt, and a
   site already flagged by a sharper rule is not double-reported.
+- **Build tripwire: unmapped runtime imports fail the build.** After all
+  passes, every `runtime/*` module a shipped artifact (main.js, lazy, pure)
+  still imports must be mapped in the manifest — an unmapped import is a
+  guaranteed mod-load death on device while the old build exited 0 (how
+  fetchtest shipped boot-dead). Catches any future scan blind spot, e.g. a
+  tsc-injected JSX import in a lazy module whose source never names a
+  runtime module.
 
 ## [1.0.0] - 2026-07-16
 

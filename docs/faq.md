@@ -27,6 +27,15 @@ the flagship on device — the build now fails loud with the wrap in the
 message (`[setter-as-value]`).
 [Debugging](debugging.md#typeerror-call-not-a-function-an-escaped-usestate-accessor).
 
+**Why does an exported `signal` build fine when an exported setter fails the
+build?** Asymmetry by design. An exported `useState` accessor has a strictly
+better spelling (the wrap above) and its escape shape was once device-fatal,
+so rule 5 hard-fails. An exported `signal`/`computed` IS the designed
+cross-module state pattern — modules share the one object and read
+`.value` — so it builds; its only cost is that an exported binding skips the
+packed lowering and stays a heap object (~2x slots for that signal, Rule 4).
+Keep state module-local when nothing else reads it.
+
 **Can I use `fetch` / talk to the internet?**
 Yes, through the phone: the pkjs proxy ships with every build. A full
 `fetch()` from the watch works (with arena-sized responses);

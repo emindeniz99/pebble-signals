@@ -19,6 +19,12 @@ Props for [For](../functions/For.md).
 > **children**: (`item`, `i`) => [`JSXNode`](../../jsx-runtime/type-aliases/JSXNode.md)
 
 Row builder — each row runs under its own root and disposes on removal.
+Must return ONE element (or a primitive, wrapped into a Label); an
+array/null row throws loud — a port constraint (one row = one mounted
+piu node), not Solid parity. `i` is the CREATION-TIME index: a kept
+row's builder never re-runs, so reorders do NOT update a captured `i`
+(contract; a per-row index signal would cost arena per row — Rule 4).
+Key rows by identity, not by index.
 
 #### Parameters
 

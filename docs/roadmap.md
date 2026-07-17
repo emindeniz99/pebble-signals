@@ -715,6 +715,22 @@ Priority order the owner set; each is expanded in its own section below.
     — never the half-measure. Closes the footgun; pairs with glitch-free above.
 
 ## Node / compile-time — ready to do
+- **fontcheck custom-FACE matching (audit 2026-07, deferred with a date).**
+  `badFonts` skips any literal whose FAMILY is custom, but `deriveFonts`
+  only ships a face when the face-specific TTF exists — `font: "italic
+  20px Fam"` with only `Fam-Regular.ttf` passes fontcheck, ships no font,
+  renders blank (the exact gotcha-20 class the tool exists for). Fix next
+  time fonts are touched: teach fontcheck deriveFonts' suffix mapping and
+  require the face TTF (~30 min). The system-font italic half + token
+  order are covered (2026-07-17).
+- **Revert-detecting tests for build.mts-inline scans (audit TOOLS-2,
+  editorial).** The importNow quote-forms fix and the keep-set
+  single-quote fix live inline in build.mts — no in-repo test fails if
+  either regresses (verified externally by probes only). The unmapped-
+  import TRIPWIRE (2026-07-17) now catches the boot-dead OUTCOME class at
+  build time, which softens this; a proper fix extracts the scans into a
+  testable tool module. Do it with the next build.mts surgery, not as a
+  drive-by.
 - **TypeScript 7 migration plan — DECIDED 2026-07: WAIT on 6.0.x, single
   port at 7.1.** TS 7 (the native/Go compiler) does not ship the JS
   Compiler API this project's toolchain is built on — attempting 7.0.2

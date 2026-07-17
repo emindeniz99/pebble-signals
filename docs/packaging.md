@@ -25,6 +25,16 @@ a separate project can install and get the **typed runtime + the build tools**.
   "dist" build that makes sense off-device: the runtime must be minified and
   manifest-mapped per app by the device build. Consumers' bundlers/tsc read the
   source; the DEVICE build path is the tools (below), not a prebuilt bundle.
+- **Support surface: bundler/tsc-only — bare Node cannot import the runtime.**
+  Because `default` resolves to `.ts` under `node_modules`, a plain
+  `node -e 'import("signal-piu/signals")'` fails (Node refuses to type-strip
+  inside `node_modules` by design). That path is out of scope: the supported
+  consumers are a bundler/tsc toolchain (typechecking, editors, tests via the
+  repo's vm harness pattern) and the device build. If a real consumer ever
+  needs bare-Node imports, the move is compiling the runtime to `dist/` JS
+  and pointing `default` there — deliberately NOT done today (one more build
+  artifact to keep in sync, no consumer needs it; consumer-smoke covers the
+  supported path).
 - Verified end-to-end: a fresh project that `npm install`s the tarball
   typechecks `import { signal } from "signal-piu/signals"` with full generics,
   and `// @ts-expect-error` on a computed write still bites (the consumer smoke

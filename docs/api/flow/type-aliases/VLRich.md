@@ -8,7 +8,7 @@
 
 > **VLRich**\<`T`\> = `VLBase`\<`T`\> & `object`
 
-Defined in: flow.ts:113
+Defined in: flow.ts:121
 
 [VirtualList](../functions/VirtualList.md) rich mode: a recycled SUBTREE per slot via `renderRow`
 (built once, never destroyed). Mutually exclusive with `format`. Each
@@ -25,7 +25,9 @@ extra node per row costs arena — the measured ceiling is brutal (see the
 
 > **renderRow**: (`indexThunk`, `data`) => [`JSXNode`](../../jsx-runtime/type-aliases/JSXNode.md)
 
-Slot builder: `indexThunk()` is the slot's CURRENT record index (reads live).
+Slot builder: `indexThunk()` is the slot's CURRENT record index (reads
+live). Must return ONE element per slot (array/null throws loud — same
+port constraint as [ForProps.children](ForProps.md)).
 
 #### Parameters
 

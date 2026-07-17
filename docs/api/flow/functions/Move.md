@@ -8,7 +8,7 @@
 
 > **Move**(`props`): `Container`
 
-Defined in: flow.ts:639
+Defined in: flow.ts:663
 
 Move({ x, y, children }) — reactive POSITION for a mounted subtree.
 Coordinate props are construction-time statics on this port (jsx-runtime
