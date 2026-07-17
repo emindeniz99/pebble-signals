@@ -6,7 +6,7 @@
 
 # Interface: Resource\<T\>
 
-Defined in: signals.ts:953
+Defined in: signals.ts:960
 
 What [createResource](../functions/createResource.md) returns — reactive thunks over one in-flight fetch.
 
@@ -22,7 +22,7 @@ What [createResource](../functions/createResource.md) returns — reactive thunk
 
 > **data**: () => `T` \| `undefined`
 
-Defined in: signals.ts:955
+Defined in: signals.ts:962
 
 Latest fetched value; `undefined` until the first success. Reactive.
 
@@ -36,7 +36,7 @@ Latest fetched value; `undefined` until the first success. Reactive.
 
 > **error**: () => `unknown`
 
-Defined in: signals.ts:959
+Defined in: signals.ts:966
 
 Rejection value of the LAST fetch, or `undefined`. Reactive.
 
@@ -50,7 +50,7 @@ Rejection value of the LAST fetch, or `undefined`. Reactive.
 
 > **loading**: () => `boolean`
 
-Defined in: signals.ts:957
+Defined in: signals.ts:964
 
 True while a fetch is in flight. Reactive.
 
@@ -64,7 +64,7 @@ True while a fetch is in flight. Reactive.
 
 > **refetch**: () => `void`
 
-Defined in: signals.ts:961
+Defined in: signals.ts:968
 
 Start the fetcher again (stale responses from older calls are dropped).
 

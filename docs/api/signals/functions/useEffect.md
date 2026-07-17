@@ -8,7 +8,7 @@
 
 > **useEffect**(`fn`): `void`
 
-Defined in: signals.ts:867
+Defined in: signals.ts:874
 
 Auto-tracked effect (no dependency array). An optional returned function is
 the cleanup: it runs before every re-run and once more at dispose.

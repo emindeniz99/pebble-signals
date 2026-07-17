@@ -509,6 +509,12 @@ export const S = {
 	/** Read packed signal `i` (subscribes the current effect; pulls a stale computed). */
 	get<T>(i: number): T {
 		const g = G!;
+		// subscribe the reader to this row FIRST — before any recompute below.
+		// A computed whose fn() THROWS rethrows out of get() (poisoned-computed
+		// contract), which would skip a subscribe placed after the recompute;
+		// the reader would then never be notified when a dependency later
+		// changes, so a boundaried UI could not recover. Idempotent bit-set.
+		if (current >= 0 && g.e[current]) g.sub[i * g.s + (current >> 5)] |= 1 << (current & 31);
 		const cx = g.x;
 		if (cx !== null) {
 			// lazy computed pull (glitch-free): recompute on READ when any
@@ -541,7 +547,6 @@ export const S = {
 				}
 			}
 		}
-		if (current >= 0 && g.e[current]) g.sub[i * g.s + (current >> 5)] |= 1 << (current & 31);
 		return g.f[i] as T;
 	},
 	/** Functional-update write (the `useState` setter contract). */
@@ -656,11 +661,13 @@ export function dispose(d: number | EffectFn): void {
 	const cx = g.x;
 	if (cx !== null) {
 		const fw = cx[2];
-		for (let k = 0; k < fw.length; k++)
-			if (fw[k] === d) {
-				cx[0][k] = undefined;
-				break;
-			}
+		// clear EVERY row whose forward-id is d, no `break`: a reused id can
+		// leave more than one cx[2] entry === d (an earlier disposed computed's
+		// stale entry plus the one being disposed now). Stopping at the first
+		// match left the newer computed's fn in place, so a later reuse of the
+		// id resurrected its recompute path and unsubscribed the innocent
+		// reusing effect. Clearing all matches freezes every one permanently.
+		for (let k = 0; k < fw.length; k++) if (fw[k] === d) cx[0][k] = undefined;
 	}
 	unsubscribe(d);
 	const word = d >> 5,

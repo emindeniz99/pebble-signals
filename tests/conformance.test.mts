@@ -762,6 +762,48 @@ const law = (name, verdict, cond, refs) => {
 	});
 }
 
+// --- Law 28b: an EFFECT that reads a throwing computed still SUBSCRIBES, so a
+// later dep change re-runs it and the UI recovers. The reader is subscribed to
+// the computed's row BEFORE the recompute, so a first-read throw (contained by
+// __spError) can't skip the subscribe and strand the effect. The effect's
+// FIRST read is a CLEAN one (subscribe), THEN a dep flips it into throwing and
+// back — proving the subscription survives the throw and the effect re-runs on
+// heal (a top-level effect that throws on its INITIAL run is a separate,
+// un-owned-lifecycle case, kept out of this shared-id suite).
+{
+	let captured = null;
+	sandbox.__spError = (e) => {
+		captured = e.message;
+	};
+	const s = signal(1);
+	const c = computed(() => {
+		if (s.value === 2) throw new Error("law28b");
+		return s.value * 10;
+	});
+	const seen = [];
+	const [, disposeL28b] = createRoot(() => {
+		effect(() => {
+			seen.push(c.value); // run 1: clean (10) — subscribes to c's row
+		});
+	});
+	const clean = seen.length === 1 && seen[0] === 10;
+	s.value = 2; // c now THROWS on recompute; the effect re-runs and is contained
+	const threw = captured === "law28b";
+	s.value = 4; // heal: the effect must re-run again and read 40
+	law(
+		"effect keeps its computed subscription across a throw and heals",
+		"MATCH",
+		clean && threw && seen[seen.length - 1] === 40,
+		{
+			solid: "the memo's subscribers are notified on recompute; the reader recovers",
+			preact: "signal subscribers re-run once the computed stops throwing",
+			react: "a later render reads the healed memo",
+		},
+	);
+	disposeL28b();
+	delete sandbox.__spError;
+}
+
 // --- Law 29: effect() created inside untrack still tracks ITS OWN reads ------
 // untrack() suppresses subscriptions of the CURRENTLY-RUNNING computation; a
 // NEW effect created inside the untrack window runs with its own tracking

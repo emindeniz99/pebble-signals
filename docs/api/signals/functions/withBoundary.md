@@ -8,7 +8,7 @@
 
 > **withBoundary**\<`T`\>(`handler`, `fn`): `T`
 
-Defined in: signals.ts:749
+Defined in: signals.ts:756
 
 Run `build` with `handler` as the active ErrorBoundary (internal — see flow's ErrorBoundary).
 
