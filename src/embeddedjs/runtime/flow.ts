@@ -381,10 +381,6 @@ export function For<T>(props: ForProps<T>): PiuContainer {
 			}
 		});
 	});
-	track(() => {
-		for (let x = 0; x < rd.length; x++) rd[x]();
-		rk.length = rn.length = rd.length = rs.length = 0;
-	});
 	return host;
 }
 

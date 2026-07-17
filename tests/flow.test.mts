@@ -157,6 +157,39 @@ disposePrim();
 			threw10 && leakRuns === runsAtMount,
 		);
 	}
+	// owner-teardown ORDER: the reconcile effect dies BEFORE the sweeper (the
+	// sweeper registers first; owner drain is LIFO), so a row cleanup that
+	// writes an each() dependency mid-teardown cannot re-enter a half-dead
+	// reconcile pass. A duplicate LATE sweeper regressed exactly this: it
+	// drained first, rows disposed while the effect was still subscribed.
+	{
+		const eachSig = signal([1]);
+		let rowBuilds = 0;
+		const [, d11] = createRoot(() =>
+			For({
+				each: () => eachSig.value,
+				width: 30,
+				children: (r) => {
+					rowBuilds++;
+					signals.onCleanup(() => {
+						eachSig.value = [...eachSig.value, 99]; // dependency write mid-teardown
+					});
+					return jsx(StubContent, { string: `x${r}` });
+				},
+			}),
+		);
+		const buildsBefore = rowBuilds;
+		let tore = true;
+		try {
+			d11();
+		} catch {
+			tore = false;
+		}
+		check(
+			"For teardown with a dependency-writing row cleanup does not re-enter reconcile",
+			tore && rowBuilds === buildsBefore,
+		);
+	}
 	// VirtualList rich mode: an array slot is the same defect, at build time
 	let vlErr = "";
 	try {
