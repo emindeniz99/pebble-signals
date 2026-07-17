@@ -50,12 +50,16 @@ const ASCII =
 export function deriveFonts(src: string, ttfs: string[]): FontEntry[] {
 	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 	const out: FontEntry[] = [];
-	for (const m of src.matchAll(/font:\s*["'](?:(italic)\s+)?(?:(bold)\s+)?(\d+)px\s+(\w+)["']/g)) {
-		const suffix = m[2] && m[1] ? "BoldItalic" : m[2] ? "Bold" : m[1] ? "Italic" : "Regular";
-		const ttf = ttfs.find((t) => t.endsWith(`/${m[4]}-${suffix}.ttf`));
+	// style tokens in ANY order (same tolerance as fontcheck's badFonts —
+	// "bold italic" and "italic bold" name the same BoldItalic face)
+	for (const m of src.matchAll(/font:\s*["']((?:(?:italic|bold)\s+)*)(\d+)px\s+(\w+)["']/g)) {
+		const italic = /\bitalic\b/.test(m[1]);
+		const bold = /\bbold\b/.test(m[1]);
+		const suffix = bold && italic ? "BoldItalic" : bold ? "Bold" : italic ? "Italic" : "Regular";
+		const ttf = ttfs.find((t) => t.endsWith(`/${m[3]}-${suffix}.ttf`));
 		if (!ttf) continue;
 		const source = ttf.slice(0, -4); // manifest wants the path sans .ttf
-		const size = Number(m[3]);
+		const size = Number(m[2]);
 		if (!out.some((e) => e.source === source && e.size === size))
 			out.push({ source, size, characters: ASCII });
 	}

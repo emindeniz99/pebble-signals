@@ -90,6 +90,17 @@ test("fontcheck: italic on a system font is rejected (no italic face → blank)"
 	assert.deepEqual(badFonts('font: "italic 20px Fam"', new Set(["fam"])), []);
 });
 
+test("fontcheck: style tokens in EITHER order are seen (audit TOOLS-1)", () => {
+	// reversed "bold italic" matched NOTHING under the old fixed-order
+	// pattern — the invalid system-font face sailed through and rendered
+	// blank on device, the exact class the tool exists to kill
+	assert.deepEqual(badFonts('font: "bold italic 42px Bitham"'), [
+		'font: "bold italic 42px Bitham"',
+	]);
+	// custom TTF family: any face in any order is the rasterizer's job
+	assert.deepEqual(badFonts('font: "bold italic 20px Fam"', new Set(["fam"])), []);
+});
+
 // --- classify-module: PURE (preload-eligible) vs IMPURE (stays in main) ---
 test("classify: const tables + pure functions/classes are PURE", () => {
 	const src = `
@@ -585,6 +596,9 @@ test("deriveFonts: suffix mirrors the port's lookup (Regular/Italic/BoldItalic)"
 	assert.equal(deriveFonts('font: "20px Fam"', ttfs)[0].source, "f/Fam-Regular");
 	assert.equal(deriveFonts('font: "italic 20px Fam"', ttfs)[0].source, "f/Fam-Italic");
 	assert.equal(deriveFonts('font: "italic bold 20px Fam"', ttfs)[0].source, "f/Fam-BoldItalic");
+	// either token order names the SAME BoldItalic face (fontcheck tolerance,
+	// audit TOOLS-1 — a reversed order must not silently ship no font at all)
+	assert.equal(deriveFonts('font: "bold italic 20px Fam"', ttfs)[0].source, "f/Fam-BoldItalic");
 });
 
 test("deriveFonts: no matching TTF -> no entry; same source+size dedupes", () => {
