@@ -426,6 +426,20 @@ test("lint-reads: flags a bare Signal object as a JSX prop", () => {
 	assert.match(out[0].msg, /\(\) => c\.value/);
 });
 
+test("lint-reads: flags a bare Signal object as a JSX CHILD", () => {
+	// appendChild only rejects FUNCTION children, so a signal/computed/useMemo
+	// object as {child} lands in the piu tree as silent garbage — and the
+	// useMemo .value unification turned the once-loud function-child shape
+	// into exactly this silent one (refuter probe). The lint must be the wall.
+	const out = lintFixture(
+		'import { useMemo } from "runtime/signals";\n' +
+			"const m = useMemo(() => 1);\nexport const app = render(() => <Column>{m}</Column>, {});\n",
+	);
+	assert.equal(out.length, 1);
+	assert.equal(out[0].rule, "child-signal");
+	assert.match(out[0].msg, /String\(m\.value\)/);
+});
+
 test("lint-reads: flags stringifying a useState getter (missing ())", () => {
 	const out = lintFixture(
 		'const [n] = useState(0);\nexport const app = render(() => <Label string={() => "n " + n} />, {});\n',

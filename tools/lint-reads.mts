@@ -49,6 +49,7 @@ export interface Finding {
 		| "call-signal"
 		| "stringify-signal"
 		| "prop-signal"
+		| "child-signal"
 		| "stringify-fn"
 		| "setter-as-value"
 		| "getter-as-value";
@@ -202,6 +203,25 @@ export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
 						node.expression,
 						"prop-signal",
 						`prop \`${node.parent.name.getText()}\` gets the Signal OBJECT — pass a thunk: \`${node.parent.name.getText()}={() => ${short(node.expression)}.value}\``,
+					);
+			}
+			// <Column>{g}</Column> — a bare Signal object as a JSX CHILD.
+			// appendChild only rejects FUNCTION children (jsx:fn-child), so a
+			// signal/computed/useMemo object lands in the piu tree as silent
+			// garbage — and since useMemo returns the computed itself, the
+			// once-loud function-child shape became this silent one (refuter
+			// probe). Same type check as prop-signal, child position.
+			if (
+				ts.isJsxExpression(node) &&
+				node.expression &&
+				(ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent))
+			) {
+				const t = checker.getTypeAtLocation(node.expression);
+				if (isSignalType(t))
+					report(
+						node.expression,
+						"child-signal",
+						`JSX child gets the Signal OBJECT (lands in the piu tree as garbage) — render it: \`<Label string={() => String(${short(node.expression)}.value)} />\``,
 					);
 			}
 			ts.forEachChild(node, visit);
