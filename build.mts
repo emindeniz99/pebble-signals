@@ -146,20 +146,6 @@ const appClosure = existsSync(appSrc)
 	? relativeClosure(appSrc, (p) => (existsSync(p) ? readFileSync(p, "utf8") : null))
 	: [appSrc];
 
-// Generate the mod manifest from the base; image/vector resources are DERIVED
-// from the app's own `new Texture("x.png")` refs (each mapped to assets/x), so
-// an app bundles exactly the bitmaps it names. manifest.json is gitignored.
-const manifestBase = existsSync("src/embeddedjs/manifest.base.json")
-	? "src/embeddedjs/manifest.base.json" // the project's own
-	: join(PKG, "src/embeddedjs/manifest.base.json"); // package default
-copyFileSync(manifestBase, "src/embeddedjs/manifest.json");
-run(
-	process.execPath,
-	[join(TOOLS, `gen-manifest${EXT}`), appSrc, "src/embeddedjs/manifest.json"].concat(
-		appClosure.slice(1),
-	),
-);
-
 // Per-app runtime tree-shaking. Runtime modules are frozen into ROM by
 // `preload`, and each preloaded module still costs a few XS aliases at boot. An
 // app that never imports runtime/flow does not need it preloaded OR mapped —
@@ -235,8 +221,60 @@ const shakeSources = [
 		return existsSync(tsx) ? tsx : join("src/tsx/examples", APP, `${b}.ts`);
 	}),
 ];
+
+// Root-component entry (#63), DECIDED here — the file is generated after tsc.
+// An app that `export default`s a COMPONENT and never calls render() gets a
+// generated shim entry mounting it (README "root component entry"). Detection
+// is deliberately NARROW: a function declaration, an arrow, or an identifier
+// bound in-file to a function/arrow. Any other default (an Application
+// instance, an object) is a BARE app and gets NO shim — shimming one handed
+// render() a non-component AND, with no explicit runtime import for the
+// scans to see, treeshake pruned runtime/jsx-runtime out from under the
+// generated shim (fetchtest shipped boot-dead; audit receipt). The decision
+// lives BEFORE the treeshake run so the shim's `runtime/jsx-runtime` import
+// can seed the keep-set (--need below).
+const rootShim = (() => {
+	if (!existsSync(appSrc)) return false;
+	const bare = readFileSync(appSrc, "utf8")
+		.replace(/\/\*[\s\S]*?\*\//g, "")
+		.replace(/\/\/[^\n]*/g, "");
+	if (/\brender\s*\(/.test(bare)) return false; // app renders itself
+	const rhs = /^export default\s+(.+)$/m.exec(bare)?.[1].trim();
+	if (!rhs) return false;
+	if (/^(?:async\s+)?function\b/.test(rhs)) return true; // export default function App…
+	if (/^\([^)]*\)[^=\n]*=>/.test(rhs) || /^[A-Za-z_$][\w$]*\s*=>/.test(rhs)) return true; // arrow
+	const id = /^([A-Za-z_$][\w$]*)\s*;?$/.exec(rhs)?.[1];
+	if (!id) return false; // `new X(…)`, a literal, a call — not a component
+	return new RegExp(
+		`\\bfunction\\s+${id}\\s*\\(|\\b(?:const|let|var)\\s+${id}\\b[^=\\n]*=\\s*(?:\\([^)]*\\)[^=\\n]*=>|[A-Za-z_$][\\w$]*\\s*=>|(?:async\\s+)?function\\b)`,
+	).test(bare);
+})();
+
+// Generate the mod manifest from the base; image/vector resources are DERIVED
+// from the sources that actually SHIP — the entry, its bundled ./closure AND
+// the lazy modules (a lazy screen's Texture/pdc/romTable refs must ship too;
+// running this before the lazy scan silently dropped them — audit D8).
+// manifest.json is gitignored.
+const manifestBase = existsSync("src/embeddedjs/manifest.base.json")
+	? "src/embeddedjs/manifest.base.json" // the project's own
+	: join(PKG, "src/embeddedjs/manifest.base.json"); // package default
+copyFileSync(manifestBase, "src/embeddedjs/manifest.json");
+run(
+	process.execPath,
+	[join(TOOLS, `gen-manifest${EXT}`), appSrc, "src/embeddedjs/manifest.json"].concat(
+		shakeSources.slice(1).filter(existsSync),
+	),
+);
+
 if (treeshake)
-	run(process.execPath, [join(TOOLS, `treeshake${EXT}`), ...shakeSources, "src/embeddedjs/manifest.json"]);
+	run(process.execPath, [
+		join(TOOLS, `treeshake${EXT}`),
+		...shakeSources,
+		// the generated shim imports render — its module must survive the prune
+		// even though no scanned source mentions it (the file exists only post-tsc)
+		...(rootShim ? ["--need=runtime/jsx-runtime"] : []),
+		"src/embeddedjs/manifest.json",
+	]);
 
 // Font sanity check (gotcha 20): an invalid font string renders NOTHING — blank
 // text, no error, hours lost. Validate every `font:` literal against the Pebble
@@ -381,26 +419,18 @@ if ((cli.bundle ?? env("BUNDLE", "all")) === "preload") {
 	err("bundle: 'preload' strategy — see src/tsx/examples/multilazy.tsx (device-verified");
 	err("        lazy-import of a preloaded screen). Falling back to BUNDLE=all for this build.");
 }
-// Root-component entry: an app that `export default`s a component and never
-// calls render() itself gets a generated shim entry mounting it —
-// `render(M.default, M.app, M.opts)` (README "root component entry"). The
-// shim is plain JS written NEXT to the compiled entry so every downstream
-// pass (lower, prune keep-sets off the final main.js) sees a normal bundle;
-// the source scans (closure/lint/manifest) still read the real .tsx. An app
-// that both exports default AND calls render() keeps its own render (no shim).
+// Root-component entry shim (decided above, pre-treeshake): plain JS written
+// NEXT to the compiled entry so every downstream pass (lower, prune keep-sets
+// off the final main.js) sees a normal bundle; the source scans
+// (closure/lint/manifest) still read the real .tsx.
 let bundleEntry = `src/embeddedjs/app/examples/${APP}.js`;
-{
-	const bare = readFileSync(appSrc, "utf8")
-		.replace(/\/\*[\s\S]*?\*\//g, "")
-		.replace(/\/\/[^\n]*/g, "");
-	if (/^export default\b/m.test(bare) && !/\brender\s*\(/.test(bare)) {
-		bundleEntry = `src/embeddedjs/app/examples/${APP}__root.js`;
-		writeFileSync(
-			bundleEntry,
-			`import * as M from "./${APP}";\nimport { render } from "runtime/jsx-runtime";\nrender(M.default, M.app, M.opts);\n`,
-		);
-		console.log(`root-entry: ${APP} exports a default component — generated render() shim`);
-	}
+if (rootShim) {
+	bundleEntry = `src/embeddedjs/app/examples/${APP}__root.js`;
+	writeFileSync(
+		bundleEntry,
+		`import * as M from "./${APP}";\nimport { render } from "runtime/jsx-runtime";\nrender(M.default, M.app, M.opts);\n`,
+	);
+	console.log(`root-entry: ${APP} exports a default component — generated render() shim`);
 }
 // treeShaking:true is explicit (DCE unreferenced app exports/branches during the
 // bundle) even without minify, so BUNDLE stays lean when MINIFY=0. This one must
@@ -467,17 +497,19 @@ if (lazyBases.length) {
 		// and bail-safe; whatever it can't prove stays for the advisory below.
 		if (flag(cli.squash, "SQUASH", "1", true))
 			run(process.execPath, [join(TOOLS, `squash${EXT}`), file]);
-		if (minify)
-			tryEsbuild({
-				entryPoints: [file],
-				bundle: true,
-				external: ["runtime/*", "app/*"],
-				treeShaking: true,
-				minify: true,
-				format: "esm",
-				outfile: file,
-				allowOverwrite: true,
-			});
+		// ALWAYS bundle (MINIFY=0 used to ship the module UNBUNDLED — its
+		// `./x` relative specifiers have no manifest mapping on device, dead
+		// on first importNow); only the mangling follows the flag.
+		tryEsbuild({
+			entryPoints: [file],
+			bundle: true,
+			external: ["runtime/*", "app/*"],
+			treeShaking: true,
+			minify,
+			format: "esm",
+			outfile: file,
+			allowOverwrite: true,
+		});
 		lazyFiles.push(file);
 		// squash advisory: loading a module builds EVERY module-level function
 		// object in RAM (~5-6 slots each; measured safe band ≤16 — playbook
@@ -724,6 +756,35 @@ if (flag(cli.symdiet, "SYMDIET", "1", true) && treeshake) {
 	for (const [p, src] of Object.entries(outputs)) writeFileSync(p, src);
 	const n = Object.keys(map).length;
 	if (n) console.log(`symbol-diet: ${n} runtime export(s) renamed to host-known ids`);
+}
+
+// FAIL-LOUD tripwire (the fetchtest class): every runtime/* module a SHIPPED
+// artifact still imports must be mapped in the manifest — an unmapped import
+// is a guaranteed mod-load death on device while the build exits 0. Catches
+// any scan blind spot (a tsc-injected JSX import, a new generated file) at
+// build time instead of on the watch.
+{
+	const mapped =
+		(
+			JSON.parse(readFileSync("src/embeddedjs/manifest.json", "utf8")) as {
+				modules?: Record<string, string>;
+			}
+		).modules ?? {};
+	const missing = new Set<string>();
+	for (const f of ["src/embeddedjs/app/main.js", ...lazyFiles, ...pureFiles])
+		if (existsSync(f))
+			for (const m of readFileSync(f, "utf8").matchAll(
+				/\bfrom\s*["'](runtime\/[\w-]+)["']|\bimport\s*["'](runtime\/[\w-]+)["']/g,
+			)) {
+				const mod = m[1] ?? m[2];
+				if (mapped[mod] === undefined) missing.add(mod);
+			}
+	if (missing.size) {
+		err(`build: shipped code imports unmapped module(s): ${[...missing].join(", ")} — the`);
+		err("       manifest does not carry them (mod-load death on device). A scan missed this");
+		err("       import; TREESHAKE=0 ships the full runtime as a workaround. Failing loud.");
+		process.exit(1);
+	}
 }
 
 run("pebble", ["build"]);

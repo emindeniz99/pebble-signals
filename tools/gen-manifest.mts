@@ -30,7 +30,9 @@ interface Manifest {
 	modules?: Record<string, string>;
 	preload?: string[];
 	resources?: { "*"?: string[]; "*-alpha"?: (string | FontEntry)[] };
-	data?: { "*": string[] };
+	// beyond "*", a hand-written base may carry platform-qualified keys — the
+	// derive step must union into "*" and leave the siblings alone
+	data?: { "*"?: string[]; [k: string]: unknown };
 	[k: string]: unknown;
 }
 
@@ -92,7 +94,9 @@ export function deriveResources(src: string, manifest: Manifest): Manifest {
 	const data = uniq([...pdc, ...tbl]);
 	const prevData = (m.data && m.data["*"]) || [];
 	if (data.length || prevData.length)
-		m.data = { "*": uniq([...prevData, ...data.map((n) => `../../assets/${n}`)]) };
+		// spread keeps sibling keys a hand-written manifest.base may carry
+		// (platform-qualified data entries) — same union rule as resources
+		m.data = { ...m.data, "*": uniq([...prevData, ...data.map((n) => `../../assets/${n}`)]) };
 	return m;
 }
 

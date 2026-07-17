@@ -40,6 +40,20 @@ test("gen-manifest: no assets -> no resources/data added", () => {
 	assert.equal(m.data, undefined);
 });
 
+test("gen-manifest: data merge keeps sibling keys a hand-written base carries", () => {
+	// same union rule as resources — assigning `data` wholesale clobbered a
+	// platform-qualified entry in a consumer's manifest.base
+	const base = {
+		...BASE,
+		data: { "*": ["../../assets/seed.pdc"], gabbro: ["../../assets/round.pdc"] },
+	};
+	const m = deriveResources('new Resource("sloth.pdc");', base);
+	assert.deepEqual(m.data, {
+		gabbro: ["../../assets/round.pdc"],
+		"*": ["../../assets/seed.pdc", "../../assets/sloth.pdc"],
+	});
+});
+
 test("treeshake: pure-signal app drops flow", () => {
 	const src =
 		'import { useState } from "runtime/signals";\nimport { render } from "runtime/jsx-runtime";';
@@ -63,6 +77,16 @@ test("treeshake: flow importer keeps all three (transitive closure)", () => {
 test("treeshake: always keeps main", () => {
 	const { manifest } = pruneManifest(BASE, neededModules('import "runtime/signals";'));
 	assert.equal(manifest.modules?.main, "./app/main");
+});
+
+test("treeshake: extra seeds stand in for generated code and pull their deps", () => {
+	// the root-component render() shim imports runtime/jsx-runtime but only
+	// exists AFTER tsc — the seed keeps its module (and the transitive
+	// signals dep) from being pruned into a mod-load death
+	const need = neededModules("const bareApp = 1;", ["runtime/jsx-runtime"]);
+	assert.deepEqual([...need].sort(), ["runtime/jsx-runtime", "runtime/signals"]);
+	const { dropped } = pruneManifest(BASE, need);
+	assert.deepEqual(dropped, ["runtime/flow"]);
 });
 
 test("fontcheck: valid Pebble system fonts pass", () => {

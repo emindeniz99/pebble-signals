@@ -21,11 +21,17 @@ const DEPS: Record<string, string[]> = {
 	"runtime/flow": ["runtime/signals", "runtime/jsx-runtime"],
 };
 
-/** The set of runtime modules reachable from the app's static imports. Pure. */
-export function neededModules(src: string): Set<string> {
+/**
+ * The set of runtime modules reachable from the app's static imports. Pure.
+ * `extraSeeds` = modules needed by GENERATED code the sources can't show
+ * (the root-component render() shim imports runtime/jsx-runtime, but the
+ * shim file only exists after tsc — pruning it away shipped a mod whose
+ * import had no manifest mapping: boot death).
+ */
+export function neededModules(src: string, extraSeeds: string[] = []): Set<string> {
 	const seed = [...src.matchAll(/from\s+["'](runtime\/[a-zA-Z0-9_-]+)["']/g)].map((x) => x[1]);
 	const need = new Set<string>();
-	const stack = [...seed];
+	const stack = [...seed, ...extraSeeds];
 	while (stack.length) {
 		const mod = stack.pop() as string;
 		if (need.has(mod)) continue;
@@ -110,9 +116,13 @@ export function pruneManifest(
 if (import.meta.main) {
 	const args = process.argv.slice(2);
 	const manifestPath = args.pop() as string;
-	const src = args.map((p) => readFileSync(p, "utf8")).join("\n");
+	// --need=runtime/<mod>: seed a module on behalf of generated code (the
+	// root shim) — see neededModules. Everything else is a source path.
+	const seeds = args.filter((a) => a.startsWith("--need=")).map((a) => a.slice("--need=".length));
+	const files = args.filter((a) => !a.startsWith("--need="));
+	const src = files.map((p) => readFileSync(p, "utf8")).join("\n");
 	const m = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
-	const { manifest, kept, dropped } = pruneManifest(m, neededModules(src));
+	const { manifest, kept, dropped } = pruneManifest(m, neededModules(src, seeds));
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, "\t")}\n`);
 	console.log(
 		`treeshake: kept ${kept.join(",")}${dropped.length ? `; dropped ${dropped.join(",")}` : "; nothing to drop"}`,
