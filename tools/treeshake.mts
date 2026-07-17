@@ -29,7 +29,19 @@ const DEPS: Record<string, string[]> = {
  * import had no manifest mapping: boot death).
  */
 export function neededModules(src: string, extraSeeds: string[] = []): Set<string> {
-	const seed = [...src.matchAll(/from\s+["'](runtime\/[a-zA-Z0-9_-]+)["']/g)].map((x) => x[1]);
+	// comments off (a commented example must not seed), and TYPE-ONLY clauses
+	// (`import type …` / `export type …`) skipped: they erase at emit, so
+	// seeding them preloads dead modules straight against the boot floor
+	// (codex P2 — one `import type { ForProps } from "runtime/flow"` kept the
+	// whole flow/jsx/signals stack). An inline mix (`{ type X, y }`) still
+	// seeds — `y` is a value import. A form this scan misses fails LOUD at
+	// build time via the unmapped-import tripwire, not on device.
+	const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+	const seed: string[] = [];
+	for (const m of code.matchAll(
+		/\b(?:import|export)\s+([^;]*?)from\s+["'](runtime\/[a-zA-Z0-9_-]+)["']/g,
+	))
+		if (!/^type\b/.test(m[1].trim())) seed.push(m[2]);
 	const need = new Set<string>();
 	const stack = [...seed, ...extraSeeds];
 	while (stack.length) {
@@ -94,6 +106,12 @@ export function relativeClosure(entry: string, read: (p: string) => string | nul
 		// esbuild still bundles them, so their runtime imports / assets / reads
 		// must join the closure too. `\bimport\s+["']` won't match `importNow(`.
 		for (const m of src.matchAll(/\bimport\s+["'](\.\.?\/[^"']+)["']/g)) follow(m[1]);
+		// literal relative DYNAMIC imports (`import("./art")`): esbuild inlines
+		// them into the bundle when splitting is off, so the module's assets
+		// (Texture/pdc/romTable) and runtime imports ship — the closure must
+		// see them or the manifest misses the assets (codex P2). Computed
+		// specifiers can't be followed and stay a treeshake self-disable.
+		for (const m of src.matchAll(/\bimport\s*\(\s*["'](\.\.?\/[^"']+)["']\s*\)/g)) follow(m[1]);
 	};
 	visit(entry);
 	return out;

@@ -191,6 +191,13 @@ for (const closureFile of appClosure.filter(existsSync)) {
 			   the mod compartment's loadNowHook maps these through to the host
 			   archive, so nothing in OUR manifest can be pruned out from under
 			   them — they don't defeat the scans */
+		} else if (!m[0].startsWith("importNow") && /^["'`]\.\.?\/[^"'`]+["'`]\s*$/.test(m[1])) {
+			/* literal RELATIVE dynamic import (`import("./art")`): esbuild
+			   inlines it into main.js (no splitting) and relativeClosure
+			   follows it, so every scan (treeshake seeds, gen-manifest assets,
+			   fontcheck, lint) sees the module — it does not defeat pruning.
+			   importNow with a relative spec stays UNRESOLVED (that is a
+			   device module-map lookup, not a bundler inline). */
 		} else unresolvedDynamicImport = true;
 	}
 }

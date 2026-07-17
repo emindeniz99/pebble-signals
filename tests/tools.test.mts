@@ -79,6 +79,21 @@ test("treeshake: always keeps main", () => {
 	assert.equal(manifest.modules?.main, "./app/main");
 });
 
+test("treeshake: type-only imports do not seed (they erase at emit)", () => {
+	// `import type` never reaches the emitted JS — seeding it preloads a dead
+	// module stack straight against the ~150-symbol boot floor
+	const src =
+		'import type { ForProps } from "runtime/flow";\n' +
+		'export type { Thunk } from "runtime/flow";\n' +
+		'import { useState } from "runtime/signals";';
+	assert.deepEqual([...neededModules(src)].sort(), ["runtime/signals"]);
+	// an INLINE mix still seeds — `y` is a value import
+	const mixed = 'import { type ForProps, For } from "runtime/flow";';
+	assert.equal(neededModules(mixed).has("runtime/flow"), true);
+	// commented-out imports must not seed either
+	assert.deepEqual([...neededModules('// import { For } from "runtime/flow";')], []);
+});
+
 test("treeshake: extra seeds stand in for generated code and pull their deps", () => {
 	// the root-component render() shim imports runtime/jsx-runtime but only
 	// exists AFTER tsc — the seed keeps its module (and the transitive
@@ -581,6 +596,20 @@ test("relativeClosure follows bare side-effect imports and re-exports (no `from`
 	// `from` (re-export) is scanned before the bare-import pass, so api precedes
 	// setup; both are in the closure, which is what matters.
 	assert.deepEqual(out, ["src/app.tsx", "src/api.ts", "src/setup.tsx"]);
+});
+
+test("relativeClosure follows a literal relative DYNAMIC import", () => {
+	// esbuild inlines `import("./art")` into the bundle (no splitting) — the
+	// module's Texture/pdc refs SHIP, so the closure must see it or the
+	// manifest misses the assets (device-only missing-asset mystery)
+	const fs3: Record<string, string> = {
+		"src/app.tsx": 'import("./art").then((m) => m.draw());',
+		"src/art.tsx": 'export const draw = () => new Texture("icon.png");',
+	};
+	assert.deepEqual(
+		relativeClosure("src/app.tsx", (p) => fs3[p] ?? null),
+		["src/app.tsx", "src/art.tsx"],
+	);
 });
 
 test("relativeClosure resolves a directory index module (./setup -> setup/index.tsx)", () => {
