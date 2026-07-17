@@ -387,9 +387,9 @@ export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): PiuContainer => 
 		for (let slot = 0; slot < rows; slot++) {
 			const at = props.at;
 			// renderRow's return is JSXNode (may be a primitive per the type
-			// surface); in practice it always builds a real node — same
-			// type-only boundary cast as For's reconcile slot above.
-			host.add(props.renderRow(() => (at ? at() : 0) + slot, data) as Content);
+			// surface); asNode wraps a string/number into a Label (as For and
+			// appendChild do) so host.add never gets a raw value.
+			host.add(asNode(() => props.renderRow(() => (at ? at() : 0) + slot, data)) as Content);
 		}
 		return host;
 	}

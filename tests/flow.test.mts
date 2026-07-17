@@ -257,6 +257,22 @@ check("renderRow builds `rows` rows", rl.contents.length === 2);
 check("renderRow slot index thunks", rrBuilt[0]() === 0 && rrBuilt[1]() === 1);
 check("renderRow row content", rl.contents[0].string === "v0" && rl.contents[1].string === "v1");
 
+// renderRow returning a PRIMITIVE is wrapped into a Label (as For does), not
+// passed raw to host.add (which crashes the port)
+const [rlPrim] = createRoot(() =>
+	VirtualList({
+		data: { count: () => 3, get: (i) => i * 10 },
+		rows: 2,
+		renderRow: (idxThunk, dataArg) => dataArg.get(idxThunk()), // a bare number
+	}),
+);
+check(
+	"rich renderRow primitive rows wrap into Labels",
+	rlPrim.contents.length === 2 &&
+		rlPrim.contents.every((c) => c instanceof StubContent) &&
+		rlPrim.contents.map((c) => c.string).join(",") === "0,10",
+);
+
 // --- Navigator: screen stack, exactly ONE screen built at any depth ---
 const { Navigator } = flow;
 let navRef = null;
