@@ -225,26 +225,32 @@ export function Show(props: ShowProps): PiuContainer {
 		// must survive, not be disposed and rebuilt (mirrors keepAlive's
 		// `next === mounted` guard, minus the both-sides-live allocation).
 		if (on === cur) return;
-		// back to UNBUILT until the build lands: a throwing side is CONTAINED
-		// upstream (notify/report), and a pre-latched `cur` would then claim a
-		// side is mounted while the host sits empty — suppressing every retry
-		// with that truthiness (sticky blank side, audit F1). Reset-then-latch
-		// makes ANY next re-run rebuild after a contained throw, in either
-		// direction, with no try/catch frame (same self-heal contract as U7).
-		cur = -1;
-		untrack(() => {
-			if (dispose) {
-				dispose();
-				dispose = null;
-			}
-			// remove one-by-one instead of empty(): see For note below
-			while (host.first) host.remove(host.first);
-			const build = on ? props.children : props.fallback;
-			const [tree, d] = createRoot(() => wrapSide(props, build));
-			dispose = d;
-			host.add(tree);
-		});
-		cur = on; // latch only a SUCCESSFUL build
+		// latch BEFORE the build: a builder that writes a `when` dependency
+		// during its own build re-enters this effect mid-build, and the guard
+		// above must early-return it — an unlatched cur double-mounted the
+		// side and leaked a root (refuter probe). A THROWING build then
+		// resets to UNBUILT in the catch: a contained throw must not leave
+		// `cur` claiming a side is mounted while the host sits empty — that
+		// suppressed every retry at that truthiness (sticky blank side, audit
+		// F1). Rethrow: containment lives upstream (notify/report), not here.
+		cur = on;
+		try {
+			untrack(() => {
+				if (dispose) {
+					dispose();
+					dispose = null;
+				}
+				// remove one-by-one instead of empty(): see For note below
+				while (host.first) host.remove(host.first);
+				const build = on ? props.children : props.fallback;
+				const [tree, d] = createRoot(() => wrapSide(props, build));
+				dispose = d;
+				host.add(tree);
+			});
+		} catch (e) {
+			cur = -1;
+			throw e;
+		}
 	});
 	track(() => {
 		if (dispose) {
@@ -729,10 +735,21 @@ function asNode(build: unknown): JSXNode {
 function asRow(build: unknown, who: string): Content {
 	const n = asNode(build);
 	// booleans too: appendChild SKIPS true/false as children, but a skipped
-	// row has no single-node meaning either — same loud refusal.
-	if (n === null || n === undefined || typeof n === "boolean" || Array.isArray(n))
+	// row has no single-node meaning either — same loud refusal. And a
+	// FUNCTION: asNode unwraps exactly one thunk level, so a double-thunk
+	// row would otherwise mount a raw function into the piu tree (refuter
+	// probe) — the same silent-garbage class this guard exists to kill.
+	if (
+		n === null ||
+		n === undefined ||
+		typeof n === "boolean" ||
+		typeof n === "function" ||
+		Array.isArray(n)
+	)
 		throw new Error(
-			`${who}: row must be a single element (got ${Array.isArray(n) ? "an array" : String(n)})`,
+			`${who}: row must be a single element (got ${
+				Array.isArray(n) ? "an array" : typeof n === "function" ? "a function" : String(n)
+			})`,
 		);
 	return n as Content;
 }

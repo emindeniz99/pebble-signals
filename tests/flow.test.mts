@@ -96,6 +96,18 @@ disposePrim();
 		boolErr = String((e && e.message) || e);
 	}
 	check("For boolean row fails loud", boolErr.includes("For: row must be a single element"));
+	// a DOUBLE-thunk row: asNode unwraps one function level; the remaining
+	// function must be refused, not mounted raw into the piu tree
+	let fnErr = "";
+	try {
+		createRoot(() => For({ each: () => [1], width: 30, children: () => () => () => "x" }));
+	} catch (e) {
+		fnErr = String((e && e.message) || e);
+	}
+	check(
+		"For double-thunk row fails loud (a function is not a node)",
+		fnErr.includes("For: row must be a single element (got a function)"),
+	);
 	// update-time (notification path — contained, healthy rows survive)
 	const caught = [];
 	sandbox.__spError = (e) => caught.push(String((e && e.message) || e));
@@ -224,6 +236,33 @@ check(
 	g5.value = 3; // same truthiness, healthy subtree — memoization back in force
 	check("healed side memoizes again (no rebuild)", childBuilds === buildsAtHeal);
 	sandbox.__spError = undefined;
+}
+
+// --- Show default mode: a builder that writes a `when` dependency DURING its
+// own build re-enters the effect mid-build — the latch must early-return it
+// (an unlatched cur double-mounted the side and leaked a root; refuter probe) ---
+{
+	const g6 = signal(1);
+	let builds6 = 0;
+	const [reHost] = createRoot(() =>
+		Show({
+			when: () => g6.value > 0,
+			width: 20,
+			height: 20,
+			children: () => {
+				builds6++;
+				if (builds6 === 1) g6.value = 2; // same truthiness, mid-build write
+				return jsx(StubContent, { string: () => "v" + g6.value });
+			},
+		}),
+	);
+	check(
+		"mid-build same-truthiness write does not double-mount",
+		reHost.contents.length === 1 && builds6 === 1,
+	);
+	check("re-entrant build's binding stays live", inner(reHost).string === "v2");
+	g6.value = 0; // flip to the (missing) fallback — empty wrapper, single child
+	check("flip after a re-entrant build swaps cleanly", reHost.contents.length === 1);
 }
 
 // --- Show keepAlive: prebuilt sides, replace-based swap, both stay live ---
