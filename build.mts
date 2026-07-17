@@ -213,13 +213,21 @@ if (treeshake && !flag(cli["treeshake-force"], "TREESHAKE_FORCE", "1", false)) {
 		treeshake = false;
 	}
 }
-// lazy modules' own runtime imports count toward the treeshake keep-set
+// lazy modules' own runtime imports count toward the treeshake keep-set.
+// Each lazy root expands to its RELATIVE closure — the bundle inlines its
+// ./helpers into the shipped lazy module, so a helper's runtime imports
+// (keep-set) and Texture/pdc/romTable refs (gen-manifest) must be scanned
+// too; scanning only the root shipped the helper's code without its asset
+// (codex P2). Set-dedupe: closures may share files with the entry's.
 const shakeSources = [
-	...appClosure,
-	...lazyBases.map((b) => {
-		const tsx = join("src/tsx/examples", APP, `${b}.tsx`);
-		return existsSync(tsx) ? tsx : join("src/tsx/examples", APP, `${b}.ts`);
-	}),
+	...new Set([
+		...appClosure,
+		...lazyBases.flatMap((b) => {
+			const tsx = join("src/tsx/examples", APP, `${b}.tsx`);
+			const entry = existsSync(tsx) ? tsx : join("src/tsx/examples", APP, `${b}.ts`);
+			return relativeClosure(entry, (p) => (existsSync(p) ? readFileSync(p, "utf8") : null));
+		}),
+	]),
 ];
 
 // Root-component entry (#63), DECIDED here — the file is generated after tsc.
@@ -238,7 +246,15 @@ const rootShim = (() => {
 	const bare = readFileSync(appSrc, "utf8")
 		.replace(/\/\*[\s\S]*?\*\//g, "")
 		.replace(/\/\/[^\n]*/g, "");
+	// self-rendering check: a literal render(...) call, a namespaced
+	// R.render(...) (\brender matches after the dot), or a call through an
+	// ALIASED import (`import { render as mount }` + `mount(...)`) all mean
+	// "no shim" — a shim on top would MOUNT TWICE (codex P2).
 	if (/\brender\s*\(/.test(bare)) return false; // app renders itself
+	for (const im of bare.matchAll(/import\s*{([^}]*)}\s*from\s*["']runtime\/jsx-runtime["']/g)) {
+		const alias = /\brender\s+as\s+([A-Za-z_$][\w$]*)/.exec(im[1])?.[1];
+		if (alias && new RegExp(`\\b${alias}\\s*\\(`).test(bare)) return false;
+	}
 	const rhs = /^export default\s+(.+)$/m.exec(bare)?.[1].trim();
 	if (!rhs) return false;
 	if (/^(?:async\s+)?function\b/.test(rhs)) return true; // export default function App…
@@ -499,17 +515,26 @@ if (lazyBases.length) {
 			run(process.execPath, [join(TOOLS, `squash${EXT}`), file]);
 		// ALWAYS bundle (MINIFY=0 used to ship the module UNBUNDLED — its
 		// `./x` relative specifiers have no manifest mapping on device, dead
-		// on first importNow); only the mangling follows the flag.
-		tryEsbuild({
-			entryPoints: [file],
-			bundle: true,
-			external: ["runtime/*", "app/*"],
-			treeShaking: true,
-			minify,
-			format: "esm",
-			outfile: file,
-			allowOverwrite: true,
-		});
+		// on first importNow); only the mangling follows the flag. Bundling
+		// must SUCCEED: a swallowed esbuild error (unresolved import) would
+		// ship the unbundled file with the same dead specifiers (codex P2) —
+		// fail loud like the main bundle path does.
+		if (
+			!tryEsbuild({
+				entryPoints: [file],
+				bundle: true,
+				external: ["runtime/*", "app/*"],
+				treeShaking: true,
+				minify,
+				format: "esm",
+				outfile: file,
+				allowOverwrite: true,
+			})
+		) {
+			err(`lazy: bundling app/${base} FAILED (unresolved import?) — the unbundled file`);
+			err("      keeps ./relative specifiers the manifest never maps (dead at importNow).");
+			process.exit(1);
+		}
 		lazyFiles.push(file);
 		// squash advisory: loading a module builds EVERY module-level function
 		// object in RAM (~5-6 slots each; measured safe band ≤16 — playbook
