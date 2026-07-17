@@ -124,6 +124,39 @@ disposePrim();
 			nulHost.contents[0].string === "1",
 	);
 	sandbox.__spError = undefined;
+	// a row that throws during the INITIAL pass must not orphan rows built
+	// EARLIER in that same pass — the sweeper registers with the owner
+	// BEFORE the effect, so the caller's dispose still reaches rd[]
+	{
+		const leakPing = signal(0);
+		let leakRuns = 0;
+		let threw10 = false;
+		try {
+			createRoot(() =>
+				For({
+					each: () => [1, null], // row 1 builds; the null row throws
+					width: 30,
+					children: (r) =>
+						r === null
+							? r // asRow throws loud on the null row
+							: jsx(StubContent, {
+									string: () => {
+										leakRuns++;
+										return `r${leakPing.value}`;
+									},
+								}),
+				}),
+			);
+		} catch {
+			threw10 = true;
+		}
+		const runsAtMount = leakRuns;
+		leakPing.value = 1; // a leaked row-1 root would re-run its binding here
+		check(
+			"For mount-throw does not orphan earlier rows in the pass",
+			threw10 && leakRuns === runsAtMount,
+		);
+	}
 	// VirtualList rich mode: an array slot is the same defect, at build time
 	let vlErr = "";
 	try {

@@ -217,6 +217,16 @@ export function Show(props: ShowProps): PiuContainer {
 	}
 	let dispose: Disposer | null = null;
 	let cur = -1; // last rendered side: -1 unbuilt, 0 fallback, 1 children
+	// registered BEFORE the effect (same reason as For's sweeper): if the
+	// initial build ever set `dispose` and then threw, a cleanup registered
+	// after the effect would never reach the owner — the side's root leaked
+	// past the caller's dispose.
+	track(() => {
+		if (dispose) {
+			dispose();
+			dispose = null;
+		}
+	});
 	effect(() => {
 		const on = props.when() ? 1 : 0;
 		// only rebuild when truthiness actually FLIPS — a predicate like
@@ -250,12 +260,6 @@ export function Show(props: ShowProps): PiuContainer {
 		} catch (e) {
 			cur = -1;
 			throw e;
-		}
-	});
-	track(() => {
-		if (dispose) {
-			dispose();
-			dispose = null;
 		}
 	});
 	return host;
@@ -303,6 +307,17 @@ export function For<T>(props: ForProps<T>): PiuContainer {
 		rd: Disposer[] = [], // disposers
 		rs: number[] = []; // pass stamps
 	let stamp = 0;
+	// The sweeper registers BEFORE the effect: a row that throws during the
+	// effect's INITIAL run aborts For() on the next line — rows built earlier
+	// in that same pass already sit in rd[], and a sweeper registered after
+	// the effect never reached the owner (their roots leaked past the
+	// caller's dispose; refuter probe). Order is otherwise inert — the
+	// cleanup only reads rd[], and owner teardown now disposes the effect
+	// first, so a row cleanup can no longer re-trigger a half-dead reconcile.
+	track(() => {
+		for (let x = 0; x < rd.length; x++) rd[x]();
+		rk.length = rn.length = rd.length = rs.length = 0;
+	});
 	effect(() => {
 		const items = props.each();
 		untrack(() => {
@@ -537,13 +552,16 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 		depth: () => depth.value,
 		canPop: () => depth.value > 1,
 	};
-	swap(); // build the root screen (like Show's initial effect)
+	// registered BEFORE the initial swap (same reason as For's sweeper): if
+	// the root screen's mount set disposeTop and then threw, a cleanup
+	// registered after would never reach the owner — the screen root leaked.
 	track(() => {
 		if (disposeTop) {
 			disposeTop();
 			disposeTop = null;
 		}
 	});
+	swap(); // build the root screen (like Show's initial effect)
 	return host;
 };
 

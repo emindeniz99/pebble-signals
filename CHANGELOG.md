@@ -30,6 +30,13 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Flow cleanups register with the owner BEFORE the first build.** In
+  For/Show/Navigator the owner-cleanup (`track`) call sat after the initial
+  effect/swap — a row or side that threw during the FIRST pass aborted the
+  component before the cleanup ever registered, so subtrees built earlier
+  in that same pass leaked past the caller's dispose (their bindings kept
+  re-running; refuter probe). Registration now precedes the build in all
+  three.
 - **Root disposal is idempotent and re-entrancy-safe.** A cleanup that
   called its own root's disposer (or a plain double dispose) re-drained the
   still-attached disposables list — siblings ran twice and the re-entrant
