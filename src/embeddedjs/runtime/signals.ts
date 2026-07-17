@@ -887,10 +887,15 @@ export function useEffect(fn: () => void | EffectFn): void {
 // unlimited — #21), but a screen with dozens of useMemo/computed pays one
 // effect each; prefer a plain thunk `() => a() + b()` when you don't need the
 // value cached across reads.
-/** Memoized getter over {@link computed}: `const total = useMemo(() => a() + b())`. */
-export function useMemo<T>(fn: () => T): () => T {
-	const c = computed(fn);
-	return () => c.value;
+/**
+ * Memoized derived value — {@link computed} under the React-flavored name:
+ * `const total = useMemo(() => a() + b()); total.value`. Read via `.value`,
+ * exactly like computed — ONE contract across the runtime, the packed
+ * lowering and auto-thunk (which all treat useMemo as computed). A
+ * call-style read is not a function and lint-reads flags it loudly.
+ */
+export function useMemo<T>(fn: () => T): ReadonlySignal<T> {
+	return computed(fn);
 }
 
 /**

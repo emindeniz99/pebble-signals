@@ -111,7 +111,11 @@ const [count, setCount] = useState(0);
 const dbl = useMemo(() => count() * 2);
 setCount((v) => v + 2);
 check("useState functional update", count() === 2);
-check("useMemo tracks", dbl() === 4);
+// .value read — useMemo IS computed (one contract: the packed lowering and
+// auto-thunk rewrite useMemo refs as computed .value reads; a call-style
+// return here would ship a runtime that disagrees with its own compiler)
+check("useMemo tracks via .value (computed contract)", dbl.value === 4);
+check("useMemo is not callable (single read style)", typeof dbl !== "function");
 
 // 9. subscriber exceptions are isolated behind the __spError hook
 const errs = [];
