@@ -986,7 +986,18 @@ export function createResource<T>(fetcher: () => Promise<T>): Resource<T> {
 	const start = () => {
 		const id = ++gen;
 		st.value = 0;
-		fetcher().then(
+		// a fetcher that throws SYNCHRONOUSLY (a validation error before it ever
+		// returns a promise) must land in the error state like a rejection —
+		// otherwise the throw escapes start()/refetch() and the resource is
+		// stuck `loading` forever.
+		let p: Promise<T>;
+		try {
+			p = fetcher();
+		} catch (err) {
+			st.value = err;
+			return;
+		}
+		p.then(
 			(value) => {
 				if (id !== gen) return; // a newer refetch superseded this one
 				// atomic flip: no subscriber may observe [loading, data] half-updated

@@ -109,4 +109,21 @@ const tick = () => Promise.resolve(); // flush the shared microtask queue
 	check("binding re-ran to the value", seen.join(",") === "…,done");
 }
 
+// --- a fetcher that throws SYNCHRONOUSLY lands in error(), not stuck loading ---
+{
+	const boom = new Error("sync boom");
+	let mode = "throw";
+	const r = createResource(() => {
+		if (mode === "throw") throw boom; // never returns a promise
+		return Promise.resolve("ok");
+	});
+	check("sync throw surfaces at error()", r.error() === boom);
+	check("sync throw is NOT stuck loading", r.loading() === false);
+	// refetch after fixing the fetcher recovers
+	mode = "ok";
+	r.refetch();
+	await tick();
+	check("refetch after a sync throw recovers", r.error() === undefined && r.data() === "ok");
+}
+
 done();
