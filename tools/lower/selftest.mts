@@ -30,6 +30,72 @@ export function selftest(): void {
 	eq(r.code, r.lowered === 0 && r.bailed === 1, "alias bail");
 	eq(r.code, !r.code.includes("__sp"), "no alias injected on full bail");
 
+	// value-escapes getSymbolAtLocation can't see — each must BAIL, not lower
+	// away the binding under a live reference (the pulse `{ setName }` death):
+	// shorthand property, export specifier (plain + aliased), getter shorthand.
+	r = lower(IMP + "const [a, setA] = useState(1);\nconst p = { setA };\nsetA(1);\n");
+	eq(r.code, r.lowered === 0 && r.bailed === 1, "shorthand-prop escape bails");
+	r = lower(IMP + "const [a, setA] = useState(1);\nexport { setA };\nsetA(1);\n");
+	eq(r.code, r.lowered === 0 && r.bailed === 1, "export-specifier escape bails");
+	r = lower(IMP + "const [a, setA] = useState(1);\nexport { setA as pub };\nsetA(1);\n");
+	eq(r.code, r.lowered === 0 && r.bailed === 1, "aliased-export escape bails");
+	r = lower(IMP + "const [a, setA] = useState(1);\nconst p = { a };\nsetA(a() + 1);\n");
+	eq(r.code, r.lowered === 0 && r.bailed === 1, "getter shorthand escape bails");
+	// a shorthand KEY that only shadows the name (`{ setA: 1 }`) is a property,
+	// not a reference — no false bail.
+	r = lower(IMP + "const [a, setA] = useState(1);\nconst p = { setA: 1 };\nsetA(a() + 1);\n");
+	eq(r.code, r.lowered === 1 && r.bailed === 0, "property KEY named like setter no false bail");
+	// signal escaping via shorthand bails the same way
+	r = lower(
+		'import { signal } from "runtime/signals";\n' +
+			"const s = signal(0);\nconst p = { s };\ns.value = 1;\n",
+	);
+	eq(r.code, r.lowered === 0 && r.bailed === 1, "signal shorthand escape bails");
+	// a full bail is BYTE-IDENTICAL (no alias import, no partial edits)
+	const escSrc = IMP + "const [a, setA] = useState(1);\nconst p = { setA };\nsetA(1);\n";
+	eq(lower(escSrc).code, lower(escSrc).code === escSrc, "escape bail is byte-identical");
+	// per-pair independence: an escaped pair bails while its neighbor lowers
+	r = lower(
+		IMP +
+			"const [a, setA] = useState(1);\nconst [b, setB] = useState(2);\n" +
+			"const p = { setA };\nsetA(1);\nsetB(b() + 1);\n",
+	);
+	eq(r.code, r.lowered === 1 && r.bailed === 1, "escaped pair bails, neighbor lowers");
+	eq(r.code, r.code.includes("const [a, setA] = useState(1)"), "escaped pair decl kept");
+	eq(r.code, r.code.includes("__sp.set(b, __sp.get(b) + 1)"), "neighbor pair still lowered");
+
+	// EXPORTED declarations are never candidates — importers need the real
+	// bindings (lowering deleted the setter / repacked the signal; measured)
+	const expPair = IMP + "export const [e1, sE1] = useState(1);\nsE1(e1() + 1);\n";
+	r = lower(expPair);
+	eq(r.code, r.lowered === 0 && r.bailed === 0 && r.code === expPair, "exported pair untouched");
+	const expSig =
+		'import { signal } from "runtime/signals";\n' + "export const es = signal(0);\nes.value = 1;\n";
+	r = lower(expSig);
+	eq(r.code, r.lowered === 0 && r.bailed === 0 && r.code === expSig, "exported signal untouched");
+
+	// a lowerable reference INSIDE useState's initializer lowers cleanly
+	// (decl edit wraps the call head — slurping overlapped the nested edit)
+	r = lower(
+		'import { useState, signal } from "runtime/signals";\n' +
+			"const f = signal(1);\nconst [c, sc] = useState(f.value);\nsc(c() + 1);\nf.value = 2;\n",
+	);
+	eq(r.code, r.lowered === 2 && r.bailed === 0, "pair init nested ref counts");
+	eq(r.code, r.code.includes("const c = __sp.sig(__sp.get(f))"), "pair init nested ref lowers");
+
+	// mutations THROUGH parentheses bail (a get()-rewrite is a syntax error);
+	// parenthesized READS still lower
+	const SIGP = 'import { signal } from "runtime/signals";\n';
+	eq("", lower(SIGP + "const s = signal(0);\n(s.value)++;\n").bailed === 1, "paren ++ bails");
+	eq("", lower(SIGP + "const s = signal(0);\n(s.value) = 1;\n").bailed === 1, "paren assign bails");
+	eq(
+		"",
+		lower(SIGP + "const s = signal(0);\n[(s.value)] = [1];\n").bailed === 1,
+		"paren destructuring-write bails",
+	);
+	r = lower(SIGP + "const s = signal(0);\nconst r3 = ((s.value)) + 0;\ns.value = 1;\n");
+	eq(r.code, r.lowered === 1 && r.code.includes("((__sp.get(s)))"), "paren read still lowers");
+
 	// shadowing is resolved by SYMBOL: the inner `b` is a different binding,
 	// so the outer getter/setter lower correctly and the shadow is untouched
 	r = lower(

@@ -10,12 +10,12 @@ import {
 	importSymbol,
 	isDestructuringTarget,
 	program,
+	valueSymbol,
 } from "./program.mts";
 
 interface Pair {
 	decl: ts.VariableDeclaration;
 	gName: string;
-	initText: string;
 	gSym: ts.Symbol | undefined;
 	sSym: ts.Symbol | undefined;
 }
@@ -50,7 +50,16 @@ export function lower(text: string): { code: string; lowered: number; bailed: nu
 			ts.isVariableDeclaration(n) &&
 			n.initializer &&
 			ts.isCallExpression(n.initializer) &&
-			ts.isIdentifier(n.initializer.expression)
+			ts.isIdentifier(n.initializer.expression) &&
+			// an EXPORTED declaration is never a candidate: importers need the
+			// real bindings, and lowering would delete (pair) or repack (sig)
+			// them behind the module boundary's back — measured miscompile.
+			// Exported reactive state stays on the object API (rule 5 voices
+			// the cost for pairs).
+			!(
+				ts.isVariableStatement(n.parent.parent) &&
+				ts.getModifiers(n.parent.parent)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+			)
 		) {
 			const callee = checker.getSymbolAtLocation(n.initializer.expression);
 			const init = n.initializer.arguments[0];
@@ -72,7 +81,6 @@ export function lower(text: string): { code: string; lowered: number; bailed: nu
 					pairs.push({
 						decl: n,
 						gName: ge.name.text,
-						initText,
 						gSym: checker.getSymbolAtLocation(ge.name),
 						sSym: checker.getSymbolAtLocation(se.name),
 					});
@@ -118,7 +126,9 @@ export function lower(text: string): { code: string; lowered: number; bailed: nu
 	for (const s of sigs) refs.set(s.sym, []);
 	for (const id of collectIdentifiers(sf)) {
 		if (declIds.has(id)) continue;
-		const s = checker.getSymbolAtLocation(id);
+		// valueSymbol, not getSymbolAtLocation: shorthand `{ setA }` and
+		// `export { setA }` references must reach the bail scan below.
+		const s = valueSymbol(checker, id);
 		if (s && refs.has(s)) refs.get(s)!.push(id);
 	}
 	const isCallTarget = (id: ts.Identifier) =>
@@ -143,11 +153,22 @@ export function lower(text: string): { code: string; lowered: number; bailed: nu
 			continue;
 		}
 		lowered++;
-		edits.push({
-			start: p.decl.getStart(sf),
-			end: p.decl.getEnd(),
-			text: `${p.gName} = __ALIAS__.sig(${p.initText})`,
-		});
+		// WRAP the init call head (don't slurp the argument) so a lowerable
+		// reference inside the initializer — useState(f.value) — keeps its own
+		// edit; slurping produced overlapping edits (garbled output, measured).
+		const initCall = p.decl.initializer as ts.CallExpression;
+		if (initCall.arguments.length === 0)
+			edits.push({
+				start: p.decl.getStart(sf),
+				end: p.decl.getEnd(),
+				text: `${p.gName} = __ALIAS__.sig(undefined)`,
+			});
+		else
+			edits.push({
+				start: p.decl.getStart(sf),
+				end: initCall.arguments.pos,
+				text: `${p.gName} = __ALIAS__.sig(`,
+			});
 		for (const id of refs.get(p.gSym)!)
 			edits.push({
 				start: id.parent.getStart(sf),
@@ -188,8 +209,13 @@ export function lower(text: string): { code: string; lowered: number; bailed: nu
 				ok = false;
 				break;
 			}
-			const asn = pae.parent;
-			const opk = ts.isBinaryExpression(asn) && asn.left === pae ? asn.operatorToken.kind : 0;
+			// climb `((s.value))` so a mutation THROUGH parentheses is still
+			// seen — a get()-rewrite there is a syntax error (measured); plain
+			// parenthesized READS fall through and lower fine.
+			let top: ts.Node = pae;
+			while (ts.isParenthesizedExpression(top.parent)) top = top.parent;
+			const asn = top.parent;
+			const opk = ts.isBinaryExpression(asn) && asn.left === top ? asn.operatorToken.kind : 0;
 			if (opk === ts.SyntaxKind.EqualsToken) {
 				// `s.value = e`
 				if (s.kind !== "sig") {
@@ -200,6 +226,11 @@ export function lower(text: string): { code: string; lowered: number; bailed: nu
 					ok = false;
 					break;
 				} // value-used assignment
+				if (top !== pae) {
+					// `(s.value) = e` — a put()-rewrite can't span the parens
+					ok = false;
+					break;
+				}
 				// two edits so nested reads in the RHS lower independently:
 				// `s.value =` -> `__sp.put(s,` and insert `)` after the RHS.
 				// put (RAW write), NOT set: set unwraps function values as
@@ -240,7 +271,7 @@ export function lower(text: string): { code: string; lowered: number; bailed: nu
 			// destructuring write target (`[s.value] = arr`, `({x: s.value} = o)`)
 			// — a get() there is a syntax error; walk up through literal layers
 			// and bail if the chain ends on the LEFT of an `=`.
-			else if (isDestructuringTarget(pae)) {
+			else if (isDestructuringTarget(top)) {
 				ok = false;
 				break;
 			} else

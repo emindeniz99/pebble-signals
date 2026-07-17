@@ -75,6 +75,25 @@ export function collectIdentifiers(sf: ts.SourceFile): ts.Identifier[] {
 	return ids;
 }
 
+// Symbol of the VALUE an identifier reference reads. getSymbolAtLocation has
+// two blind spots where the identifier is simultaneously a name and a value:
+// shorthand `{ setA }` yields the PROPERTY symbol and `export { setA }` the
+// export alias — both hid live references from the bail scan, so the lowering
+// removed a binding that still had uses (the pulse `{ setName }` device
+// death). For an aliased export (`export { setA as pub }`) only the LOCAL
+// side resolves; the alias identifier stays invisible on purpose (one
+// reference per escape site).
+export function valueSymbol(checker: ts.TypeChecker, id: ts.Identifier): ts.Symbol | undefined {
+	const p = id.parent;
+	if (ts.isShorthandPropertyAssignment(p) && p.name === id)
+		return checker.getShorthandAssignmentValueSymbol(p);
+	if (ts.isExportSpecifier(p)) {
+		if ((p.propertyName ?? p.name) !== id) return undefined;
+		return checker.getExportSpecifierLocalTargetSymbol(p);
+	}
+	return checker.getSymbolAtLocation(id);
+}
+
 // Is `node` (an expression) part of a destructuring ASSIGNMENT TARGET?
 // Walks up through array/object literal layers; true when the chain ends as
 // the left side of an `=` or a for-of/for-in initializer.
