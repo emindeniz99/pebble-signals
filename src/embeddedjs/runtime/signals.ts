@@ -1214,17 +1214,40 @@ const Store = class {
 			globalThis as typeof globalThis & { localStorage: typeof localStorage }
 		).localStorage.getItem(k);
 		if (s === null || s.length > this.b.length) return false;
-		const b = this.b;
-		for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 255;
+		// VALIDATE the record stream reading from `s` directly — do NOT touch
+		// this.b yet. A corrupt key must leave the store's current contents
+		// (e.g. seeded defaults) intact; committing only after the walk
+		// succeeds means a rejected load is a true no-op.
 		let n = 0,
 			p = 0;
 		while (p < s.length) {
-			p += 2 + b[p + 1];
+			// every record needs its 2-byte [tag][len] header inside the blob —
+			// a lone trailing byte is corrupt (and would read a stale len below)
+			if (p + 2 > s.length) return false;
+			const tag = s.charCodeAt(p) & 255,
+				len = s.charCodeAt(p + 1) & 255;
+			// a fixed-width built-in that doesn't carry its EXACT width is
+			// corrupt: get() would decode from bytes that were never stored
+			// (stale/zero value) instead of this load() rejecting it. STR and
+			// custom codecs (tag >= 8) are variable width; tags 6-7 are reserved
+			// (no codec range) and never valid.
+			let ok: boolean;
+			if (tag === T_STR || tag >= 8) ok = true;
+			else if (tag === T_I32) ok = len === 4;
+			else if (tag === T_F64) ok = len === 8;
+			else if (tag <= T_NULL)
+				ok = len === 0; // TRUE / FALSE / NULL
+			else ok = false; // 6, 7 reserved
+			if (!ok) return false;
+			p += 2 + len;
 			n++;
 		}
 		if (p !== s.length)
 			// truncated/corrupt record stream
 			return false;
+		// commit: the stream is well-formed, adopt it
+		const b = this.b;
+		for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 255;
 		this.t = s.length;
 		this.n = n;
 		return true;

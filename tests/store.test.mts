@@ -101,15 +101,42 @@ globalThis.localStorage = {
 	getItem: (k) => (mem.has(k) ? mem.get(k) : null),
 };
 const s7 = createStore(64);
-s7.push(42);
-s7.push("höla");
-s7.push(true);
+s7.push(42); // T_I32, len 4
+s7.push("höla"); // T_STR, variable
+s7.push(true); // T_TRUE, len 0
+s7.push(3.5); // T_F64, len 8 — exercises the valid fixed-width-8 path on load
 s7.save("k");
 const s8 = createStore(64);
 check("load returns true", s8.load("k") === true);
-check("load count", s8.count() === 3);
-check("load roundtrip", s8.get(0) === 42 && s8.get(1) === "höla" && s8.get(2) === true);
+check("load count", s8.count() === 4);
+check(
+	"load roundtrip",
+	s8.get(0) === 42 && s8.get(1) === "höla" && s8.get(2) === true && s8.get(3) === 3.5,
+);
 check("load missing key", createStore(8).load("nope") === false);
+// a fixed-width tag carrying the WRONG length must be rejected at load (not
+// decoded as stale bytes by a later get()): build raw [tag,len,...] blobs.
+const raw = (...bytes: number[]) => String.fromCharCode(...bytes);
+mem.set("f64bad", raw(1, 4, 0, 0, 0, 0)); // T_F64 claims len 4, needs 8
+check("load rejects wrong-width f64", createStore(64).load("f64bad") === false);
+mem.set("boolbad", raw(3, 1, 0)); // T_TRUE claims len 1, must be 0
+check("load rejects nonzero-len bool", createStore(64).load("boolbad") === false);
+mem.set("reserved", raw(6, 0)); // tag 6 is reserved (no codec range)
+check("load rejects reserved tag", createStore(64).load("reserved") === false);
+mem.set("stray", raw(3, 0, 7)); // a valid bool record + one stray header byte
+check("load rejects a lone trailing header byte", createStore(64).load("stray") === false);
+mem.set("over", raw(2, 5, 65, 66, 67)); // T_STR len 5 (valid-width) but only 3 payload bytes
+check("load rejects a record overrunning the blob", createStore(64).load("over") === false);
+// a REJECTED load is a no-op: seeded defaults survive corrupt input (the walk
+// validates `s` before any byte is committed to the buffer)
+const seeded = createStore(64);
+seeded.push(99);
+seeded.push("keep");
+check("load rejection preserves seeded contents", seeded.load("over") === false);
+check(
+	"seeded records intact after rejected load",
+	seeded.get(0) === 99 && seeded.get(1) === "keep",
+);
 mem.set("bad", "\u0000\u00ff"); // header says len 255, stream is 2 bytes
 check("load rejects corrupt", createStore(64).load("bad") === false);
 mem.set("big", "x".repeat(100));
