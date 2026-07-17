@@ -1086,9 +1086,12 @@ const Store = class {
 	def(tag: number, encode: Encode, decode: Decode): void {
 		// tags 0-7 are reserved for built-ins (I32/F64/STR/TRUE/FALSE/NULL +
 		// two spare) and a codec registered there would be silently misread by
-		// get() as a built-in; a tag past 255 truncates into the byte header.
-		// Fail loud instead of corrupting on read.
-		if (tag < 8 || tag > 255) throw new Error("store: custom tag must be 8..255, got " + tag);
+		// get() as a built-in; a tag past 255 truncates into the byte header;
+		// a fractional/NaN tag registers under an object key (`"8.5"`) that
+		// push() then writes to the header as a DIFFERENT integer. Fail loud
+		// instead of corrupting on read.
+		if (!Number.isInteger(tag) || tag < 8 || tag > 255)
+			throw new Error("store: custom tag must be an integer 8..255, got " + tag);
 		if (this.c === null) this.c = {};
 		this.c[tag] = [encode, decode];
 	}

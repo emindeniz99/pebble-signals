@@ -172,12 +172,14 @@ const defThrows = (tag) => {
 		);
 		return false;
 	} catch (e) {
-		return /custom tag must be 8\.\.255/.test(e.message);
+		return /custom tag must be an integer 8\.\.255/.test(e.message);
 	}
 };
 check("def rejects a built-in tag (5)", defThrows(5));
 check("def rejects tag 7 (reserved)", defThrows(7));
 check("def rejects a tag past 255", defThrows(256));
+check("def rejects a fractional tag (writes a different header int)", defThrows(8.5));
+check("def rejects a NaN tag", defThrows(NaN));
 {
 	// positive: tag 8 and 255 register without throwing
 	const sd = createStore(16);
