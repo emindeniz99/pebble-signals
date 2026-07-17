@@ -246,15 +246,24 @@ const rootShim = (() => {
 	const bare = readFileSync(appSrc, "utf8")
 		.replace(/\/\*[\s\S]*?\*\//g, "")
 		.replace(/\/\/[^\n]*/g, "");
-	// self-rendering check: a literal render(...) call, a namespaced
-	// R.render(...) (\brender matches after the dot), or a call through an
-	// ALIASED import (`import { render as mount }` + `mount(...)`) all mean
-	// "no shim" — a shim on top would MOUNT TWICE (codex P2).
-	if (/\brender\s*\(/.test(bare)) return false; // app renders itself
+	// self-rendering = the RUNTIME render is IMPORTED and CALLED — named
+	// (`render(`), aliased (`import { render as mount }` + `mount(`), or
+	// namespaced (`R.render(`). Resolving the import matters in BOTH
+	// directions: a raw `render(` text test missed the alias (double mount)
+	// AND false-positived on unrelated code — a `view.render()` method or a
+	// local helper named render suppressed the shim, shipping a component
+	// app that never mounts (codex P2 x2). An app with NO runtime render
+	// import cannot be calling the runtime render.
+	let selfRenders = false;
 	for (const im of bare.matchAll(/import\s*{([^}]*)}\s*from\s*["']runtime\/jsx-runtime["']/g)) {
-		const alias = /\brender\s+as\s+([A-Za-z_$][\w$]*)/.exec(im[1])?.[1];
-		if (alias && new RegExp(`\\b${alias}\\s*\\(`).test(bare)) return false;
+		const named = /\brender\b(?:\s+as\s+([A-Za-z_$][\w$]*))?/.exec(im[1]);
+		if (named && new RegExp(`\\b${named[1] ?? "render"}\\s*\\(`).test(bare)) selfRenders = true;
 	}
+	for (const im of bare.matchAll(
+		/import\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s*from\s*["']runtime\/jsx-runtime["']/g,
+	))
+		if (new RegExp(`\\b${im[1]}\\s*\\.\\s*render\\s*\\(`).test(bare)) selfRenders = true;
+	if (selfRenders) return false; // app mounts itself — a shim would mount TWICE
 	const rhs = /^export default\s+(.+)$/m.exec(bare)?.[1].trim();
 	if (!rhs) return false;
 	if (/^(?:async\s+)?function\b/.test(rhs)) return true; // export default function App…
