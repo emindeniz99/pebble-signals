@@ -8,7 +8,7 @@
 
 > **Thunk**\<`T`\> = () => `T`
 
-Defined in: flow.ts:28
+Defined in: flow.ts:36
 
 A lazy reactive read — call it to get the current value (read signals inside).
 

@@ -8,7 +8,7 @@
 
 > **NavHandle** = `object`
 
-Defined in: flow.ts:141
+Defined in: flow.ts:149
 
 The handle every [Navigator](../functions/Navigator.md) screen builder receives.
 
@@ -18,7 +18,7 @@ The handle every [Navigator](../functions/Navigator.md) screen builder receives.
 
 > **canPop**(): `boolean`
 
-Defined in: flow.ts:149
+Defined in: flow.ts:157
 
 Reactive: is there a parent to pop to.
 
@@ -32,7 +32,7 @@ Reactive: is there a parent to pop to.
 
 > **depth**(): `number`
 
-Defined in: flow.ts:147
+Defined in: flow.ts:155
 
 Reactive current depth (1 = root).
 
@@ -46,7 +46,7 @@ Reactive current depth (1 = root).
 
 > **pop**(): `void`
 
-Defined in: flow.ts:145
+Defined in: flow.ts:153
 
 Pop to the parent (no-op at the root) — the parent REBUILDS from its builder.
 
@@ -60,7 +60,7 @@ Pop to the parent (no-op at the root) — the parent REBUILDS from its builder.
 
 > **push**(`build`): `void`
 
-Defined in: flow.ts:143
+Defined in: flow.ts:151
 
 Push a child screen — the CURRENT screen is disposed (one screen lives at a time).
 

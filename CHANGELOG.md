@@ -38,6 +38,26 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round twelve (codex review of 9db32a2).** (1) `new Texture("x")` without
+  the `.png` suffix now FAILS the build — it shipped the asset but threw
+  `Texture x not found!` on device (README gotcha 19, measured); a
+  fontcheck-style loud catch (`badTextures`) closes the silent build/runtime
+  gap; (2) a COMPUTED `importNow("app/" + n)` issued from INSIDE a lazy
+  module now fails loud like the entry-side guard — it ships no module and
+  the nested navigation dies on device (the literal-only nested check missed
+  it); (3) the lazy split-brain guard now fails ONLY when a stateful helper
+  is SHARED — also in the entry's main.js bundle, or pulled by ≥2 lazy
+  modules; a helper PRIVATE to one lazy screen is a single copy, so its live
+  reactive state is legal (the guard wrongly made modular lazy screens
+  unbuildable); (4) a `Navigator` inside an `ErrorBoundary` now restores its
+  construction-time boundary when building screens pushed OUTSIDE render (a
+  button/timer `push()` runs with no boundary in scope), so a pushed
+  screen's throw hits the LOCAL fallback, not the top-level crash sink —
+  frame-free on the deep initial-render path (Round-7 value-stack wall
+  respected). Verified by a flow.test.mts case against the real compiled
+  runtime plus a multilazy boot canary on gabbro (a combined
+  ErrorBoundary+Navigator demo can't be device-screenshotted — the two
+  together exceed the 32KB arena, an orthogonal memory limit).
 - **Round eleven (codex review of b813133).** (1) `Navigator` screens get
   the same per-axis wrapper sizing as Show/ErrorBoundary — an anchored
   (l/r/t/b) navigator used to wrap every screen at concrete FULL-SCREEN

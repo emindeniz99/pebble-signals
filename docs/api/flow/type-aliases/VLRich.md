@@ -8,7 +8,7 @@
 
 > **VLRich**\<`T`\> = `VLBase`\<`T`\> & `object`
 
-Defined in: flow.ts:121
+Defined in: flow.ts:129
 
 [VirtualList](../functions/VirtualList.md) rich mode: a recycled SUBTREE per slot via `renderRow`
 (built once, never destroyed). Mutually exclusive with `format`. Each

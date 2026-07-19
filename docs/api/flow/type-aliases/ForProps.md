@@ -8,7 +8,7 @@
 
 > **ForProps**\<`T`\> = [`BoxProps`](BoxProps.md) & `object`
 
-Defined in: flow.ts:72
+Defined in: flow.ts:80
 
 Props for [For](../functions/For.md).
 

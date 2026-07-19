@@ -8,7 +8,7 @@
 
 > **BoxProps** = `object`
 
-Defined in: flow.ts:43
+Defined in: flow.ts:51
 
 Host-box coordinates shared by every control-flow component. These are
 CONSTRUCTION-TIME STATICS — Piu lays out at construction and this port
@@ -23,7 +23,7 @@ stable layout; a width-less host defaults to the full screen width.
 
 > `optional` **bottom?**: `number`
 
-Defined in: flow.ts:49
+Defined in: flow.ts:57
 
 ***
 
@@ -31,7 +31,7 @@ Defined in: flow.ts:49
 
 > `optional` **height?**: `number`
 
-Defined in: flow.ts:45
+Defined in: flow.ts:53
 
 ***
 
@@ -39,7 +39,7 @@ Defined in: flow.ts:45
 
 > `optional` **left?**: `number`
 
-Defined in: flow.ts:46
+Defined in: flow.ts:54
 
 ***
 
@@ -47,7 +47,7 @@ Defined in: flow.ts:46
 
 > `optional` **right?**: `number`
 
-Defined in: flow.ts:47
+Defined in: flow.ts:55
 
 ***
 
@@ -55,7 +55,7 @@ Defined in: flow.ts:47
 
 > `optional` **skin?**: `Skin` \| `SkinDictionary`
 
-Defined in: flow.ts:50
+Defined in: flow.ts:58
 
 ***
 
@@ -63,7 +63,7 @@ Defined in: flow.ts:50
 
 > `optional` **style?**: `Style` \| `StyleDictionary`
 
-Defined in: flow.ts:51
+Defined in: flow.ts:59
 
 ***
 
@@ -71,7 +71,7 @@ Defined in: flow.ts:51
 
 > `optional` **top?**: `number`
 
-Defined in: flow.ts:48
+Defined in: flow.ts:56
 
 ***
 
@@ -79,4 +79,4 @@ Defined in: flow.ts:48
 
 > `optional` **width?**: `number`
 
-Defined in: flow.ts:44
+Defined in: flow.ts:52

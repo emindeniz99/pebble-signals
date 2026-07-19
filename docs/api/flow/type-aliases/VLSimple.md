@@ -8,7 +8,7 @@
 
 > **VLSimple**\<`T`\> = `VLBase`\<`T`\> & `object`
 
-Defined in: flow.ts:110
+Defined in: flow.ts:118
 
 [VirtualList](../functions/VirtualList.md) simple mode: one recycled Label per slot, text via
 `format`. Mutually exclusive with `renderRow` (compile error if both).

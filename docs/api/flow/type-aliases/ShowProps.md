@@ -8,7 +8,7 @@
 
 > **ShowProps** = [`BoxProps`](BoxProps.md) & `object`
 
-Defined in: flow.ts:55
+Defined in: flow.ts:63
 
 Props for [Show](../functions/Show.md).
 
