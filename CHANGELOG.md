@@ -30,6 +30,21 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Scan-grammar parity round (codex review of b848555).** Six blind spots
+  where shipped code and the pre-build scans disagreed: (1) the closure
+  reader is now file-only — `import "./setup"` beside a `setup/` directory
+  used to die with EISDIR before the index candidates were tried; (2)
+  ESM-style `./art.js` specifiers resolve to their TS twins; (3) backtick
+  no-substitution literals count everywhere quotes did — relative dynamic
+  imports, `new Texture(...)`, `.pdc`, `romTable(...)` — while substitution
+  templates never match (and a substitution dynamic import correctly
+  self-disables treeshake); (4) `export { X } from "runtime/..."`
+  re-exports feed the prune keep-set like imports (a demoted re-exported
+  name failed the module at load); (5) fontcheck sees digit-bearing
+  families (`"20px B612"` used to skip the literal entirely and render
+  blank); (6) classify treats class STATIC initializers/blocks as load-time
+  effects, so `static skin = new Skin(...)` can no longer be promoted into
+  a preloaded ROM module.
 - **treeshake ignores type-only runtime imports.** `import type { ForProps }
   from "runtime/flow"` erases at emit, but the raw seed scan kept the whole
   flow/jsx/signals stack preloaded against the boot floor. Type-only
