@@ -30,6 +30,20 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Parity round two (codex review of 2f8cff6).** (1) symbol diet rewrites
+  `export { For } from "runtime/flow"` re-exports in shipped modules — the
+  wire side only, the exported name stays stable — a renamed wire used to
+  leave the re-export requesting a missing export (load death); (2)
+  auto-thunk recognizes a one-level HOST alias (`const L = Label`) — its
+  reactive props were evaluated once and dead to updates; (3) backtick
+  `font:` literals count in fontcheck AND deriveFonts; (4) classify treats
+  tagged templates (`makeStyle\`…\``) as load-time calls; (5)
+  relativeClosure skips type-only relative edges (`import type { Theme }
+  from "./types"`) — a types-only helper's string literals no longer fail
+  fontcheck or ship phantom resources for code that never bundles; (6)
+  `./tools/*` package exports resolve to compiled `dist/tools/*` (the
+  source `.mts` mapping could never run under node_modules) and the README
+  quickstart uses the scaffolded `npm run build`.
 - **Scan-grammar parity round (codex review of b848555).** Six blind spots
   where shipped code and the pre-build scans disagreed: (1) the closure
   reader is now file-only — `import "./setup"` beside a `setup/` directory
