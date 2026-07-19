@@ -267,6 +267,41 @@ export function selftest(): void {
 			"jsx(Label, { string: s.value });\n",
 	);
 	eq(r.code, r.code.includes("string: () => (s.value)"), "auto-thunk wraps namespace signal read");
+	// useReducer returns [getter, dispatch] — its getter reads as `count()` just
+	// like useState, so the bare form must thunk. The factory set omitted it, so
+	// the prop evaluated once and never re-ran on dispatch (codex P2). The call
+	// stays unlowered (read-lowering only knows useState) — the thunk is what
+	// keeps it live.
+	r = lower(
+		'import { useReducer } from "runtime/signals";\n' +
+			'import { jsx } from "runtime/jsx-runtime";\n' +
+			"const [count, dispatch] = useReducer(reducer, 0);\n" +
+			"jsx(Label, { string: count() });\n",
+	);
+	eq(r.code, r.code.includes("string: () => (count())"), "auto-thunk wraps useReducer getter");
+	// same via a namespace import (`sig.useReducer`)
+	r = lower(
+		'import * as sig from "runtime/signals";\n' +
+			'import { jsx } from "runtime/jsx-runtime";\n' +
+			"const [count, dispatch] = sig.useReducer(reducer, 0);\n" +
+			"jsx(Label, { string: count() });\n",
+	);
+	eq(
+		r.code,
+		r.code.includes("string: () => (count())"),
+		"auto-thunk wraps namespace useReducer getter",
+	);
+	// a read-only destructure `const [count] = useState(0)` (setter dropped) must
+	// thunk the same as `[count, setCount]` — requiring exactly two binding
+	// elements left it a one-time eval that no write refreshed (codex P2). The
+	// call stays unlowered (read-lowering wants the pair) — the live thunk is
+	// what makes the getter reactive.
+	r = lower(JSXIMP + "const [count] = useState(0);\n" + "jsx(Label, { string: count() });\n");
+	eq(
+		r.code,
+		r.code.includes("string: () => (count())"),
+		"auto-thunk wraps read-only useState getter",
+	);
 	// already-a-thunk is left alone (idempotent authoring + our own output)
 	r = lower(
 		JSXIMP +

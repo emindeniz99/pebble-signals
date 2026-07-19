@@ -297,9 +297,9 @@ const shakeSources = [
 // can seed the keep-set (--need below).
 const rootShim = (() => {
 	if (!existsSync(appSrc)) return false;
-	const bare = readFileSync(appSrc, "utf8")
-		.replace(/\/\*[\s\S]*?\*\//g, "")
-		.replace(/\/\/[^\n]*/g, "");
+	const strip = (s: string): string =>
+		s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+	const bare = strip(readFileSync(appSrc, "utf8"));
 	// self-rendering = the RUNTIME render is IMPORTED and CALLED — named
 	// (`render(`), aliased (`import { render as mount }` + `mount(`), or
 	// namespaced (`R.render(`). Resolving the import matters in BOTH
@@ -308,15 +308,25 @@ const rootShim = (() => {
 	// local helper named render suppressed the shim, shipping a component
 	// app that never mounts (codex P2 x2). An app with NO runtime render
 	// import cannot be calling the runtime render.
+	//
+	// Scan the whole entry CLOSURE, not just appSrc: an entry may `export
+	// default App` (looks shim-able) yet delegate mounting to a relative
+	// helper (`boot(App)` where `./boot` imports+calls render). The helper's
+	// render runs when the shim imports the entry, then the shim calls
+	// render() again → double mount. Per-file so an alias only matches a call
+	// in its OWN module (codex P2).
 	let selfRenders = false;
-	for (const im of bare.matchAll(/import\s*{([^}]*)}\s*from\s*["']runtime\/jsx-runtime["']/g)) {
-		const named = /\brender\b(?:\s+as\s+([A-Za-z_$][\w$]*))?/.exec(im[1]);
-		if (named && new RegExp(`\\b${named[1] ?? "render"}\\s*\\(`).test(bare)) selfRenders = true;
+	for (const f of appClosure) {
+		const t = strip(readSrc(f) ?? "");
+		for (const im of t.matchAll(/import\s*{([^}]*)}\s*from\s*["']runtime\/jsx-runtime["']/g)) {
+			const named = /\brender\b(?:\s+as\s+([A-Za-z_$][\w$]*))?/.exec(im[1]);
+			if (named && new RegExp(`\\b${named[1] ?? "render"}\\s*\\(`).test(t)) selfRenders = true;
+		}
+		for (const im of t.matchAll(
+			/import\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s*from\s*["']runtime\/jsx-runtime["']/g,
+		))
+			if (new RegExp(`\\b${im[1]}\\s*\\.\\s*render\\s*\\(`).test(t)) selfRenders = true;
 	}
-	for (const im of bare.matchAll(
-		/import\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s*from\s*["']runtime\/jsx-runtime["']/g,
-	))
-		if (new RegExp(`\\b${im[1]}\\s*\\.\\s*render\\s*\\(`).test(bare)) selfRenders = true;
 	if (selfRenders) return false; // app mounts itself — a shim would mount TWICE
 	const rhs = /^export default\s+(.+)$/m.exec(bare)?.[1].trim();
 	if (!rhs) return false;

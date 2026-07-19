@@ -38,6 +38,21 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round fifteen (codex review of 0af46bb).** Three "build passes, device
+  silently wrong" auto-thunk/shim gaps. (1) `useReducer` getters now auto-thunk:
+  `const [c, d] = useReducer(...)` with the bare form `string={c()}` was left
+  unwrapped (the factory set only knew useState/signal/computed/useMemo), so the
+  prop evaluated ONCE and never re-ran on `dispatch()`; useReducer returns
+  `[getter, dispatch]` and is now collected like useState (named + namespace
+  imports). (2) a read-only destructure `const [count] = useState(0)` (setter
+  intentionally dropped) now thunks too — the collector required exactly two
+  binding elements, so a one-element read-only binding stayed a one-time eval
+  while `const [count, _]` worked. (3) `build.mts` self-render detection scans
+  the whole entry CLOSURE, not just the entry file: an app that `export
+  default`s a component yet delegates mounting to a relative helper (`boot(App)`
+  where `./boot` calls `render`) used to get a generated shim ON TOP of the
+  helper's mount — double mount; the closure scan now suppresses the shim
+  (A/B build probe confirmed on gabbro: shim generated before, suppressed after).
 - **Round fourteen (codex review of b1f1db0).** (1) `pnpm run verify` no longer
   bundles `test:xs` — it was documented (README, getting-started, device-smokes)
   as the SDK-free one-command gate, yet running it demanded the `xst` binary the

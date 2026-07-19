@@ -33,6 +33,12 @@ export function autoThunk(text: string): { code: string; wrapped: number } {
 	const sigSym = importSymbol(checker, sf, "signal");
 	const compSym = importSymbol(checker, sf, "computed");
 	const memoSym = importSymbol(checker, sf, "useMemo");
+	// useReducer is useState under the hood — it returns `[() => S, dispatch]`,
+	// so its first binding is read as `count()` exactly like a useState getter.
+	// The factory set omitted it, so `const [c, d] = useReducer(...)` left the
+	// documented bare form `string={c()}` unwrapped — evaluated once, then dead
+	// to every `dispatch()` (codex P2).
+	const reducerSym = importSymbol(checker, sf, "useReducer");
 	// NAMESPACE imports of the signals module (`import * as sig from
 	// "runtime/signals"`): `sig.useState(...)` is the same factory — the
 	// named-import-only collector left a namespace user's documented bare
@@ -51,7 +57,7 @@ export function autoThunk(text: string): { code: string; wrapped: number } {
 			const s = checker.getSymbolAtLocation(st.importClause.namedBindings.name);
 			if (s) nsSyms.add(s);
 		}
-	const NS_FACTORIES = new Set(["useState", "signal", "computed", "useMemo"]);
+	const NS_FACTORIES = new Set(["useState", "useReducer", "signal", "computed", "useMemo"]);
 	const getterSyms = new Set<ts.Symbol>(); // read as g()
 	const valueSyms = new Set<ts.Symbol>(); // read as x.value
 	(function walk(n: ts.Node) {
@@ -66,22 +72,28 @@ export function autoThunk(text: string): { code: string; wrapped: number } {
 					kind =
 						useSym && callee === useSym
 							? "useState"
-							: sigSym && callee === sigSym
-								? "signal"
-								: compSym && callee === compSym
-									? "computed"
-									: memoSym && callee === memoSym
-										? "useMemo"
-										: null;
+							: reducerSym && callee === reducerSym
+								? "useReducer"
+								: sigSym && callee === sigSym
+									? "signal"
+									: compSym && callee === compSym
+										? "computed"
+										: memoSym && callee === memoSym
+											? "useMemo"
+											: null;
 			} else if (ts.isPropertyAccessExpression(ce) && ts.isIdentifier(ce.expression)) {
 				const ns = checker.getSymbolAtLocation(ce.expression);
 				if (ns && nsSyms.has(ns) && NS_FACTORIES.has(ce.name.text)) kind = ce.name.text;
 			}
 			const el0 = ts.isArrayBindingPattern(n.name) ? n.name.elements[0] : undefined;
 			if (
-				kind === "useState" &&
+				(kind === "useState" || kind === "useReducer") &&
 				ts.isArrayBindingPattern(n.name) &&
-				n.name.elements.length === 2 &&
+				// getter is element[0]; a read-only `const [count] = useState(0)`
+				// (setter intentionally dropped) is a valid one-element destructure
+				// and must collect just like `[count, setCount]` — requiring exactly
+				// two left it a one-time eval that no write refreshed (codex P2)
+				n.name.elements.length >= 1 &&
 				el0 &&
 				!ts.isOmittedExpression(el0) &&
 				ts.isIdentifier(el0.name)
