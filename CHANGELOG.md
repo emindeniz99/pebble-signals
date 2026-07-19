@@ -38,6 +38,24 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round thirteen (codex review of c25d9c0).** (1) the lazy split-brain walk
+  and owner-count now follow literal relative DYNAMIC imports
+  (`import("./state")`) too — relativeClosure follows them, so esbuild
+  inlines the helper and a stateful copy shared with another bundle
+  split-brains just like a static import (the walk only matched `from`/bare
+  imports); (2) a COMPUTED `importNow("app/screens/" + n)` inside a lazy
+  module is now ALLOWED — the folder convention ships every `screens/*`
+  file, so it resolves; round twelve's computed-app guard wrongly failed it
+  even though its own error pointed users at the screens convention; (3)
+  `gen-manifest` ships literal `new Resource("strings.dat")` data files —
+  only `.pdc` was scanned, so a documented static-data file was omitted and
+  the device lookup failed (a build/runtime gap like the Texture one); (4)
+  lint-reads flags a `useState` getter on a HOST's NON-reactive prop
+  (`<Container width={count}>`) — `createHost` throws `bindErr` at render
+  (only string/state/variant/skin/style/active may be function-valued), so
+  the lint gate now catches it instead of letting it die on device;
+  component props and reactive host props stay exempt (no false positives —
+  every shipped example still lints clean).
 - **Round twelve (codex review of 9db32a2).** (1) `new Texture("x")` without
   the `.png` suffix now FAILS the build — it shipped the asset but threw
   `Texture x not found!` on device (README gotcha 19, measured); a
