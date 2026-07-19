@@ -3,7 +3,9 @@
     "src/embeddedjs/runtime/signals.ts",
     "src/embeddedjs/runtime/jsx-runtime.ts",
     "src/embeddedjs/runtime/flow.ts",
-    "src/embeddedjs/runtime/draw.ts"
+    "src/embeddedjs/runtime/draw.ts",
+    "src/embeddedjs/runtime/badge.ts",
+    "src/embeddedjs/runtime/localstorage.ts"
   ],
   "entryPointStrategy": "expand",
   "tsconfig": "tsconfig.check.json",

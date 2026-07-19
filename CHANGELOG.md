@@ -10,6 +10,17 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **`runtime/badge` — a reactive count `Badge` (opt-in, composes `Canvas`).**
+  A filled disc with a centered number that repaints for free when its `count`
+  thunk changes. Device-verified on gabbro + emery
+  (`screenshots/badge-{gabbro,emery}.png`).
+- **`runtime/localstorage` — `useLocalStorage(key, initial)`**, a
+  `useState`-shaped reactive string cell persisted to the host `localStorage`
+  (webstorage over `device.keyValue`); degrades to an in-memory signal on a
+  host without webstorage. Device-verified (`screenshots/localstore-*.png`).
+- **`runtime/draw` gains `line` / `fillRoundRect` / `strokeRect`** — the draw
+  primitive set is now line, rect, rounded-rect, circle (fill + stroke), text,
+  all JS-rasterized `fillColor` spans on ONE Port.
 - **`runtime/draw` — reactive immediate-mode drawing on ONE Piu Port
   (opt-in, zero-cost).** A `Canvas` component takes a `paint(g)` callback and
   gives it a `DrawContext` with `fillRect` / `fillCircle` / `strokeCircle` /
@@ -25,6 +36,22 @@ No registry releases yet; entries accumulate under Unreleased until the first
   `list` app's pruned manifest omits it). Device receipts on both watch
   shapes: `screenshots/draw-gabbro.png`, `screenshots/draw-emery.png` (+ their
   `-grown` reactive-change frames). Example: `src/tsx/examples/draw.tsx`.
+
+### Fixed
+- **Per-app treeshake now follows runtime→runtime imports** (derived from
+  source, not a hardcoded edge table). An app that imported only a composed
+  catalog module (e.g. `Badge`, which imports `Canvas`) had its transitive
+  `runtime/draw` pruned out of the manifest — a mod-load death that booted
+  BLANK on device while the build passed. The unmapped-import tripwire now
+  also scans shipped runtime modules so any future prune blind spot fails
+  loud at build time instead of on the watch.
+- **`Canvas` paints its first frame at mount** (an `onDisplaying` invalidate).
+  A static canvas — or one whose signals hadn't changed yet — previously never
+  painted, because the mount-time invalidate ran before the port was attached
+  and was dropped.
+- **`DrawContext.text` calls `drawString` with 5 args** (the device-proven
+  shape); a 6th `width` sent the firmware down a field-alignment path that
+  threw inside `onDraw` and blanked the whole frame.
 
 ### Changed
 - **Children on a non-container Piu host now throw at build.**

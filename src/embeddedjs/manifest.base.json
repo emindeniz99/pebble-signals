@@ -1,18 +1,22 @@
 {
-	"include": [
-		"$(MODDABLE)/examples/manifest_mod.json"
-	],
-	"modules": {
-		"main": "./app/main",
-		"runtime/signals": "./runtime-min/signals",
-		"runtime/jsx-runtime": "./runtime-min/jsx-runtime",
-		"runtime/flow": "./runtime-min/flow",
-		"runtime/draw": "./runtime-min/draw"
-	},
-	"preload": [
-		"runtime/signals",
-		"runtime/jsx-runtime",
-		"runtime/flow",
-		"runtime/draw"
-	]
+ "include": [
+  "$(MODDABLE)/examples/manifest_mod.json"
+ ],
+ "modules": {
+  "main": "./app/main",
+  "runtime/signals": "./runtime-min/signals",
+  "runtime/jsx-runtime": "./runtime-min/jsx-runtime",
+  "runtime/flow": "./runtime-min/flow",
+  "runtime/draw": "./runtime-min/draw",
+  "runtime/badge": "./runtime-min/badge",
+  "runtime/localstorage": "./runtime-min/localstorage"
+ },
+ "preload": [
+  "runtime/signals",
+  "runtime/jsx-runtime",
+  "runtime/flow",
+  "runtime/draw",
+  "runtime/badge",
+  "runtime/localstorage"
+ ]
 }

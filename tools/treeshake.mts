@@ -14,12 +14,44 @@ interface Manifest {
 	[k: string]: unknown;
 }
 
-// intra-runtime import graph (which runtime module imports which)
+// intra-runtime import graph (which runtime module imports which). This is the
+// FALLBACK for the core stack; the CLI derives the FULL graph from the runtime
+// sources (deriveDeps) so a NEW opt-in module (runtime/draw imports it, a badge
+// composes a canvas…) never needs a hand edit here. A missing edge silently
+// prunes a transitively-needed module and boots blank on device — so the whole
+// map is derived, not maintained.
 const DEPS: Record<string, string[]> = {
 	"runtime/signals": [],
 	"runtime/jsx-runtime": ["runtime/signals"],
 	"runtime/flow": ["runtime/signals", "runtime/jsx-runtime"],
 };
+
+/**
+ * Derive the intra-runtime import graph by scanning each `runtime/*` source for
+ * its VALUE `from "runtime/Y"` imports (type-only clauses erase at emit and are
+ * skipped). Robust to the catalog: any new opt-in module's edges are found from
+ * source, so treeshake never prunes a module its sibling still imports.
+ * `mods` = the runtime module ids to scan (e.g. from the manifest); `read`
+ * returns a module's source (or null). Merges onto {@link DEPS} as a base.
+ */
+export function deriveDeps(
+	mods: string[],
+	read: (mod: string) => string | null,
+): Record<string, string[]> {
+	const deps: Record<string, string[]> = { ...DEPS };
+	for (const mod of mods) {
+		const raw = read(mod);
+		if (raw === null) continue;
+		const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+		const edges: string[] = [];
+		for (const m of code.matchAll(
+			/\b(?:import|export)\s+([^;]*?)from\s+["'](runtime\/[a-zA-Z0-9_-]+)["']/g,
+		))
+			if (!typeOnlyClause(m[1]) && m[2] !== mod) edges.push(m[2]);
+		deps[mod] = edges;
+	}
+	return deps;
+}
 
 // Does this import/export clause erase entirely at emit? `import type { X }`
 // starts with `type`, but an ALL-INLINE-type clause (`import { type Theme }`)
@@ -41,7 +73,11 @@ const typeOnlyClause = (clause: string): boolean => {
  * shim file only exists after tsc — pruning it away shipped a mod whose
  * import had no manifest mapping: boot death).
  */
-export function neededModules(src: string, extraSeeds: string[] = []): Set<string> {
+export function neededModules(
+	src: string,
+	extraSeeds: string[] = [],
+	deps: Record<string, string[]> = DEPS,
+): Set<string> {
 	// comments off (a commented example must not seed), and TYPE-ONLY clauses
 	// (`import type …` / `export type …`) skipped: they erase at emit, so
 	// seeding them preloads dead modules straight against the boot floor
@@ -69,7 +105,7 @@ export function neededModules(src: string, extraSeeds: string[] = []): Set<strin
 		// PRUNED it from the manifest — a boot death if a 4th runtime module
 		// ever ships without updating DEPS (review finding P9).
 		need.add(mod);
-		if (mod in DEPS) stack.push(...DEPS[mod]);
+		if (mod in deps) stack.push(...deps[mod]);
 	}
 	return need;
 }
@@ -166,12 +202,30 @@ if (import.meta.main) {
 	const args = process.argv.slice(2);
 	const manifestPath = args.pop() as string;
 	// --need=runtime/<mod>: seed a module on behalf of generated code (the
-	// root shim) — see neededModules. Everything else is a source path.
+	// root shim) — see neededModules.
 	const seeds = args.filter((a) => a.startsWith("--need=")).map((a) => a.slice("--need=".length));
-	const files = args.filter((a) => !a.startsWith("--need="));
+	// --runtime-dir=<dir>: the runtime SOURCE directory (flat `runtime/*.ts|js`),
+	// scanned to derive the full intra-runtime import graph so a new opt-in
+	// catalog module never needs a hand-edited DEPS entry. Absent → core DEPS
+	// fallback (keeps the pure API self-contained).
+	const runtimeDir = args
+		.filter((a) => a.startsWith("--runtime-dir="))
+		.map((a) => a.slice("--runtime-dir=".length))[0];
+	const files = args.filter((a) => !a.startsWith("--"));
 	const src = files.map((p) => readFileSync(p, "utf8")).join("\n");
 	const m = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
-	const { manifest, kept, dropped } = pruneManifest(m, neededModules(src, seeds));
+	const runtimeMods = Object.keys(m.modules ?? {}).filter((k) => k.startsWith("runtime/"));
+	const readMod = (mod: string): string | null => {
+		if (!runtimeDir) return null;
+		const base = `${runtimeDir}/${mod.slice("runtime/".length)}`;
+		for (const p of [`${base}.ts`, `${base}.js`])
+			try {
+				return readFileSync(p, "utf8");
+			} catch {}
+		return null;
+	};
+	const deps = runtimeDir ? deriveDeps(runtimeMods, readMod) : DEPS;
+	const { manifest, kept, dropped } = pruneManifest(m, neededModules(src, seeds, deps));
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, "\t")}\n`);
 	console.log(
 		`treeshake: kept ${kept.join(",")}${dropped.length ? `; dropped ${dropped.join(",")}` : "; nothing to drop"}`,

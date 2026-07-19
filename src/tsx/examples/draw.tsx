@@ -1,7 +1,9 @@
-// runtime/draw receipt — a reactive Canvas. The filled disc's radius follows a
-// signal (up/down grows/shrinks it), a ring tracks it, and a label reads the
-// same signal — proving the JS-rasterized fillColor substrate paints AND that
-// paint's reads auto-track (radius change → effect → invalidate → repaint).
+// runtime/draw receipt + primitive sampler. The reactive disc's radius follows a
+// signal (up/down grows/shrinks it) — proving the JS-rasterized fillColor
+// substrate paints AND that paint's reads auto-track (radius change → effect →
+// invalidate → repaint). The static primitives around it exercise every
+// rasterizer at once (ONE Port paints many): fillRoundRect, strokeRect, line
+// (H/V/diagonal), fillCircle, strokeCircle.
 // Buttons (QEMU touch crashes the firmware — README gotcha 2):
 //   up = grow radius · down = shrink radius.
 import { render } from "runtime/jsx-runtime";
@@ -11,21 +13,27 @@ import { Canvas } from "runtime/draw";
 const bg = new Skin({ fill: "black" });
 const base = new Style({ font: "24px Gothic", color: "white" });
 
-const [r, setR] = useState(30);
-const grow = () => setR(Math.min(r() + 8, 64));
-const shrink = () => setR(Math.max(r() - 8, 8));
+const [r, setR] = useState(24);
+const grow = () => setR(Math.min(r() + 6, 40));
+const shrink = () => setR(Math.max(r() - 6, 6));
 
 render(
 	() => (
 		<Container left={0} right={0} top={0} bottom={0} focus={true} onPressUp={grow} onPressDown={shrink}>
 			<Column>
 				<Canvas
-					width={140}
-					height={140}
+					width={150}
+					height={150}
 					fill="black"
 					paint={(g) => {
-						g.fillCircle(70, 70, r(), "#e01818");
-						g.strokeCircle(70, 70, 66, "white", 3);
+						// static sampler of the new primitives
+						g.fillRoundRect(8, 8, 60, 40, 10, "#1560bd"); // rounded panel
+						g.strokeRect(80, 8, 60, 40, 2, "#f0a000"); // outlined box
+						g.line(8, 60, 142, 60, 2, "#00a000"); // crisp horizontal
+						g.line(8, 66, 142, 96, 3, "#8000c0"); // diagonal
+						// reactive disc + tracking ring (grows/shrinks with r())
+						g.fillCircle(75, 112, r(), "#e01818");
+						g.strokeCircle(75, 112, 34, "white", 2);
 					}}
 				/>
 				<Label string={() => "r=" + r()} />

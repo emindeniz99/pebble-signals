@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { deriveFonts, deriveResources, badTextures } from "../tools/gen-manifest.mts";
 import { badFonts } from "../tools/fontcheck.mts";
-import { neededModules, pruneManifest } from "../tools/treeshake.mts";
+import { deriveDeps, neededModules, pruneManifest } from "../tools/treeshake.mts";
 import { classify } from "../tools/classify-module.mts";
 import { squash } from "../tools/squash.mts";
 import { pruneDeadImports } from "../tools/import-prune-min.mts";
@@ -104,6 +104,32 @@ test("treeshake: flow importer keeps all three (transitive closure)", () => {
 test("treeshake: always keeps main", () => {
 	const { manifest } = pruneManifest(BASE, neededModules('import "runtime/signals";'));
 	assert.equal(manifest.modules?.main, "./app/main");
+});
+
+test("treeshake: deriveDeps finds a catalog module's transitive edge (badge -> draw)", () => {
+	// The white-screen bug: a hardcoded DEPS map didn't know badge imports draw,
+	// so draw was pruned out from under badge (mod-load death). deriveDeps reads
+	// the edge from source, and neededModules(deps) then keeps draw.
+	const sources: Record<string, string> = {
+		"runtime/badge": 'import { Canvas } from "runtime/draw";\nimport type { X } from "../t";',
+		"runtime/draw":
+			'import { effect } from "runtime/signals";\nimport { screen } from "runtime/jsx-runtime";',
+		"runtime/localstorage": 'import { signal } from "runtime/signals";',
+	};
+	const deps = deriveDeps(Object.keys(sources), (m) => sources[m] ?? null);
+	assert.deepEqual(deps["runtime/badge"], ["runtime/draw"]);
+	assert.deepEqual(deps["runtime/draw"].sort(), ["runtime/jsx-runtime", "runtime/signals"]);
+	// an app that imports ONLY badge must still keep draw + its deps
+	const need = neededModules('import { Badge } from "runtime/badge";', [], deps);
+	assert.deepEqual([...need].sort(), [
+		"runtime/badge",
+		"runtime/draw",
+		"runtime/jsx-runtime",
+		"runtime/signals",
+	]);
+	// a module deriveDeps can't read is skipped (keeps its core-DEPS fallback edges)
+	const partial = deriveDeps(["runtime/badge", "runtime/flow"], (m) => sources[m] ?? null);
+	assert.deepEqual(partial["runtime/flow"], ["runtime/signals", "runtime/jsx-runtime"]);
 });
 
 test("treeshake: type-only imports do not seed (they erase at emit)", () => {

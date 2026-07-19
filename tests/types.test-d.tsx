@@ -5,6 +5,8 @@
 import { Show, For, VirtualList, Navigator } from "runtime/flow";
 import { useState, signal, computed } from "runtime/signals";
 import { Canvas } from "runtime/draw";
+import { Badge } from "runtime/badge";
+import { useLocalStorage } from "runtime/localstorage";
 
 const data = { count: () => 3, get: (i: number) => "row" + i };
 
@@ -22,6 +24,13 @@ Navigator({
 
 // draw: Canvas takes a paint callback receiving the DrawContext
 Canvas({ width: 20, height: 20, paint: (g) => g.fillCircle(10, 10, 5, "red") });
+// badge: count may be a thunk or a bare number
+Badge({ count: () => 3 });
+Badge({ count: 7, color: "blue", size: 24 });
+// localstorage: useState-shaped [getter, setter] over strings
+const [ls, setLs] = useLocalStorage("k", "v");
+const _ls: string = ls();
+setLs("next");
 
 // --- misuse: each MUST be a type error (guards biting) ---
 // @ts-expect-error — Canvas requires `paint`

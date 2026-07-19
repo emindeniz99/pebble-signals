@@ -473,6 +473,11 @@ if (treeshake)
 		// the generated shim imports render — its module must survive the prune
 		// even though no scanned source mentions it (the file exists only post-tsc)
 		...(rootShim || jsxTsx ? ["--need=runtime/jsx-runtime"] : []),
+		// derive the intra-runtime import graph from source so a catalog
+		// module's transitive deps (badge -> draw) survive the prune without a
+		// hand-maintained edge table (the white-screen bug: draw pruned out
+		// from under badge -> mod-load death, blank on device)
+		`--runtime-dir=${join(PKG, "src/embeddedjs/runtime")}`,
 		"src/embeddedjs/manifest.json",
 	]);
 
@@ -1184,7 +1189,14 @@ if (flag(cli.symdiet, "SYMDIET", "1", true) && treeshake) {
 			}
 		).modules ?? {};
 	const missing = new Set<string>();
-	for (const f of ["src/embeddedjs/app/main.js", ...lazyFiles, ...pureFiles])
+	// Scan the app entry, lazy/pure app modules, AND every SHIPPED runtime
+	// module: a runtime module importing an unmapped sibling (badge -> a
+	// pruned draw) is the same mod-load death, invisible to an app-only scan
+	// (the white-screen bug).
+	const shippedRuntime = Object.entries(mapped)
+		.filter(([id]) => id.startsWith("runtime/"))
+		.map(([, rel]) => join("src/embeddedjs", `${rel}.js`));
+	for (const f of ["src/embeddedjs/app/main.js", ...lazyFiles, ...pureFiles, ...shippedRuntime])
 		if (existsSync(f))
 			for (const m of readFileSync(f, "utf8").matchAll(
 				/\bfrom\s*["'](runtime\/[\w-]+)["']|\bimport\s*["'](runtime\/[\w-]+)["']/g,

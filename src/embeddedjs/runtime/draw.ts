@@ -9,7 +9,11 @@
 // `drawRoundRect` on the port. So every shape here is JS-RASTERIZED into
 // horizontal `fillColor(color, x, y, w, 1)` scanline spans — CPU for RAM, the
 // house trade (Rule 4). ONE Port paints MANY shapes (never one Port per shape —
-// gotcha 16: a width-less/duplicated port is a measured cliff).
+// gotcha 16: a width-less/duplicated port is a measured cliff). Every primitive
+// — fillRect, fillCircle/strokeCircle, line, fillRoundRect, strokeRect — reduces
+// to those same spans: axis-aligned lines are ONE crisp centered span, diagonals
+// DDA a t×t block per step, and round-rect corners reuse the fillCircle isqrt
+// scanline (no native round-rect/line on the port either).
 //
 // REACTIVITY (mirrors the Move idiom, flow.ts, and port.tsx:101): draw props do
 // NOT go through the jsx bind path (createHost rejects non-REACTIVE_PROPS keys).
@@ -50,6 +54,25 @@ export type DrawContext = {
 	 * grown INWARD from `r`. Rasterized as the difference of two discs.
 	 */
 	strokeCircle(cx: number, cy: number, r: number, color: Color, thickness?: number): void;
+	/**
+	 * Draw a straight line from (`x0`,`y0`) to (`x1`,`y1`), `thickness` px wide
+	 * (`thickness` ≤ 0 clamps to 1). Axis-aligned lines are ONE crisp span
+	 * centered on the fixed coordinate; diagonals step via DDA along the major
+	 * axis, stamping a `t`×`t` block per step.
+	 */
+	line(x0: number, y0: number, x1: number, y1: number, thickness: number, color: Color): void;
+	/**
+	 * Fill a rectangle with radius-`r` rounded corners. `r` clamps to
+	 * `min(r, w>>1, h>>1)`; `r` ≤ 0 falls back to a single fillRect. The middle
+	 * band is one full-width span; the top-`r`/bottom-`r` rows inset each end by
+	 * the corner circle profile (the fillCircle isqrt scanline) — no gaps.
+	 */
+	fillRoundRect(x: number, y: number, w: number, h: number, r: number, color: Color): void;
+	/**
+	 * Stroke a rectangle outline as its 4 edges, each `thickness` px wide
+	 * (`thickness` ≤ 0 clamps to 1). Corners are double-painted (overlap is fine).
+	 */
+	strokeRect(x: number, y: number, w: number, h: number, thickness: number, color: Color): void;
 	/** Draw a text string at (`x`,`y`) in `style`/`color` (passthrough to drawString). */
 	text(str: string, style: Style, color: Color, x: number, y: number): void;
 };
@@ -138,21 +161,81 @@ export function Canvas(props: CanvasProps): Content {
 				}
 			}
 		},
+		line(x0, y0, x1, y1, thickness, color) {
+			if (!drawing) return;
+			const t = thickness > 0 ? Math.round(thickness) : 1;
+			const half = t >> 1;
+			if (y0 === y1) {
+				// crisp horizontal: ONE span, full length × t, centered on y
+				const lx = x0 < x1 ? x0 : x1;
+				port.fillColor(color, lx, y0 - half, Math.abs(x1 - x0) + 1, t);
+				return;
+			}
+			if (x0 === x1) {
+				// crisp vertical: ONE span, t × full length, centered on x
+				const ly = y0 < y1 ? y0 : y1;
+				port.fillColor(color, x0 - half, ly, t, Math.abs(y1 - y0) + 1);
+				return;
+			}
+			// DDA along the major axis; stamp a t×t block centered at each step
+			const dx = x1 - x0;
+			const dy = y1 - y0;
+			const steps = Math.abs(dx) > Math.abs(dy) ? Math.abs(dx) : Math.abs(dy);
+			const xInc = dx / steps;
+			const yInc = dy / steps;
+			let fx = x0;
+			let fy = y0;
+			for (let i = 0; i <= steps; i++) {
+				port.fillColor(color, Math.round(fx) - half, Math.round(fy) - half, t, t);
+				fx += xInc;
+				fy += yInc;
+			}
+		},
+		fillRoundRect(x, y, w, h, r, color) {
+			if (!drawing) return;
+			const rr = Math.min(r, w >> 1, h >> 1);
+			if (rr <= 0) {
+				// no corner to carve — a plain rectangle in one span
+				port.fillColor(color, x, y, w, h);
+				return;
+			}
+			const r2 = rr * rr;
+			// top-r rows: inset each end by the corner circle's half-width
+			for (let dy = -rr; dy < 0; dy++) {
+				const dxi = isqrt(r2 - dy * dy);
+				const rowW = w - 2 * rr + 2 * dxi;
+				if (rowW > 0) port.fillColor(color, x + rr - dxi, y + rr + dy, rowW, 1);
+			}
+			// middle band (between the corner arcs): one full-width span
+			const midH = h - 2 * rr;
+			if (midH > 0) port.fillColor(color, x, y + rr, w, midH);
+			// bottom-r rows: mirror of the top band
+			for (let dy = 1; dy <= rr; dy++) {
+				const dxi = isqrt(r2 - dy * dy);
+				const rowW = w - 2 * rr + 2 * dxi;
+				if (rowW > 0) port.fillColor(color, x + rr - dxi, y + h - 1 - rr + dy, rowW, 1);
+			}
+		},
+		strokeRect(x, y, w, h, thickness, color) {
+			if (!drawing) return;
+			const t = thickness > 0 ? Math.round(thickness) : 1;
+			port.fillColor(color, x, y, w, t); // top edge
+			port.fillColor(color, x, y + h - t, w, t); // bottom edge
+			port.fillColor(color, x, y, t, h); // left edge
+			port.fillColor(color, x + w - t, y, t, h); // right edge
+		},
 		text(str, style, color, x, y) {
 			if (!drawing) return;
+			// FIVE args only (str, style, color, x, y) — the device-proven call
+			// shape (examples/port.tsx). Passing a 6th `width` sends the firmware
+			// down its field-alignment path (PiuFontGetWidth) and the whole
+			// onDraw frame throws → the port paints BLANK (measured: adding a
+			// 7-arg drawString erased an otherwise-working circle).
 			(
 				port as unknown as {
-					drawString(
-						s: string,
-						st: Style,
-						c: Color,
-						x: number,
-						y: number,
-						w: number,
-						h: number,
-					): void;
+					drawString(s: string, st: Style, c: Color, x: number, y: number): void;
 				}
-			).drawString(str, style, color, x, y, w, h);
+			).drawString(str, style, color, x, y);
 		},
 	};
 
@@ -162,6 +245,15 @@ export function Canvas(props: CanvasProps): Content {
 	if (props.top !== undefined) dict.top = props.top;
 	if (props.bottom !== undefined) dict.bottom = props.bottom;
 	dict.behavior = {
+		// onDisplaying fires ONCE, when the port joins the display tree — the
+		// first moment invalidate() actually marks anything dirty. The effect's
+		// mount-time invalidate below runs during BUILD, before the port is
+		// attached, so Piu drops it; without this hook a static Canvas (or one
+		// whose signals never change) would never paint its first frame (measured:
+		// "Pixels drawn: 0"). view is null here, so invalidate() is in-sequence.
+		onDisplaying(p: RawPort) {
+			p.invalidate();
+		},
 		onDraw(p: RawPort) {
 			port = p; // p === our port, but with the draw view live
 			drawing = true;
@@ -174,9 +266,11 @@ export function Canvas(props: CanvasProps): Content {
 		Content;
 	port = node;
 
-	// ONE effect: re-run paint in the (non-drawing) tracking pass to subscribe,
-	// then schedule the repaint. Runs on mount (paints the first frame) and on
-	// every dependency change. invalidate() is safe here — outside onDraw.
+	// ONE effect: re-run paint in the (non-drawing) tracking pass to SUBSCRIBE
+	// to the signals the frame reads, then schedule a repaint. The first run is
+	// at mount (its invalidate is dropped — the port isn't attached yet; the
+	// onDisplaying hook above owns the first paint); every later dependency
+	// change re-runs it and the invalidate lands. Safe here — outside onDraw.
 	effect(() => {
 		paint(g);
 		node.invalidate();
