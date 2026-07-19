@@ -34,6 +34,21 @@ test("gen-manifest: derives pdc data resources; dedupes", () => {
 	assert.deepEqual(m.data, { "*": ["../../assets/sloth.pdc"] });
 });
 
+test("gen-manifest: backtick no-substitution literals ship; substitutions never do", () => {
+	// `new Texture(\`icon.png\`)` hands the runtime a plain string — the old
+	// quote-only scan shipped the JS without the asset (blank image on device)
+	const m = deriveResources(
+		"new Texture(`icon.png`); new Resource(`sloth.pdc`); romTable(`words`);",
+		{ ...BASE },
+	);
+	assert.deepEqual(m.resources, { "*": ["../../assets/icon"] });
+	assert.deepEqual(m.data, { "*": ["../../assets/sloth.pdc", "../../assets/words"] });
+	// a substitution template must not ship a phantom `${name}` resource
+	// biome-ignore lint/suspicious/noTemplateCurlyInString: the literal ${} text is the fixture
+	const sub = deriveResources("new Texture(`${name}.png`);", { ...BASE });
+	assert.equal(sub.resources, undefined);
+});
+
 test("gen-manifest: no assets -> no resources/data added", () => {
 	const m = deriveResources("const x = 1;", { ...BASE });
 	assert.equal(m.resources, undefined);
@@ -140,6 +155,14 @@ test("fontcheck: style tokens in EITHER order are seen (audit TOOLS-1)", () => {
 	assert.deepEqual(badFonts('font: "bold italic 20px Fam"', new Set(["fam"])), []);
 });
 
+test("fontcheck: digit-bearing families are SEEN (20px B612 must not slip)", () => {
+	// the old [A-Za-z]+ family grammar skipped the literal entirely — an
+	// unbacked custom family sailed through and rendered blank on device
+	assert.deepEqual(badFonts('font: "20px B612"'), ['font: "20px B612"']);
+	// backed by a TTF it is a legal custom family, as with any other name
+	assert.deepEqual(badFonts('font: "20px B612"', new Set(["b612"])), []);
+});
+
 // --- classify-module: PURE (preload-eligible) vs IMPURE (stays in main) ---
 test("classify: const tables + pure functions/classes are PURE", () => {
 	const src = `
@@ -150,6 +173,24 @@ test("classify: const tables + pure functions/classes are PURE", () => {
 		type T = { a: number };
 		interface I { b: string }`;
 	assert.equal(classify(src).pure, true);
+});
+
+test("classify: class STATIC initializers/blocks are load-time effects (IMPURE)", () => {
+	// a static field's initializer runs at module evaluation — preloading it
+	// would build a host object at BUILD time, where the Piu globals do not
+	// exist (and the result freezes into ROM)
+	const st = classify('export class Palette { static skin = new Skin({ fill: "black" }); }');
+	assert.equal(st.pure, false);
+	assert.match(st.reasons[0], /static initializer runs at load/);
+	const blk = classify("export class Boot { static { setup(); } }");
+	assert.equal(blk.pure, false);
+	assert.match(blk.reasons[0], /static block runs at load/);
+	// instance fields + pure static literals stay PURE (they run per
+	// construction / are frozen data, not load-time host work)
+	const ok = classify(
+		"export class W { static N = 3; pad = 4; build() { return new Container(null, {}); } }",
+	);
+	assert.equal(ok.pure, true);
 });
 
 test("classify: module-scope host construction is IMPURE", () => {
@@ -609,6 +650,42 @@ test("relativeClosure follows a literal relative DYNAMIC import", () => {
 	assert.deepEqual(
 		relativeClosure("src/app.tsx", (p) => fs3[p] ?? null),
 		["src/app.tsx", "src/art.tsx"],
+	);
+	// backtick NO-SUBSTITUTION literal: same inline, same follow; a
+	// substitution template must NOT be mistaken for a literal (it stays a
+	// treeshake self-disable in the build's guard)
+	const fs4: Record<string, string> = {
+		"src/app.tsx": "import(`./art`);\nimport(`./scr/${'x'}`);",
+		"src/art.tsx": "export const a = 1;",
+		"src/scr/x.tsx": "export const nope = 1;",
+	};
+	assert.deepEqual(
+		relativeClosure("src/app.tsx", (p) => fs4[p] ?? null),
+		["src/app.tsx", "src/art.tsx"],
+	);
+});
+
+test("relativeClosure resolves ESM-style .js specifiers to their TS twins", () => {
+	// `import "./art.js"` in TS sources: the emitted art.js ships in the
+	// bundle, but pre-build only art.ts exists — the scans must see it or
+	// its Texture/runtime refs vanish from the manifest/keep-set
+	const fs5: Record<string, string> = {
+		"src/app.tsx": 'import { draw } from "./art.js"; draw();',
+		"src/art.ts": 'import "runtime/flow";\nexport const draw = () => 1;',
+	};
+	assert.deepEqual(
+		relativeClosure("src/app.tsx", (p) => fs5[p] ?? null),
+		["src/app.tsx", "src/art.ts"],
+	);
+	// a REAL .js helper still wins over a hypothetical TS twin (literal first)
+	const fs6: Record<string, string> = {
+		"src/app.tsx": 'import "./legacy.js";',
+		"src/legacy.js": "export const x = 1;",
+		"src/legacy.ts": "export const WRONG = 1;",
+	};
+	assert.deepEqual(
+		relativeClosure("src/app.tsx", (p) => fs6[p] ?? null),
+		["src/app.tsx", "src/legacy.js"],
 	);
 });
 

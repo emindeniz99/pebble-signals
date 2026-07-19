@@ -142,9 +142,18 @@ const appSrc = `src/tsx/examples/${APP}.tsx`;
 // seeds, gen-manifest resources, lint-reads) must read the same set — the
 // entry alone silently missed helpers' runtime imports (P1: pruned module ->
 // boot death) and their assets (P2).
-const appClosure = existsSync(appSrc)
-	? relativeClosure(appSrc, (p) => (existsSync(p) ? readFileSync(p, "utf8") : null))
-	: [appSrc];
+// closure reader: FILES only — existsSync alone is true for a DIRECTORY
+// (`import "./setup"` beside setup/index.tsx), and readFileSync on it dies
+// with EISDIR before relativeClosure ever tries the index candidates
+// (codex P2). Missing paths and directories both read as null.
+const readSrc = (p: string): string | null => {
+	try {
+		return statSync(p).isFile() ? readFileSync(p, "utf8") : null;
+	} catch {
+		return null;
+	}
+};
+const appClosure = existsSync(appSrc) ? relativeClosure(appSrc, readSrc) : [appSrc];
 
 // Per-app runtime tree-shaking. Runtime modules are frozen into ROM by
 // `preload`, and each preloaded module still costs a few XS aliases at boot. An
@@ -191,12 +200,16 @@ for (const closureFile of appClosure.filter(existsSync)) {
 			   the mod compartment's loadNowHook maps these through to the host
 			   archive, so nothing in OUR manifest can be pruned out from under
 			   them — they don't defeat the scans */
-		} else if (!m[0].startsWith("importNow") && /^["'`]\.\.?\/[^"'`]+["'`]\s*$/.test(m[1])) {
-			/* literal RELATIVE dynamic import (`import("./art")`): esbuild
-			   inlines it into main.js (no splitting) and relativeClosure
-			   follows it, so every scan (treeshake seeds, gen-manifest assets,
-			   fontcheck, lint) sees the module — it does not defeat pruning.
-			   importNow with a relative spec stays UNRESOLVED (that is a
+		} else if (!m[0].startsWith("importNow") && /^["'`]\.\.?\/[^"'`$]+["'`]\s*$/.test(m[1])) {
+			/* literal RELATIVE dynamic import (`import("./art")`, backtick
+			   included): esbuild inlines it into main.js (no splitting) and
+			   relativeClosure follows the SAME grammar, so every scan
+			   (treeshake seeds, gen-manifest assets, fontcheck, lint) sees the
+			   module — it does not defeat pruning. `$` is excluded so a
+			   SUBSTITUTION template (`import(\`./scr/${n}\`)`) falls through
+			   to unresolved below — esbuild may glob-bundle it, but the scans
+			   can't follow it, so treeshake must self-disable (codex P2).
+			   importNow with a relative spec stays UNRESOLVED too (that is a
 			   device module-map lookup, not a bundler inline). */
 		} else unresolvedDynamicImport = true;
 	}
@@ -232,7 +245,7 @@ const shakeSources = [
 		...lazyBases.flatMap((b) => {
 			const tsx = join("src/tsx/examples", APP, `${b}.tsx`);
 			const entry = existsSync(tsx) ? tsx : join("src/tsx/examples", APP, `${b}.ts`);
-			return relativeClosure(entry, (p) => (existsSync(p) ? readFileSync(p, "utf8") : null));
+			return relativeClosure(entry, readSrc);
 		}),
 	]),
 ];
@@ -586,7 +599,11 @@ const importScan = (file: string, keeps: Map<string, Set<string> | "all">) => {
 	// a lazy/pure module's `import { X } from 'runtime/flow'` must be seen here
 	// or prune-exports could demote X while the shipped module still imports it.
 	for (const m of src.matchAll(
-		/import\s*(\*\s*as\s+\w+|{[^}]*})\s*from\s*['"]runtime\/([\w-]+)['"]/g,
+		// `export { For } from "runtime/flow"` in a shipped module is a
+		// link-time demand on that export exactly like an import — missing it
+		// let prune-exports demote a re-exported name out from under the
+		// module (codex P2). `export * from` (like `import * as`) keeps all.
+		/(?:import|export)\s*(\*\s*as\s+\w+|\*|{[^}]*})\s*from\s*['"]runtime\/([\w-]+)['"]/g,
 	)) {
 		const mod = m[2];
 		if (m[1].startsWith("*")) {

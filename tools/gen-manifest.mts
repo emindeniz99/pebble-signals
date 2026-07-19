@@ -76,8 +76,13 @@ export function deriveResources(src: string, manifest: Manifest): Manifest {
 	// comments off first — a commented-out `new Texture(...)` must not ship a
 	// phantom resource (same strip build.mts's lazy-import scan uses)
 	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-	// `new Texture("x.png")` or `new Texture('x')` — .png optional
-	const tex = [...src.matchAll(/new\s+Texture\(\s*["']([^"']+?)(?:\.png)?["']/g)].map((x) => x[1]);
+	// `new Texture("x.png")` / `new Texture('x')` / a no-substitution backtick
+	// literal — .png optional. `$` is excluded so a substitution template never
+	// ships a phantom `${name}` resource (the runtime receives a plain string
+	// for the no-substitution form; codex P2).
+	const tex = [...src.matchAll(/new\s+Texture\(\s*["'`]([^"'`$]+?)(?:\.png)?["'`]/g)].map(
+		(x) => x[1],
+	);
 	// UNION with anything a custom manifest.base already carries — assigning
 	// wholesale clobbered a consumer's hand-added entries (review finding P8)
 	const prevRes = (m.resources && m.resources["*"]) || [];
@@ -88,9 +93,10 @@ export function deriveResources(src: string, manifest: Manifest): Manifest {
 			"*": uniq([...prevRes, ...tex.map((n) => `../../assets/${n}`)]),
 		};
 	// any referenced `*.pdc` file, plus any romTable("<name>") blob (the
-	// packed string tables written by tools/pack-table.mts)
-	const pdc = [...src.matchAll(/["']([^"']+?\.pdc)["']/g)].map((x) => x[1]);
-	const tbl = [...src.matchAll(/romTable\(\s*["']([^"']+)["']/g)].map((x) => x[1]);
+	// packed string tables written by tools/pack-table.mts) — all three quote
+	// styles, substitution templates excluded (same rule as Texture above)
+	const pdc = [...src.matchAll(/["'`]([^"'`$]+?\.pdc)["'`]/g)].map((x) => x[1]);
+	const tbl = [...src.matchAll(/romTable\(\s*["'`]([^"'`$]+)["'`]/g)].map((x) => x[1]);
 	const data = uniq([...pdc, ...tbl]);
 	const prevData = (m.data && m.data["*"]) || [];
 	if (data.length || prevData.length)

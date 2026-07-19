@@ -37,8 +37,14 @@ export function badFonts(src: string, customFamilies?: Set<string>): string[] {
 	const bad: string[] = [];
 	// style tokens in ANY order — "bold italic 42px X" and "italic bold 42px X"
 	// are the same face request; a fixed italic-then-bold pattern let the
-	// reversed order escape the scan entirely (audit TOOLS-1).
-	for (const m of src.matchAll(/font:\s*["']((?:(?:italic|bold)\s+)*)(\d+)px\s+([A-Za-z]+)["']/g)) {
+	// reversed order escape the scan entirely (audit TOOLS-1). Family =
+	// letter-first word chars, so a digit-bearing custom family ("20px B612")
+	// is SEEN and rejected when no TTF backs it — the old [A-Za-z]+ grammar
+	// skipped the literal entirely and shipped a blank render (codex P2;
+	// matches deriveFonts' \w+ family grammar).
+	for (const m of src.matchAll(
+		/font:\s*["']((?:(?:italic|bold)\s+)*)(\d+)px\s+([A-Za-z]\w*)["']/g,
+	)) {
 		const italic = /\bitalic\b/.test(m[1]);
 		const bold = /\bbold\b/.test(m[1]);
 		const size = Number(m[2]);

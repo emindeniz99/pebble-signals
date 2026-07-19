@@ -87,14 +87,14 @@ export function relativeClosure(entry: string, read: (p: string) => string | nul
 			const spec = clean(dir + rel);
 			// resolve like the bundler: exact, then +.tsx/.ts, then a directory
 			// index (`./setup` -> `setup/index.tsx`) — esbuild resolves all of
-			// these, so the closure scan must too.
-			for (const cand of [
-				spec,
-				`${spec}.tsx`,
-				`${spec}.ts`,
-				`${spec}/index.tsx`,
-				`${spec}/index.ts`,
-			])
+			// these, so the closure scan must too. ESM-style `./art.js`
+			// specifiers resolve to their TS twins exactly as tsc/esbuild do
+			// (the emitted art.js ships in the bundle while the literal file
+			// never exists pre-build; codex P2).
+			const cands = [spec, `${spec}.tsx`, `${spec}.ts`, `${spec}/index.tsx`, `${spec}/index.ts`];
+			if (/\.jsx?$/.test(spec))
+				cands.push(spec.replace(/\.jsx?$/, ".tsx"), spec.replace(/\.jsx?$/, ".ts"));
+			for (const cand of cands)
 				if (read(cand) !== null) {
 					visit(cand);
 					break;
@@ -106,12 +106,14 @@ export function relativeClosure(entry: string, read: (p: string) => string | nul
 		// esbuild still bundles them, so their runtime imports / assets / reads
 		// must join the closure too. `\bimport\s+["']` won't match `importNow(`.
 		for (const m of src.matchAll(/\bimport\s+["'](\.\.?\/[^"']+)["']/g)) follow(m[1]);
-		// literal relative DYNAMIC imports (`import("./art")`): esbuild inlines
-		// them into the bundle when splitting is off, so the module's assets
-		// (Texture/pdc/romTable) and runtime imports ship — the closure must
-		// see them or the manifest misses the assets (codex P2). Computed
-		// specifiers can't be followed and stay a treeshake self-disable.
-		for (const m of src.matchAll(/\bimport\s*\(\s*["'](\.\.?\/[^"']+)["']\s*\)/g)) follow(m[1]);
+		// literal relative DYNAMIC imports (`import("./art")`, backtick form
+		// included): esbuild inlines them into the bundle when splitting is
+		// off, so the module's assets (Texture/pdc/romTable) and runtime
+		// imports ship — the closure must see them or the manifest misses the
+		// assets (codex P2). `$` is excluded so a substitution template
+		// (`import(\`./scr/${n}\`)`) is never mistaken for a literal — those
+		// stay a treeshake self-disable in the build's guard.
+		for (const m of src.matchAll(/\bimport\s*\(\s*["'`](\.\.?\/[^"'`$]+)["'`]\s*\)/g)) follow(m[1]);
 	};
 	visit(entry);
 	return out;

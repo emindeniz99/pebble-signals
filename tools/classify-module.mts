@@ -53,11 +53,29 @@ export function classify(src: string): Verdict {
 	};
 
 	const check = (stmt: ts.Statement): void => {
+		// a CLASS declaration is pure — EXCEPT its static initializers/blocks,
+		// which run at module evaluation exactly like top-level code: a
+		// `static skin = new Skin(...)` would promote host construction into a
+		// preloaded ROM module where the Piu globals don't exist (codex P2).
+		// Instance fields are fine — they run per construction, not at load.
+		if (ts.isClassDeclaration(stmt)) {
+			for (const m of stmt.members) {
+				if (ts.isClassStaticBlockDeclaration(m))
+					reasons.push(`class static block runs at load: ${trim(m.getText(sf))}`);
+				else if (
+					ts.isPropertyDeclaration(m) &&
+					ts.getModifiers(m)?.some((x) => x.kind === ts.SyntaxKind.StaticKeyword) &&
+					m.initializer &&
+					hasSideEffect(m.initializer)
+				)
+					reasons.push(`class static initializer runs at load: ${trim(m.getText(sf))}`);
+			}
+			return;
+		}
 		// declarations that don't execute anything at load are always pure
 		if (
 			ts.isImportDeclaration(stmt) ||
 			ts.isFunctionDeclaration(stmt) ||
-			ts.isClassDeclaration(stmt) ||
 			ts.isInterfaceDeclaration(stmt) ||
 			ts.isTypeAliasDeclaration(stmt) ||
 			ts.isExportDeclaration(stmt) ||
