@@ -1,118 +1,177 @@
-# Catalog expansion plan — closing the react-pebble gap
+# Catalog expansion plan — full react-pebble gap analysis
 
-Goal: give signal-piu the breadth react-pebble advertises (26 components,
-65+ hooks) WITHOUT losing its runtime-reactive model and WITHOUT charging any
-app for a feature it does not import. This is the design + phasing plan; each
-phase ships independently with tests + a device receipt (Rule 2).
+A per-item decision on **everything react-pebble advertises** (from its README
+inventory + our published-0.1.1 source audit): what signal-piu WILL implement,
+what it WON'T, where each lands, and how. The goal is react-pebble's breadth
+WITHOUT losing the runtime-reactive model and WITHOUT charging any app for a
+feature it doesn't import.
 
-## The zero-cost invariant (why this is safe to add)
+Legend: ✅ WILL (planned, phased below) · ⚠️ LATER (real, deferred by priority) ·
+❌ WON'T (with reason) · 🔬 RESEARCH-GATED (need the real Moddable module shape
+first, Rule 1 — NOT copyable from react-pebble, which removed these).
 
-**A new catalog entry must cost ZERO boot symbols, ZERO arena bytes, and ZERO
-archive size for an app that does not import it.** The architecture already
-guarantees this — the plan only has to stay inside it:
+## The zero-cost invariant (the rule every item obeys)
 
-- **Per-app tree-shaking** (`tools/treeshake.mts`): the manifest ships only the
-  runtime modules an app's static closure imports (`neededModules`). A new
-  component in its OWN module is pruned from any app that never imports it.
-- **Rule: new catalog code goes in NEW modules, never in the always-shipped
-  core** (`runtime/signals`, `runtime/jsx-runtime`, `runtime/flow`). Adding a
-  `<StatusBar>` to `flow.ts` would ship it to every Navigator app; adding it as
-  `runtime/ui/statusbar` ships it only to importers. The 384-slot boot wall and
-  32KB arena are the reason (Rule 4) — core stays lean.
-- **Corollary:** each new module must itself be lean (no top-level
-  `function`/`class` in a preloaded module — gotcha 13; `const` arrows only).
+**A new catalog entry costs ZERO boot symbols, ZERO arena bytes, ZERO archive
+size for an app that doesn't import it.** Enforced by per-app tree-shaking
+(`tools/treeshake.mts` ships only the imported closure) IF new code lives in a
+**NEW opt-in module**, never in always-shipped core (`runtime/signals`,
+`runtime/jsx-runtime`, `runtime/flow`). Types are erased → rich TS is free.
+Gate per phase: a non-user app's symbol count + `mc.xsa` size stay byte-identical
+(`tools/host-symbols.py` + size A/B). Const-arrows only in preloaded modules
+(gotcha 13); the 32KB arena + 384-slot wall are why (Rule 4).
 
-**Verification gate for every phase:** build an app that does NOT use the new
-feature and confirm its symbol count + archive size are byte-identical to
-before (the `tools/host-symbols.py` + `mc.xsa` size A/B, same method as the
-boot-cost matrix). If a non-user pays anything, the module boundary is wrong.
-
-## Module layout (new namespaces)
+## Module layout
 
 ```
-runtime/
-  signals, jsx-runtime, flow        # CORE — unchanged, always shipped
-  ui/                               # NEW: opt-in Pebble UI-kit components
-    statusbar, actionbar, card, badge, menu, numberwindow
-  draw/                             # NEW: opt-in drawing primitives (Port-based)
-    circle, line, arc, path, canvas
-  sensors/                          # NEW: opt-in hardware hooks (need real
-    battery, accel, compass, health, vibration, light, location, dictation
-  data/                             # NEW: phone/data hooks
-    message, fetch, websocket, datalog
-  anim/                             # NEW: animation hooks + easing
-config/                            # NEW: pkjs-side config-page builder (phone)
-timeline/                          # NEW: server-side timeline web API
+runtime/{signals,jsx-runtime,flow}   CORE — unchanged, always shipped
+runtime/draw/{circle,line,arc,path,canvas}        NEW opt-in
+runtime/ui/{statusbar,actionbar,card,badge,menu,numberwindow,scrollable}
+runtime/layout/{column,row,group,roundsafe,textflow}   (some already in core)
+runtime/anim/{animation,easing}
+runtime/sensors/{battery,accel,compass,health,vibration,light,location,dictation}
+runtime/data/{message,fetch,websocket,datalog}
+runtime/system/{watchinfo,applifecycle,wakeup,worker,memory,notification}
+config/  (pkjs-side config-page builder)     timeline/  (server-side web API)
+i18n/    (defineTranslations/useTranslation)
 ```
 
-Every leaf is independently tree-shakeable. Types are erased (zero device cost),
-so rich TS surfaces are free.
+---
 
-## Gap inventory + priority
+## Components — react-pebble's 26, decided
 
-Priority = (how often a real watch app needs it) × (how cleanly it fits our
-model). P1 first.
+### Primitives
+| react-pebble | decision | module | how |
+|---|---|---|---|
+| `Rect` | ✅ have (Container+Skin fill) — formalize sugar | `runtime/draw/rect` or doc | Container with skin; likely a doc/example, not new code |
+| `Circle` | ✅ P1 | `runtime/draw/circle` | Port + onDraw, filled/stroked (pattern TBD by our Port research) |
+| `Text` | ✅ have (`Label`/`Text` host) | core | already shipped |
+| `Line` | ✅ P1 | `runtime/draw/line` | Port + onDraw |
+| `Image` | ✅ have (`Texture`) — add rotation/scale | `runtime/draw/image` | rotation/scale via SVGImage/Port transform (we have slothvec) |
+| `SVGImage` | ✅ have (slothvec/PDC) | core/example | shipped; document |
+| `Arc` | ✅ P1 | `runtime/draw/arc` | Port + onDraw arc/ring |
+| `Path` | ✅ P1 | `runtime/draw/path` | Port + onDraw polygon |
+| `Canvas` | ✅ P1 | `runtime/draw/canvas` | raw Port exposing the draw context via `onDraw` |
 
-### P1 — high-value, clean fit
-- **Drawing primitives** `Circle / Line / Arc / Path` — `runtime/draw/*`, each a
-  thin `Port` custom-draw wrapper (we already do vector via SVGImage/slothvec;
-  a `Port` + `onDraw` is the immediate-mode analog). `Canvas` = a raw `Port`
-  exposing the draw context. Reactive props via the existing bind path.
-- **Pebble UI-kit** `StatusBar / ActionBar / Card / Badge` — `runtime/ui/*`,
-  Piu Container compositions. Card/Badge already prototyped conceptually in the
-  tutorials; formalize as modules.
-- **`useLocalStorage` / persisted state** — a signal backed by the existing
-  `Store`/KV path; the most-requested missing hook.
+### Layout
+| `Window` | ✅ have (root Container / render) | core | shipped |
+| `Group` | ✅ have (`Container`) | core | alias/sugar |
+| `Column` | ✅ have (host) | core | shipped |
+| `Row` | ✅ have (host) | core | shipped |
+| `Scrollable` | ✅ P2 (have `Scroller` host) — add indicators | `runtime/ui/scrollable` | wrap Scroller + scroll indicators |
+| `RoundSafeArea` | ✅ P2 | `runtime/layout/roundsafe` | inset children on round via screen.round |
 
-### P2 — valuable, needs real Moddable module shapes (research-gated)
-Per CLAUDE.md Rule 1: find the shape in the Pebble SDK/firmware FIRST (NOT in
-react-pebble — its published 0.1.1 REMOVED these for the same reason). Each is a
-`sensors/*` module wrapping the real API, exposed as a signal.
-- `useBattery, useAccelerometer, useCompass, useHealth*, useVibration,
-  useLight, useLocation` — one device-proven module at a time (the `dictate`
-  probe is the template: prove reachable on QEMU, then wrap).
-- **Menus** `MenuLayer / SimpleMenu / ActionMenu / NumberWindow` —
-  `runtime/ui/menu`; builds on `VirtualList` (already runtime-dynamic) +
-  Navigator (WindowStack ≈ our Navigator).
+### Composite UI
+| `StatusBar` | ✅ P1 | `runtime/ui/statusbar` | Container+Label top strip (or native layer if exposed) |
+| `ActionBar` | ✅ P1 | `runtime/ui/actionbar` | right-edge Container of icons |
+| `Card` | ✅ P1 | `runtime/ui/card` | title+body Container composition |
+| `Badge` | ✅ P1 | `runtime/ui/badge` | circle (Port) + centered Label |
+| `TextFlow` | ✅ P2 | `runtime/ui/textflow` | multi-line paragraph Label(s) |
+| `AnimatedImage` | ✅ P3 | `runtime/draw/animimage` | frame sequence over the shared tween ticker |
 
-### P3 — phone/data + system (mostly pkjs-side, orthogonal to render)
-- **`useFetch` (pebbleproxy) / `useMessage` / `useWebSocket`** — `data/*`; we
-  already have `createResource` + the pkjs bridge + config research. `useFetch`
-  can borrow react-pebble's *published* pebbleproxy wiring (that part IS in
-  their code and readable).
-- **Config-page builder** `ConfigPage/Section/Toggle/...` — `config/*`, pkjs +
-  HTML generation; we have the Clay config research to build on.
-- **Animation hooks** `useAnimation / Sequence / Spawn` + easing — `anim/*`,
-  built on the existing `Move`/tween ticker (already ~30fps shared timer).
+### Navigation & menus
+| `MenuLayer` | ✅ P2 | `runtime/ui/menu` | over `VirtualList` (runtime-dynamic) + selection |
+| `SimpleMenu` | ✅ P2 | `runtime/ui/menu` | flat single-section sugar over MenuLayer |
+| `ActionMenu` | ✅ P2 | `runtime/ui/actionmenu` | overlay + back-nav over Navigator |
+| `NumberWindow` | ✅ P2 | `runtime/ui/numberwindow` | numeric picker (min/max/step) |
+| `WindowStack` | ✅ have (`Navigator`) | core | Navigator IS this — document the equivalence |
 
-### P4 — advanced system (defer until asked)
-- Timeline web API, AppGlance, Wakeup, Workers (we have the worker experiment),
-  i18n (`defineTranslations/useTranslation`), Notifications, Smartstrap.
+**Components verdict: all 26 covered — ~14 already exist, ~9 new opt-in modules,
+none blocked by our model.** (Our runtime-dynamic versions are strictly more
+capable than react-pebble's static snapshots.)
 
-## Phasing (each phase = one PR, independently shippable)
+---
 
-1. **P1 draw primitives** (`runtime/draw/*`) + a `drawdemo` example + gabbro
-   receipt + zero-cost A/B on a non-user app.
-2. **P1 UI-kit** (`runtime/ui/statusbar|actionbar|card|badge`) + `uikit`
-   example + receipts.
-3. **P1 `useLocalStorage`** + test + device round-trip.
-4. **P2 menus** (`runtime/ui/menu`, over VirtualList/Navigator) + example.
-5. **P2 sensors** — one module per PR, each research-gated + device-proven.
-6. **P3 data/config/anim** — as demand dictates.
-7. **P4** — on request.
+## Hooks — react-pebble's 65+, decided by category
 
-## Non-negotiables per phase (the definition of done)
-- New code in a NEW opt-in module (never core).
-- Node tests + 100% runtime coverage held.
-- A gabbro (and where layout differs, emery) screenshot receipt.
-- **Zero-cost A/B**: a non-user app's symbol count + archive size unchanged.
-- CHANGELOG + docs/api regen + an example app in the smoke catalog.
+### Time & animation (8)
+`useTime`✅have · `useFormattedTime`✅have · `useInterval`✅have ·
+`useAnimation/Sequence/Spawn`✅P3 `runtime/anim` (over our tween ticker) ·
+`useTimer`✅P3 · `lerp`+18 easings✅P3 `runtime/anim/easing` (pure fns, tiny).
 
-## What we deliberately will NOT copy
-- react-pebble's **compile-time snapshot** model (it cannot do runtime-dynamic
-  structure — the bench failure). Our components stay runtime-reactive.
-- Their **removed** sensor hooks as-is — we find the real module shapes
-  ourselves (Rule 1), we do not inherit their fictional-global stubs.
+### Input (6)
+`useButton`✅have · `useLongButton`✅P2 · `useMultiClick/RepeatClick/RawClick`✅P2
+`runtime/system` (button-timing over our press handlers) · `useListNavigation`✅P2.
 
-Prior art + the model tradeoff: `docs/design-journey.md`. The measured
-comparison that motivates this: `projects/react-pebble-bench/`.
+### Sensors & hardware (14) 🔬 RESEARCH-GATED
+`useBattery, useAccelerometer(+Raw/Tap), useCompass, useHealth(+Alert/History/
+HeartRate), useMeasurementSystem, useVibration, useLight, useLocation,
+useDictation` — ⚠️ P2/P5, **one module per PR**, each proven on QEMU first (the
+`dictate` probe is the template). **react-pebble's published code does NOT have
+these** (removed as fictional-global stubs) — we find the real Moddable/Pebble
+module shape ourselves (Rule 1: SDK/firmware first).
+
+### State & storage (6)
+`useState`✅have · `useLocalStorage`✅P1 `runtime/data/localstorage` (persisted
+signal over our Store/KV) · `useKVStorage`✅P1 (same path) · `useFileStorage`⚠️P3 ·
+`useConfiguration`✅P3 (with config builder) · `useAppSync`⚠️P4.
+
+### Data & networking (5)
+`useMessage`✅P3 `runtime/data/message` · `useFetch`✅P3 (pebbleproxy — the ONE
+piece copyable from react-pebble's published code) · `useWebSocket`⚠️P4 ·
+`useHTTPClient`⚠️P4 · `useDataLogging`⚠️P4.
+
+### Watch info (5)
+`useWatchInfo`✅have (deviceinfo) · `useLocale`✅P3 · `useDisplayBounds`✅have
+(screen.width/height) · `useContentSize/UnobstructedArea`✅P3 (timeline peek).
+
+### System & lifecycle (~20)
+`useApp`✅have · `useAppFocus`✅P3 · `useAppGlance`⚠️P4 · `useTimeline*`⚠️P4 ·
+`useAccountToken/WatchToken`⚠️P4 · `useRawResource`✅P3 · `useSmartstrap`❌ (niche
+UART accessory — ⚠️P5 only on request) · `useQuietTime`✅P3 · `useLaunchReason/
+Info`✅P3 · `useExitReason`✅P3 · `useNotification`⚠️P4 · `useWakeup`⚠️P4 ·
+`useMemoryStats`✅P3 (we have instrumentation) · `useMemoryPressure`⚠️P4 ·
+`pebbleLog`✅have (report()/devlog bridge).
+
+### Workers (3) · Companion (1) · i18n (2) · Geometry
+`useWorkerLaunch/Message/Sender`⚠️P4 (we have the worker experiment) ·
+`useSports`❌ (⚠️P5, niche) · `defineTranslations/useTranslation`✅P4 `i18n/` ·
+polar/trig helpers✅P3 `runtime/anim` or a `geom` util (pure fns, free).
+
+### Phone-side & server
+Config builder (`ConfigPage/Section/Toggle/...`)✅P3 `config/` (Clay research
+done) · Timeline web API (`pushUserPin/...`)⚠️P4 `timeline/` (server-side, pure).
+
+---
+
+## What we WON'T do (and why)
+- ❌ **Compile-time snapshot model** — it can't do runtime-dynamic structure
+  (bench-proven failure). Our components stay runtime-reactive. This is the whole
+  point of the library.
+- ❌ **Rocky.js / native-C output targets** — we are Piu-only by design; a second
+  codegen backend is a different project, not a catalog item.
+- ❌ **Inheriting react-pebble's removed sensor stubs** — we find real shapes
+  ourselves (Rule 1).
+- ⚠️→❌-unless-asked: `useSmartstrap`, `useSports` (niche hardware/protocols).
+
+## Fonts / colors / resources
+All ✅ **already supported** (custom TTF fonts device-proven, named colors,
+Texture/pdc/raw/apng resources via gen-manifest) — document parity, no new code.
+
+---
+
+## Phasing (each phase = one PR: opt-in module + tests + 100% cov + gabbro
+receipt + zero-cost A/B + example in the smoke catalog + docs/api regen)
+
+1. **P1 draw primitives** — Circle, Line, Arc, Path, Canvas (`runtime/draw/*`).
+2. **P1 UI-kit** — StatusBar, ActionBar, Card, Badge (`runtime/ui/*`).
+3. **P1 storage** — useLocalStorage / useKVStorage (`runtime/data/localstorage`).
+4. **P2 menus + input** — MenuLayer/SimpleMenu/ActionMenu/NumberWindow,
+   multi/long/repeat-click, Scrollable, RoundSafeArea, TextFlow.
+5. **P2 sensors** — one research-gated device-proven module per PR.
+6. **P3 data/config/anim/system** — message/fetch, config builder, animation
+   hooks + easing, watch-info/lifecycle hooks.
+7. **P4/P5** — timeline, glance, wakeup, workers, i18n, notifications, smartstrap,
+   sports — on demand.
+
+## Orchestration (per owner direction)
+- **Research + this plan = the main agent (me).** The item decisions above are
+  mine, grounded in react-pebble's README inventory + its published-0.1.1 source
+  audit (which proved the sensor hooks are stubs it removed).
+- **Implementation = subagents.** Each phase's independent modules fan out to
+  parallel subagents once the pattern for that phase is established (one
+  reference module built + device-verified first, then siblings copy it). I own
+  device verification, the zero-cost A/B, and gate-keeping.
+
+Prior art + model tradeoff: `docs/design-journey.md`. Measured comparison:
+`projects/react-pebble-bench/`.
