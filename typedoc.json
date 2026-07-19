@@ -9,7 +9,14 @@
     "src/embeddedjs/runtime/statusbar.ts",
     "src/embeddedjs/runtime/actionbar.ts",
     "src/embeddedjs/runtime/card.ts",
-    "src/embeddedjs/runtime/kvstore.ts"
+    "src/embeddedjs/runtime/kvstore.ts",
+    "src/embeddedjs/runtime/progressbar.ts",
+    "src/embeddedjs/runtime/slider.ts",
+    "src/embeddedjs/runtime/toggle.ts",
+    "src/embeddedjs/runtime/meter.ts",
+    "src/embeddedjs/runtime/sparkline.ts",
+    "src/embeddedjs/runtime/dots.ts",
+    "src/embeddedjs/runtime/easing.ts"
   ],
   "entryPointStrategy": "expand",
   "tsconfig": "tsconfig.check.json",

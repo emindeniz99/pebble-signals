@@ -13,7 +13,14 @@
   "runtime/statusbar": "./runtime-min/statusbar",
   "runtime/actionbar": "./runtime-min/actionbar",
   "runtime/card": "./runtime-min/card",
-  "runtime/kvstore": "./runtime-min/kvstore"
+  "runtime/kvstore": "./runtime-min/kvstore",
+  "runtime/progressbar": "./runtime-min/progressbar",
+  "runtime/slider": "./runtime-min/slider",
+  "runtime/toggle": "./runtime-min/toggle",
+  "runtime/meter": "./runtime-min/meter",
+  "runtime/sparkline": "./runtime-min/sparkline",
+  "runtime/dots": "./runtime-min/dots",
+  "runtime/easing": "./runtime-min/easing"
  },
  "preload": [
   "runtime/signals",
@@ -25,6 +32,13 @@
   "runtime/statusbar",
   "runtime/actionbar",
   "runtime/card",
-  "runtime/kvstore"
+  "runtime/kvstore",
+  "runtime/progressbar",
+  "runtime/slider",
+  "runtime/toggle",
+  "runtime/meter",
+  "runtime/sparkline",
+  "runtime/dots",
+  "runtime/easing"
  ]
 }

@@ -11,6 +11,13 @@ import { StatusBar } from "runtime/statusbar";
 import { ActionBar } from "runtime/actionbar";
 import { Card } from "runtime/card";
 import { useKVStorage } from "runtime/kvstore";
+import { ProgressBar } from "runtime/progressbar";
+import { Slider } from "runtime/slider";
+import { Toggle } from "runtime/toggle";
+import { Meter } from "runtime/meter";
+import { Sparkline } from "runtime/sparkline";
+import { DotIndicator } from "runtime/dots";
+import { quadInOut } from "runtime/easing";
 
 const data = { count: () => 3, get: (i: number) => "row" + i };
 
@@ -42,6 +49,14 @@ Card({ title: () => "Weather" });
 const [kv, setKv] = useKVStorage("prefs", { n: 0 });
 const _kv: number = kv().n;
 setKv({ n: 1 });
+// batch 3: Canvas-composition widgets + easing
+ProgressBar({ value: () => 0.5 });
+Slider({ value: 0.3, min: 0, max: 1 });
+Toggle({ on: () => true });
+Meter({ value: 0.6, segments: 5 });
+Sparkline({ data: () => [1, 2, 3] });
+DotIndicator({ count: 4, active: () => 1 });
+const _e: number = quadInOut(0.5);
 
 // --- misuse: each MUST be a type error (guards biting) ---
 // @ts-expect-error — Canvas requires `paint`

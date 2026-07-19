@@ -10,6 +10,14 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **Canvas-composition widgets (opt-in, each composes `Canvas` — reactive for
+  free via auto-track):** `runtime/progressbar` (`ProgressBar`),
+  `runtime/slider` (`Slider`), `runtime/toggle` (`Toggle`), `runtime/meter`
+  (`Meter`, segmented), `runtime/sparkline` (`Sparkline`, a mini line chart),
+  `runtime/dots` (`DotIndicator`, page dots). All device-verified on gabbro.
+- **`runtime/easing` — Penner-style timing curves** (`linear`, `quadIn/Out/InOut`,
+  `cubic*`, `sine*`, `expoOut`, `backOut`, `bounceOut`) for `animate()`/tweens;
+  each maps `[0,1]→[0,1]` with exact 0/1 endpoints. Pure functions, no Piu.
 - **`runtime/statusbar` — `StatusBar`**, a top strip with a left title and a
   right time (thunks auto-track). Device-verified on emery; on a round watch a
   top strip sits in the bezel-clipped cap (use a `RoundSafeArea` — coming).
