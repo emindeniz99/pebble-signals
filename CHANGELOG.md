@@ -38,6 +38,20 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Font + scaffold round (codex review of 9aabdbf).** (1) fontcheck's
+  system table now carries the FULL documented firmware set — rejecting
+  `"36px Gothic"` (README gotcha 7 lists Gothic 9–36, Bitham Light/Medium,
+  Leco) failed builds for valid built-ins; (2) custom fonts are validated
+  by FACE, not family: `font: "italic 20px Fam"` with only
+  `Fam-Regular.ttf` shipped used to pass while deriveFonts emitted nothing
+  — blank on device (the audit's deferred face-matching gap, now closed);
+  (3) the app scaffold's package.json ships `signal-piu` +
+  `typescript`/`esbuild` dependencies — a scaffolded project's
+  `npm install` installed nothing and `npm run build` failed on a missing
+  package; (4) the lazy split-brain guard is classify-gated: duplicating a
+  PURE helper stays a warning, but a helper with MODULE-SCOPE STATE (a
+  shared signal store) now fails the build loud — the lazy copy's state
+  silently diverged from main's.
 - **Parity round two (codex review of 2f8cff6).** (1) symbol diet rewrites
   `export { For } from "runtime/flow"` re-exports in shipped modules — the
   wire side only, the exported name stays stable — a renamed wire used to
