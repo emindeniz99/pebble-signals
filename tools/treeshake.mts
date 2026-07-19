@@ -149,9 +149,16 @@ export function pruneManifest(
 	const keep = new Set<string>(["main", ...need]);
 	const before = Object.keys(manifest.modules ?? {});
 	const modules: Record<string, string> = {};
-	for (const [k, v] of Object.entries(manifest.modules ?? {})) if (keep.has(k)) modules[k] = v;
-	const preload = (manifest.preload ?? []).filter((x) => need.has(x));
-	const dropped = before.filter((k) => !keep.has(k)).sort();
+	// this pass prunes the RUNTIME stack only — a NON-runtime module a
+	// hand-written manifest.base carries (the `app/…` escape hatch build.mts
+	// honors for unresolved importNow targets) must survive, else the build
+	// passes and the first navigation to it dies on device (codex P2)
+	for (const [k, v] of Object.entries(manifest.modules ?? {}))
+		if (keep.has(k) || !k.startsWith("runtime/")) modules[k] = v;
+	const preload = (manifest.preload ?? []).filter(
+		(x) => need.has(x) || (x in modules && !x.startsWith("runtime/")),
+	);
+	const dropped = before.filter((k) => !(k in modules)).sort();
 	return { manifest: { ...manifest, modules, preload }, kept: [...need].sort(), dropped };
 }
 

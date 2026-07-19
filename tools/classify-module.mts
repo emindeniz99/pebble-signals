@@ -78,7 +78,27 @@ export function classify(src: string): Verdict {
 		// preloaded ROM module where the Piu globals don't exist (codex P2).
 		// Instance fields are fine — they run per construction, not at load.
 		if (ts.isClassDeclaration(stmt)) {
+			// `extends <expr>` evaluates at class-DEFINITION time: `class View
+			// extends makeBase() {}` runs makeBase() at load — preloaded, in the
+			// build compartment (codex P2). A plain identifier base is free.
+			// (`implements` is type-only and erases.)
+			for (const h of stmt.heritageClauses ?? [])
+				if (h.token === ts.SyntaxKind.ExtendsKeyword)
+					for (const t of h.types)
+						if (hasSideEffect(t.expression))
+							reasons.push(`class heritage runs at load: ${trim(stmt.getText(sf))}`);
 			for (const m of stmt.members) {
+				// a COMPUTED member name (`[key()]: …`) evaluates at class
+				// creation regardless of static-ness (codex P2)
+				if (
+					"name" in m &&
+					m.name &&
+					ts.isComputedPropertyName(m.name) &&
+					hasSideEffect(m.name.expression)
+				) {
+					reasons.push(`computed class member name runs at load: ${trim(m.getText(sf))}`);
+					continue;
+				}
 				if (ts.isClassStaticBlockDeclaration(m))
 					reasons.push(`class static block runs at load: ${trim(m.getText(sf))}`);
 				else if (

@@ -928,3 +928,42 @@ test("fontcheck: custom family matching is CASE-SENSITIVE like deriveFonts", () 
 	const ttfs = ["f/Fam-Regular.ttf"];
 	assert.deepEqual(deriveFonts('font: "20px fam"', ttfs), []); // parity: ships nothing
 });
+
+test("classify: class HERITAGE and computed member names run at load (IMPURE)", () => {
+	// `extends makeBase()` executes at class-definition time — preloaded,
+	// makeBase() runs in the build compartment instead of at app load; a
+	// computed member name (`[key()]`) evaluates at class creation too
+	// (codex P2). A plain identifier base stays free.
+	assert.equal(
+		classify("declare function makeBase(): any;\nexport class V extends makeBase() {}").pure,
+		false,
+	);
+	assert.equal(classify("class Base {}\nexport class V extends Base {}").pure, true);
+	assert.equal(
+		classify("declare function key(): string;\nexport class V { [key()] = 1; }").pure,
+		false,
+	);
+	assert.equal(classify("export class V { [Symbol.iterator]() { return null; } }").pure, true);
+});
+
+test("treeshake: NON-runtime base-manifest modules survive the prune", () => {
+	// a hand-written manifest.base app/… mapping is the documented escape
+	// hatch for unresolved importNow targets — the prune rebuilt modules from
+	// main + runtime only and dropped it (build passed, navigation died on
+	// device; codex P2)
+	const base = {
+		modules: {
+			main: "./app/main",
+			"runtime/signals": "./runtime-min/signals",
+			"runtime/flow": "./runtime-min/flow",
+			"app/custom": "./app/custom",
+		},
+		preload: ["runtime/signals", "runtime/flow", "app/custom"],
+	};
+	const need = new Set(["runtime/signals"]);
+	const { manifest: m, dropped } = pruneManifest(base, need);
+	assert.equal(m.modules!["app/custom"], "./app/custom"); // survives
+	assert.equal(m.modules!["runtime/flow"], undefined); // runtime still prunes
+	assert.deepEqual(dropped, ["runtime/flow"]);
+	assert.deepEqual(m.preload, ["runtime/signals", "app/custom"]); // preload survives too
+});
