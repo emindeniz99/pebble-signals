@@ -55,8 +55,15 @@ export function deriveFonts(src: string, ttfs: string[]): FontEntry[] {
 	// style tokens in ANY order (same tolerance as fontcheck's badFonts —
 	// "bold italic" and "italic bold" name the same BoldItalic face); all
 	// three quote styles — a backtick `font: \`20px Fam\`` hands the runtime
-	// a plain string and must ship its face like the quoted forms (codex P2)
-	for (const m of src.matchAll(/font:\s*["'`]((?:(?:italic|bold)\s+)*)(\d+)px\s+(\w+)["'`]/g)) {
+	// a plain string and must ship its face like the quoted forms (codex P2).
+	// The KEY grammar covers equivalent JS spellings — `"font":` / `'font':`
+	// and `font :` reach the runtime as the same dictionary key, and missing
+	// them shipped no TTF while fontcheck (same grammar) never rejected the
+	// literal: silent blank render (codex P2). The lookbehind keeps `myfont:`
+	// from matching — that key is not a Piu Style font.
+	for (const m of src.matchAll(
+		/(?<![\w$])["']?font["']?\s*:\s*["'`]((?:(?:italic|bold)\s+)*)(\d+)px\s+(\w+)["'`]/g,
+	)) {
 		const italic = /\bitalic\b/.test(m[1]);
 		const bold = /\bbold\b/.test(m[1]);
 		const suffix = bold && italic ? "BoldItalic" : bold ? "Bold" : italic ? "Italic" : "Regular";

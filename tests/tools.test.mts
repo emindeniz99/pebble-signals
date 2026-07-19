@@ -853,3 +853,41 @@ test("deriveResources: derived textures keep sibling *-alpha entries intact", ()
 	assert.equal((m.resources!["*-alpha"] as unknown[]).length, 1);
 	assert.deepEqual(m.resources!["*"], ["../../assets/pic"]);
 });
+
+test('treeshake: bare side-effect runtime imports seed (import "runtime/flow")', () => {
+	// `import "runtime/flow";` has no `from` clause but survives emit and
+	// bundling — missing it pruned the module and failed an otherwise valid
+	// build at the unmapped-import tripwire (codex P2)
+	assert.deepEqual([...neededModules('import "runtime/flow";')].sort(), [
+		"runtime/flow",
+		"runtime/jsx-runtime",
+		"runtime/signals",
+	]);
+	// commented-out bare imports still never seed
+	assert.deepEqual([...neededModules('// import "runtime/flow";')], []);
+});
+
+test("classify: initializer-embedded ASSIGNMENTS are load-time effects (IMPURE)", () => {
+	// these mutate state during module evaluation — preloaded, the mutation
+	// runs in the build compartment (wrong world / frozen away) (codex P2)
+	assert.equal(classify("export const ok = (globalThis.ready = true);").pure, false);
+	assert.equal(classify("let c = 0;\nexport const n = c++;").pure, false);
+	assert.equal(classify("export const gone = delete (globalThis as never)['x'];").pure, false);
+	// an assignment INSIDE a function body is deferred — still PURE
+	assert.equal(classify("let c = 0;\nexport const inc = () => c++;").pure, true);
+});
+
+test("gen-manifest + fontcheck: quoted/spaced font KEYS are the same dictionary key", () => {
+	// `{ "font": ... }` and `{ font : ... }` reach the runtime identically —
+	// the exact-text `font:` grammar shipped no TTF AND never validated the
+	// literal: the silent-blank class in both tools at once (codex P2)
+	const ttfs = ["f/Fam-Regular.ttf"];
+	assert.equal(deriveFonts('"font": "20px Fam"', ttfs)[0].source, "f/Fam-Regular");
+	assert.equal(deriveFonts("font : '20px Fam'", ttfs)[0].source, "f/Fam-Regular");
+	assert.deepEqual(badFonts('"font": "99px Fake"'), ['"font": "99px Fake"']);
+	assert.deepEqual(badFonts('font : "99px Fake"'), ['font : "99px Fake"']);
+	assert.deepEqual(badFonts('"font": "24px Gothic"'), []);
+	// `myfont:` is NOT the Piu font key — neither tool may treat it as one
+	assert.deepEqual(deriveFonts('myfont: "20px Fam"', ttfs), []);
+	assert.deepEqual(badFonts('myfont: "99px Fake"'), []);
+});

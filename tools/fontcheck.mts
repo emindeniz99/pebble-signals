@@ -64,9 +64,12 @@ export function badFonts(src: string, customFaces?: Set<string>): string[] {
 	// skipped the literal entirely and shipped a blank render (codex P2;
 	// matches deriveFonts' \w+ family grammar).
 	// all three quote styles — a backtick literal reaches the runtime as the
-	// same plain string (deriveFonts scans the same grammar)
+	// same plain string (deriveFonts scans the same grammar). Key grammar
+	// matches deriveFonts too: `"font":` / `font :` are the same dictionary
+	// key at runtime, and a scan keyed to the exact `font:` text let those
+	// spellings ship unvalidated (codex P2); lookbehind excludes `myfont:`.
 	for (const m of src.matchAll(
-		/font:\s*["'`]((?:(?:italic|bold)\s+)*)(\d+)px\s+([A-Za-z]\w*)["'`]/g,
+		/(?<![\w$])["']?font["']?\s*:\s*["'`]((?:(?:italic|bold)\s+)*)(\d+)px\s+([A-Za-z]\w*)["'`]/g,
 	)) {
 		const italic = /\bitalic\b/.test(m[1]);
 		const bold = /\bbold\b/.test(m[1]);

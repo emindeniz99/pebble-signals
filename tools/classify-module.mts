@@ -47,6 +47,23 @@ export function classify(src: string): Verdict {
 				found = true;
 				return;
 			}
+			// ASSIGNMENTS are load-time effects too: `export const ok =
+			// (globalThis.ready = true)` / `export const n = counter++` mutate
+			// state during module evaluation — preloaded, that mutation runs in
+			// the build compartment (wrong world, or frozen away) instead of at
+			// app load (codex P2). `delete` is the same class.
+			if (
+				(ts.isBinaryExpression(n) &&
+					n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+					n.operatorToken.kind <= ts.SyntaxKind.LastAssignment) ||
+				((ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n)) &&
+					(n.operator === ts.SyntaxKind.PlusPlusToken ||
+						n.operator === ts.SyntaxKind.MinusMinusToken)) ||
+				ts.isDeleteExpression(n)
+			) {
+				found = true;
+				return;
+			}
 			if (ts.isFunctionExpression(n) || ts.isArrowFunction(n)) return; // body deferred
 			ts.forEachChild(n, scan);
 		};

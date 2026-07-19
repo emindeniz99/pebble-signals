@@ -42,6 +42,10 @@ export function neededModules(src: string, extraSeeds: string[] = []): Set<strin
 		/\b(?:import|export)\s+([^;]*?)from\s+["'](runtime\/[a-zA-Z0-9_-]+)["']/g,
 	))
 		if (!/^type\b/.test(m[1].trim())) seed.push(m[2]);
+	// bare side-effect imports (`import "runtime/flow";`) carry no `from`
+	// clause but survive emit and bundling all the same — missing them pruned
+	// the module and turned a valid build into a tripwire failure (codex P2).
+	for (const m of code.matchAll(/\bimport\s+["'](runtime\/[a-zA-Z0-9_-]+)["']/g)) seed.push(m[1]);
 	const need = new Set<string>();
 	const stack = [...seed, ...extraSeeds];
 	while (stack.length) {
