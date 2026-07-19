@@ -124,7 +124,13 @@ export function deriveResources(src: string, manifest: Manifest): Manifest {
 	// styles, substitution templates excluded (same rule as Texture above)
 	const pdc = [...src.matchAll(/["'`]([^"'`$]+?\.pdc)["'`]/g)].map((x) => x[1]);
 	const tbl = [...src.matchAll(/romTable\(\s*["'`]([^"'`$]+)["'`]/g)].map((x) => x[1]);
-	const data = uniq([...pdc, ...tbl]);
+	// literal `new Resource("strings.dat")` data files — the documented
+	// static-data path. Only `.pdc` strings were scanned, so a non-.pdc
+	// Resource file was omitted from the manifest and the device lookup failed
+	// (codex P2). Any extension counts (`.dat`, `.bin`, …); a `.pdc` here is
+	// deduped against the scan above. Substitution templates excluded ($-rule).
+	const res = [...src.matchAll(/new\s+Resource\(\s*["'`]([^"'`$]+?)["'`]/g)].map((x) => x[1]);
+	const data = uniq([...pdc, ...tbl, ...res]);
 	const prevData = (m.data && m.data["*"]) || [];
 	if (data.length || prevData.length)
 		// spread keeps sibling keys a hand-written manifest.base may carry

@@ -39,6 +39,7 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import ts from "typescript";
 import { collectIdentifiers, importSymbol, valueSymbol } from "./lower/program.mts";
+import { PIU_HOSTS, REACTIVE_PROPS } from "./lower/runtime-meta.mts";
 import { packageRoot } from "./pkg-root.mts";
 
 export interface Finding {
@@ -52,7 +53,8 @@ export interface Finding {
 		| "child-signal"
 		| "stringify-fn"
 		| "setter-as-value"
-		| "getter-as-value";
+		| "getter-as-value"
+		| "getter-on-static-prop";
 	msg: string;
 }
 
@@ -305,15 +307,40 @@ export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
 			if (hit.kind === "setter" ? !!asCall : asCall && asCall.arguments.length === 0) continue;
 			// a GETTER as a JSX ATTRIBUTE value is a thunk position — the getter
 			// IS `() => T`, the documented reactive contract for props (shipped
-			// pattern: component.tsx `<Readout value={count} />`). The pair
-			// bails (A1: component props are never auto-thunked) — allowed.
+			// pattern: component.tsx `<Readout value={count} />`). The pair bails
+			// (A1: component props are never auto-thunked) — allowed. EXCEPT on a
+			// HOST's NON-reactive prop (`<Container width={count}>`): createHost
+			// throws bindErr at render because only REACTIVE_PROPS may be
+			// function-valued (jsx-runtime) — the lint gate must catch that, not
+			// let it die on device (codex round 13).
 			if (
 				hit.kind === "getter" &&
 				ts.isJsxExpression(id.parent) &&
 				id.parent.expression === id &&
 				ts.isJsxAttribute(id.parent.parent)
-			)
+			) {
+				const attr = id.parent.parent;
+				const attrName = attr.name.getText();
+				const opening = attr.parent.parent; // JsxAttributes -> Jsx(Opening|SelfClosing)Element
+				const tagName =
+					ts.isJsxOpeningElement(opening) || ts.isJsxSelfClosingElement(opening)
+						? opening.tagName
+						: undefined;
+				// a HOST tag resolves to the ambient globals.d.ts declaration (or
+				// none); a user COMPONENT resolves to its own symbol — never a host
+				const decl = tagName && checker.getSymbolAtLocation(tagName)?.declarations?.[0];
+				const isHost =
+					!!tagName &&
+					PIU_HOSTS.has(tagName.getText()) &&
+					(!decl || decl.getSourceFile().fileName.endsWith("globals.d.ts"));
+				if (!(isHost && !REACTIVE_PROPS.has(attrName))) continue; // component / reactive host prop
+				report(
+					id,
+					"getter-on-static-prop",
+					`\`${hit.name}\` (a useState getter) is passed to the non-reactive host prop \`${attrName}\` — createHost throws at render (only ${[...REACTIVE_PROPS].join("/")} may be function-valued). Pass a static value, or read once: \`${attrName}={${hit.name}()}\``,
+				);
 				continue;
+			}
 			const { line, character } = sf.getLineAndCharacterOfPosition(id.getStart());
 			if (seenPos.has(`${sf.fileName}:${line}:${character}`)) continue; // sharper rule spoke
 			if (hit.kind === "setter")

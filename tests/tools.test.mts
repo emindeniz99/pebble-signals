@@ -981,3 +981,39 @@ test("gen-manifest: badTextures flags suffixless new Texture (gotcha 19)", () =>
 	// a real mix: only the suffixless one is flagged
 	assert.deepEqual(badTextures('new Texture("a.png"); new Texture("b")'), ['new Texture("b"']);
 });
+
+test("gen-manifest: literal new Resource() data files ship (codex round 13)", () => {
+	// the documented static-data path — only `.pdc` was scanned, so a
+	// `new Resource("strings.dat")` file was omitted and died on device
+	const m = deriveResources('new Resource("strings.dat"); new Resource("cfg.bin");', { ...BASE });
+	assert.deepEqual(m.data, { "*": ["../../assets/strings.dat", "../../assets/cfg.bin"] });
+	// a `.pdc` Resource dedupes against the .pdc scan (no double entry)
+	const p = deriveResources('new Resource("sloth.pdc");', { ...BASE });
+	assert.deepEqual(p.data, { "*": ["../../assets/sloth.pdc"] });
+	// substitution templates are computed — never ship a phantom
+	// biome-ignore lint/suspicious/noTemplateCurlyInString: the literal ${} text is the fixture
+	const sub = deriveResources("new Resource(`${name}.dat`);", { ...BASE });
+	assert.equal(sub.data, undefined);
+});
+
+test("lint-reads: getter on a host STATIC prop is flagged; reactive prop + component prop are not (codex round 13)", () => {
+	// <Container width={count}> — createHost throws bindErr at render (width is
+	// NOT a REACTIVE prop, only a function-valued string/state/… is allowed);
+	// the lint gate must catch it instead of letting it die on device
+	const bad = lintFixture(
+		"const [count, setCount] = useState(0);\nexport const a = render(() => <Container width={count} />, {});\n",
+	);
+	assert.equal(bad.length, 1);
+	assert.equal(bad[0].rule, "getter-on-static-prop");
+	assert.match(bad[0].msg, /width/);
+	// <Label string={count}> — `string` IS a reactive host prop, allowed
+	const okHost = lintFixture(
+		"const [count, setCount] = useState(0);\nexport const b = render(() => <Label string={count} />, {});\n",
+	);
+	assert.deepEqual(okHost, []);
+	// a user COMPONENT prop is always a valid thunk position — allowed
+	const okComp = lintFixture(
+		"const [count, setCount] = useState(0);\nconst Readout = (p: { w: () => number }) => <Label string={String(p.w())} />;\nexport const c = render(() => <Readout w={count} />, {});\n",
+	);
+	assert.deepEqual(okComp, []);
+});
