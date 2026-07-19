@@ -1039,6 +1039,37 @@ check("provide restores after build", useContext(Theme) === "light");
 	check("root dispose is idempotent", aRuns === 1 && bRuns === 1);
 }
 
+// a failed initial run must ALSO unpark its id from the owner list: the id
+// is freed for reuse, and a stale entry would make the owner's teardown
+// dispose an INNOCENT unrelated effect that recycled the id
+{
+	const rsig = signal(0);
+	let threwOut = false;
+	const [, dRootA] = createRoot(() => {
+		try {
+			effect(() => {
+				throw new Error("child init boom");
+			});
+		} catch {
+			threwOut = true; // the child's init throw reaches its creator
+		}
+	});
+	// the freed id is recycled by an UNRELATED top-level effect (lowest-free
+	// bit allocation makes the reuse deterministic)
+	let reusedRuns = 0;
+	const reused = effect(() => {
+		rsig.value;
+		reusedRuns++;
+	});
+	dRootA(); // a stale child entry here would dispose the recycled id
+	rsig.value = 1;
+	check(
+		"failed initial effect leaves no stale owner entry (recycled id survives)",
+		threwOut && reusedRuns === 2,
+	);
+	dispose(reused);
+}
+
 // a top-level effect whose FIRST run throws: the throw escapes effect() and
 // the caller never receives an id — the runtime must dispose the effect
 // eagerly, or it stays subscribed as an UNDISPOSABLE zombie re-running on

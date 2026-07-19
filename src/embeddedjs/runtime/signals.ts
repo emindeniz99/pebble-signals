@@ -646,6 +646,17 @@ export function effect(fn: EffectFn): number {
 		// no handle to dispose it. Owned effects are torn down by their root
 		// anyway; dispose() is idempotent, so clean up eagerly and rethrow.
 		dispose(e);
+		// ALSO drop the id track(e) parked on the owner above: the numeric id
+		// is now free for reuse, and a stale owner-list entry would make the
+		// owner's later teardown dispose an INNOCENT effect holding the
+		// recycled id (the same id-reuse class dispose()'s forward-id sweep
+		// guards against).
+		const o = owner;
+		const list = o === null ? undefined : typeof o === "number" ? g.w?.[o] : o.d;
+		if (list) {
+			const i = list.lastIndexOf(e);
+			if (i >= 0) list.splice(i, 1);
+		}
 		throw err;
 	}
 	return e;
