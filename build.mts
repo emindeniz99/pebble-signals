@@ -346,7 +346,11 @@ const rootShim = (() => {
 				}
 			// the entry must actually CALL one of these bindings
 			if (!names.some((n) => new RegExp(`\\b${n}\\s*\\(`).test(bare))) continue;
-			const b = join(edir, im[4]);
+			// TS/relativeClosure resolve an ESM-style `./boot.js` specifier to the
+			// `boot.ts(x)` SOURCE — strip the runtime extension before appending
+			// .tsx/.ts, else `./boot.js` never resolves and the shim double-mounts
+			// (codex P2, an edge in the delegated-render fix above).
+			const b = join(edir, im[4].replace(/\.(?:m?jsx?|cjs)$/, ""));
 			const helperSrc = [`${b}.tsx`, `${b}.ts`, join(b, "index.tsx"), join(b, "index.ts")]
 				.map((p) => readSrc(p))
 				.find((s) => s != null);

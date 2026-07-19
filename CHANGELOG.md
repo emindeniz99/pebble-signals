@@ -38,6 +38,16 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round seventeen (codex review of 9fb63c4, part 1).** Two silent-failure
+  edges. (1) the self-render helper resolver now strips an ESM-style runtime
+  extension (`./boot.js` → `boot.ts(x)`) before probing, so a delegated-mount
+  entry importing its helper as `./boot.js` no longer keeps the shim and
+  double-mounts (a build A/B probe confirms the shim is suppressed). (2)
+  `gen-manifest`'s comment stripper is now string-aware: a naive line-comment
+  regex ate the `//` in `"https://api"` and dropped a same-line
+  `new Texture("x.png")`, so the asset never shipped and the device failed to
+  resolve it. A `stripComments` quote-state walk (with escapes) replaces the
+  three naive strips; real comments are still removed.
 - **Round sixteen (codex review of c3fc710).** Four fixes; a fifth
   (computed-ownership on the `S.get` hot path) is deferred pending on-device
   value-stack measurement. (1) `build.mts` self-render detection no longer

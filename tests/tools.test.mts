@@ -55,6 +55,18 @@ test("gen-manifest: no assets -> no resources/data added", () => {
 	assert.equal(m.data, undefined);
 });
 
+test("gen-manifest: a string URL's // does not eat a same-line Texture", () => {
+	// naive comment stripping treated `//` in "https://api" as a comment and
+	// dropped the rest of the line — the texture never shipped (codex P2)
+	const m = deriveResources('const u = "https://api"; const img = new Texture("ball0.png");', {
+		...BASE,
+	});
+	assert.deepEqual(m.resources, { "*": ["../../assets/ball0"] });
+	// a REAL line comment is still stripped (a commented-out Texture never ships)
+	const c = deriveResources('// new Texture("ghost.png")\nnew Texture("real.png")', { ...BASE });
+	assert.deepEqual(c.resources, { "*": ["../../assets/real"] });
+});
+
 test("gen-manifest: data merge keeps sibling keys a hand-written base carries", () => {
 	// same union rule as resources — assigning `data` wholesale clobbered a
 	// platform-qualified entry in a consumer's manifest.base

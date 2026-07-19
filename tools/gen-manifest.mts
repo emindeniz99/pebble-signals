@@ -50,7 +50,7 @@ const ASCII =
  * Pure.
  */
 export function deriveFonts(src: string, ttfs: string[]): FontEntry[] {
-	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+	src = stripComments(src);
 	const out: FontEntry[] = [];
 	// style tokens in ANY order (same tolerance as fontcheck's badFonts —
 	// "bold italic" and "italic bold" name the same BoldItalic face); all
@@ -80,6 +80,42 @@ export function deriveFonts(src: string, ttfs: string[]): FontEntry[] {
 const uniq = (xs: string[]): string[] => [...new Set(xs)];
 
 /**
+ * Strip `//` and block comments, but NOT sequences that live INSIDE a string or
+ * template literal. A naive line-comment regex ate the `//` in
+ * `const u = "https://api"; new Texture("ball0.png")` and dropped everything
+ * after it on the line — so the texture never reached the manifest and the
+ * device failed to resolve it (codex P2). Quote-state walk with escape handling;
+ * a backtick literal is treated whole (a `//` inside `${…}` is preserved, the
+ * safe direction — worst case we keep code, never drop a resource). Pure.
+ */
+export function stripComments(src: string): string {
+	let out = "";
+	let quote = ""; // "" = code; else the closing char of the open string
+	for (let i = 0; i < src.length; i++) {
+		const c = src[i];
+		if (quote) {
+			out += c;
+			if (c === "\\") {
+				if (i + 1 < src.length) out += src[++i]; // copy the escaped char verbatim
+			} else if (c === quote) quote = "";
+			continue;
+		}
+		if (c === '"' || c === "'" || c === "`") {
+			quote = c;
+			out += c;
+		} else if (c === "/" && src[i + 1] === "/") {
+			while (i < src.length && src[i] !== "\n") i++;
+			if (i < src.length) out += "\n"; // keep the newline the loop consumed
+		} else if (c === "/" && src[i + 1] === "*") {
+			i += 2;
+			while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++;
+			i++; // land on the trailing '/'
+		} else out += c;
+	}
+	return out;
+}
+
+/**
  * Every `new Texture("…")` STRING-arg literal whose path does NOT end in
  * `.png` (empty = all valid). The Pebble Texture constructor only resolves the
  * `.bm4` pair when the path ends in `.png` — `new Texture("ball0")` throws
@@ -90,7 +126,7 @@ const uniq = (xs: string[]): string[] => [...new Set(xs)];
  * excluded — the runtime string is computed, not this literal. Pure.
  */
 export function badTextures(src: string): string[] {
-	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+	src = stripComments(src);
 	const bad: string[] = [];
 	for (const m of src.matchAll(/new\s+Texture\(\s*["'`]([^"'`$]+?)["'`]/g))
 		if (!m[1].endsWith(".png")) bad.push(m[0]);
@@ -102,7 +138,7 @@ export function deriveResources(src: string, manifest: Manifest): Manifest {
 	const m: Manifest = { ...manifest };
 	// comments off first — a commented-out `new Texture(...)` must not ship a
 	// phantom resource (same strip build.mts's lazy-import scan uses)
-	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+	src = stripComments(src);
 	// `new Texture("x.png")` / `new Texture('x')` / a no-substitution backtick
 	// literal — .png optional. `$` is excluded so a substitution template never
 	// ships a phantom `${name}` resource (the runtime receives a plain string
