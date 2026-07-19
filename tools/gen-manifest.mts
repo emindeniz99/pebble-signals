@@ -53,8 +53,10 @@ export function deriveFonts(src: string, ttfs: string[]): FontEntry[] {
 	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 	const out: FontEntry[] = [];
 	// style tokens in ANY order (same tolerance as fontcheck's badFonts —
-	// "bold italic" and "italic bold" name the same BoldItalic face)
-	for (const m of src.matchAll(/font:\s*["']((?:(?:italic|bold)\s+)*)(\d+)px\s+(\w+)["']/g)) {
+	// "bold italic" and "italic bold" name the same BoldItalic face); all
+	// three quote styles — a backtick `font: \`20px Fam\`` hands the runtime
+	// a plain string and must ship its face like the quoted forms (codex P2)
+	for (const m of src.matchAll(/font:\s*["'`]((?:(?:italic|bold)\s+)*)(\d+)px\s+(\w+)["'`]/g)) {
 		const italic = /\bitalic\b/.test(m[1]);
 		const bold = /\bbold\b/.test(m[1]);
 		const suffix = bold && italic ? "BoldItalic" : bold ? "Bold" : italic ? "Italic" : "Regular";

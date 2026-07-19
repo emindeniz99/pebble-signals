@@ -39,9 +39,11 @@ export function classify(src: string): Verdict {
 		let found = false;
 		const scan = (n: ts.Node): void => {
 			if (found) return;
-			// a call or construction at module-eval time is a side effect. (We do
-			// NOT descend into function/arrow bodies — those don't run at load.)
-			if (ts.isNewExpression(n) || ts.isCallExpression(n)) {
+			// a call or construction at module-eval time is a side effect — a
+			// TAGGED template (`makeStyle\`…\``) is a call in disguise, its tag
+			// executes at load exactly like foo() (codex P2). (We do NOT
+			// descend into function/arrow bodies — those don't run at load.)
+			if (ts.isNewExpression(n) || ts.isCallExpression(n) || ts.isTaggedTemplateExpression(n)) {
 				found = true;
 				return;
 			}

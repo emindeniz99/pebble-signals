@@ -100,8 +100,13 @@ export function relativeClosure(entry: string, read: (p: string) => string | nul
 					break;
 				}
 		};
-		// `from "./x"` covers static imports AND `export … from "./x"` re-exports
-		for (const m of src.matchAll(/from\s+["'](\.\.?\/[^"']+)["']/g)) follow(m[1]);
+		// `from "./x"` covers static imports AND `export … from "./x"`
+		// re-exports — but TYPE-ONLY clauses are erased at emit and never
+		// bundle: following them fed phantom literals (a types-only helper's
+		// `font:` shape failed fontcheck, its Texture strings shipped
+		// resources) into every scan for code that never ships (codex P2).
+		for (const m of src.matchAll(/\b(?:import|export)\s+([^;]*?)from\s+["'](\.\.?\/[^"']+)["']/g))
+			if (!/^type\b/.test(m[1].trim())) follow(m[2]);
 		// bare side-effect imports carry NO `from` clause (`import "./setup"`) —
 		// esbuild still bundles them, so their runtime imports / assets / reads
 		// must join the closure too. `\bimport\s+["']` won't match `importNow(`.

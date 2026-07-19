@@ -163,6 +163,15 @@ test("fontcheck: digit-bearing families are SEEN (20px B612 must not slip)", () 
 	assert.deepEqual(badFonts('font: "20px B612"', new Set(["b612"])), []);
 });
 
+test("fontcheck + deriveFonts: backtick font literals are the same plain string", () => {
+	// `font: \`99px Gothic\`` reaches the runtime identically — the quote-only
+	// grammar neither shipped the face nor failed loudly
+	assert.deepEqual(badFonts("font: `99px Gothic`"), ["font: `99px Gothic`"]);
+	assert.deepEqual(badFonts("font: `24px Gothic`"), []);
+	const ttfs = ["f/Fam-Regular.ttf"];
+	assert.equal(deriveFonts("font: `20px Fam`", ttfs)[0].source, "f/Fam-Regular");
+});
+
 // --- classify-module: PURE (preload-eligible) vs IMPURE (stays in main) ---
 test("classify: const tables + pure functions/classes are PURE", () => {
 	const src = `
@@ -206,6 +215,14 @@ test("classify: module-scope signal()/useState() is IMPURE (reactive state)", ()
 
 test("classify: a top-level call like render() is IMPURE", () => {
 	assert.equal(classify("render(() => 1, {});").pure, false);
+});
+
+test("classify: a module-level TAGGED template is a call in disguise (IMPURE)", () => {
+	// the tag executes at module evaluation — preloading it would run
+	// makeStyle at BUILD time (host globals absent, result frozen)
+	assert.equal(classify("export const style = makeStyle`bold 24px`;").pure, false);
+	// inside a function body it stays deferred — PURE
+	assert.equal(classify("export const mk = () => makeStyle`bold 24px`;").pure, true);
 });
 
 test("classify: imports and nested new/call (inside fn bodies) stay PURE", () => {
@@ -342,6 +359,21 @@ test("symbol-rename: cross-module — same wire renamed in export AND every impo
 	assert.match(outputs["signals.js"], /export\{e as Q1\}/);
 	assert.match(outputs["flow.js"], /import\{Q1 as n\}/);
 	assert.match(outputs["main.js"], /import\{Q1 as o\}/);
+});
+
+test("symbol-rename: a shipped module's runtime RE-EXPORT is rewritten too", () => {
+	// `export { For } from "runtime/flow"` asks flow for the wire at
+	// instantiation exactly like an import — renaming only imports left the
+	// re-export requesting a now-missing export (load death). The EXPORTED
+	// name stays stable for the module's own consumers.
+	const files = {
+		"flow.js": "var f=1;export{f as For}",
+		"lazy.js": 'export{For}from"runtime/flow";export{For as F2}from"runtime/flow"',
+	};
+	const { map, outputs } = renameRuntimeExports(files, new Set(["flow.js"]), TARGETS);
+	assert.equal(map.For, "Q1");
+	assert.match(outputs["lazy.js"], /export\{Q1 as For\}from"runtime\/flow"/);
+	assert.match(outputs["lazy.js"], /export\{Q1 as F2\}from"runtime\/flow"/);
 });
 
 test("symbol-rename: only runtime/* imports are rewritten (app modules untouched)", () => {
@@ -662,6 +694,20 @@ test("relativeClosure follows a literal relative DYNAMIC import", () => {
 	assert.deepEqual(
 		relativeClosure("src/app.tsx", (p) => fs4[p] ?? null),
 		["src/app.tsx", "src/art.tsx"],
+	);
+});
+
+test("relativeClosure skips TYPE-ONLY relative edges (erased, never bundled)", () => {
+	// a types-only helper's string literals must not reach fontcheck /
+	// gen-manifest / keep-set scans — that code never ships
+	const fsT: Record<string, string> = {
+		"src/app.tsx": 'import type { Theme } from "./types";\nimport { real } from "./real";',
+		"src/types.ts": "export type Theme = { f: string };\nconst ghost = 'font: \"99px Gothic\"';",
+		"src/real.ts": "export const real = 1;",
+	};
+	assert.deepEqual(
+		relativeClosure("src/app.tsx", (p) => fsT[p] ?? null),
+		["src/app.tsx", "src/real.ts"],
 	);
 });
 

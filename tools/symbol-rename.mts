@@ -168,6 +168,39 @@ export function renameRuntimeExports(
 							text: `${t} as ${wire}`,
 						});
 				}
+			// export{ WIRE as X }from"runtime/…" -> export{ TARGET as X }…
+			// export{ WIRE }from"runtime/…"      -> export{ TARGET as WIRE }…
+			// A shipped module RE-EXPORTING a runtime name asks the runtime
+			// module for the wire at instantiation exactly like an import —
+			// renaming only the import side left the re-export requesting a
+			// now-missing export (load death; codex P2). The EXPORTED name
+			// stays stable: downstream consumers of this module keep it.
+			if (
+				!isRuntime &&
+				ts.isExportDeclaration(st) &&
+				st.moduleSpecifier &&
+				ts.isStringLiteral(st.moduleSpecifier) &&
+				RUNTIME.test(st.moduleSpecifier.text) &&
+				st.exportClause &&
+				ts.isNamedExports(st.exportClause)
+			)
+				for (const el of st.exportClause.elements) {
+					const wire = (el.propertyName ?? el.name).text;
+					const t = map[wire];
+					if (!t) continue;
+					if (el.propertyName)
+						edits.push({
+							start: el.propertyName.getStart(sf),
+							end: el.propertyName.getEnd(),
+							text: t,
+						});
+					else
+						edits.push({
+							start: el.name.getStart(sf),
+							end: el.name.getEnd(),
+							text: `${t} as ${wire}`,
+						});
+				}
 		}
 		if (!edits.length) continue;
 		edits.sort((a, b) => b.start - a.start);

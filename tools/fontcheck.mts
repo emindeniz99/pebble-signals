@@ -42,8 +42,10 @@ export function badFonts(src: string, customFamilies?: Set<string>): string[] {
 	// is SEEN and rejected when no TTF backs it — the old [A-Za-z]+ grammar
 	// skipped the literal entirely and shipped a blank render (codex P2;
 	// matches deriveFonts' \w+ family grammar).
+	// all three quote styles — a backtick literal reaches the runtime as the
+	// same plain string (deriveFonts scans the same grammar)
 	for (const m of src.matchAll(
-		/font:\s*["']((?:(?:italic|bold)\s+)*)(\d+)px\s+([A-Za-z]\w*)["']/g,
+		/font:\s*["'`]((?:(?:italic|bold)\s+)*)(\d+)px\s+([A-Za-z]\w*)["'`]/g,
 	)) {
 		const italic = /\bitalic\b/.test(m[1]);
 		const bold = /\bbold\b/.test(m[1]);

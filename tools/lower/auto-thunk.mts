@@ -110,10 +110,22 @@ export function autoThunk(text: string): { code: string; wrapped: number } {
 	// identifier in the Piu set with NO resolvable declaration (host-injected at
 	// runtime). A component (imported/local) resolves to a symbol, and a shadowed
 	// `const Label = …` also resolves — so symbol-resolution handles shadowing.
-	const isPiuHostType = (typeNode: ts.Node): boolean =>
-		ts.isIdentifier(typeNode) &&
-		PIU_HOSTS.has(typeNode.text) &&
-		!checker.getSymbolAtLocation(typeNode);
+	// A one-level ALIAS of a host global (`const L = Label; <L …/>`) is still
+	// a host at runtime (createHost dispatches on IDENTITY) — skipping it left
+	// reactive props unthunked, evaluated ONCE and dead to updates (codex P2).
+	const isPiuHostType = (typeNode: ts.Node): boolean => {
+		if (!ts.isIdentifier(typeNode)) return false;
+		if (PIU_HOSTS.has(typeNode.text) && !checker.getSymbolAtLocation(typeNode)) return true;
+		const d = checker.getSymbolAtLocation(typeNode)?.valueDeclaration;
+		return (
+			!!d &&
+			ts.isVariableDeclaration(d) &&
+			!!d.initializer &&
+			ts.isIdentifier(d.initializer) &&
+			PIU_HOSTS.has(d.initializer.text) &&
+			!checker.getSymbolAtLocation(d.initializer)
+		);
+	};
 
 	const edits: Edit[] = [];
 	(function walk(n: ts.Node) {

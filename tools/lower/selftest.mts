@@ -238,6 +238,16 @@ export function selftest(): void {
 	// signal .value read wrapped too
 	r = lower(JSXIMP + "const s = signal(0);\n" + "jsx(Label, { string: s.value });\n");
 	eq(r.code, r.code.includes("string: () => (__sp.get(s))"), "auto-thunk wraps signal .value");
+	// an ALIASED host (`const L = Label`) is a host at runtime — createHost
+	// dispatches on identity — so its reactive props must thunk exactly like
+	// the global; skipping it evaluated the read ONCE, dead to updates
+	r = lower(
+		JSXIMP +
+			"const [count, setCount] = useState(0);\n" +
+			"const L = Label;\n" +
+			"jsx(L, { string: count() });\n",
+	);
+	eq(r.code, r.code.includes("string: () => (__sp.get(count))"), "auto-thunk wraps aliased host");
 	// already-a-thunk is left alone (idempotent authoring + our own output)
 	r = lower(
 		JSXIMP +
