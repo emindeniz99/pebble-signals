@@ -326,13 +326,31 @@ run(
 	),
 );
 
+// tsc's AUTOMATIC JSX transform injects `import { jsx } from
+// "runtime/jsx-runtime"` into compiled .tsx AFTER this source-level scan — a
+// shipped .tsx that never names the runtime in SOURCE (a JSX lazy screen
+// under a hand-Piu entry, components arriving via params) would prune
+// jsx-runtime and fail the unmapped-import tripwire on a valid build
+// (codex P2). Seed it whenever a shipped .tsx looks JSX-bearing;
+// over-keeping is the safe direction (a few boot aliases), under-keeping
+// is a failed build.
+const jsxTsx = shakeSources.some(
+	(f) =>
+		f.endsWith(".tsx") &&
+		existsSync(f) &&
+		/<[A-Za-z]/.test(
+			readFileSync(f, "utf8")
+				.replace(/\/\*[\s\S]*?\*\//g, "")
+				.replace(/\/\/[^\n]*/g, ""),
+		),
+);
 if (treeshake)
 	run(process.execPath, [
 		join(TOOLS, `treeshake${EXT}`),
 		...shakeSources,
 		// the generated shim imports render — its module must survive the prune
 		// even though no scanned source mentions it (the file exists only post-tsc)
-		...(rootShim ? ["--need=runtime/jsx-runtime"] : []),
+		...(rootShim || jsxTsx ? ["--need=runtime/jsx-runtime"] : []),
 		"src/embeddedjs/manifest.json",
 	]);
 
@@ -427,7 +445,11 @@ if (preloadPure && existsSync(entryJs)) {
 		const file = `src/embeddedjs/app/${rel}.js`;
 		if (!existsSync(file)) continue;
 		const sub = readFileSync(file, "utf8");
-		if (/from\s*"\.\.?\//.test(sub)) {
+		// bare side-effect imports (`import "./setup"`) count too — esbuild
+		// would inline them into the preloaded module, moving their load-time
+		// work into the build compartment despite v1's no-nested-import
+		// contract (codex P2)
+		if (/\b(?:from|import)\s*"\.\.?\//.test(sub)) {
 			err(`preload-pure: ${spec} imports other local modules — v1 keeps it in main`);
 			continue;
 		}
@@ -555,7 +577,31 @@ if (lazyBases.length) {
 			const queue = [file];
 			while (queue.length) {
 				const cur = queue.pop() as string;
-				for (const rm of readFileSync(cur, "utf8").matchAll(/from\s*["'](\.\.?\/[^"']+)["']/g)) {
+				// comments off — a doc-comment `from "./x"` / importNow() mention
+				// must not be followed or flagged (same strip as the source scans)
+				const curSrc = readFileSync(cur, "utf8")
+					.replace(/\/\*[\s\S]*?\*\//g, "")
+					.replace(/\/\/[^\n]*/g, "");
+				// NESTED lazy imports: discovery only walks the ENTRY closure, so
+				// an importNow("app/x") issued from inside a lazy module names a
+				// module the manifest never shipped — dead on the first
+				// navigation (build passes, device fails). Fail LOUD at build.
+				for (const im of curSrc.matchAll(
+					/import(?:Now)?\s*\(\s*[`'"]app\/((?:screens\/)?[\w-]+)[`'"]/g,
+				)) {
+					const target = im[1];
+					if (!lazySet.has(target) && !manifest.modules[`app/${target}`]) {
+						err(`lazy: app/${base} calls importNow("app/${target}"), but lazy-target discovery`);
+						err("      only scans the ENTRY's closure (#27 v1) — the nested target never ships");
+						err(`      and dies on first navigation. Add a literal importNow("app/${target}")`);
+						err("      in the entry (or move the screen under screens/) so it ships. Failing loud.");
+						process.exit(1);
+					}
+				}
+				// bare side-effect imports (`import "./state"`) bundle exactly
+				// like `from` imports — a stateful helper reached only that way
+				// split-brains just the same (codex P2)
+				for (const rm of curSrc.matchAll(/\b(?:from|import)\s*["'](\.\.?\/[^"']+)["']/g)) {
 					const spec = rm[1].replace(/\.js$/, "");
 					const helper = [join(dirname(cur), `${spec}.js`), join(dirname(cur), spec, "index.js")].find(
 						(p) => existsSync(p),
