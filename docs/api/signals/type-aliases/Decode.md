@@ -8,7 +8,7 @@
 
 > **Decode** = (`bytes`, `offset`, `length`) => `unknown`
 
-Defined in: signals.ts:1061
+Defined in: signals.ts:1078
 
 ## Parameters
 
