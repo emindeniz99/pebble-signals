@@ -71,8 +71,12 @@ touch bug, gotcha 2) — 40+ records with a flat arena.
 
 ```sh
 npx -p signal-piu create-signal-piu my-watch
-cd my-watch && npm install && node node_modules/signal-piu/build.mjs
+cd my-watch && npm install && npm run build
 ```
+
+(`npm run build` is scaffolded as `node node_modules/signal-piu/dist/build.mjs`
+— the compiled build lives under `dist/`; a bare
+`node node_modules/signal-piu/build.mjs` path does not exist in the package.)
 
 The package ships the runtime sources, the whole compile pipeline and typed
 host globals — [packaging & consuming](docs/packaging.md) has the exports

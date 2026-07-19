@@ -12,10 +12,16 @@ a separate project can install and get the **typed runtime + the build tools**.
   "./jsx-runtime": { "types": ".../runtime-types/jsx-runtime.d.ts", "default": ".../runtime/jsx-runtime.ts" },
   "./flow":        { "types": ".../runtime-types/flow.d.ts",        "default": ".../runtime/flow.ts" },
   "./runtime/*":   ".../runtime/*",   // raw sources (a consumer build copies these)
-  "./tools/*":     "./tools/*",       // lower, gen-manifest, treeshake, fontcheck, xstest…
-  "./build.mts":   "./build.mts"      // the orchestrator itself
+  "./tools/*":     "./dist/tools/*",  // COMPILED lower, gen-manifest, treeshake, fontcheck…
+  "./build.mjs":   "./dist/build.mjs" // the compiled orchestrator
 }
 ```
+
+- **Tool subpaths resolve to `dist/` (compiled `.mjs`), not the `.mts`
+  source.** Node refuses to type-strip under `node_modules`, so a source
+  mapping was a subpath consumers could resolve but never run (codex P2).
+  Import tools as `signal-piu/tools/<name>.mjs`; the sources still ship in
+  the tarball for reading.
 
 - **Types are generated, not hand-written** (`prepack` → `pnpm run build:types` →
   `tsc --declaration` from the runtime source; B6). The tarball ships whatever
@@ -57,7 +63,9 @@ size budget that minify cannot do for us.)
 
 ## The lowering tool is a consumer feature — and it's OPTIONAL
 
-`tools/lower/cli.mts` ships in the tarball (`signal-piu/tools/*`) and runs on
+`tools/lower/cli.mts` ships compiled in the tarball
+(`signal-piu/tools/lower/cli.mjs` via the `./tools/*` → `dist/tools/*`
+export) and runs on
 the CONSUMER's app code — that is its whole purpose: rewriting *their*
 `useState`/`signal`/`computed` call sites to the packed `S` API and
 auto-thunking *their* JSX props. `build.mts` runs it by default;

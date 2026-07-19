@@ -20,8 +20,7 @@
    "default": "./src/embeddedjs/runtime/flow.ts"
   },
   "./runtime/*": "./src/embeddedjs/runtime/*",
-  "./tools/*": "./tools/*",
-  "./build.mts": "./build.mts",
+  "./tools/*": "./dist/tools/*",
   "./package.json": "./package.json",
   "./build.mjs": "./dist/build.mjs"
  },
