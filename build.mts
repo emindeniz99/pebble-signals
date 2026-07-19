@@ -598,6 +598,50 @@ if (lazyBases.length) {
 		modules: Record<string, string>;
 		preload: string[];
 	};
+	// SPLIT-BRAIN ownership (codex P2): a stateful helper only diverges when it
+	// is bundled into TWO shipped modules. A helper PRIVATE to ONE lazy module
+	// is a single copy — live reactive state there is LEGAL (docs), so it must
+	// NOT fail the build. Precompute, per compiled helper .js, how many lazy
+	// modules pull it in; the guard below fails only when that count is ≥2 OR
+	// the helper is also in the entry's main.js bundle.
+	const lazyHelpersOf = (rootJs: string): Set<string> => {
+		const out = new Set<string>();
+		const seen = new Set<string>([rootJs]);
+		const queue = [rootJs];
+		while (queue.length) {
+			const cur = queue.pop() as string;
+			const s = readFileSync(cur, "utf8")
+				.replace(/\/\*[\s\S]*?\*\//g, "")
+				.replace(/\/\/[^\n]*/g, "");
+			for (const rm of s.matchAll(/\b(?:from|import)\s*["'](\.\.?\/[^"']+)["']/g)) {
+				const spec = rm[1].replace(/\.js$/, "");
+				const helper = [
+					join(dirname(cur), `${spec}.js`),
+					join(dirname(cur), spec, "index.js"),
+				].find((p) => existsSync(p));
+				if (!helper || seen.has(helper)) continue;
+				seen.add(helper);
+				out.add(helper);
+				queue.push(helper);
+			}
+		}
+		return out;
+	};
+	const helperOwners = new Map<string, number>();
+	for (const b of lazyBases) {
+		const rootJs = `src/embeddedjs/app/examples/${APP}/${b}.js`;
+		if (existsSync(rootJs))
+			for (const h of lazyHelpersOf(rootJs)) helperOwners.set(h, (helperOwners.get(h) ?? 0) + 1);
+	}
+	// a compiled helper .js maps back to its .tsx/.ts SOURCE — appClosure holds
+	// source paths (what main.js bundles), the walk holds compiled paths
+	const inEntryBundle = (js: string): boolean => {
+		const rel = js.replace(/^src\/embeddedjs\/app\/examples\//, "").replace(/\.js$/, "");
+		return (
+			appClosure.includes(`src/tsx/examples/${rel}.tsx`) ||
+			appClosure.includes(`src/tsx/examples/${rel}.ts`)
+		);
+	};
 	for (const base of lazyBases) {
 		const rel = `examples/${APP}/${base}`;
 		const file = `src/embeddedjs/app/${rel}.js`;
@@ -657,15 +701,26 @@ if (lazyBases.length) {
 				// an importNow("app/x") issued from inside a lazy module names a
 				// module the manifest never shipped — dead on the first
 				// navigation (build passes, device fails). Fail LOUD at build.
-				for (const im of curSrc.matchAll(
-					/import(?:Now)?\s*\(\s*[`'"]app\/((?:screens\/)?[\w-]+)[`'"]/g,
-				)) {
-					const target = im[1];
-					if (!lazySet.has(target) && !manifest.modules[`app/${target}`]) {
-						err(`lazy: app/${base} calls importNow("app/${target}"), but lazy-target discovery`);
-						err("      only scans the ENTRY's closure (#27 v1) — the nested target never ships");
-						err(`      and dies on first navigation. Add a literal importNow("app/${target}")`);
-						err("      in the entry (or move the screen under screens/) so it ships. Failing loud.");
+				// Scans the WHOLE call (not just a literal-prefix): a COMPUTED
+				// app/ target (`importNow("app/" + n)`) is equally unresolvable
+				// and must fail too, mirroring the entry-side guard (codex P2).
+				for (const im of curSrc.matchAll(/import(?:Now)?\s*\(\s*([^)]*)\)/g)) {
+					const arg = im[1].trim();
+					const lit = /^[`'"]app\/((?:screens\/)?[\w-]+)[`'"]$/.exec(arg)?.[1];
+					if (lit !== undefined) {
+						if (!lazySet.has(lit) && !manifest.modules[`app/${lit}`]) {
+							err(`lazy: app/${base} calls importNow("app/${lit}"), but lazy-target discovery`);
+							err("      only scans the ENTRY's closure (#27 v1) — the nested target never ships");
+							err(`      and dies on first navigation. Add a literal importNow("app/${lit}")`);
+							err("      in the entry (or move the screen under screens/) so it ships. Failing loud.");
+							process.exit(1);
+						}
+					} else if (/^[`'"]app\//.test(arg)) {
+						// COMPUTED app/ target — unresolvable, ships no module, dies on
+						// the first nested navigation (build passes, device fails).
+						err(`lazy: app/${base} issues a COMPUTED importNow(${arg}) for an app/ target the`);
+						err("      build cannot resolve — no module ships and the nested navigation dies on");
+						err('      device. Use a LITERAL importNow("app/<name>") or the screens/ convention.');
 						process.exit(1);
 					}
 				}
@@ -689,11 +744,19 @@ if (lazyBases.length) {
 					queue.push(helper);
 					const verdict = classify(readFileSync(helper, "utf8"));
 					if (!verdict.pure) {
-						err(`lazy: app/${base} pulls ${rm[1]} into its bundle, and it has MODULE-SCOPE`);
-						err(`      STATE (${verdict.reasons[0] ?? "runs code at load"}) — the duplicated`);
-						err("      copy's state is DISCONNECTED from main's (split-brain). Keep shared");
-						err("      state in the entry, a preloaded module, or runtime/*. Failing loud.");
-						process.exit(1);
+						// only a SHARED copy split-brains: the helper is ALSO in the
+						// entry's main.js bundle, or ≥2 lazy modules each bundle their
+						// own copy. A helper PRIVATE to this one lazy module is a single
+						// copy — its live reactive state is legal (docs; codex P2).
+						if (inEntryBundle(helper) || (helperOwners.get(helper) ?? 0) >= 2) {
+							err(`lazy: app/${base} shares ${rm[1]} with another shipped bundle, and it has`);
+							err(`      MODULE-SCOPE STATE (${verdict.reasons[0] ?? "runs code at load"}) — the`);
+							err("      copies' state is DISCONNECTED (split-brain). Keep shared state in the");
+							err("      entry, a preloaded module, or runtime/*. Failing loud.");
+							process.exit(1);
+						}
+						// private single copy — no divergence; nothing to warn about
+						continue;
 					}
 					dup.push(rm[1]);
 				}
