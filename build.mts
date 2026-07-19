@@ -527,15 +527,30 @@ if (lazyBases.length) {
 			err(`lazy: module id ${id} already taken — failing loud`);
 			process.exit(1);
 		}
-		// split-brain guard (review P6): a lazy module's RELATIVE import gets
-		// INLINED as a SECOND copy by its own bundle step — shared *stateful*
-		// modules (a signal store) then split between main and the screen.
-		// Loud warning, not fatal: duplicating a PURE helper is harmless.
-		if (/from\s*["']\.\.?\//.test(readFileSync(file, "utf8")))
-			err(
-				`lazy: WARNING app/${base} has relative imports — they are DUPLICATED into this ` +
-					"module (split-brain risk for stateful shared code; import runtime/* or inline instead)",
+		// split-brain guard (review P6, classify-gated per codex): a lazy
+		// module's RELATIVE import gets INLINED as a SECOND copy by its own
+		// bundle step. Duplicating a PURE helper is harmless (wasted flash —
+		// warn); a helper with MODULE-SCOPE STATE (a shared signal store)
+		// SPLIT-BRAINS — the lazy screen's copy is disconnected from main's,
+		// updates silently diverge — so that case fails LOUD.
+		for (const rm of readFileSync(file, "utf8").matchAll(/from\s*["'](\.\.?\/[^"']+)["']/g)) {
+			const spec = rm[1].replace(/\.js$/, "");
+			const helper = [join(dirname(file), `${spec}.js`), join(dirname(file), spec, "index.js")].find(
+				(p) => existsSync(p),
 			);
+			const verdict = helper ? classify(readFileSync(helper, "utf8")) : null;
+			if (verdict && !verdict.pure) {
+				err(`lazy: app/${base} imports ${rm[1]}, which has MODULE-SCOPE STATE`);
+				err(`      (${verdict.reasons[0] ?? "runs code at load"}) — bundling DUPLICATES it, so`);
+				err("      the lazy copy's state is disconnected from main's (split-brain). Keep");
+				err("      shared state in the entry, a preloaded module, or runtime/*. Failing loud.");
+				process.exit(1);
+			}
+			err(
+				`lazy: WARNING app/${base} duplicates ${rm[1]} into this module ` +
+					`(${verdict ? "pure helper — harmless, costs flash" : "unresolved — check for split-brain"})`,
+			);
+		}
 		manifest.modules[id] = `./app/${rel}`;
 		// SQUASH pass (default ON): array-of-arrows -> ONE dispatch fn — the
 		// device-proven lazymany->lazypack fix, applied mechanically. Narrow
