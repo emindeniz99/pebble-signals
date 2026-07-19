@@ -10,10 +10,12 @@
 // horizontal `fillColor(color, x, y, w, 1)` scanline spans — CPU for RAM, the
 // house trade (Rule 4). ONE Port paints MANY shapes (never one Port per shape —
 // gotcha 16: a width-less/duplicated port is a measured cliff). Every primitive
-// — fillRect, fillCircle/strokeCircle, line, fillRoundRect, strokeRect — reduces
-// to those same spans: axis-aligned lines are ONE crisp centered span, diagonals
-// DDA a t×t block per step, and round-rect corners reuse the fillCircle isqrt
-// scanline (no native round-rect/line on the port either).
+// — fillRect, fillCircle/strokeCircle, arc, line, fillRoundRect, strokeRect —
+// reduces to those same spans: axis-aligned lines are ONE crisp centered span,
+// diagonals DDA a t×t block per step, round-rect corners reuse the fillCircle
+// isqrt scanline, and arc keeps a per-pixel ring segment (angle + radius test),
+// coalescing each row's kept pixels into ONE span (no native round-rect/line/
+// arc on the port either).
 //
 // REACTIVITY (mirrors the Move idiom, flow.ts, and port.tsx:101): draw props do
 // NOT go through the jsx bind path (createHost rejects non-REACTIVE_PROPS keys).
@@ -54,6 +56,26 @@ export type DrawContext = {
 	 * grown INWARD from `r`. Rasterized as the difference of two discs.
 	 */
 	strokeCircle(cx: number, cy: number, r: number, color: Color, thickness?: number): void;
+	/**
+	 * Stroke a ring SEGMENT — the band between radius (`r` − `thickness`) and `r`,
+	 * centered at (`cx`,`cy`), swept from `startDeg` to `endDeg`. Angles are in
+	 * DEGREES with 0 = the +x axis (3 o'clock) and INCREASING CLOCKWISE toward
+	 * 6 o'clock (matching the screen's y-down axis), wrapping past 360 — so
+	 * `350`→`10` draws a 20° arc across the 0 seam, and a FULL ring is
+	 * `startDeg` 0, `endDeg` 360. `thickness` ≤ 0 clamps to 1; `r` ≤ 0 draws
+	 * nothing. Rasterized per-pixel over the bounding box: a pixel is kept when
+	 * `(r−thickness)² ≤ dx²+dy² ≤ r²` AND its angle is inside the swept range;
+	 * each row's contiguous kept pixels coalesce into ONE `fillColor` span.
+	 */
+	arc(
+		cx: number,
+		cy: number,
+		r: number,
+		startDeg: number,
+		endDeg: number,
+		thickness: number,
+		color: Color,
+	): void;
 	/**
 	 * Draw a straight line from (`x0`,`y0`) to (`x1`,`y1`), `thickness` px wide
 	 * (`thickness` ≤ 0 clamps to 1). Axis-aligned lines are ONE crisp span
@@ -159,6 +181,51 @@ export function Canvas(props: CanvasProps): Content {
 					port.fillColor(color, cx - dx, cy + dy, dx - idx, 1);
 					port.fillColor(color, cx + idx + 1, cy + dy, dx - idx, 1);
 				}
+			}
+		},
+		arc(cx, cy, r, startDeg, endDeg, thickness, color) {
+			if (!drawing || r <= 0) return;
+			const t = thickness > 0 ? thickness : 1; // ≤0 clamps to 1
+			const inner = r - t;
+			const inner2 = inner > 0 ? inner * inner : 0; // t≥r → solid segment
+			const r2 = r * r;
+			// A sweep spanning ≥360° is a full ring — skip the angle test.
+			const full = endDeg - startDeg >= 360;
+			const norm = (a: number): number => {
+				const m = a % 360;
+				return m < 0 ? m + 360 : m;
+			};
+			const s = norm(startDeg);
+			const e = norm(endDeg);
+			const DEG = 180 / Math.PI;
+			for (let dy = -r; dy <= r; dy++) {
+				const yy = dy * dy;
+				// `open` tracks a run in progress — NOT a numeric sentinel on runStart,
+				// since dx runs negative (a run can legitimately start at dx < 0).
+				let open = false;
+				let runStart = 0; // dx where the current kept run began
+				for (let dx = -r; dx <= r; dx++) {
+					const d2 = dx * dx + yy;
+					let keep = d2 >= inner2 && d2 <= r2;
+					if (keep && !full) {
+						let a = Math.atan2(dy, dx) * DEG; // 0=+x, clockwise (y down)
+						if (a < 0) a += 360;
+						// wrapped range (e<s) keeps the two arcs around the 0 seam
+						keep = e >= s ? a >= s && a <= e : a >= s || a <= e;
+					}
+					if (keep) {
+						if (!open) {
+							open = true;
+							runStart = dx;
+						}
+					} else if (open) {
+						// coalesce: ONE span per contiguous kept run, not per pixel
+						port.fillColor(color, cx + runStart, cy + dy, dx - runStart, 1);
+						open = false;
+					}
+				}
+				// flush a run that reached the row's right edge (dx === r)
+				if (open) port.fillColor(color, cx + runStart, cy + dy, r + 1 - runStart, 1);
 			}
 		},
 		line(x0, y0, x1, y1, thickness, color) {

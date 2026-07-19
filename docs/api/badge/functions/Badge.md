@@ -8,7 +8,7 @@
 
 > **Badge**(`props`): `Content`
 
-Defined in: badge.ts:67
+Defined in: badge.ts:70
 
 Badge — a reactive filled disc with a centered number, on ONE Piu Port.
 

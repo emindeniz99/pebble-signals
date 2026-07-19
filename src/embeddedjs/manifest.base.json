@@ -9,7 +9,11 @@
   "runtime/flow": "./runtime-min/flow",
   "runtime/draw": "./runtime-min/draw",
   "runtime/badge": "./runtime-min/badge",
-  "runtime/localstorage": "./runtime-min/localstorage"
+  "runtime/localstorage": "./runtime-min/localstorage",
+  "runtime/statusbar": "./runtime-min/statusbar",
+  "runtime/actionbar": "./runtime-min/actionbar",
+  "runtime/card": "./runtime-min/card",
+  "runtime/kvstore": "./runtime-min/kvstore"
  },
  "preload": [
   "runtime/signals",
@@ -17,6 +21,10 @@
   "runtime/flow",
   "runtime/draw",
   "runtime/badge",
-  "runtime/localstorage"
+  "runtime/localstorage",
+  "runtime/statusbar",
+  "runtime/actionbar",
+  "runtime/card",
+  "runtime/kvstore"
  ]
 }

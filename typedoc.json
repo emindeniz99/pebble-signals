@@ -5,11 +5,17 @@
     "src/embeddedjs/runtime/flow.ts",
     "src/embeddedjs/runtime/draw.ts",
     "src/embeddedjs/runtime/badge.ts",
-    "src/embeddedjs/runtime/localstorage.ts"
+    "src/embeddedjs/runtime/localstorage.ts",
+    "src/embeddedjs/runtime/statusbar.ts",
+    "src/embeddedjs/runtime/actionbar.ts",
+    "src/embeddedjs/runtime/card.ts",
+    "src/embeddedjs/runtime/kvstore.ts"
   ],
   "entryPointStrategy": "expand",
   "tsconfig": "tsconfig.check.json",
-  "plugin": ["typedoc-plugin-markdown"],
+  "plugin": [
+    "typedoc-plugin-markdown"
+  ],
   "out": "docs/api",
   "readme": "none",
   "githubPages": false,

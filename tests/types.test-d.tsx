@@ -7,6 +7,10 @@ import { useState, signal, computed } from "runtime/signals";
 import { Canvas } from "runtime/draw";
 import { Badge } from "runtime/badge";
 import { useLocalStorage } from "runtime/localstorage";
+import { StatusBar } from "runtime/statusbar";
+import { ActionBar } from "runtime/actionbar";
+import { Card } from "runtime/card";
+import { useKVStorage } from "runtime/kvstore";
 
 const data = { count: () => 3, get: (i: number) => "row" + i };
 
@@ -31,6 +35,13 @@ Badge({ count: 7, color: "blue", size: 24 });
 const [ls, setLs] = useLocalStorage("k", "v");
 const _ls: string = ls();
 setLs("next");
+// batch 2: composition components + structured storage
+StatusBar({ title: "Home", time: () => "10:30" });
+ActionBar({ up: "+", select: "OK", down: "-" });
+Card({ title: () => "Weather" });
+const [kv, setKv] = useKVStorage("prefs", { n: 0 });
+const _kv: number = kv().n;
+setKv({ n: 1 });
 
 // --- misuse: each MUST be a type error (guards biting) ---
 // @ts-expect-error — Canvas requires `paint`

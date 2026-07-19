@@ -8,7 +8,7 @@
 
 > **CanvasProps** = `object`
 
-Defined in: draw.ts:81
+Defined in: draw.ts:103
 
 Props for [Canvas](../functions/Canvas.md).
 
@@ -18,7 +18,7 @@ Props for [Canvas](../functions/Canvas.md).
 
 > `optional` **bottom?**: `number`
 
-Defined in: draw.ts:89
+Defined in: draw.ts:111
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: draw.ts:89
 
 > `optional` **fill?**: `Color`
 
-Defined in: draw.ts:95
+Defined in: draw.ts:117
 
 Optional background color painted before every frame. Piu does NOT
 auto-clear a Port between repaints, so without this the surface keeps the
@@ -38,7 +38,7 @@ previous frame's pixels — pass a `fill` for an opaque canvas.
 
 > `optional` **height?**: `number`
 
-Defined in: draw.ts:85
+Defined in: draw.ts:107
 
 Surface height in px. Defaults to the screen height.
 
@@ -48,7 +48,7 @@ Surface height in px. Defaults to the screen height.
 
 > `optional` **left?**: `number`
 
-Defined in: draw.ts:86
+Defined in: draw.ts:108
 
 ***
 
@@ -56,7 +56,7 @@ Defined in: draw.ts:86
 
 > **paint**: (`g`) => `void`
 
-Defined in: draw.ts:102
+Defined in: draw.ts:124
 
 The frame painter. Called once per repaint with a [DrawContext](DrawContext.md).
 MUST be pure — it runs a second, non-drawing time each reactive change to
@@ -79,7 +79,7 @@ collect dependencies (read your signals in here / in the args you pass to
 
 > `optional` **right?**: `number`
 
-Defined in: draw.ts:87
+Defined in: draw.ts:109
 
 ***
 
@@ -87,7 +87,7 @@ Defined in: draw.ts:87
 
 > `optional` **top?**: `number`
 
-Defined in: draw.ts:88
+Defined in: draw.ts:110
 
 ***
 
@@ -95,6 +95,6 @@ Defined in: draw.ts:88
 
 > `optional` **width?**: `number`
 
-Defined in: draw.ts:83
+Defined in: draw.ts:105
 
 Surface width in px. Defaults to the screen width (a width-less port measures 0 — gotcha 16).

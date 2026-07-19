@@ -305,4 +305,108 @@ const { check, done } = makeChecker("draw");
 	check("strokeRect thickness<=0 → 1px edges", node.spans.length === 4 && node.spans[0].h === 1);
 }
 
+// --- arc: a quarter (0..90) fills ONLY the bottom-right quadrant (clockwise,
+// y-down): angle 0 = +x/3 o'clock, 90 = +y/6 o'clock ---
+{
+	const [node] = createRoot(() =>
+		Canvas({ width: 70, height: 70, paint: (g) => g.arc(30, 30, 12, 0, 90, 4, "red") }),
+	);
+	node.paint();
+	check("quarter arc emits spans", node.spans.length > 0);
+	check(
+		"quarter arc stays in the +x/+y (bottom-right) quadrant, nowhere else",
+		node.spans.every((s) => s.x >= 30 && s.y >= 30),
+	);
+	check(
+		"arc forwards its color",
+		node.spans.every((s) => s.color === "red"),
+	);
+}
+
+// --- arc: a full ring (0..360) leaves the inner hole clear — the center row is
+// a pair of side spans (like strokeCircle), one fillColor per contiguous run ---
+{
+	const [node] = createRoot(() =>
+		Canvas({ width: 70, height: 70, paint: (g) => g.arc(30, 30, 10, 0, 360, 3, "white") }),
+	);
+	node.paint();
+	const mid = node.spans.filter((s) => s.y === 30);
+	check("full ring center row is TWO coalesced side spans (hole clear)", mid.length === 2);
+	// inner = r-t = 7 → band radii 7..10 on the axis: left [20..23], right [37..40]
+	const left = mid.find((s) => s.x < 30);
+	const right = mid.find((s) => s.x > 30);
+	check("left band span coalesced (x=cx-r, w=t+1)", left.x === 20 && left.w === 4);
+	check("right band span coalesced (x=cx+inner)", right.x === 37 && right.w === 4);
+	check("a clear hole separates the two center spans", left.x + left.w - 1 < right.x - 1);
+}
+
+// --- arc: thickness<=0 clamps to 1 (identical output to thickness=1) ---
+{
+	const [a] = createRoot(() =>
+		Canvas({ width: 40, height: 40, paint: (g) => g.arc(20, 20, 8, 0, 360, 0, "red") }),
+	);
+	a.paint();
+	const [b] = createRoot(() =>
+		Canvas({ width: 40, height: 40, paint: (g) => g.arc(20, 20, 8, 0, 360, 1, "red") }),
+	);
+	b.paint();
+	check(
+		"thickness<=0 clamps to 1 (same spans as t=1)",
+		JSON.stringify(a.spans) === JSON.stringify(b.spans),
+	);
+	check("clamped 1px ring still draws", a.spans.length > 0);
+}
+
+// --- arc: r<=0 draws nothing ---
+{
+	const [node] = createRoot(() =>
+		Canvas({ width: 20, height: 20, paint: (g) => g.arc(10, 10, 0, 0, 90, 2, "red") }),
+	);
+	node.paint();
+	check("arc r<=0 draws nothing", node.spans.length === 0);
+}
+
+// --- arc: a wrapped range (350..10) draws across the 0 seam (both sides of +x) ---
+{
+	const [node] = createRoot(() =>
+		Canvas({ width: 70, height: 70, paint: (g) => g.arc(30, 30, 12, 350, 10, 4, "blue") }),
+	);
+	node.paint();
+	check("wrapped arc emits spans", node.spans.length > 0);
+	// the 20° arc hugs the +x axis: every span is to the right of center...
+	check(
+		"wrapped arc stays on the +x side",
+		node.spans.every((s) => s.x >= 30),
+	);
+	// ...and it straddles the seam — rows both above (y<cy) and below (y>=cy) center
+	check(
+		"wrapped arc crosses the 0 seam (rows above and below center)",
+		node.spans.some((s) => s.y < 30) && node.spans.some((s) => s.y >= 30),
+	);
+}
+
+// --- arc: thickness >= r fills a SOLID segment (inner<=0 branch, no hole) ---
+{
+	const [node] = createRoot(() =>
+		Canvas({ width: 40, height: 40, paint: (g) => g.arc(20, 20, 6, 0, 360, 9, "red") }),
+	);
+	node.paint();
+	const mid = node.spans.filter((s) => s.y === 20);
+	check("thick (t>=r) arc → solid center row, no hole", mid.length === 1);
+	check("solid segment center row spans the diameter", mid[0].w === 13);
+}
+
+// --- arc: negative start angle normalizes (−90..0 = top-right quadrant) ---
+{
+	const [node] = createRoot(() =>
+		Canvas({ width: 70, height: 70, paint: (g) => g.arc(30, 30, 12, -90, 0, 4, "red") }),
+	);
+	node.paint();
+	check("negative-angle arc emits spans", node.spans.length > 0);
+	check(
+		"−90..0 normalizes to the +x/−y (top-right) quadrant",
+		node.spans.every((s) => s.x >= 30 && s.y <= 30),
+	);
+}
+
 done();

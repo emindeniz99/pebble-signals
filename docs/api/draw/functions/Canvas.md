@@ -8,7 +8,7 @@
 
 > **Canvas**(`props`): `Content`
 
-Defined in: draw.ts:117
+Defined in: draw.ts:139
 
 Canvas — a reactive immediate-mode drawing surface on ONE Piu Port.
 

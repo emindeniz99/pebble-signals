@@ -8,7 +8,7 @@
 
 > **BadgeProps** = `object`
 
-Defined in: badge.ts:44
+Defined in: badge.ts:47
 
 Props for [Badge](../functions/Badge.md).
 
@@ -18,7 +18,7 @@ Props for [Badge](../functions/Badge.md).
 
 > `optional` **color?**: `Color`
 
-Defined in: badge.ts:50
+Defined in: badge.ts:53
 
 Disc fill color. Defaults to `"red"`.
 
@@ -28,7 +28,7 @@ Disc fill color. Defaults to `"red"`.
 
 > **count**: (() => `number`) \| `number`
 
-Defined in: badge.ts:46
+Defined in: badge.ts:49
 
 The number to show. A thunk (`() => n`) makes the badge reactive; a bare number is static.
 
@@ -38,7 +38,7 @@ The number to show. A thunk (`() => n`) makes the badge reactive; a bare number 
 
 > `optional` **size?**: `number`
 
-Defined in: badge.ts:48
+Defined in: badge.ts:51
 
 Disc diameter in px. Defaults to 28.
 
@@ -48,7 +48,7 @@ Disc diameter in px. Defaults to 28.
 
 > `optional` **style?**: `Style`
 
-Defined in: badge.ts:54
+Defined in: badge.ts:57
 
 Override the label Style. Defaults to a lazily-created 18px Gothic style.
 
@@ -58,6 +58,6 @@ Override the label Style. Defaults to a lazily-created 18px Gothic style.
 
 > `optional` **textColor?**: `Color`
 
-Defined in: badge.ts:52
+Defined in: badge.ts:55
 
 Number color. Defaults to `"white"`.

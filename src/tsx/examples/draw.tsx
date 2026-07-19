@@ -34,6 +34,8 @@ render(
 						// reactive disc + tracking ring (grows/shrinks with r())
 						g.fillCircle(75, 112, r(), "#e01818");
 						g.strokeCircle(75, 112, 34, "white", 2);
+						// a reactive gauge arc — sweeps 0..(r-mapped) degrees clockwise
+						g.arc(75, 112, 44, 135, 135 + r() * 5, 5, "#00d0ff");
 					}}
 				/>
 				<Label string={() => "r=" + r()} />

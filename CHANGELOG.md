@@ -10,6 +10,20 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **`runtime/statusbar` — `StatusBar`**, a top strip with a left title and a
+  right time (thunks auto-track). Device-verified on emery; on a round watch a
+  top strip sits in the bezel-clipped cap (use a `RoundSafeArea` — coming).
+- **`runtime/actionbar` — `ActionBar`**, Pebble's right-edge up/select/down
+  button-hint strip. Device-verified (emery).
+- **`runtime/card` — `Card`**, a titled fill-skinned content box (bold title +
+  body children). Device-verified on gabbro + emery.
+- **`runtime/kvstore` — `useKVStorage<T>(key, initial)`**, a reactive
+  JSON-persisted store for structured values (the object sibling of
+  `useLocalStorage`); corrupt/legacy values fall back to `initial`.
+  Device-verified.
+- **`runtime/draw` gains `arc`** — a rasterized ring segment (clockwise degrees,
+  wraps the 0 seam) for gauges/dials. Draw primitive set: line, rect,
+  rounded-rect, circle (fill+stroke), arc, text.
 - **`runtime/badge` — a reactive count `Badge` (opt-in, composes `Canvas`).**
   A filled disc with a centered number that repaints for free when its `count`
   thunk changes. Device-verified on gabbro + emery
