@@ -613,7 +613,14 @@ if (lazyBases.length) {
 			const s = readFileSync(cur, "utf8")
 				.replace(/\/\*[\s\S]*?\*\//g, "")
 				.replace(/\/\/[^\n]*/g, "");
-			for (const rm of s.matchAll(/\b(?:from|import)\s*["'](\.\.?\/[^"']+)["']/g)) {
+			// static + bare `from`/`import "./x"` AND literal relative DYNAMIC
+			// imports (`import("./x")`) — relativeClosure follows the latter too,
+			// so esbuild inlines the helper into the lazy artifact and a stateful
+			// copy split-brains just the same (codex P2).
+			for (const rm of [
+				...s.matchAll(/\b(?:from|import)\s*["'](\.\.?\/[^"']+)["']/g),
+				...s.matchAll(/\bimport\s*\(\s*["'`](\.\.?\/[^"'`$]+)["'`]\s*\)/g),
+			]) {
 				const spec = rm[1].replace(/\.js$/, "");
 				const helper = [
 					join(dirname(cur), `${spec}.js`),
@@ -715,19 +722,31 @@ if (lazyBases.length) {
 							err("      in the entry (or move the screen under screens/) so it ships. Failing loud.");
 							process.exit(1);
 						}
+					} else if (/^[`'"]app\/screens\/[`'"]\s*\+/.test(arg) && existsSync(screensDir)) {
+						/* COMPUTED app/screens/ target (`importNow("app/screens/" + n)`):
+						   the folder convention ships EVERY screens/* file (all already
+						   in lazySet), so a computed screens name resolves to a shipped
+						   module. Allowed, mirroring the entry-side scan (codex P2) —
+						   the fail branch below even points users here. */
 					} else if (/^[`'"]app\//.test(arg)) {
-						// COMPUTED app/ target — unresolvable, ships no module, dies on
-						// the first nested navigation (build passes, device fails).
+						// COMPUTED non-screens app/ target — unresolvable, ships no
+						// module, dies on the first nested navigation (build passes,
+						// device fails).
 						err(`lazy: app/${base} issues a COMPUTED importNow(${arg}) for an app/ target the`);
 						err("      build cannot resolve — no module ships and the nested navigation dies on");
 						err('      device. Use a LITERAL importNow("app/<name>") or the screens/ convention.');
 						process.exit(1);
 					}
 				}
-				// bare side-effect imports (`import "./state"`) bundle exactly
-				// like `from` imports — a stateful helper reached only that way
-				// split-brains just the same (codex P2)
-				for (const rm of curSrc.matchAll(/\b(?:from|import)\s*["'](\.\.?\/[^"']+)["']/g)) {
+				// bare side-effect imports (`import "./state"`) AND literal
+				// relative DYNAMIC imports (`import("./state")`) bundle exactly
+				// like `from` imports — relativeClosure follows both, so esbuild
+				// inlines the helper and a stateful copy shared with another
+				// bundle split-brains just the same (codex P2)
+				for (const rm of [
+					...curSrc.matchAll(/\b(?:from|import)\s*["'](\.\.?\/[^"']+)["']/g),
+					...curSrc.matchAll(/\bimport\s*\(\s*["'`](\.\.?\/[^"'`$]+)["'`]\s*\)/g),
+				]) {
 					const spec = rm[1].replace(/\.js$/, "");
 					const helper = [join(dirname(cur), `${spec}.js`), join(dirname(cur), spec, "index.js")].find(
 						(p) => existsSync(p),
