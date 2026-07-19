@@ -8,7 +8,7 @@
 
 > **useMemo**\<`T`\>(`fn`): [`ReadonlySignal`](../interfaces/ReadonlySignal.md)\<`T`\>
 
-Defined in: signals.ts:925
+Defined in: signals.ts:929
 
 Memoized derived value — [computed](computed.md) under the React-flavored name:
 `const total = useMemo(() => a() + b()); total.value`. Read via `.value`,

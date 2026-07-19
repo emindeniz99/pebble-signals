@@ -38,6 +38,28 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round nine (codex review of 7c9828e).** (1) a throwing RE-RUN cleanup
+  now reports to the effect's OWN ErrorBoundary — run() establishes the
+  boundary before unsubscribe() drains the previous run's cleanups, where
+  draining first escalated a boundary-owned effect's cleanup error past its
+  local fallback; (2) a `Show` sized via left/right/top/bottom hands its
+  side a FILLED wrapper (0/0 coordinates on any axis width/height doesn't
+  pin) — the old width/height-only wrapper was unconstrained inside the
+  sized host and measured at ZERO (drew nothing); size-less Shows keep the
+  content-measured wrapper (device receipt:
+  screenshots/showlrtb-gabbro.png); (3) ALL-inline-type clauses
+  (`import { type Theme } from "./x"`) erase at emit like `import type` —
+  treeshake no longer follows them as closure edges or keep-set seeds
+  (a types-only helper's literals failed fontcheck / shipped phantom
+  resources for code that never bundles); (4) custom-font face matching is
+  CASE-SENSITIVE like deriveFonts' TTF path match — `font: "20px fam"`
+  against `Fam-Regular.ttf` used to pass fontcheck while deriveFonts
+  shipped nothing (silent blank); (5) preload-pure retargets IMPORT
+  SPECIFIERS only (`from "./x"`) — the bare replaceAll also rewrote
+  same-text data strings in the entry; (6) `pack-table` writes the blob
+  under the INVOKING project's `assets/` (cwd), not the installed
+  package's — from a scaffolded app the blob landed in node_modules where
+  the manifest's `../../assets/<name>` entry never looks.
 - **Round eight (codex review of b8ce47d).** (1) bare side-effect imports
   (`import "./x"` / `import "runtime/flow"`) now count everywhere `from`
   clauses did: the treeshake keep-set (pruning a bare-imported runtime

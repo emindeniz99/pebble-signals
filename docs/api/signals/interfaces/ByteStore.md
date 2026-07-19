@@ -6,7 +6,7 @@
 
 # Interface: ByteStore
 
-Defined in: signals.ts:1096
+Defined in: signals.ts:1100
 
 The public surface of a byte-record store — what [createStore](../functions/createStore.md) returns.
 Values move in and out BY COPY (serialization store, not an object heap), so
@@ -18,7 +18,7 @@ Values move in and out BY COPY (serialization store, not an object heap), so
 
 > **count**(): `number`
 
-Defined in: signals.ts:1098
+Defined in: signals.ts:1102
 
 Number of records currently stored.
 
@@ -32,7 +32,7 @@ Number of records currently stored.
 
 > **def**(`tag`, `encode`, `decode`): `void`
 
-Defined in: signals.ts:1100
+Defined in: signals.ts:1104
 
 Register a custom codec under tag 8..255 (see [Encode](../type-aliases/Encode.md)/[Decode](../type-aliases/Decode.md)).
 
@@ -60,7 +60,7 @@ Register a custom codec under tag 8..255 (see [Encode](../type-aliases/Encode.md
 
 > **get**(`i`): `unknown`
 
-Defined in: signals.ts:1104
+Defined in: signals.ts:1108
 
 Decode record `i` by copy; `undefined` when out of range.
 
@@ -80,7 +80,7 @@ Decode record `i` by copy; `undefined` when out of range.
 
 > **load**(`k`): `boolean`
 
-Defined in: signals.ts:1110
+Defined in: signals.ts:1114
 
 Restore records saved under `k`; false on missing/oversize/corrupt data.
 
@@ -100,7 +100,7 @@ Restore records saved under `k`; false on missing/oversize/corrupt data.
 
 > **push**(`v`, `tag?`): `number`
 
-Defined in: signals.ts:1102
+Defined in: signals.ts:1106
 
 Append a value (pass `tag` for custom types). New count, or -1 if it doesn't fit.
 
@@ -124,7 +124,7 @@ Append a value (pass `tag` for custom types). New count, or -1 if it doesn't fit
 
 > **remove**(`i`): `number`
 
-Defined in: signals.ts:1106
+Defined in: signals.ts:1110
 
 Remove record `i` (tail shifts down). New count, or -1 when out of range.
 
@@ -144,7 +144,7 @@ Remove record `i` (tail shifts down). New count, or -1 when out of range.
 
 > **save**(`k`): `void`
 
-Defined in: signals.ts:1108
+Defined in: signals.ts:1112
 
 Persist the raw record bytes under `k` in the host's localStorage.
 
