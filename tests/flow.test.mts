@@ -672,6 +672,34 @@ const [, disposeNavOwner] = createRoot(() => {
 disposeNavOwner(); // runs Navigator's `if (disposeTop) disposeTop()` cleanup
 check("Navigator owner-dispose runs cleanup", true);
 
+// coverage: a STALE handle (a global `NAV` outliving its owner) must no-op
+// push()/pop() after disposal — else swap() runs on the unmounted host and
+// createRoot leaks the pushed screen's effects with no owner to track them
+{
+	let staleNav = null;
+	const built = [];
+	const [, disposeStale] = createRoot(() => {
+		Navigator({
+			root: (nav) => {
+				staleNav = nav;
+				built.push("root");
+				return jsx(StubContent, { string: "root" });
+			},
+		});
+		return 0;
+	});
+	disposeStale(); // Navigator gone; the captured handle is now stale
+	staleNav.push(() => {
+		built.push("late");
+		return jsx(StubContent, { string: "late" });
+	});
+	staleNav.pop();
+	check(
+		"stale Navigator push/pop after dispose no-op",
+		built.join(",") === "root" && staleNav.depth() === 1,
+	);
+}
+
 // coverage: a screen builder may return a THUNK (auto-thunk unwrap in swap —
 // the inlined asNode path where `typeof s === "function"` is TRUE)
 {

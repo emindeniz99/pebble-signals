@@ -37,6 +37,7 @@
 // (exit 1 if any finding). Build flag: --no-lint-reads / LINT_READS=0.
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { collectIdentifiers, importSymbol, valueSymbol } from "./lower/program.mts";
 import { PIU_HOSTS, REACTIVE_PROPS } from "./lower/runtime-meta.mts";
@@ -89,7 +90,10 @@ const short = (n: ts.Node): string => {
 
 /** Lint app sources for reactive-read misuse. Returns findings (empty = clean). */
 export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
-	const PKG = pkgRoot ?? packageRoot(dirname(new URL(import.meta.url).pathname));
+	// fileURLToPath (not new URL().pathname): a repo/consumer path with spaces
+	// or other URL-escaped chars leaves `%20` in .pathname, so packageRoot walks
+	// a non-existent encoded dir and the build aborts here (codex P2).
+	const PKG = pkgRoot ?? packageRoot(dirname(fileURLToPath(import.meta.url)));
 	const RT = join(PKG, "src/embeddedjs/runtime");
 	const roots = entryFiles.map((f) => resolve(f));
 	// Piu host globals so JSX lowers without error-typing every element; absent

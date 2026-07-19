@@ -308,24 +308,53 @@ const rootShim = (() => {
 	// local helper named render suppressed the shim, shipping a component
 	// app that never mounts (codex P2 x2). An app with NO runtime render
 	// import cannot be calling the runtime render.
-	//
-	// Scan the whole entry CLOSURE, not just appSrc: an entry may `export
-	// default App` (looks shim-able) yet delegate mounting to a relative
-	// helper (`boot(App)` where `./boot` imports+calls render). The helper's
-	// render runs when the shim imports the entry, then the shim calls
-	// render() again → double mount. Per-file so an alias only matches a call
-	// in its OWN module (codex P2).
-	let selfRenders = false;
-	for (const f of appClosure) {
-		const t = strip(readSrc(f) ?? "");
+	const renderScan = (t: string): boolean => {
 		for (const im of t.matchAll(/import\s*{([^}]*)}\s*from\s*["']runtime\/jsx-runtime["']/g)) {
 			const named = /\brender\b(?:\s+as\s+([A-Za-z_$][\w$]*))?/.exec(im[1]);
-			if (named && new RegExp(`\\b${named[1] ?? "render"}\\s*\\(`).test(t)) selfRenders = true;
+			if (named && new RegExp(`\\b${named[1] ?? "render"}\\s*\\(`).test(t)) return true;
 		}
 		for (const im of t.matchAll(
 			/import\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s*from\s*["']runtime\/jsx-runtime["']/g,
 		))
-			if (new RegExp(`\\b${im[1]}\\s*\\.\\s*render\\s*\\(`).test(t)) selfRenders = true;
+			if (new RegExp(`\\b${im[1]}\\s*\\.\\s*render\\s*\\(`).test(t)) return true;
+		return false;
+	};
+	// (1) the entry mounts itself directly.
+	let selfRenders = renderScan(bare);
+	// (2) the entry DELEGATES the mount to a relative helper it actually
+	// INVOKES: `import { boot } from "./boot"; boot(App)` where `./boot`
+	// imports+calls render. Then the helper's render runs when the shim
+	// imports the entry, and the shim's own render() double-mounts. Require
+	// BOTH — the entry CALLS the imported binding AND the helper module
+	// renders — because a helper that merely DEFINES a render-using function
+	// the entry never calls does NOT mount, and suppressing its shim would
+	// ship a main.js with no initial render() that boots blank (codex P2, the
+	// reverse of the double-mount). One level deep: the delegating call is in
+	// the entry.
+	if (!selfRenders) {
+		const edir = dirname(appSrc);
+		for (const im of bare.matchAll(
+			/import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\}|\*\s*as\s+([A-Za-z_$][\w$]*))?\s*from\s*["'](\.\.?\/[^"']+)["']/g,
+		)) {
+			const names: string[] = [];
+			if (im[1]) names.push(im[1]); // default import
+			if (im[3]) names.push(im[3]); // namespace import
+			if (im[2])
+				for (const part of im[2].split(",")) {
+					const m = /(?:[A-Za-z_$][\w$]*\s+as\s+)?([A-Za-z_$][\w$]*)\s*$/.exec(part.trim());
+					if (m) names.push(m[1]);
+				}
+			// the entry must actually CALL one of these bindings
+			if (!names.some((n) => new RegExp(`\\b${n}\\s*\\(`).test(bare))) continue;
+			const b = join(edir, im[4]);
+			const helperSrc = [`${b}.tsx`, `${b}.ts`, join(b, "index.tsx"), join(b, "index.ts")]
+				.map((p) => readSrc(p))
+				.find((s) => s != null);
+			if (helperSrc && renderScan(strip(helperSrc))) {
+				selfRenders = true;
+				break;
+			}
+		}
 	}
 	if (selfRenders) return false; // app mounts itself — a shim would mount TWICE
 	const rhs = /^export default\s+(.+)$/m.exec(bare)?.[1].trim();
@@ -493,7 +522,7 @@ if (preloadPure && existsSync(entryJs)) {
 		// would inline them into the preloaded module, moving their load-time
 		// work into the build compartment despite v1's no-nested-import
 		// contract (codex P2)
-		if (/\b(?:from|import)\s*"\.\.?\//.test(sub)) {
+		if (/\b(?:from|import)\s*["']\.\.?\//.test(sub)) {
 			err(`preload-pure: ${spec} imports other local modules — v1 keeps it in main`);
 			continue;
 		}

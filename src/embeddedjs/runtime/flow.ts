@@ -597,18 +597,26 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 			disposeTop = r[1];
 			host.add(r[0]);
 		});
+	// A handle saved OUTSIDE the Navigator's owner (the examples assign a global
+	// `NAV`) can outlive it: after the owner disposes, a lingering timer/message
+	// calling push()/pop() would swap() on the unmounted host and createRoot a
+	// new screen with no owner to track its disposer — the pushed screen's
+	// effects leak. The disposal cleanup below flips `dead`; a stale push/pop is
+	// then a no-op (the Navigator is gone — navigation is meaningless, and a
+	// throw would crash a benign late timer through the crash screen) (codex P2).
+	let dead = false;
 	const nav: NavHandle = {
 		push(build: (nav: NavHandle) => JSXNode) {
+			if (dead) return;
 			stack.push(build);
 			depth.value = stack.length;
 			swap();
 		},
 		pop() {
-			if (stack.length > 1) {
-				stack.pop();
-				depth.value = stack.length;
-				swap();
-			}
+			if (dead || stack.length <= 1) return;
+			stack.pop();
+			depth.value = stack.length;
+			swap();
 		},
 		depth: () => depth.value,
 		canPop: () => depth.value > 1,
@@ -617,6 +625,7 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 	// the root screen's mount set disposeTop and then threw, a cleanup
 	// registered after would never reach the owner — the screen root leaked.
 	track(() => {
+		dead = true; // stop stale push/pop from a global handle after disposal
 		if (disposeTop) {
 			disposeTop();
 			disposeTop = null;

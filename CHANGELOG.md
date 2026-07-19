@@ -38,6 +38,23 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round sixteen (codex review of c3fc710).** Four fixes; a fifth
+  (computed-ownership on the `S.get` hot path) is deferred pending on-device
+  value-stack measurement. (1) `build.mts` self-render detection no longer
+  false-positives round fifteen's own closure scan: a helper that merely
+  DEFINES a render-using function the entry never calls used to suppress the
+  shim → blank boot. It now requires the entry to ACTUALLY INVOKE a relative
+  helper that renders (or render directly itself); a build A/B probe confirms
+  the delegate-and-invoke case suppresses the shim while import-but-never-call
+  generates it. (2) `Navigator` marks its handle dead in the disposal cleanup:
+  a global `NAV` outliving its owner used to `swap()` on the unmounted host and
+  leak the pushed screen's effects on a late `push()`/`pop()`; stale calls now
+  no-op. (3) `lint-reads` resolves its script path with `fileURLToPath` instead
+  of `new URL(...).pathname`, so a repo/consumer path with spaces (`%20`) no
+  longer aborts the default build. (4) the `--preload-pure` v1 nested-import
+  guard matches BOTH quote styles — a single-quoted `export { x } from './state'`
+  slipped the double-quote-only check and ran its state in the preload/ROM
+  compartment.
 - **Round fifteen (codex review of 0af46bb).** Three "build passes, device
   silently wrong" auto-thunk/shim gaps. (1) `useReducer` getters now auto-thunk:
   `const [c, d] = useReducer(...)` with the bare form `string={c()}` was left
