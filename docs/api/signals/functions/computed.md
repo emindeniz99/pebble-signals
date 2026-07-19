@@ -8,7 +8,7 @@
 
 > **computed**\<`T`\>(`fn`): [`ReadonlySignal`](../interfaces/ReadonlySignal.md)\<`T`\>
 
-Defined in: signals.ts:722
+Defined in: signals.ts:725
 
 Memoized derived signal, LAZY and glitch-free: `fn` re-runs on read when a
 dependency changed, and its value is cached across reads. Costs one internal

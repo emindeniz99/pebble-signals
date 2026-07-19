@@ -9,6 +9,23 @@ No registry releases yet; entries accumulate under Unreleased until the first
 
 ## [Unreleased]
 
+### Added
+- **`runtime/draw` — reactive immediate-mode drawing on ONE Piu Port
+  (opt-in, zero-cost).** A `Canvas` component takes a `paint(g)` callback and
+  gives it a `DrawContext` with `fillRect` / `fillCircle` / `strokeCircle` /
+  `text`. Shapes are JS-rasterized into horizontal `fillColor` scanline spans:
+  the P1 gating probe (`drawprobe`, gabbro — `screenshots/drawprobe-gabbro.png`)
+  MEASURED that the Piu Port `onDraw` context exposes only `fillColor` +
+  `draw{String,Texture,Skin,Content}` — there is NO native
+  `drawCircle`/`drawLine`/`drawRoundRect`, so rasterization is the only path
+  (Rule 2). Reactivity mirrors the `Move` idiom: `paint`'s signal reads are
+  auto-tracked (it reruns in a non-drawing pass to subscribe) and the canvas
+  repaints via one owner-scoped `effect` + `port.invalidate()` — no jsx bind
+  path. An app that never imports `runtime/draw` never ships it (verified: the
+  `list` app's pruned manifest omits it). Device receipts on both watch
+  shapes: `screenshots/draw-gabbro.png`, `screenshots/draw-emery.png` (+ their
+  `-grown` reactive-change frames). Example: `src/tsx/examples/draw.tsx`.
+
 ### Changed
 - **Children on a non-container Piu host now throw at build.**
   `<Label>…</Label>` (or any leaf — Piu `Content` has no `add()`) used to

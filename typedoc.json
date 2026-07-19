@@ -2,7 +2,8 @@
   "entryPoints": [
     "src/embeddedjs/runtime/signals.ts",
     "src/embeddedjs/runtime/jsx-runtime.ts",
-    "src/embeddedjs/runtime/flow.ts"
+    "src/embeddedjs/runtime/flow.ts",
+    "src/embeddedjs/runtime/draw.ts"
   ],
   "entryPointStrategy": "expand",
   "tsconfig": "tsconfig.check.json",

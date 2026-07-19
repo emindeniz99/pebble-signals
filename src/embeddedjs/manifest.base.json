@@ -6,11 +6,13 @@
 		"main": "./app/main",
 		"runtime/signals": "./runtime-min/signals",
 		"runtime/jsx-runtime": "./runtime-min/jsx-runtime",
-		"runtime/flow": "./runtime-min/flow"
+		"runtime/flow": "./runtime-min/flow",
+		"runtime/draw": "./runtime-min/draw"
 	},
 	"preload": [
 		"runtime/signals",
 		"runtime/jsx-runtime",
-		"runtime/flow"
+		"runtime/flow",
+		"runtime/draw"
 	]
 }

@@ -8,7 +8,7 @@
 
 > **For**\<`T`\>(`props`): `Container`
 
-Defined in: flow.ts:322
+Defined in: flow.ts:323
 
 For({ each, key, children }) — keyed reconcile. `each` is a thunk
 returning an array; `key` maps item -> unique key (default: identity);

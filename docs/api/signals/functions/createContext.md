@@ -8,7 +8,7 @@
 
 > **createContext**\<`T`\>(`defaultValue`): `object`
 
-Defined in: signals.ts:972
+Defined in: signals.ts:975
 
 Context — pass a value down the (synchronous, run-once) build without
 threading props. createContext(default) -> ctx; provide(ctx, value, build)

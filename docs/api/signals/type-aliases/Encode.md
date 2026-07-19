@@ -8,7 +8,7 @@
 
 > **Encode** = (`value`, `bytes`, `offset`, `max`) => `number`
 
-Defined in: signals.ts:1092
+Defined in: signals.ts:1095
 
 ## Parameters
 

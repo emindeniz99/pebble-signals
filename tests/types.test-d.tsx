@@ -4,6 +4,7 @@
 // errors, which is how we prove the guards actually bite.
 import { Show, For, VirtualList, Navigator } from "runtime/flow";
 import { useState, signal, computed } from "runtime/signals";
+import { Canvas } from "runtime/draw";
 
 const data = { count: () => 3, get: (i: number) => "row" + i };
 
@@ -19,7 +20,12 @@ Navigator({
 	},
 });
 
+// draw: Canvas takes a paint callback receiving the DrawContext
+Canvas({ width: 20, height: 20, paint: (g) => g.fillCircle(10, 10, 5, "red") });
+
 // --- misuse: each MUST be a type error (guards biting) ---
+// @ts-expect-error — Canvas requires `paint`
+Canvas({ width: 20, height: 20 });
 // @ts-expect-error — format and renderRow are mutually exclusive
 VirtualList({ data, format: (v) => "" + v, renderRow: (at) => at() });
 // @ts-expect-error — Show requires `when`

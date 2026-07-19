@@ -6,7 +6,7 @@
 
 # Interface: RomTable
 
-Defined in: signals.ts:1350
+Defined in: signals.ts:1353
 
 What [romTable](../functions/romTable.md) returns — a read-only view over a packed table.
 
@@ -16,7 +16,7 @@ What [romTable](../functions/romTable.md) returns — a read-only view over a pa
 
 > **count**: `number`
 
-Defined in: signals.ts:1352
+Defined in: signals.ts:1355
 
 Number of entries in the table.
 
@@ -26,7 +26,7 @@ Number of entries in the table.
 
 > **get**(`i`): `string`
 
-Defined in: signals.ts:1354
+Defined in: signals.ts:1357
 
 Decode entry `i` (wraps modulo [count](#count)); "" on an empty table.
 

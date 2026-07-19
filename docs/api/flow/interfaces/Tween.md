@@ -6,13 +6,13 @@
 
 # Interface: Tween()
 
-Defined in: flow.ts:38
+Defined in: flow.ts:39
 
 [animate](../functions/animate.md)'s return: CALL it for the current eased value; `.stop()` cancels the tween.
 
 > **Tween**(): `number`
 
-Defined in: flow.ts:39
+Defined in: flow.ts:40
 
 [animate](../functions/animate.md)'s return: CALL it for the current eased value; `.stop()` cancels the tween.
 
@@ -26,7 +26,7 @@ Defined in: flow.ts:39
 
 > **stop**: () => `void`
 
-Defined in: flow.ts:40
+Defined in: flow.ts:41
 
 #### Returns
 

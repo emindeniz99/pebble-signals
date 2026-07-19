@@ -83,6 +83,34 @@ export class StubLeaf extends StubContent {}
 
 export class StubBehavior {}
 
+// Port stub for runtime/draw: records every fillColor span and drawString so
+// the rasterizers are assertable, counts invalidate() calls, and lets a test
+// simulate a repaint by invoking the construction dict's behavior.onDraw. A
+// subclass of StubContent so existing `instanceof StubContent` checks hold.
+export class StubPort extends StubContent {
+	constructor($, it = {}) {
+		super($, it);
+		this.spans = []; // {color,x,y,w,h} from fillColor
+		this.strings = []; // {str,x,y} from drawString
+		this.invalidated = 0;
+	}
+	fillColor(color, x, y, w, h) {
+		this.spans.push({ color, x, y, w, h });
+	}
+	drawString(str, _style, _color, x, y) {
+		this.strings.push({ str, x, y });
+	}
+	invalidate() {
+		this.invalidated++;
+	}
+	// simulate one Piu repaint: replay the onDraw the behavior dict carried
+	paint() {
+		this.spans = [];
+		this.strings = [];
+		this.behavior.onDraw(this);
+	}
+}
+
 export async function loadRuntime() {
 	const sandbox = {
 		Label: StubLeaf,
@@ -92,7 +120,7 @@ export async function loadRuntime() {
 		Column: StubContent,
 		Row: StubContent,
 		Scroller: StubContent,
-		Port: StubContent,
+		Port: StubPort,
 		Layout: StubContent,
 		Behavior: StubBehavior,
 		Application: StubContent,
@@ -139,6 +167,10 @@ export async function loadRuntime() {
 
 	const flow = await load("runtime/flow");
 	await flow.evaluate();
+	// runtime/draw is an opt-in module (imports signals + jsx-runtime, already
+	// cached/evaluated via flow) — load it so the draw suite can exercise it.
+	const draw = await load("runtime/draw");
+	await draw.evaluate();
 	// fire every live interval `n` times (deterministic clock for animate tests)
 	const tick = (n) => {
 		for (let i = 0; i < n; i++) for (const fn of [...timers.values()]) fn();
@@ -150,6 +182,7 @@ export async function loadRuntime() {
 		signals: cache["runtime/signals"].namespace,
 		jsx: cache["runtime/jsx-runtime"].namespace,
 		flow: flow.namespace,
+		draw: draw.namespace,
 		sandbox,
 		tick,
 		liveTimers,
