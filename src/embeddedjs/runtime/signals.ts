@@ -408,7 +408,6 @@ const run = (e: number): void => {
 	if (!fn)
 		// disposed mid-notification — do not resurrect
 		return;
-	unsubscribe(e);
 	const prev = current;
 	const po = owner;
 	const pb = g.c; // ErrorBoundary in scope for THIS effect (and its children)
@@ -417,8 +416,13 @@ const run = (e: number): void => {
 	// to THIS effect and are disposed before its next run / at its disposal
 	// Re-establish the effect's owning boundary so its binding guard reports
 	// to it AND any nested effect it creates inherits it (bnd null = no cost).
+	// BEFORE the cleanup drain: unsubscribe() runs the previous run's cleanups,
+	// and a throwing cleanup reports through report(), which consults g.c —
+	// draining first sent a boundary-owned effect's cleanup error to the
+	// ambient (wrong) boundary, escalating past its local fallback (codex P2).
 	g.c = (g.z && g.z[e]) || null;
 	try {
+		unsubscribe(e);
 		fn();
 	} finally {
 		current = prev;

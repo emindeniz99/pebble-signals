@@ -661,6 +661,36 @@ globalThis.console = savedConsole;
 	globalThis.console = savedBC;
 }
 
+// (d) a throwing RE-RUN cleanup routes to the effect's OWN boundary: run()
+// establishes g.c from the boundary tag BEFORE unsubscribe() drains the
+// previous run's cleanups — draining first sent a boundary-owned effect's
+// cleanup error to the ambient (wrong) boundary, escalating past its local
+// fallback (codex round nine).
+{
+	const savedBC = globalThis.console;
+	globalThis.console = { log: () => {} } as never; // swallow the log-on-catch line
+	const caught: string[] = [];
+	const sv = signal(0);
+	const eid = withBoundary(
+		(e) => caught.push(String((e as Error).message)),
+		() =>
+			effect(() => {
+				sv.value;
+				track(() => {
+					throw new Error("cleanup-boom");
+				});
+			}),
+	);
+	sv.value = 1; // re-run: the PREVIOUS run's cleanup throws during the drain
+	check(
+		"a throwing re-run cleanup reports to the effect's own boundary",
+		caught.join() === "cleanup-boom",
+	);
+	dispose(eid); // final cleanup throw at dispose is contained (no boundary tag left)
+	check("dispose-path cleanup throw stays contained", caught.join() === "cleanup-boom");
+	globalThis.console = savedBC;
+}
+
 // high-word effect (id > 31) disposed MID-cascade -> qh quarantine path.
 // Pad past 32 so the victim lands in word 1, then dispose it from a
 // co-subscriber during the notification.

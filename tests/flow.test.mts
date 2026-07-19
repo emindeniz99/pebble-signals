@@ -331,6 +331,56 @@ check(
 	check("flip after a re-entrant build swaps cleanly", reHost.contents.length === 1);
 }
 
+// --- Show wrapper sizing: a l/r/t/b-sized Show must hand its side a
+// CONSTRAINED wrapper (0/0 fill coordinates) — copying only width/height left
+// the wrapper unconstrained inside the sized host, the zero-size class that
+// draws nothing on the port (codex round nine; device receipt
+// screenshots/showlrtb-gabbro.png) ---
+{
+	const [boxHost] = createRoot(() =>
+		Show({
+			when: () => true,
+			left: 10,
+			right: 10,
+			top: 40,
+			bottom: 40,
+			children: () => jsx(StubContent, { string: "boxed" }),
+		}),
+	);
+	const w = boxHost.contents[0];
+	check(
+		"l/r/t/b Show wrapper fills the host on both axes",
+		w.left === 0 && w.right === 0 && w.top === 0 && w.bottom === 0 && w.width === undefined,
+	);
+	// width/height-sized Show keeps the device-proven width/height wrapper
+	const [whHost] = createRoot(() =>
+		Show({ when: () => true, width: 20, height: 30, children: () => jsx(StubContent, {}) }),
+	);
+	const w2 = whHost.contents[0];
+	check(
+		"width/height Show wrapper keeps the proven shape",
+		w2.width === 20 && w2.height === 30 && w2.left === undefined,
+	);
+	// MIXED: width pinned, vertical axis via top/bottom — fill only that axis
+	const [mixHost] = createRoot(() =>
+		Show({ when: () => true, width: 20, top: 5, bottom: 5, children: () => jsx(StubContent, {}) }),
+	);
+	const w3 = mixHost.contents[0];
+	check(
+		"mixed-size Show wrapper fills only the coordinate axis",
+		w3.width === 20 && w3.left === undefined && w3.top === 0 && w3.bottom === 0,
+	);
+	// NO size props at all: unconstrained wrapper (content-measured), untouched
+	const [freeHost] = createRoot(() =>
+		Show({ when: () => true, children: () => jsx(StubContent, {}) }),
+	);
+	const w4 = freeHost.contents[0];
+	check(
+		"size-less Show wrapper stays unconstrained (content-measured)",
+		w4.width === undefined && w4.left === undefined && w4.top === undefined,
+	);
+}
+
 // --- Show keepAlive: prebuilt sides, replace-based swap, both stay live ---
 const on2 = signal(false),
 	m = signal(0);

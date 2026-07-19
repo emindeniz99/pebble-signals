@@ -267,10 +267,26 @@ export function Show(props: ShowProps): PiuContainer {
 
 // Build one side of a Show and wrap it in a Container sized like the host
 // (see the bare-Label port bug above; width/height-sized wrappers are the
-// on-device-proven shape). A missing side yields an EMPTY wrapper — never
-// null — so keepAlive swaps always use replace().
+// on-device-proven shape). A Show sized via left/right/top/bottom leaves
+// width/height undefined — the wrapper then FILLS the host on that axis
+// (0/0 coordinates), because an unconstrained wrapper inside the sized host
+// measured at zero and drew nothing (codex P2; device receipt
+// screenshots/showlrtb-gabbro.png). A Show with NO size props keeps the old
+// unconstrained wrapper (content-measured) untouched. A missing side yields
+// an EMPTY wrapper — never null — so keepAlive swaps always use replace().
 function wrapSide(props: Props, build: (() => JSXNode) | undefined): PiuContainer {
-	const wrapper = new Container(null, { width: props.width, height: props.height });
+	const dims: Record<string, number | undefined> = {};
+	if (props.width !== undefined) dims.width = props.width;
+	else if (props.left !== undefined || props.right !== undefined) {
+		dims.left = 0;
+		dims.right = 0;
+	}
+	if (props.height !== undefined) dims.height = props.height;
+	else if (props.top !== undefined || props.bottom !== undefined) {
+		dims.top = 0;
+		dims.bottom = 0;
+	}
+	const wrapper = new Container(null, dims);
 	if (build) appendChild(wrapper, asNode(build));
 	return wrapper;
 }
