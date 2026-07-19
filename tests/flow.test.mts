@@ -6,7 +6,7 @@ import { loadRuntime, StubContent, makeChecker } from "./load-runtime.mts";
 
 const { signals, jsx: jsxM, flow, sandbox, tick, liveTimers } = await loadRuntime();
 const { signal } = signals;
-const { createRoot } = signals;
+const { createRoot, withBoundary } = signals;
 const { jsx } = jsxM;
 const { Show, For, VirtualList, animate } = flow;
 const { ErrorBoundary } = jsxM; // moved to jsx-runtime (boot-floor round)
@@ -1330,6 +1330,57 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 		"Navigator: unconstrained host keeps the concrete full-screen wrapper",
 		typeof nw3.width === "number" && typeof nw3.height === "number" && nw3.left === undefined,
 	);
+}
+
+// --- Navigator preserves its construction-time ErrorBoundary across push()
+// (codex round twelve): a screen pushed from OUTSIDE render (a button handler
+// runs with g.c=null) still routes its effect throws to the boundary the
+// Navigator was built under — not the top-level crash sink. The INITIAL swap
+// runs with the boundary already in scope, so it skips the wrapper frame; only
+// this push path exercises withBoundary. ---
+{
+	const savedC = sandbox.console;
+	sandbox.console = { log: () => {} }; // swallow the log-on-catch line
+	const caught: string[] = [];
+	let navRef: { push: (b: unknown) => void } | null = null;
+	createRoot(() =>
+		withBoundary(
+			(e: unknown) => caught.push(String((e as Error).message)),
+			() =>
+				Navigator({
+					width: 100,
+					height: 100,
+					root: (nav: { push: (b: unknown) => void }) => {
+						navRef = nav;
+						return jsx(StubContent, { string: "root" });
+					},
+				}),
+		),
+	);
+	// push OUTSIDE the boundary scope (getBoundary() === null here, so the swap
+	// takes the withBoundary branch and tags the pushed screen's binding).
+	// This screen is a THUNK — the withBoundary-path auto-thunk unwrap must
+	// still run (its own `typeof s === "function"` copy, since the deep-path
+	// body is deliberately duplicated to spend no extra value-stack frame).
+	const boom = signal(0);
+	navRef!.push(
+		() => () =>
+			jsx(StubContent, {
+				string: () => {
+					if (boom.value === 1) throw new Error("pushed-boom");
+					return "s2";
+				},
+			}),
+	);
+	boom.value = 1; // the pushed screen's binding re-runs and throws
+	check(
+		"Navigator: pushed-screen throw routes to the construction-time boundary",
+		caught.join() === "pushed-boom",
+	);
+	// a second push through the boundary path with a DIRECT (non-thunk) screen —
+	// covers the other side of the withBoundary copy's auto-thunk check
+	navRef!.push(() => jsx(StubContent, { string: "s3" }));
+	sandbox.console = savedC;
 }
 
 done();

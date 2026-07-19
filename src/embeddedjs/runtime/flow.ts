@@ -2,7 +2,15 @@
 // by these components. Children are THUNKS returning nodes (there is no
 // compiler making them lazy), each subtree runs under its own root so
 // removal disposes every effect created inside it.
-import { signal, effect, untrack, track, createRoot } from "runtime/signals";
+import {
+	signal,
+	effect,
+	untrack,
+	track,
+	createRoot,
+	getBoundary,
+	withBoundary,
+} from "runtime/signals";
 import { appendChild, screen, type JSXNode } from "runtime/jsx-runtime";
 import type {
 	Skin,
@@ -503,6 +511,11 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 	const host = makeHost(props, Column);
 	const stack: ((nav: NavHandle) => JSXNode)[] = [props.root];
 	const depth = signal(1); // reactive; drives depth()/canPop()
+	// the ErrorBoundary in scope when the Navigator is CONSTRUCTED. Button-driven
+	// push()/pop() build screens OUTSIDE render (g.c is null in a tap handler),
+	// so without this a pushed screen's effects get no boundary tag and their
+	// throws bypass the local fallback for the top-level crash sink (codex P2).
+	const navBoundary = getBoundary();
 	let disposeTop: Disposer | null = null;
 	const swap = () =>
 		untrack(() => {
@@ -544,6 +557,26 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 				// over a reactive screen sits near it (field-notes Round 7). Dropping
 				// the asNode call + its arg-arrow shaves two frames from that chain;
 				// the auto-thunk unwrap is identical to asNode's.
+				//
+				// Boundary restore, frame-free on the deep path: a button-driven
+				// push/pop runs with g.c=null, so wrap the build in the Navigator's
+				// construction-time boundary. The INITIAL swap already runs with that
+				// boundary in scope (it fires during construction, inside render's
+				// build) — getBoundary() === navBoundary there, so we fall through to
+				// the INLINE body and add ZERO extra value-stack frames on the deep
+				// initial-render path (Round 7 wall). Only the shallow-stack push/pop
+				// path pays the withBoundary frame. Verified: the routing is pinned by
+				// a flow.test.mts case against the real compiled runtime, and multilazy
+				// (a Navigator app) still boots clean on gabbro with this change (an
+				// ErrorBoundary+Navigator demo can't be device-screenshotted — the two
+				// together exceed the 32KB arena).
+				if (getBoundary() !== navBoundary)
+					return withBoundary(navBoundary, () => {
+						let s: unknown = build(nav);
+						if (typeof s === "function") s = (s as () => unknown)();
+						appendChild(wrapper, s as JSXNode);
+						return wrapper;
+					});
 				let s: unknown = build(nav);
 				if (typeof s === "function") s = (s as () => unknown)();
 				appendChild(wrapper, s as JSXNode);
