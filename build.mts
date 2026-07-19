@@ -466,7 +466,11 @@ if (preloadPure && existsSync(entryJs)) {
 		}
 		manifest.modules[id] = `./app/${rel}`;
 		manifest.preload.push(id);
-		entrySrc = entrySrc.replaceAll(`"${spec}"`, `"${id}"`);
+		// retarget IMPORT SPECIFIERS only (`from "./x"` covers import AND
+		// export-from in tsc's emit) — a bare replaceAll of the quoted literal
+		// also rewrote same-text DATA strings in the entry (a "./data" label or
+		// path became "app/data"; codex P2)
+		entrySrc = entrySrc.replaceAll(`from "${spec}"`, `from "${id}"`);
 		pureIds.push(id);
 		pureFiles.push(file);
 		// ship the module minified like the runtime (bundle-mode for DCE;

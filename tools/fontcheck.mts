@@ -44,7 +44,7 @@ for (const k of [
 /**
  * Return the list of invalid `font:` literals in `src` (empty = all valid).
  * `customFaces` = the FACES actually backed by a shipped TTF, keyed
- * "family|Suffix" (family lowercase; Suffix = Regular/Bold/Italic/BoldItalic,
+ * "Family|Suffix" EXACT-case (Suffix = Regular/Bold/Italic/BoldItalic,
  * deriveFonts' mapping — built from the fonts/ dir TTF basenames). Face
  * matching matters: family-only acceptance let `font: "italic 20px Fam"`
  * pass with only Fam-Regular.ttf shipped, while deriveFonts emits nothing
@@ -74,17 +74,23 @@ export function badFonts(src: string, customFaces?: Set<string>): string[] {
 		const italic = /\bitalic\b/.test(m[1]);
 		const bold = /\bbold\b/.test(m[1]);
 		const size = Number(m[2]);
-		const fam = m[3].toLowerCase();
+		const famRaw = m[3];
+		const fam = famRaw.toLowerCase();
 		// the literal's face, by deriveFonts' suffix mapping — the TTF that
-		// must exist for mcrun to rasterize this exact request
+		// must exist for mcrun to rasterize this exact request. Matching is
+		// CASE-SENSITIVE like deriveFonts' `<Family>-<Suffix>.ttf` lookup: a
+		// lower-cased allowlist accepted `font: "20px fam"` against
+		// Fam-Regular.ttf while deriveFonts shipped nothing for it — the
+		// silent-blank class again (codex P2).
 		const suffix = bold && italic ? "BoldItalic" : bold ? "Bold" : italic ? "Italic" : "Regular";
-		if (customFaces?.has(`${fam}|${suffix}`)) continue; // face TTF ships — any size is legal
-		// KNOWN custom family with a MISSING face: deriveFonts ships nothing
-		// for this literal — the exact silent-blank class. Flag it.
+		if (customFaces?.has(`${famRaw}|${suffix}`)) continue; // face TTF ships — any size is legal
+		// KNOWN custom family (compared case-insensitively) with a MISSING or
+		// case-mismatched face: deriveFonts ships nothing for this literal —
+		// the exact silent-blank class. Flag it.
 		let famKnown = false;
 		if (customFaces)
 			for (const f of customFaces)
-				if (f.startsWith(`${fam}|`)) {
+				if (f.slice(0, f.indexOf("|")).toLowerCase() === fam) {
 					famKnown = true;
 					break;
 				}
@@ -104,13 +110,14 @@ if (import.meta.main) {
 	// fonts). args 2+: every app-closure source to scan.
 	const fontsDir = process.argv[2];
 	const srcFiles = process.argv.slice(3);
-	// FACE allowlist "family|Suffix" from <Family>-<Suffix>.ttf basenames —
+	// FACE allowlist "Family|Suffix" from <Family>-<Suffix>.ttf basenames,
+	// EXACT case (deriveFonts matches the TTF path case-sensitively) —
 	// a suffixless TTF is ignored (deriveFonts can never reference it either)
 	const custom = new Set<string>();
 	if (fontsDir && existsSync(fontsDir))
 		for (const f of readdirSync(fontsDir)) {
 			const mm = /^(.+)-(\w+)\.ttf$/.exec(f);
-			if (mm) custom.add(`${mm[1].toLowerCase()}|${mm[2]}`);
+			if (mm) custom.add(`${mm[1]}|${mm[2]}`);
 		}
 	const bad: string[] = [];
 	for (const f of srcFiles)

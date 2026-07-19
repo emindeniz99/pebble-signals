@@ -5,11 +5,10 @@
 // runtime/signals; the manifest derivation ships the blob automatically
 // for any `romTable("<name>")` literal in the app source.
 //
-// Usage: node tools/pack-table.mts <name> <strings.json>
+// Usage (run from the PROJECT root): node tools/pack-table.mts <name> <strings.json>
 //   node tools/pack-table.mts stations.tbl data/stations.json
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { packageRoot } from "./pkg-root.mts";
 
 export function packTable(texts: string[]): Buffer {
 	const payload = Buffer.from(texts.join(""), "latin1");
@@ -27,7 +26,13 @@ if (import.meta.main) {
 	const [name, jsonPath] = process.argv.slice(2);
 	const texts = JSON.parse(readFileSync(jsonPath, "utf8")) as string[];
 	const blob = packTable(texts);
-	const dir = join(packageRoot(import.meta.dirname), "assets");
+	// cwd, NOT packageRoot: from a scaffolded app this tool runs as
+	// node_modules/signal-piu/dist/tools/pack-table.mjs, and packageRoot
+	// resolved to the INSTALLED package — the blob landed under node_modules
+	// while the manifest's `../../assets/<name>` entry reads the project's
+	// assets/ (missing/stale resource on device; codex P2). The project root
+	// is where builds run from, in this repo and in a consumer app alike.
+	const dir = join(process.cwd(), "assets");
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, name), blob);
 	console.log(`pack-table: ${texts.length} entries, ${blob.length}B -> assets/${name}`);

@@ -21,6 +21,19 @@ const DEPS: Record<string, string[]> = {
 	"runtime/flow": ["runtime/signals", "runtime/jsx-runtime"],
 };
 
+// Does this import/export clause erase entirely at emit? `import type { X }`
+// starts with `type`, but an ALL-INLINE-type clause (`import { type Theme }`)
+// does not — TypeScript still elides the whole statement when no value
+// specifier remains, so treating it as a value edge followed non-shipping
+// helpers and fed their literals into every scan (codex P2). A mixed clause
+// (`{ type A, b }`) keeps — `b` is a value import.
+const typeOnlyClause = (clause: string): boolean => {
+	const c = clause.trim();
+	if (/^type\b/.test(c)) return true;
+	const br = /^\{([^}]*)\}$/.exec(c);
+	return br !== null && br[1].split(",").every((s) => /^\s*type\b/.test(s));
+};
+
 /**
  * The set of runtime modules reachable from the app's static imports. Pure.
  * `extraSeeds` = modules needed by GENERATED code the sources can't show
@@ -41,7 +54,7 @@ export function neededModules(src: string, extraSeeds: string[] = []): Set<strin
 	for (const m of code.matchAll(
 		/\b(?:import|export)\s+([^;]*?)from\s+["'](runtime\/[a-zA-Z0-9_-]+)["']/g,
 	))
-		if (!/^type\b/.test(m[1].trim())) seed.push(m[2]);
+		if (!typeOnlyClause(m[1])) seed.push(m[2]);
 	// bare side-effect imports (`import "runtime/flow";`) carry no `from`
 	// clause but survive emit and bundling all the same — missing them pruned
 	// the module and turned a valid build into a tripwire failure (codex P2).
@@ -110,7 +123,7 @@ export function relativeClosure(entry: string, read: (p: string) => string | nul
 		// `font:` shape failed fontcheck, its Texture strings shipped
 		// resources) into every scan for code that never ships (codex P2).
 		for (const m of src.matchAll(/\b(?:import|export)\s+([^;]*?)from\s+["'](\.\.?\/[^"']+)["']/g))
-			if (!/^type\b/.test(m[1].trim())) follow(m[2]);
+			if (!typeOnlyClause(m[1])) follow(m[2]);
 		// bare side-effect imports carry NO `from` clause (`import "./setup"`) —
 		// esbuild still bundles them, so their runtime imports / assets / reads
 		// must join the closure too. `\bimport\s+["']` won't match `importNow(`.

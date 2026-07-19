@@ -141,7 +141,7 @@ test("fontcheck: italic on a system font is rejected (no italic face → blank)"
 		'font: "italic bold 42px Bitham"',
 	]);
 	// a TTF-backed custom family MAY be italic (rasterizer resolves the face)
-	assert.deepEqual(badFonts('font: "italic 20px Fam"', new Set(["fam|Italic"])), []);
+	assert.deepEqual(badFonts('font: "italic 20px Fam"', new Set(["Fam|Italic"])), []);
 });
 
 test("fontcheck: style tokens in EITHER order are seen (audit TOOLS-1)", () => {
@@ -152,7 +152,7 @@ test("fontcheck: style tokens in EITHER order are seen (audit TOOLS-1)", () => {
 		'font: "bold italic 42px Bitham"',
 	]);
 	// custom TTF family: any face in any order is the rasterizer's job
-	assert.deepEqual(badFonts('font: "bold italic 20px Fam"', new Set(["fam|BoldItalic"])), []);
+	assert.deepEqual(badFonts('font: "bold italic 20px Fam"', new Set(["Fam|BoldItalic"])), []);
 });
 
 test("fontcheck: commented-out font literals never fail the build", () => {
@@ -168,7 +168,7 @@ test("fontcheck: digit-bearing families are SEEN (20px B612 must not slip)", () 
 	// unbacked custom family sailed through and rendered blank on device
 	assert.deepEqual(badFonts('font: "20px B612"'), ['font: "20px B612"']);
 	// backed by a TTF it is a legal custom family, as with any other name
-	assert.deepEqual(badFonts('font: "20px B612"', new Set(["b612|Regular"])), []);
+	assert.deepEqual(badFonts('font: "20px B612"', new Set(["B612|Regular"])), []);
 });
 
 test("fontcheck + deriveFonts: backtick font literals are the same plain string", () => {
@@ -819,7 +819,7 @@ test("deriveFonts: commented-out literal ships nothing (phantom guard)", () => {
 });
 
 test("fontcheck: custom FACES backed by a TTF pass at any size", () => {
-	const custom = new Set(["liberationserif|Bold"]);
+	const custom = new Set(["LiberationSerif|Bold"]);
 	assert.deepEqual(badFonts('font: "bold 32px LiberationSerif"', custom), []);
 	// still flags non-system fonts WITHOUT a TTF behind them
 	assert.equal(badFonts('font: "bold 32px LiberationSerif"').length, 1);
@@ -829,7 +829,7 @@ test("fontcheck: a known custom family with a MISSING face is flagged", () => {
 	// only Fam-Regular.ttf ships: deriveFonts emits nothing for the italic
 	// request, so the build used to pass and the text rendered BLANK — the
 	// audit's deferred face-matching gap, closed while touching fonts
-	const regularOnly = new Set(["fam|Regular"]);
+	const regularOnly = new Set(["Fam|Regular"]);
 	assert.deepEqual(badFonts('font: "italic 20px Fam"', regularOnly), ['font: "italic 20px Fam"']);
 	assert.deepEqual(badFonts('font: "bold 20px Fam"', regularOnly), ['font: "bold 20px Fam"']);
 	assert.deepEqual(badFonts('font: "20px Fam"', regularOnly), []); // the shipped face
@@ -890,4 +890,41 @@ test("gen-manifest + fontcheck: quoted/spaced font KEYS are the same dictionary 
 	// `myfont:` is NOT the Piu font key — neither tool may treat it as one
 	assert.deepEqual(deriveFonts('myfont: "20px Fam"', ttfs), []);
 	assert.deepEqual(badFonts('myfont: "99px Fake"'), []);
+});
+
+test("treeshake: ALL-inline-type clauses erase — neither seed nor closure edge", () => {
+	// `import { type Theme } from ...` does not start with `type`, but tsc
+	// elides the whole statement when no value specifier remains — following
+	// it fed a non-shipping helper's literals into every scan (codex P2)
+	assert.deepEqual([...neededModules('import { type ForProps } from "runtime/flow";')], []);
+	assert.deepEqual(
+		[...neededModules('import { type ForProps, type Thunk } from "runtime/flow";')],
+		[],
+	);
+	// a MIXED clause still seeds (`For` is a value import)
+	assert.equal(
+		neededModules('import { type ForProps, For } from "runtime/flow";').has("runtime/flow"),
+		true,
+	);
+	const fs5: Record<string, string> = {
+		"src/app.tsx": 'import { type Theme } from "./types";\nimport { real } from "./used";',
+		"src/types.ts": 'export type Theme = { font: string };\nconst bad = "font: \\"99px Fake\\"";',
+		"src/used.ts": "export const real = 1;",
+	};
+	assert.deepEqual(
+		relativeClosure("src/app.tsx", (p) => fs5[p] ?? null),
+		["src/app.tsx", "src/used.ts"],
+	);
+});
+
+test("fontcheck: custom family matching is CASE-SENSITIVE like deriveFonts", () => {
+	// `font: "20px fam"` with Fam-Regular.ttf shipped: the lower-cased
+	// allowlist accepted it while deriveFonts (case-sensitive TTF path
+	// match) emitted nothing — silent blank on device (codex P2)
+	const faces = new Set(["Fam|Regular"]);
+	assert.deepEqual(badFonts('font: "20px Fam"', faces), []); // exact case ships
+	assert.deepEqual(badFonts('font: "20px fam"', faces), ['font: "20px fam"']);
+	assert.deepEqual(badFonts('font: "20px FAM"', faces), ['font: "20px FAM"']);
+	const ttfs = ["f/Fam-Regular.ttf"];
+	assert.deepEqual(deriveFonts('font: "20px fam"', ttfs), []); // parity: ships nothing
 });
