@@ -80,6 +80,30 @@ no work inside this repo can advance). New work starts a new list.
   (`dictate`), but transcription needs a real watch + phone assistant.
   Unblocks: hardware in the loop.
 
+**Larger future bet — hybrid static/dynamic auto-split (runtime-cost reduction):**
+- [ ] **Compile the static subtrees, keep the signal core only where structure
+      is actually runtime-dynamic.** react-pebble (compile-time snapshot → static
+      piu) has a lower arena floor (bench: 41–46% vs our 83%) precisely because
+      it ships NO runtime — but it CANNOT do runtime-dynamic structure (the bench
+      multiview silently drops screens + reboots the firmware). We do the reverse:
+      pay a ~5–11KB runtime for real dynamism. The middle ground: an app is mostly
+      STATIC (a Column of Labels whose text changes) with a few genuinely dynamic
+      spots (a `For` over phone data, a `Show`, a `Navigator`). The lowering pass
+      already moves cost build-ward (auto-thunk, packed signals, lazy screens, ROM
+      preload); the next step is to **detect static subtrees at build time and emit
+      them as plain Piu construction (zero runtime nodes/effects), leaving the
+      signal graph ONLY for the reactive islands.** This reduces the runtime tax
+      WITHOUT losing dynamism — the best of both models. Note the theoretical wall:
+      you can never eliminate runtime cost *entirely* while keeping dynamism —
+      structure that depends on data unknown at build needs some on-watch decision
+      logic. So the target is "runtime only where dynamism is real," not "no
+      runtime." Scope sketch: (1) mark a JSX subtree static when it contains no
+      reactive read and no flow component; (2) emit those as a direct
+      `new Container({...})` tree instead of `jsx()` calls + host effects;
+      (3) measure the arena delta on a mostly-static watchface (expect to approach
+      react-pebble's floor for the static parts). Prior art + the tradeoff table:
+      `docs/design-journey.md`; the bench numbers: `projects/react-pebble-bench/`.
+
 **Next batch (owner order):**
 - [x] load-time ms instrumentation ✅ (2026-07, `loadms` example): SELECT
       times a cold `importNow("app/heavy")` of a ~2KB lazy module on gabbro —
