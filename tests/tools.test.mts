@@ -141,7 +141,7 @@ test("fontcheck: italic on a system font is rejected (no italic face → blank)"
 		'font: "italic bold 42px Bitham"',
 	]);
 	// a TTF-backed custom family MAY be italic (rasterizer resolves the face)
-	assert.deepEqual(badFonts('font: "italic 20px Fam"', new Set(["fam"])), []);
+	assert.deepEqual(badFonts('font: "italic 20px Fam"', new Set(["fam|Italic"])), []);
 });
 
 test("fontcheck: style tokens in EITHER order are seen (audit TOOLS-1)", () => {
@@ -152,7 +152,7 @@ test("fontcheck: style tokens in EITHER order are seen (audit TOOLS-1)", () => {
 		'font: "bold italic 42px Bitham"',
 	]);
 	// custom TTF family: any face in any order is the rasterizer's job
-	assert.deepEqual(badFonts('font: "bold italic 20px Fam"', new Set(["fam"])), []);
+	assert.deepEqual(badFonts('font: "bold italic 20px Fam"', new Set(["fam|BoldItalic"])), []);
 });
 
 test("fontcheck: digit-bearing families are SEEN (20px B612 must not slip)", () => {
@@ -160,7 +160,7 @@ test("fontcheck: digit-bearing families are SEEN (20px B612 must not slip)", () 
 	// unbacked custom family sailed through and rendered blank on device
 	assert.deepEqual(badFonts('font: "20px B612"'), ['font: "20px B612"']);
 	// backed by a TTF it is a legal custom family, as with any other name
-	assert.deepEqual(badFonts('font: "20px B612"', new Set(["b612"])), []);
+	assert.deepEqual(badFonts('font: "20px B612"', new Set(["b612|Regular"])), []);
 });
 
 test("fontcheck + deriveFonts: backtick font literals are the same plain string", () => {
@@ -803,11 +803,31 @@ test("deriveFonts: commented-out literal ships nothing (phantom guard)", () => {
 	assert.deepEqual(deriveFonts('// font: "bold 20px Fam"', ttfs), []);
 });
 
-test("fontcheck: custom families backed by a TTF pass at any size", () => {
-	const custom = new Set(["liberationserif"]);
+test("fontcheck: custom FACES backed by a TTF pass at any size", () => {
+	const custom = new Set(["liberationserif|Bold"]);
 	assert.deepEqual(badFonts('font: "bold 32px LiberationSerif"', custom), []);
 	// still flags non-system fonts WITHOUT a TTF behind them
 	assert.equal(badFonts('font: "bold 32px LiberationSerif"').length, 1);
+});
+
+test("fontcheck: a known custom family with a MISSING face is flagged", () => {
+	// only Fam-Regular.ttf ships: deriveFonts emits nothing for the italic
+	// request, so the build used to pass and the text rendered BLANK — the
+	// audit's deferred face-matching gap, closed while touching fonts
+	const regularOnly = new Set(["fam|Regular"]);
+	assert.deepEqual(badFonts('font: "italic 20px Fam"', regularOnly), ['font: "italic 20px Fam"']);
+	assert.deepEqual(badFonts('font: "bold 20px Fam"', regularOnly), ['font: "bold 20px Fam"']);
+	assert.deepEqual(badFonts('font: "20px Fam"', regularOnly), []); // the shipped face
+});
+
+test("fontcheck: the full documented system table is accepted (Gothic 36, Leco)", () => {
+	// README gotcha 7 lists the firmware table — rejecting "36px Gothic"
+	// failed builds for a documented built-in (codex P2)
+	assert.deepEqual(badFonts('font: "36px Gothic"; font: "bold 36px Gothic"'), []);
+	assert.deepEqual(badFonts('font: "9px Gothic"'), []);
+	assert.deepEqual(badFonts('font: "bold 9px Gothic"'), ['font: "bold 9px Gothic"']); // no Bold 9
+	assert.deepEqual(badFonts('font: "bold 26px Leco"; font: "42px Leco"'), []);
+	assert.deepEqual(badFonts('font: "34px Bitham"'), []); // Bitham-Light/Medium 34
 });
 
 test("deriveResources: derived textures keep sibling *-alpha entries intact", () => {

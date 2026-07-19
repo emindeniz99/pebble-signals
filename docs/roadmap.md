@@ -715,14 +715,13 @@ Priority order the owner set; each is expanded in its own section below.
     — never the half-measure. Closes the footgun; pairs with glitch-free above.
 
 ## Node / compile-time — ready to do
-- **fontcheck custom-FACE matching (audit 2026-07, deferred with a date).**
-  `badFonts` skips any literal whose FAMILY is custom, but `deriveFonts`
-  only ships a face when the face-specific TTF exists — `font: "italic
-  20px Fam"` with only `Fam-Regular.ttf` passes fontcheck, ships no font,
-  renders blank (the exact gotcha-20 class the tool exists for). Fix next
-  time fonts are touched: teach fontcheck deriveFonts' suffix mapping and
-  require the face TTF (~30 min). The system-font italic half + token
-  order are covered (2026-07-17).
+- ~~**fontcheck custom-FACE matching (audit 2026-07, deferred with a
+  date).**~~ ✅ DONE 2026-07-19 (the "next time fonts are touched" trigger
+  fired): `badFonts` now takes a FACE allowlist ("family|Suffix" from the
+  fonts/ TTF basenames, deriveFonts' mapping) — a known family with a
+  missing face is flagged instead of shipping a blank render; the VALID
+  system table was also extended to the full documented firmware set
+  (Gothic 9-36, Bitham Light/Medium, Leco).
 - **Revert-detecting tests for build.mts-inline scans (audit TOOLS-2,
   editorial).** The importNow quote-forms fix and the keep-set
   single-quote fix live inline in build.mts — no in-repo test fails if

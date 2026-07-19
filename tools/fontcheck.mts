@@ -11,29 +11,47 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 
 // Pebble system fonts reachable via piu "['bold '][N]px Family" strings, keyed
-// "family|size|bold" — from the official FONT_KEY_* table.
+// "family|size|bold" — the full firmware table README §"gotchas" item 7
+// documents (Gothic-Regular 9-36, Gothic-Bold 14-36, Bitham Black/Bold/
+// Light/Medium, Roboto, DroidSerif, Leco), mapped through the shorthand's
+// face rule: `bold` -> the -Bold (Bitham 30: -Black) face, no weight -> the
+// Regular/Light/Medium face at that size. Seeding only the four Gothic
+// sizes rejected documented built-ins like "36px Gothic" (codex P2).
 const VALID = new Set<string>();
-for (const n of [14, 18, 24, 28]) {
+for (const n of [14, 18, 24, 28, 36]) {
 	VALID.add(`gothic|${n}|false`);
 	VALID.add(`gothic|${n}|true`);
 }
 for (const k of [
-	"bitham|30|true",
+	"gothic|9|false", // Gothic-Regular 9 has no Bold twin
+	"bitham|30|true", // Bitham-Black
 	"bitham|42|true",
+	"bitham|18|false", // Bitham-Light
+	"bitham|34|false", // Bitham-Light/Medium
 	"bitham|42|false",
 	"roboto|21|false",
 	"roboto|49|true",
 	"droid|28|true",
+	"leco|42|false", // Leco-Regular
+	"leco|20|true", // Leco-Bold 20/26/32/36/38
+	"leco|26|true",
+	"leco|32|true",
+	"leco|36|true",
+	"leco|38|true",
 ])
 	VALID.add(k);
 
 /**
  * Return the list of invalid `font:` literals in `src` (empty = all valid).
- * `customFamilies` = families backed by a shipped TTF (the fonts/ convention,
- * see gen-manifest's deriveFonts) — any size/weight of those is legal, the
- * rasterizer builds exactly what the literal asks for. Pure.
+ * `customFaces` = the FACES actually backed by a shipped TTF, keyed
+ * "family|Suffix" (family lowercase; Suffix = Regular/Bold/Italic/BoldItalic,
+ * deriveFonts' mapping — built from the fonts/ dir TTF basenames). Face
+ * matching matters: family-only acceptance let `font: "italic 20px Fam"`
+ * pass with only Fam-Regular.ttf shipped, while deriveFonts emits nothing
+ * for the missing face — the text rendered BLANK (the audit's deferred gap,
+ * re-raised by codex). Pure.
  */
-export function badFonts(src: string, customFamilies?: Set<string>): string[] {
+export function badFonts(src: string, customFaces?: Set<string>): string[] {
 	const bad: string[] = [];
 	// style tokens in ANY order — "bold italic 42px X" and "italic bold 42px X"
 	// are the same face request; a fixed italic-then-bold pattern let the
@@ -51,10 +69,24 @@ export function badFonts(src: string, customFamilies?: Set<string>): string[] {
 		const bold = /\bbold\b/.test(m[1]);
 		const size = Number(m[2]);
 		const fam = m[3].toLowerCase();
-		// a TTF-backed custom family may carry any face (the italic/bold face
-		// resolution is the rasterizer's job); system fonts are regular/bold
-		// ONLY, so an `italic` on one is invalid and renders blank.
-		if (customFamilies?.has(fam)) continue;
+		// the literal's face, by deriveFonts' suffix mapping — the TTF that
+		// must exist for mcrun to rasterize this exact request
+		const suffix = bold && italic ? "BoldItalic" : bold ? "Bold" : italic ? "Italic" : "Regular";
+		if (customFaces?.has(`${fam}|${suffix}`)) continue; // face TTF ships — any size is legal
+		// KNOWN custom family with a MISSING face: deriveFonts ships nothing
+		// for this literal — the exact silent-blank class. Flag it.
+		let famKnown = false;
+		if (customFaces)
+			for (const f of customFaces)
+				if (f.startsWith(`${fam}|`)) {
+					famKnown = true;
+					break;
+				}
+		if (famKnown) {
+			bad.push(m[0]);
+			continue;
+		}
+		// system fonts are regular/bold ONLY — an `italic` on one renders blank
 		if (italic || !VALID.has(`${fam}|${size}|${bold}`)) bad.push(m[0]);
 	}
 	return bad;
@@ -66,10 +98,14 @@ if (import.meta.main) {
 	// fonts). args 2+: every app-closure source to scan.
 	const fontsDir = process.argv[2];
 	const srcFiles = process.argv.slice(3);
+	// FACE allowlist "family|Suffix" from <Family>-<Suffix>.ttf basenames —
+	// a suffixless TTF is ignored (deriveFonts can never reference it either)
 	const custom = new Set<string>();
 	if (fontsDir && existsSync(fontsDir))
-		for (const f of readdirSync(fontsDir))
-			if (f.endsWith(".ttf")) custom.add(f.replace(/-\w+\.ttf$/, "").toLowerCase());
+		for (const f of readdirSync(fontsDir)) {
+			const mm = /^(.+)-(\w+)\.ttf$/.exec(f);
+			if (mm) custom.add(`${mm[1].toLowerCase()}|${mm[2]}`);
+		}
 	const bad: string[] = [];
 	for (const f of srcFiles)
 		if (existsSync(f))
