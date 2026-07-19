@@ -269,11 +269,14 @@ export function Show(props: ShowProps): PiuContainer {
 // (see the bare-Label port bug above; width/height-sized wrappers are the
 // on-device-proven shape). A Show sized via left/right/top/bottom leaves
 // width/height undefined — the wrapper then FILLS the host on that axis
-// (0/0 coordinates), because an unconstrained wrapper inside the sized host
-// measured at zero and drew nothing (codex P2; device receipt
-// screenshots/showlrtb-gabbro.png). A Show with NO size props keeps the old
-// unconstrained wrapper (content-measured) untouched. A missing side yields
-// an EMPTY wrapper — never null — so keepAlive swaps always use replace().
+// (0/0 coordinates): the old unconstrained wrapper did NOT go blank, but it
+// ignored the host's box — the side rendered content-measured at the host's
+// origin instead of filling the sized region (A/B on gabbro:
+// screenshots/showlrtb-gabbro.png fills/centers vs
+// showlrtb-oldwrap-gabbro.png top-stuck). A Show with NO size props keeps
+// the old unconstrained wrapper (content-measured) untouched. A missing
+// side yields an EMPTY wrapper — never null — so keepAlive swaps always
+// use replace().
 function wrapSide(props: Props, build: (() => JSXNode) | undefined): PiuContainer {
 	const dims: Record<string, number | undefined> = {};
 	if (props.width !== undefined) dims.width = props.width;

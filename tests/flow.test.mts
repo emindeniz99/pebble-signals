@@ -333,9 +333,10 @@ check(
 
 // --- Show wrapper sizing: a l/r/t/b-sized Show must hand its side a
 // CONSTRAINED wrapper (0/0 fill coordinates) — copying only width/height left
-// the wrapper unconstrained inside the sized host, the zero-size class that
-// draws nothing on the port (codex round nine; device receipt
-// screenshots/showlrtb-gabbro.png) ---
+// the wrapper unconstrained, ignoring the host's box (the side rendered
+// content-measured at the host origin instead of filling the sized region —
+// A/B receipts screenshots/showlrtb-gabbro.png vs showlrtb-oldwrap-gabbro.png,
+// codex round nine + round-ten correction) ---
 {
 	const [boxHost] = createRoot(() =>
 		Show({
@@ -791,6 +792,45 @@ sandbox.console = { log: () => {} };
 	check(
 		"EB: build-time throw shows fallback with the error",
 		inner(host).string === "caught:build-fail",
+	);
+}
+
+// (a2) wrapper sizing mirrors Show's wrapSide: a l/r/t/b-sized boundary hands
+// its sides a 0/0 FILL wrapper; width/height keeps the proven shape; no size
+// props keeps the content-measured wrapper (codex round ten — same class as
+// the round-nine Show fix, A/B receipts screenshots/showlrtb-*.png)
+{
+	const [lrtbHost] = createRoot(() =>
+		ErrorBoundary({
+			left: 10,
+			right: 10,
+			top: 40,
+			bottom: 40,
+			fallback: () => jsx(StubContent, {}),
+			children: () => jsx(StubContent, { string: "boxed" }),
+		}),
+	);
+	const ebw = lrtbHost.contents[0];
+	check(
+		"EB: l/r/t/b boundary wrapper fills the host on both axes",
+		ebw.left === 0 &&
+			ebw.right === 0 &&
+			ebw.top === 0 &&
+			ebw.bottom === 0 &&
+			ebw.width === undefined,
+	);
+	const [whEbHost] = createRoot(() =>
+		ErrorBoundary({
+			width: 100,
+			height: 50,
+			fallback: () => jsx(StubContent, {}),
+			children: () => jsx(StubContent, {}),
+		}),
+	);
+	const ebw2 = whEbHost.contents[0];
+	check(
+		"EB: width/height boundary wrapper keeps the proven shape",
+		ebw2.width === 100 && ebw2.height === 50 && ebw2.left === undefined,
 	);
 }
 

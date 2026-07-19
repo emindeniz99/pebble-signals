@@ -549,10 +549,25 @@ export const ErrorBoundary = (props: ErrorBoundaryProps): PiuContainer => {
 	// side mounts inside a Container sized like the host (bare content swapped
 	// as a direct child crashes the piu Pebble port — measured).
 	const ebWrap = (build: () => JSXNode): PiuContainer => {
-		const wrapper = new Container(null, {
-			width: props.width,
-			height: props.height,
-		}) as PiuContainer;
+		// same per-axis sizing as flow's wrapSide: width/height when given, a
+		// 0/0 FILL on any axis the caller sized via coordinates instead — a
+		// l/r/t/b-sized boundary handed its sides an unconstrained wrapper
+		// that ignored the host's box (content-measured at the host origin
+		// instead of filling the sized region — Show's A/B receipt,
+		// screenshots/showlrtb-*.png; codex P2). No size props at all keeps
+		// the content-measured wrapper.
+		const dims: Record<string, number | undefined> = {};
+		if (props.width !== undefined) dims.width = props.width;
+		else if (props.left !== undefined || props.right !== undefined) {
+			dims.left = 0;
+			dims.right = 0;
+		}
+		if (props.height !== undefined) dims.height = props.height;
+		else if (props.top !== undefined || props.bottom !== undefined) {
+			dims.top = 0;
+			dims.bottom = 0;
+		}
+		const wrapper = new Container(null, dims) as PiuContainer;
 		// unwrap a thunk-returning build result (the same dynamic boundary
 		// flow's asNode handles — `{() => <Label/>}` children arrive as a fn)
 		const r = build();
