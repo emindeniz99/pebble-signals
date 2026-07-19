@@ -38,6 +38,18 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round seventeen (part 2).** Three more. (1) `lint-reads` now collects the
+  getter from a read-only `const [count] = useState(0)` (setter omitted) so a
+  getter on a static host prop (`<Container width={count}>`) is caught at build
+  instead of throwing in `createHost` at render — but a read-only getter that
+  merely escapes as a plain VALUE stays clean (it is never lowered, so nothing
+  is lost). (2) `lint-reads` resolves one-level host ALIASES
+  (`const C = Container; <C width={count}>`) the way auto-thunk does, so the
+  static-prop check fires on the alias too. (3) `Navigator` now routes a pushed
+  screen whose builder throws SYNCHRONOUSLY to its construction-time
+  ErrorBoundary (was: the throw escaped `createRoot`/`push` to the button
+  dispatcher, bypassing the local fallback). The catch is on the shallow
+  push/pop path only — the deep initial build stays frame-free (Round-7 wall).
 - **Round seventeen (codex review of 9fb63c4, part 1).** Two silent-failure
   edges. (1) the self-render helper resolver now strips an ESM-style runtime
   extension (`./boot.js` → `boot.ts(x)`) before probing, so a delegated-mount

@@ -1029,3 +1029,25 @@ test("lint-reads: getter on a host STATIC prop is flagged; reactive prop + compo
 	);
 	assert.deepEqual(okComp, []);
 });
+
+test("lint-reads: getter-on-static-prop also catches read-only destructure + host alias (codex round 17)", () => {
+	// a read-only `const [count] = useState(0)` (no setter) still hands `count`
+	// the live getter — auto-thunk wraps this shape, so the lint must collect it
+	const readOnly = lintFixture(
+		"const [count] = useState(0);\nexport const a = render(() => <Container width={count} />, {});\n",
+	);
+	assert.equal(readOnly.length, 1);
+	assert.equal(readOnly[0].rule, "getter-on-static-prop");
+	// a one-level host ALIAS `const C = Container` is a host at runtime too
+	// (createHost dispatches on identity) — the getter must still be flagged
+	const alias = lintFixture(
+		"const [count, setCount] = useState(0);\nconst C = Container;\nexport const b = render(() => <C width={count} />, {});\n",
+	);
+	assert.equal(alias.length, 1);
+	assert.equal(alias[0].rule, "getter-on-static-prop");
+	// aliased host on a REACTIVE prop stays allowed (no false positive)
+	const okAlias = lintFixture(
+		"const [count, setCount] = useState(0);\nconst L = Label;\nexport const d = render(() => <L string={count} />, {});\n",
+	);
+	assert.deepEqual(okAlias, []);
+});

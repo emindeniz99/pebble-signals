@@ -1408,6 +1408,17 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 	// a second push through the boundary path with a DIRECT (non-thunk) screen —
 	// covers the other side of the withBoundary copy's auto-thunk check
 	navRef!.push(() => jsx(StubContent, { string: "s3" }));
+	// a pushed screen whose BUILDER throws SYNCHRONOUSLY (not via a later effect
+	// re-run) must ALSO route to the construction-time boundary — else the throw
+	// escapes createRoot/push to the button dispatcher after the old screen is
+	// gone and the local fallback is bypassed (codex round 17)
+	navRef!.push(() => {
+		throw new Error("sync-build-boom");
+	});
+	check(
+		"Navigator: SYNCHRONOUS pushed-screen build throw routes to the boundary",
+		caught.join().includes("sync-build-boom"),
+	);
 	sandbox.console = savedC;
 }
 

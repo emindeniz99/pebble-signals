@@ -242,7 +242,10 @@ export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
 		const useSym = importSymbol(checker, sf, "useState");
 		if (!useSym) continue;
 		const declIds = new Set<ts.Node>();
-		const pairBindings = new Map<ts.Symbol, { name: string; kind: "getter" | "setter" }>();
+		const pairBindings = new Map<
+			ts.Symbol,
+			{ name: string; kind: "getter" | "setter"; readonly?: boolean }
+		>();
 		(function walkPairs(n: ts.Node): void {
 			if (
 				ts.isVariableDeclaration(n) &&
@@ -251,41 +254,50 @@ export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
 				ts.isIdentifier(n.initializer.expression) &&
 				checker.getSymbolAtLocation(n.initializer.expression) === useSym &&
 				ts.isArrayBindingPattern(n.name) &&
-				n.name.elements.length === 2
+				n.name.elements.length >= 1
 			) {
-				const [ge, se] = n.name.elements;
-				if (
-					!ts.isOmittedExpression(ge) &&
-					!ts.isOmittedExpression(se) &&
-					ts.isIdentifier(ge.name) &&
-					ts.isIdentifier(se.name)
-				) {
+				// getter is element[0]; the setter (element[1]) may be OMITTED — a
+				// read-only `const [count] = useState(0)` still hands `count` the live
+				// getter, so it must be collected too, else a getter passed to a
+				// static host prop escapes the lint gate (auto-thunk already wraps
+				// this shape; codex P2).
+				const ge = n.name.elements[0];
+				const se = n.name.elements[1];
+				const setterOk = !!se && !ts.isOmittedExpression(se) && ts.isIdentifier(se.name);
+				if (!ts.isOmittedExpression(ge) && ts.isIdentifier(ge.name)) {
 					// an EXPORTED pair escapes by module contract — the lowering
 					// skips it (object API, correct) but the packed form is lost.
 					// One finding on the setter; the bindings stay untracked
 					// (they are real functions, later refs are legit).
 					if (
+						setterOk &&
 						ts.isVariableStatement(n.parent.parent) &&
 						ts.getModifiers(n.parent.parent)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
 					) {
+						const sn = (se as ts.BindingElement).name as ts.Identifier;
 						report(
-							se.name,
+							sn,
 							"setter-as-value",
-							`\`${se.name.text}\` is exported with its useState pair — the pair can't lower (heap object API). Keep it module-local and export wrappers: \`export const set = (v) => ${se.name.text}(v)\``,
+							`\`${sn.text}\` is exported with its useState pair — the pair can't lower (heap object API). Keep it module-local and export wrappers: \`export const set = (v) => ${sn.text}(v)\``,
 						);
 						return ts.forEachChild(n, walkPairs);
 					}
-					for (const [el, kind] of [
-						[ge, "getter"],
-						[se, "setter"],
-					] as const) {
-						const sym = checker.getSymbolAtLocation((el as ts.BindingElement).name);
+					const bindings: [ts.BindingElement, "getter" | "setter"][] = [
+						[ge as ts.BindingElement, "getter"],
+					];
+					if (setterOk) bindings.push([se as ts.BindingElement, "setter"]);
+					for (const [el, kind] of bindings) {
+						const sym = checker.getSymbolAtLocation(el.name);
+						// a READ-ONLY getter (no setter destructured) is never lowered
+						// (the pack needs the pair), so escaping it as a plain VALUE is
+						// harmless — only the getter-on-static-prop check applies to it
 						if (sym)
 							pairBindings.set(sym, {
-								name: ((el as ts.BindingElement).name as ts.Identifier).text,
+								name: (el.name as ts.Identifier).text,
 								kind,
+								readonly: kind === "getter" && !setterOk,
 							});
-						declIds.add((el as ts.BindingElement).name);
+						declIds.add(el.name);
 					}
 				}
 			}
@@ -333,11 +345,22 @@ export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
 				// a HOST tag resolves to the ambient globals.d.ts declaration (or
 				// none); a user COMPONENT resolves to its own symbol — never a host
 				const decl = tagName && checker.getSymbolAtLocation(tagName)?.declarations?.[0];
-				const isHost =
-					!!tagName &&
-					PIU_HOSTS.has(tagName.getText()) &&
-					(!decl || decl.getSourceFile().fileName.endsWith("globals.d.ts"));
-				if (!(isHost && !REACTIVE_PROPS.has(attrName))) continue; // component / reactive host prop
+				const fromGlobals = (d?: ts.Node): boolean =>
+					!d || d.getSourceFile().fileName.endsWith("globals.d.ts");
+				// bare host: a PIU_HOSTS name declared ambiently (or not at all)
+				const bareHost = !!tagName && PIU_HOSTS.has(tagName.getText()) && fromGlobals(decl);
+				// one-level ALIAS `const C = Container` is a host at runtime too —
+				// createHost dispatches on identity and auto-thunk resolves the alias,
+				// so a getter on `<C width={count}>` must be flagged here as well, else
+				// it escapes the gate and dies in createHost at render (codex P2)
+				const aliasHost =
+					!!decl &&
+					ts.isVariableDeclaration(decl) &&
+					!!decl.initializer &&
+					ts.isIdentifier(decl.initializer) &&
+					PIU_HOSTS.has(decl.initializer.text) &&
+					fromGlobals(checker.getSymbolAtLocation(decl.initializer)?.declarations?.[0]);
+				if (!((bareHost || aliasHost) && !REACTIVE_PROPS.has(attrName))) continue; // component / reactive host prop
 				report(
 					id,
 					"getter-on-static-prop",
@@ -345,6 +368,10 @@ export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
 				);
 				continue;
 			}
+			// a read-only getter that escaped as a plain VALUE (the static-host-prop
+			// path reported + continued above) is harmless: single-element useState
+			// is never lowered, so there is no packed form to lose (codex round 17)
+			if (hit.readonly) continue;
 			const { line, character } = sf.getLineAndCharacterOfPosition(id.getStart());
 			if (seenPos.has(`${sf.fileName}:${line}:${character}`)) continue; // sharper rule spoke
 			if (hit.kind === "setter")

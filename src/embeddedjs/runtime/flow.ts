@@ -10,6 +10,7 @@ import {
 	createRoot,
 	getBoundary,
 	withBoundary,
+	report,
 } from "runtime/signals";
 import { appendChild, screen, type JSXNode } from "runtime/jsx-runtime";
 import type {
@@ -572,9 +573,21 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 				// together exceed the 32KB arena).
 				if (getBoundary() !== navBoundary)
 					return withBoundary(navBoundary, () => {
-						let s: unknown = build(nav);
-						if (typeof s === "function") s = (s as () => unknown)();
-						appendChild(wrapper, s as JSXNode);
+						// A pushed screen whose builder THROWS synchronously (from a
+						// button handler, g.c=null before this withBoundary) must route
+						// to the Navigator's construction-time boundary — report()
+						// consults g.c (= navBoundary here), so the LOCAL fallback
+						// paints instead of the throw escaping the button dispatcher
+						// (codex P2). This is the SHALLOW push/pop path only; the deep
+						// INITIAL build stays frame-free (render()'s own root boundary
+						// catches it) — no try there (Round 7 value-stack wall).
+						try {
+							let s: unknown = build(nav);
+							if (typeof s === "function") s = (s as () => unknown)();
+							appendChild(wrapper, s as JSXNode);
+						} catch (err) {
+							report(err, "Navigator screen build threw");
+						}
 						return wrapper;
 					});
 				let s: unknown = build(nav);
