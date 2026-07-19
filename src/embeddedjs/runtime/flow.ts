@@ -512,14 +512,27 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 			}
 			while (host.first) host.remove(host.first);
 			const build = stack[stack.length - 1];
-			// Wrap the screen in a Container sized with concrete width+height (like
-			// Show). A screen added straight to a coordinate-anchored/height-less
-			// host has no box and a multi-child column crashes the port's layout
-			// (measured — 1 label survived, 2+ died). The wrapper gives it a box.
-			const wrapper = new Container(null, {
-				width: props.width || screen.width,
-				height: props.height || screen.height,
-			});
+			// Wrap the screen in a sized Container (like Show). A screen added
+			// straight to a height-less host has no box and a multi-child column
+			// crashes the port's layout (measured — 1 label survived, 2+ died).
+			// Per-axis sizing mirrors Show/ErrorBoundary: explicit width/height
+			// when given; a l/r/t/b-ANCHORED host hands the wrapper 0/0 FILL
+			// coordinates (the host's box constrains it — full-screen dimensions
+			// here overflowed/ignored the anchored box, codex P2; device receipt
+			// screenshots/navlrtb-gabbro.png); no constraint at all falls back
+			// to the concrete full-screen box (the measured-safe default).
+			const wdims: Record<string, number | undefined> = {};
+			if (props.width !== undefined) wdims.width = props.width;
+			else if (props.left !== undefined || props.right !== undefined) {
+				wdims.left = 0;
+				wdims.right = 0;
+			} else wdims.width = screen.width;
+			if (props.height !== undefined) wdims.height = props.height;
+			else if (props.top !== undefined || props.bottom !== undefined) {
+				wdims.top = 0;
+				wdims.bottom = 0;
+			} else wdims.height = screen.height;
+			const wrapper = new Container(null, wdims);
 			// r-tuple used WITHOUT destructuring: two locals -> one. This function
 			// is chain-resident at max render depth (Round 7); the jsx key param
 			// (U1 fix) costs one slot per nested component jsx frame, and this

@@ -1296,4 +1296,40 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 	);
 }
 
+// --- Navigator wrapper sizing (codex round eleven, same class as Show/EB):
+// a l/r/t/b-ANCHORED navigator hands each screen a 0/0 FILL wrapper — the
+// old concrete full-screen wrapper overflowed/ignored the anchored box;
+// width/height and the no-constraint full-screen fallback keep their
+// measured-safe concrete shapes ---
+{
+	const [anch] = createRoot(() =>
+		Navigator({
+			left: 10,
+			right: 10,
+			top: 30,
+			bottom: 30,
+			root: () => jsx(StubContent, { string: "anchored" }),
+		}),
+	);
+	const nw = anch.contents[0];
+	check(
+		"Navigator: anchored host gives screens a fill wrapper",
+		nw.left === 0 && nw.right === 0 && nw.top === 0 && nw.bottom === 0 && nw.width === undefined,
+	);
+	const [sized] = createRoot(() =>
+		Navigator({ width: 60, height: 40, root: () => jsx(StubContent, {}) }),
+	);
+	const nw2 = sized.contents[0];
+	check(
+		"Navigator: explicit width/height wrapper unchanged",
+		nw2.width === 60 && nw2.height === 40 && nw2.left === undefined,
+	);
+	const [free] = createRoot(() => Navigator({ root: () => jsx(StubContent, {}) }));
+	const nw3 = free.contents[0];
+	check(
+		"Navigator: unconstrained host keeps the concrete full-screen wrapper",
+		typeof nw3.width === "number" && typeof nw3.height === "number" && nw3.left === undefined,
+	);
+}
+
 done();
