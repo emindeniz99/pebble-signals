@@ -101,7 +101,10 @@ export function renameRuntimeExports(
 	const nsModules = new Set<string>();
 	for (const src of Object.values(files))
 		for (const m of src.matchAll(
-			/(?:import\s*\*\s*as\s+\w+\s*from|export\s*\*\s*from)\s*["']runtime\/([\w-]+)["']/g,
+			// `export * as ns from` reads by property name at runtime exactly
+			// like `import * as` — renaming its module's wires broke
+			// `ns.effect` silently under default SYMDIET=1 (codex P2)
+			/(?:import\s*\*\s*as\s+\w+\s*from|export\s*\*\s*(?:as\s+\w+\s+)?from)\s*["']runtime\/([\w-]+)["']/g,
 		))
 			nsModules.add(m[1]);
 	if (nsModules.size)

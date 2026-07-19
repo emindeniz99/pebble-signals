@@ -286,12 +286,27 @@ const rootShim = (() => {
 	if (selfRenders) return false; // app mounts itself — a shim would mount TWICE
 	const rhs = /^export default\s+(.+)$/m.exec(bare)?.[1].trim();
 	if (!rhs) return false;
-	if (/^(?:async\s+)?function\b/.test(rhs)) return true; // export default function App…
-	if (/^\([^)]*\)[^=\n]*=>/.test(rhs) || /^[A-Za-z_$][\w$]*\s*=>/.test(rhs)) return true; // arrow
 	const id = /^([A-Za-z_$][\w$]*)\s*;?$/.exec(rhs)?.[1];
+	// an ASYNC default is NOT renderable: render() is synchronous, so the
+	// shim would hand appendChild a Promise (boot death) — and silently
+	// treating it as a bare app would just render nothing. Fail at BUILD.
+	if (
+		/^async\b/.test(rhs) ||
+		(id &&
+			new RegExp(
+				`\\basync\\s+function\\s+${id}\\s*\\(|\\b(?:const|let|var)\\s+${id}\\b[^=\\n]*=\\s*async\\b`,
+			).test(bare))
+	) {
+		err(`root-entry: ${APP}'s default export is ASYNC — render() is synchronous and the`);
+		err("            shim would mount a Promise (boot death). Export a sync component,");
+		err("            or call render() yourself after awaiting.");
+		process.exit(1);
+	}
+	if (/^function\b/.test(rhs)) return true; // export default function App…
+	if (/^\([^)]*\)[^=\n]*=>/.test(rhs) || /^[A-Za-z_$][\w$]*\s*=>/.test(rhs)) return true; // arrow
 	if (!id) return false; // `new X(…)`, a literal, a call — not a component
 	return new RegExp(
-		`\\bfunction\\s+${id}\\s*\\(|\\b(?:const|let|var)\\s+${id}\\b[^=\\n]*=\\s*(?:\\([^)]*\\)[^=\\n]*=>|[A-Za-z_$][\\w$]*\\s*=>|(?:async\\s+)?function\\b)`,
+		`\\bfunction\\s+${id}\\s*\\(|\\b(?:const|let|var)\\s+${id}\\b[^=\\n]*=\\s*(?:\\([^)]*\\)[^=\\n]*=>|[A-Za-z_$][\\w$]*\\s*=>|function\\b)`,
 	).test(bare);
 })();
 
@@ -527,29 +542,50 @@ if (lazyBases.length) {
 			err(`lazy: module id ${id} already taken — failing loud`);
 			process.exit(1);
 		}
-		// split-brain guard (review P6, classify-gated per codex): a lazy
-		// module's RELATIVE import gets INLINED as a SECOND copy by its own
-		// bundle step. Duplicating a PURE helper is harmless (wasted flash —
-		// warn); a helper with MODULE-SCOPE STATE (a shared signal store)
-		// SPLIT-BRAINS — the lazy screen's copy is disconnected from main's,
-		// updates silently diverge — so that case fails LOUD.
-		for (const rm of readFileSync(file, "utf8").matchAll(/from\s*["'](\.\.?\/[^"']+)["']/g)) {
-			const spec = rm[1].replace(/\.js$/, "");
-			const helper = [join(dirname(file), `${spec}.js`), join(dirname(file), spec, "index.js")].find(
-				(p) => existsSync(p),
-			);
-			const verdict = helper ? classify(readFileSync(helper, "utf8")) : null;
-			if (verdict && !verdict.pure) {
-				err(`lazy: app/${base} imports ${rm[1]}, which has MODULE-SCOPE STATE`);
-				err(`      (${verdict.reasons[0] ?? "runs code at load"}) — bundling DUPLICATES it, so`);
-				err("      the lazy copy's state is disconnected from main's (split-brain). Keep");
-				err("      shared state in the entry, a preloaded module, or runtime/*. Failing loud.");
-				process.exit(1);
+		// split-brain guard (review P6 -> classify-gated -> TRANSITIVE per
+		// codex): the bundle inlines the lazy module's WHOLE ./-closure as a
+		// second copy — a stateful helper anywhere in it (./view -> ./state
+		// holding a module-scope signal) split-brains: the lazy copy's state
+		// is disconnected from main's, updates silently diverge. Walk the
+		// compiled closure and classify every helper; PURE duplication is
+		// harmless (wasted flash — one summary warning), STATE fails LOUD.
+		{
+			const dup: string[] = [];
+			const seenHelpers = new Set<string>();
+			const queue = [file];
+			while (queue.length) {
+				const cur = queue.pop() as string;
+				for (const rm of readFileSync(cur, "utf8").matchAll(/from\s*["'](\.\.?\/[^"']+)["']/g)) {
+					const spec = rm[1].replace(/\.js$/, "");
+					const helper = [join(dirname(cur), `${spec}.js`), join(dirname(cur), spec, "index.js")].find(
+						(p) => existsSync(p),
+					);
+					if (!helper) {
+						err(
+							`lazy: WARNING app/${base} has an unresolved relative import ${rm[1]} — ` +
+								"cannot check it for split-brain state",
+						);
+						continue;
+					}
+					if (seenHelpers.has(helper)) continue;
+					seenHelpers.add(helper);
+					queue.push(helper);
+					const verdict = classify(readFileSync(helper, "utf8"));
+					if (!verdict.pure) {
+						err(`lazy: app/${base} pulls ${rm[1]} into its bundle, and it has MODULE-SCOPE`);
+						err(`      STATE (${verdict.reasons[0] ?? "runs code at load"}) — the duplicated`);
+						err("      copy's state is DISCONNECTED from main's (split-brain). Keep shared");
+						err("      state in the entry, a preloaded module, or runtime/*. Failing loud.");
+						process.exit(1);
+					}
+					dup.push(rm[1]);
+				}
 			}
-			err(
-				`lazy: WARNING app/${base} duplicates ${rm[1]} into this module ` +
-					`(${verdict ? "pure helper — harmless, costs flash" : "unresolved — check for split-brain"})`,
-			);
+			if (dup.length)
+				err(
+					`lazy: WARNING app/${base} duplicates ${dup.join(", ")} into this module ` +
+						"(pure helpers — harmless, costs flash)",
+				);
 		}
 		manifest.modules[id] = `./app/${rel}`;
 		// SQUASH pass (default ON): array-of-arrows -> ONE dispatch fn — the

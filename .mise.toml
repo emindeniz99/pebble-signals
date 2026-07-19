@@ -2,4 +2,4 @@
 # these; CI and every contributor get the same node + pnpm.
 [tools]
 node = "24"
-pnpm = "10"
+pnpm = "11.10.0"
