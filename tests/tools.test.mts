@@ -155,6 +155,14 @@ test("fontcheck: style tokens in EITHER order are seen (audit TOOLS-1)", () => {
 	assert.deepEqual(badFonts('font: "bold italic 20px Fam"', new Set(["fam|BoldItalic"])), []);
 });
 
+test("fontcheck: commented-out font literals never fail the build", () => {
+	// deriveFonts strips comments; the validator must see the SAME code or a
+	// harmless `// font: "99px Fake"` example blocks device builds
+	assert.deepEqual(badFonts('// font: "99px Fake"\n/* font: "italic 24px Gothic" */'), []);
+	// a real literal after a comment line is still checked
+	assert.deepEqual(badFonts('// old style\nfont: "99px Gothic"'), ['font: "99px Gothic"']);
+});
+
 test("fontcheck: digit-bearing families are SEEN (20px B612 must not slip)", () => {
 	// the old [A-Za-z]+ family grammar skipped the literal entirely — an
 	// unbacked custom family sailed through and rendered blank on device
@@ -277,6 +285,13 @@ test("squash: block bodies inline with param aliasing; zero-param arrows skip th
 test("squash: bails on unprovable uses (bare index, argument, export)", () => {
 	// bare element access without a call — H could escape
 	assert.equal(squash("const H = [(x) => x, (x) => x];\nconst f = H[0];"), null);
+});
+
+test("squash: a SELF-REFERENTIAL table bails (overlapping edits corrupt output)", () => {
+	// a use inside the declaration span would edit inside the wholesale
+	// replacement — stale offsets corrupted the generated lazy module
+	const src = "const H = [() => H[1](), () => 2];\nH[0]();";
+	assert.equal(squash(src), null);
 	// the array itself passed as a value
 	assert.equal(squash("const H = [(x) => x, (x) => x];\nuse(H);"), null);
 	// exported — external importers expect an array

@@ -59,6 +59,12 @@ export function squash(source: string): SquashResult | null {
 		if (!arrows.every(isPackableArrow)) continue;
 		const uses = collectUses(sf, name, decl.name);
 		if (!uses) continue; // an unprovable use somewhere — leave untouched
+		// SELF-REFERENTIAL table (`const H = [() => H[1](), …]`): a use inside
+		// the declaration span would get its own call-site edit INSIDE the
+		// wholesale declaration replacement — overlapping edits applied against
+		// stale offsets corrupt the module (codex P2). Bail-safe: leave it.
+		if (uses.some((u) => u.node.getStart(sf) >= st.getStart(sf) && u.node.getEnd() <= st.getEnd()))
+			continue;
 
 		// dispatch signature: index + one arg slot per widest arrow
 		const arity = Math.max(...arrows.map((a) => (a as ts.ArrowFunction).parameters.length));

@@ -52,6 +52,9 @@ for (const k of [
  * re-raised by codex). Pure.
  */
 export function badFonts(src: string, customFaces?: Set<string>): string[] {
+	// comments off first — a commented-out example (`// font: "99px Fake"`)
+	// must not fail the build (deriveFonts strips the same way; codex P2)
+	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 	const bad: string[] = [];
 	// style tokens in ANY order — "bold italic 42px X" and "italic bold 42px X"
 	// are the same face request; a fixed italic-then-bold pattern let the
