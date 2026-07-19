@@ -38,6 +38,20 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round seven (codex review of e7a0b65).** (1) a child effect whose FIRST
+  run throws now unparks its id from the owner list — the freed id could be
+  recycled and the owner's teardown then disposed an innocent unrelated
+  effect; (2) squash bails on a SELF-REFERENTIAL arrow table
+  (`const H = [() => H[1](), …]`) — overlapping edits corrupted the
+  generated lazy module; (3) the lazy split-brain guard walks the
+  TRANSITIVE compiled closure (`./view` → `./state` with a module-scope
+  signal no longer escapes as "pure ./view"); (4) an ASYNC root default
+  fails the build (`render()` is synchronous — the shim would mount a
+  Promise); (5) fontcheck strips comments before scanning (a commented-out
+  `font:` example no longer blocks builds); (6) symbol diet treats
+  `export * as ns from "runtime/…"` as a rename blocker like `import * as`
+  (renamed wires broke `ns.effect` on device); (7) `.mise.toml` pins
+  pnpm 11.10.0 matching `packageManager` (was 10).
 - **Font + scaffold round (codex review of 9aabdbf).** (1) fontcheck's
   system table now carries the FULL documented firmware set — rejecting
   `"36px Gothic"` (README gotcha 7 lists Gothic 9–36, Bitham Light/Medium,
