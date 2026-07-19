@@ -38,16 +38,38 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round ten (codex review of 47eaf83).** (1) `ErrorBoundary` sides get the
+  same per-axis wrapper sizing as `Show` — a l/r/t/b-sized boundary handed
+  its protected/fallback subtree an unconstrained wrapper that ignored the
+  host's box; (2) an `importNow("app/…")` target the build cannot resolve
+  to a shipped module (computed non-`screens/` name, missing file, path
+  outside the conventions) is now a BUILD error instead of a silent
+  treeshake-disable — the target never shipped and the navigation died on
+  device; a hand-written `manifest.base.json` mapping the id is the
+  documented escape; (3) a lazy ROOT that is ALSO statically imported by
+  the entry is classified like its helpers: module-scope state fails loud
+  (the two bundled copies' state silently diverged), pure duplication
+  warns; (4) auto-thunk resolves NAMESPACE signal imports
+  (`import * as sig` + `sig.useState(...)`) — a namespace user's bare
+  reactive JSX read was left unwrapped, evaluated once and dead to
+  updates; (5) preload-pure ALWAYS bundles a promoted module (mangling
+  still follows `MINIFY`) and fails loud on bundle errors — a MINIFY=0
+  build shipped bare package specifiers that died at preload. Also
+  corrects round nine's `Show` wrapper claim (see the entry below) after
+  an A/B on gabbro.
 - **Round nine (codex review of 7c9828e).** (1) a throwing RE-RUN cleanup
   now reports to the effect's OWN ErrorBoundary — run() establishes the
   boundary before unsubscribe() drains the previous run's cleanups, where
   draining first escalated a boundary-owned effect's cleanup error past its
   local fallback; (2) a `Show` sized via left/right/top/bottom hands its
   side a FILLED wrapper (0/0 coordinates on any axis width/height doesn't
-  pin) — the old width/height-only wrapper was unconstrained inside the
-  sized host and measured at ZERO (drew nothing); size-less Shows keep the
-  content-measured wrapper (device receipt:
-  screenshots/showlrtb-gabbro.png); (3) ALL-inline-type clauses
+  pin). CORRECTION (round-ten A/B on gabbro): the old unconstrained
+  wrapper did NOT render blank as first written here — it ignored the
+  host's box, drawing the side content-measured at the host's origin
+  instead of filling the sized region. A layout defect, not invisible
+  content (receipts: screenshots/showlrtb-gabbro.png fills the box vs
+  showlrtb-oldwrap-gabbro.png top-stuck). Size-less Shows keep the
+  content-measured wrapper; (3) ALL-inline-type clauses
   (`import { type Theme } from "./x"`) erase at emit like `import type` —
   treeshake no longer follows them as closure edges or keep-set seeds
   (a types-only helper's literals failed fontcheck / shipped phantom
