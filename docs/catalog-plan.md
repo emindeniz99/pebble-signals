@@ -69,7 +69,7 @@ i18n/    (defineTranslations/useTranslation)
 | react-pebble | decision | module | how |
 |---|---|---|---|
 | `Rect` | ✅ have (Container+Skin fill) — formalize sugar | `runtime/draw/rect` or doc | Container with skin; likely a doc/example, not new code |
-| `Circle` | ✅ P1 | `runtime/draw` (ONE module, all primitives) | Port + onDraw; native circle NOT in Piu Port (only `fillColor` rects) → JS-rasterize scanline spans UNLESS the device probe finds native `port.drawCircle` on real firmware. Reactive via component `effect()` + `port.invalidate()` (NOT the jsx bind path). |
+| `Circle` | ✅ P1 | `runtime/draw` (ONE module, all primitives) | Port + onDraw; native circle CONFIRMED ABSENT (probe `drawprobe`, gabbro) — Piu Port exposes only `fillColor`+draw{String,Texture,Skin,Content} → JS-rasterize scanline `fillColor` spans. Reactive via component `effect()` + `port.invalidate()` (NOT the jsx bind path). |
 | `Text` | ✅ have (`Label`/`Text` host) | core | already shipped |
 | `Line` | ✅ P1 | `runtime/draw/line` | Port + onDraw |
 | `Image` | ✅ have (`Texture`) — add rotation/scale | `runtime/draw/image` | rotation/scale via SVGImage/Port transform (we have slothvec) |
@@ -244,12 +244,16 @@ Texture/pdc/raw/apng resources via gen-manifest) — document parity, no new cod
 ## Phasing (each phase = one PR: opt-in module + tests + 100% cov + gabbro
 receipt + zero-cost A/B + example in the smoke catalog + docs/api regen)
 
-0. **P1 gating device probe (FIRST, before any draw code).** A 5-line Port
-   `onDraw` that reports `typeof port.drawCircle`/`drawLine`/`drawRoundRect` and
-   the accepted color-arg form (Piu string vs Poco int) on gabbro. If native →
-   Circle/Line/Arc are trivial native calls; if not → JS-rasterize scanline
-   `fillColor` spans. This one measurement decides the whole draw substrate
-   (Rule 1/Rule 2) — no draw module is written until it lands.
+0. **P1 gating device probe — DONE (`drawprobe`, gabbro,
+   `screenshots/drawprobe-gabbro.png`).** MEASURED (Rule 2): the Piu Port
+   `onDraw` context exposes ONLY `fillColor`, `drawString`, `drawTexture`,
+   `drawSkin`, `drawContent` as functions. Every native primitive —
+   `drawCircle`, `drawLine`, `drawRoundRect`, `drawPixel`, `fillPolygon`,
+   `blendColor` — reports `undefined`. **Verdict: no native path exists.**
+   Circle/Line/Arc/RoundRect are ALL JS-rasterized as horizontal `fillColor`
+   scanline spans (`p.fillColor(color, x, y, w, 1)` per row). Reactive via a
+   component-owned `effect(() => { deps(); port.invalidate(); })`, NOT the jsx
+   bind path. Substrate settled; draw modules may be written.
 1. **P1 draw primitives** — Circle, Line, Arc (one `runtime/draw` module, ONE
    Port paints many — never one Port per shape, gotcha 16). Path/Canvas need a
    different substrate (JS scanline fill, SVGImage/PDC for vectors, or a
