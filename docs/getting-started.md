@@ -54,7 +54,7 @@ Sanity gates that need no SDK at all: `pnpm run verify` (typecheck + tests at
 
 ```bash
 npx -p signal-piu create-signal-piu my-watch
-cd my-watch && npm install && node node_modules/signal-piu/build.mjs
+cd my-watch && npm install && npm run build
 ```
 
 Full details — exports map, upgrade rules, what the scaffold owns vs what the

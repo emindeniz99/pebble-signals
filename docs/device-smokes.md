@@ -1,7 +1,9 @@
 # Device smokes — the on-emulator verification catalog
 
-The SDK-free gates (`pnpm run verify`: typecheck + 100% coverage + XS
-conformance laws + consumer smoke) prove the LIBRARY is correct. They cannot
+The SDK-free gates (`pnpm run verify`: typecheck + 100% coverage + consumer
+smoke) prove the LIBRARY is correct. (`pnpm run verify:full` adds the XS
+conformance laws — those need the `xst` binary; see [xst setup](xst-setup.md).)
+They cannot They cannot
 prove an app still BOOTS on the firmware — the three fixed budgets (slot
 heap, boot symbols, the 384-slot value stack) only exist on-device, and a
 runtime change that is green everywhere else can still tip a canary over the

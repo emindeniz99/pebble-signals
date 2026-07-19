@@ -38,6 +38,16 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round fourteen (codex review of b1f1db0).** (1) `pnpm run verify` no longer
+  bundles `test:xs` — it was documented (README, getting-started, device-smokes)
+  as the SDK-free one-command gate, yet running it demanded the `xst` binary the
+  docs themselves say to install separately. `verify` is now typecheck +
+  coverage + consumer smoke (runnable with no SDK); the XS conformance laws move
+  to a distinct `verify:full` (`verify` + `test:xs`), and device-smokes.md's
+  gate list matches. (2) the npm quick-start build command
+  (`node node_modules/signal-piu/build.mjs`) pointed at a non-existent path with
+  no `--app` — it now says `npm run build`, the scaffold script that expands to
+  `node node_modules/signal-piu/dist/build.mjs --app main`.
 - **Round thirteen (codex review of c25d9c0).** (1) the lazy split-brain walk
   and owner-count now follow literal relative DYNAMIC imports
   (`import("./state")`) too — relativeClosure follows them, so esbuild

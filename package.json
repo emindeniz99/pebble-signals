@@ -99,7 +99,8 @@
   "test:limit": "python3 tools/memtest.py gabbro --ramp --max 40 --min 20",
   "build:dist": "tsc -p tsconfig.dist.json",
   "dev": "node tools/dev.mts",
-  "verify": "pnpm run typecheck && pnpm run coverage && pnpm run test:xs && pnpm run test:consumer"
+  "verify": "pnpm run typecheck && pnpm run coverage && pnpm run test:consumer",
+  "verify:full": "pnpm run verify && pnpm run test:xs"
  },
  "bin": {
   "create-signal-piu": "dist/tools/create-app.mjs"
