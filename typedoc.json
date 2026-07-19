@@ -16,7 +16,12 @@
     "src/embeddedjs/runtime/meter.ts",
     "src/embeddedjs/runtime/sparkline.ts",
     "src/embeddedjs/runtime/dots.ts",
-    "src/embeddedjs/runtime/easing.ts"
+    "src/embeddedjs/runtime/easing.ts",
+    "src/embeddedjs/runtime/gauge.ts",
+    "src/embeddedjs/runtime/clockface.ts",
+    "src/embeddedjs/runtime/dialog.ts",
+    "src/embeddedjs/runtime/tabs.ts",
+    "src/embeddedjs/runtime/roundsafe.ts"
   ],
   "entryPointStrategy": "expand",
   "tsconfig": "tsconfig.check.json",

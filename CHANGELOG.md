@@ -10,6 +10,16 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **`runtime/gauge` (`Gauge`) + `runtime/clockface` (`ClockFace`)** — arc-based
+  Canvas widgets: a circular value dial (with an optional centered label) and an
+  analog clock face (12 ticks + hour/minute/second hands). Device-verified.
+- **`runtime/dialog` (`Dialog`) + `runtime/tabs` (`Tabs`)** — a centered
+  title/message/hint modal card and a horizontal tab bar (active cell
+  highlighted). Composition components; device-verified. (`Tabs` lays its cells
+  out with a Piu `Row` — a bare `Container` stacks them at one x, measured.)
+- **`runtime/roundsafe` (`RoundSafeArea`)** — a layout helper that insets its
+  children to the round-screen safe area (and passes through on a rectangular
+  screen), for content that would otherwise sit under a round watch's bezel.
 - **Canvas-composition widgets (opt-in, each composes `Canvas` — reactive for
   free via auto-track):** `runtime/progressbar` (`ProgressBar`),
   `runtime/slider` (`Slider`), `runtime/toggle` (`Toggle`), `runtime/meter`

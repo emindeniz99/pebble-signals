@@ -20,7 +20,12 @@
   "runtime/meter": "./runtime-min/meter",
   "runtime/sparkline": "./runtime-min/sparkline",
   "runtime/dots": "./runtime-min/dots",
-  "runtime/easing": "./runtime-min/easing"
+  "runtime/easing": "./runtime-min/easing",
+  "runtime/gauge": "./runtime-min/gauge",
+  "runtime/clockface": "./runtime-min/clockface",
+  "runtime/dialog": "./runtime-min/dialog",
+  "runtime/tabs": "./runtime-min/tabs",
+  "runtime/roundsafe": "./runtime-min/roundsafe"
  },
  "preload": [
   "runtime/signals",
@@ -39,6 +44,11 @@
   "runtime/meter",
   "runtime/sparkline",
   "runtime/dots",
-  "runtime/easing"
+  "runtime/easing",
+  "runtime/gauge",
+  "runtime/clockface",
+  "runtime/dialog",
+  "runtime/tabs",
+  "runtime/roundsafe"
  ]
 }
