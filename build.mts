@@ -404,9 +404,34 @@ const rootShim = (() => {
 	if (/^function\b/.test(rhs)) return true; // export default function App…
 	if (/^\([^)]*\)[^=\n]*=>/.test(rhs) || /^[A-Za-z_$][\w$]*\s*=>/.test(rhs)) return true; // arrow
 	if (!id) return false; // `new X(…)`, a literal, a call — not a component
-	return new RegExp(
-		`\\bfunction\\s+${id}\\s*\\(|\\b(?:const|let|var)\\s+${id}\\b[^=\\n]*=\\s*(?:\\([^)]*\\)[^=\\n]*=>|[A-Za-z_$][\\w$]*\\s*=>|function\\b)`,
-	).test(bare);
+	// a component DECLARED in the entry file
+	const declRe = (name: string): RegExp =>
+		new RegExp(
+			`\\bfunction\\s+${name}\\s*\\(|\\b(?:const|let|var)\\s+${name}\\b[^=\\n]*=\\s*(?:\\([^)]*\\)[^=\\n]*=>|[A-Za-z_$][\\w$]*\\s*=>|function\\b)`,
+		);
+	if (declRe(id).test(bare)) return true;
+	// a barrel entry `import App from "./App"; export default App` re-exports a
+	// component from a relative module — resolve one level and shim if THAT
+	// module's default export is component-shaped, else the app boots blank
+	// (main.js exports the component but never calls render(); codex P2).
+	const impSpec = new RegExp(`\\bimport\\s+${id}\\s+from\\s*["'](\\.\\.?[^"']*)["']`).exec(bare)?.[1];
+	if (impSpec) {
+		const b = join(dirname(appSrc), impSpec.replace(/\.(?:m?jsx?|cjs)$/, ""));
+		const hsrc = [`${b}.tsx`, `${b}.ts`, join(b, "index.tsx"), join(b, "index.ts")]
+			.map((p) => readSrc(p))
+			.find((s) => s != null);
+		if (hsrc) {
+			const h = strip(hsrc);
+			const hrhs = /^export default\s+(.+)$/m.exec(h)?.[1].trim();
+			if (hrhs) {
+				if (/^(?:async\s+)?function\b/.test(hrhs) && !/^async\b/.test(hrhs)) return true;
+				if (/^\([^)]*\)[^=\n]*=>/.test(hrhs) || /^[A-Za-z_$][\w$]*\s*=>/.test(hrhs)) return true;
+				const hid = /^([A-Za-z_$][\w$]*)\s*;?$/.exec(hrhs)?.[1];
+				if (hid && declRe(hid).test(h)) return true;
+			}
+		}
+	}
+	return false;
 })();
 
 // Generate the mod manifest from the base; image/vector resources are DERIVED
@@ -1032,6 +1057,16 @@ const emitRuntime = (preScanPrevious: boolean): Map<string, string> => {
 				outfile: out,
 				allowOverwrite: true,
 			});
+		else
+			// no-minify build: esbuild's define pass is skipped above, so
+			// __SP_CRASH_UI__ is never substituted — render() would ignore
+			// CRASH_UI=0 and keep the crash screen in a debug build that asked to
+			// shed it. Write the flag in textually so the escape stays effective
+			// (codex P2). No-op on modules that don't reference it.
+			writeFileSync(
+				out,
+				readFileSync(out, "utf8").replaceAll("__SP_CRASH_UI__", crashDefine.__SP_CRASH_UI__),
+			);
 		if (prune && minify)
 			// drop the import specifiers DCE just orphaned (esbuild keeps them —
 			// it can't prove an external import pure); tools/import-prune-min.mts

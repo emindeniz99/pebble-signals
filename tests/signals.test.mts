@@ -263,6 +263,21 @@ S.put(pf, 42); // equal value: no notify
 check("S.put equal set is a no-op", putSeen === 1);
 S.put(pf, 43);
 check("S.put notifies on change", putSeen === 2);
+// NaN-safe equal-write skip (Object.is, not ===): re-setting NaN to NaN must
+// NOT notify, or invalid-numeric normalization back to NaN repaints forever
+const pn = S.sig(Number.NaN);
+let nanSeen = 0;
+const pe3 = effect(() => {
+	S.get(pn);
+	nanSeen++;
+});
+S.set(pn, Number.NaN); // NaN -> NaN: no notify (=== would have fired)
+check("S.set NaN->NaN is a no-op", nanSeen === 1);
+S.put(pn, Number.NaN); // same for the raw setter
+check("S.put NaN->NaN is a no-op", nanSeen === 1);
+S.set(pn, 0);
+check("S.set NaN->0 notifies", nanSeen === 2);
+dispose(pe3);
 dispose(pe2);
 
 // 15. effect cap lifted (#21): >32 simultaneous live effects. The subscriber

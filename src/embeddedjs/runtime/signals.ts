@@ -557,7 +557,10 @@ export const S = {
 	set<T>(i: number, v: T | ((prev: T) => T)): void {
 		const g = G!;
 		if (typeof v === "function") v = (v as (prev: unknown) => unknown)(g.f[i]) as T;
-		if (v === g.f[i]) return;
+		// Object.is, not ===: a NaN value re-set to NaN (a common shape when
+		// invalid numeric input normalizes back to NaN) never matched `===`
+		// (NaN !== NaN), so every write notified and repainted (codex P2)
+		if (Object.is(v, g.f[i])) return;
 		g.f[i] = v;
 		g.y++;
 		flush(g, i);
@@ -569,7 +572,7 @@ export const S = {
 	/** RAW write — stores a function verbatim (the `signal.value =` contract). */
 	put<T>(i: number, v: T): void {
 		const g = G!;
-		if (v === g.f[i]) return;
+		if (Object.is(v, g.f[i])) return; // NaN-safe equal-write skip (mirrors set)
 		g.f[i] = v;
 		g.y++;
 		flush(g, i);

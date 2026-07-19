@@ -38,6 +38,20 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round eighteen (codex review of the round-17 fixes).** Four more. (1) a
+  barrel entry `import App from "./App"; export default App` now shims: the
+  root-component detection resolves an imported default one level and shims if
+  THAT module's default is component-shaped (was: only in-file declarations
+  counted, so main.js exported the component without ever calling render() →
+  blank boot; build A/B probe confirms the shim). (2) `--no-minify` builds now
+  substitute the `__SP_CRASH_UI__` flag textually — the esbuild define pass only
+  ran under `--minify`, so `CRASH_UI=0` was ineffective in debug builds and
+  render() kept the crash screen (A/B probe: the shipped runtime-min now has
+  the flag folded). (3) `useState`/signal equal-write skip uses `Object.is`, not
+  `===`: re-setting `NaN` to `NaN` used to notify+repaint forever (NaN !== NaN)
+  — fixed in both `set` and the raw `put`. (4) the app scaffold declares
+  `@moddable/pebbleproxy` as a direct dependency so the phone-side
+  `require("@moddable/pebbleproxy")` resolves under pnpm/non-hoisting installs.
 - **Round seventeen (part 3, build pipeline).** (1) split-brain accounting now
   counts a lazy root as an owner of ITSELF: `app/a` importing `./b` while the
   entry also ships `importNow("app/b")` used to pass (b looked like a private
