@@ -169,6 +169,22 @@ const appClosure = existsSync(appSrc) ? relativeClosure(appSrc, readSrc) : [appS
 // flash on the first call). Resolved literals don't defeat the scans, so
 // treeshake/prune stay ON; any OTHER dynamic import still self-disables.
 const lazySet = new Set<string>();
+// module ids a hand-written manifest.base.json already maps — the one legit
+// way to satisfy an importNow("app/…") target the static scans can't resolve
+const baseManifestModules = new Set<string>(
+	Object.keys(
+		(
+			JSON.parse(
+				readFileSync(
+					existsSync("src/embeddedjs/manifest.base.json")
+						? "src/embeddedjs/manifest.base.json"
+						: join(PKG, "src/embeddedjs/manifest.base.json"),
+					"utf8",
+				),
+			) as { modules?: Record<string, string> }
+		).modules ?? {},
+	),
+);
 let unresolvedDynamicImport = false;
 for (const closureFile of appClosure.filter(existsSync)) {
 	// comments off first — the scan must see CODE only (a mention of
@@ -211,6 +227,24 @@ for (const closureFile of appClosure.filter(existsSync)) {
 			   can't follow it, so treeshake must self-disable (codex P2).
 			   importNow with a relative spec stays UNRESOLVED too (that is a
 			   device module-map lookup, not a bundler inline). */
+		} else if (/^["'`]app\//.test(m[1].trim())) {
+			// an app/ target the branches above could NOT resolve: a computed
+			// non-screens/ name (`importNow("app/" + n)`), a missing file, or a
+			// nested path outside the conventions. importNow resolves through
+			// the mod manifest at runtime and nothing here SHIPS the target —
+			// merely disabling treeshake still dies on the first navigation
+			// (build passes, device fails; codex P2). A hand-written
+			// manifest.base.json that maps the id itself is the one legit
+			// escape — honor it.
+			const litId = /^[`'"](app\/[\w/-]+)[`'"]\s*$/.exec(m[1].trim())?.[1];
+			if (!litId || !baseManifestModules.has(litId)) {
+				err(`lazy: ${closureFile} calls import(Now)(${m[1].trim()}) — an app/ target the`);
+				err("      build cannot resolve to a shipped module. Use a LITERAL specifier with a");
+				err(`      matching src/tsx/examples/${APP}/<name>.tsx file, the screens/ folder`);
+				err("      convention for computed names, or map the id in manifest.base.json.");
+				err("      Failing loud (the navigation would die on device).");
+				process.exit(1);
+			}
 		} else unresolvedDynamicImport = true;
 	}
 }
@@ -473,19 +507,27 @@ if (preloadPure && existsSync(entryJs)) {
 		entrySrc = entrySrc.replaceAll(`from "${spec}"`, `from "${id}"`);
 		pureIds.push(id);
 		pureFiles.push(file);
-		// ship the module minified like the runtime (bundle-mode for DCE;
-		// runtime/* and app/* stay external)
-		if (minify)
-			tryEsbuild({
+		// ALWAYS bundle (like the main and lazy paths — only the mangling
+		// follows the minify flag): a promoted module's PACKAGE import stays a
+		// bare specifier the watch manifest can never resolve, so a MINIFY=0
+		// build used to pass locally and die when the preloaded module was
+		// instantiated (codex P2). Bundling must succeed — fail loud.
+		if (
+			!tryEsbuild({
 				entryPoints: [file],
 				bundle: true,
 				external: ["runtime/*", "app/*"],
 				treeShaking: true,
-				minify: true,
+				minify,
 				format: "esm",
 				outfile: file,
 				allowOverwrite: true,
-			});
+			})
+		) {
+			err(`preload-pure: bundling ${spec} FAILED (unresolved import?) — the unbundled`);
+			err("      module keeps specifiers the manifest never maps (dead at preload).");
+			process.exit(1);
+		}
 		console.log(`preload-pure: ${spec} -> ${id} (ROM)`);
 	}
 	if (pureIds.length) {
@@ -567,6 +609,31 @@ if (lazyBases.length) {
 		if (manifest.modules[id]) {
 			err(`lazy: module id ${id} already taken — failing loud`);
 			process.exit(1);
+		}
+		// the lazy ROOT itself may ALSO sit in the entry's static closure (a
+		// value import of the same file the entry later importNow()s): esbuild
+		// inlines one copy into main.js while this loop ships a second as a
+		// module. The walk below only classifies HELPERS, so module-scope
+		// state in the ROOT split-brained undetected (codex P2). Same policy:
+		// pure duplication warns, state fails loud.
+		const rootSrc = [
+			join("src/tsx/examples", APP, `${base}.tsx`),
+			join("src/tsx/examples", APP, `${base}.ts`),
+		].find((p) => appClosure.includes(p));
+		if (rootSrc) {
+			const verdict = classify(readFileSync(file, "utf8"));
+			if (!verdict.pure) {
+				err(`lazy: app/${base} is ALSO statically imported by the entry (bundled into`);
+				err("      main.js) AND ships as a lazy module — and it has MODULE-SCOPE STATE");
+				err(`      (${verdict.reasons[0] ?? "runs code at load"}): the two copies' state`);
+				err("      silently diverges (split-brain). Import it lazily ONLY, or move the");
+				err("      shared state into the entry / a preloaded module. Failing loud.");
+				process.exit(1);
+			}
+			err(
+				`lazy: WARNING app/${base} is also statically imported by the entry — its code ` +
+					"ships twice (pure — harmless, costs flash)",
+			);
 		}
 		// split-brain guard (review P6 -> classify-gated -> TRANSITIVE per
 		// codex): the bundle inlines the lazy module's WHOLE ./-closure as a

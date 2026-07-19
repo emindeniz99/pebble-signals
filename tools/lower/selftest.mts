@@ -248,6 +248,25 @@ export function selftest(): void {
 			"jsx(L, { string: count() });\n",
 	);
 	eq(r.code, r.code.includes("string: () => (__sp.get(count))"), "auto-thunk wraps aliased host");
+	// NAMESPACE import (`import * as sig`): `sig.useState(...)` bindings must
+	// wrap exactly like named imports — the named-only collector left a
+	// namespace user's bare read unwrapped, evaluated once into a static prop
+	// and dead to updates (codex P2). The call itself stays unlowered (object
+	// API) — only the thunking matters here.
+	r = lower(
+		'import * as sig from "runtime/signals";\n' +
+			'import { jsx } from "runtime/jsx-runtime";\n' +
+			"const [count, setCount] = sig.useState(0);\n" +
+			"jsx(Label, { string: count() });\n",
+	);
+	eq(r.code, r.code.includes("string: () => (count())"), "auto-thunk wraps namespace getter");
+	r = lower(
+		'import * as sig from "runtime/signals";\n' +
+			'import { jsx } from "runtime/jsx-runtime";\n' +
+			"const s = sig.signal(0);\n" +
+			"jsx(Label, { string: s.value });\n",
+	);
+	eq(r.code, r.code.includes("string: () => (s.value)"), "auto-thunk wraps namespace signal read");
 	// already-a-thunk is left alone (idempotent authoring + our own output)
 	r = lower(
 		JSXIMP +

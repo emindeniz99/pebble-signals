@@ -33,20 +33,53 @@ export function autoThunk(text: string): { code: string; wrapped: number } {
 	const sigSym = importSymbol(checker, sf, "signal");
 	const compSym = importSymbol(checker, sf, "computed");
 	const memoSym = importSymbol(checker, sf, "useMemo");
+	// NAMESPACE imports of the signals module (`import * as sig from
+	// "runtime/signals"`): `sig.useState(...)` is the same factory — the
+	// named-import-only collector left a namespace user's documented bare
+	// reactive form (`string={count()}`) unwrapped, so the prop evaluated
+	// once into a static host value and later writes never refreshed it
+	// (codex P2).
+	const nsSyms = new Set<ts.Symbol>();
+	for (const st of sf.statements)
+		if (
+			ts.isImportDeclaration(st) &&
+			ts.isStringLiteral(st.moduleSpecifier) &&
+			/(?:^|\/)signals$/.test(st.moduleSpecifier.text) &&
+			st.importClause?.namedBindings &&
+			ts.isNamespaceImport(st.importClause.namedBindings)
+		) {
+			const s = checker.getSymbolAtLocation(st.importClause.namedBindings.name);
+			if (s) nsSyms.add(s);
+		}
+	const NS_FACTORIES = new Set(["useState", "signal", "computed", "useMemo"]);
 	const getterSyms = new Set<ts.Symbol>(); // read as g()
 	const valueSyms = new Set<ts.Symbol>(); // read as x.value
 	(function walk(n: ts.Node) {
-		if (
-			ts.isVariableDeclaration(n) &&
-			n.initializer &&
-			ts.isCallExpression(n.initializer) &&
-			ts.isIdentifier(n.initializer.expression)
-		) {
-			const callee = checker.getSymbolAtLocation(n.initializer.expression);
+		if (ts.isVariableDeclaration(n) && n.initializer && ts.isCallExpression(n.initializer)) {
+			const ce = n.initializer.expression;
+			// which factory made this binding — by resolved symbol for named
+			// imports, by namespace symbol + property name for `sig.useState`
+			let kind: string | null = null;
+			if (ts.isIdentifier(ce)) {
+				const callee = checker.getSymbolAtLocation(ce);
+				if (callee)
+					kind =
+						useSym && callee === useSym
+							? "useState"
+							: sigSym && callee === sigSym
+								? "signal"
+								: compSym && callee === compSym
+									? "computed"
+									: memoSym && callee === memoSym
+										? "useMemo"
+										: null;
+			} else if (ts.isPropertyAccessExpression(ce) && ts.isIdentifier(ce.expression)) {
+				const ns = checker.getSymbolAtLocation(ce.expression);
+				if (ns && nsSyms.has(ns) && NS_FACTORIES.has(ce.name.text)) kind = ce.name.text;
+			}
 			const el0 = ts.isArrayBindingPattern(n.name) ? n.name.elements[0] : undefined;
 			if (
-				useSym &&
-				callee === useSym &&
+				kind === "useState" &&
 				ts.isArrayBindingPattern(n.name) &&
 				n.name.elements.length === 2 &&
 				el0 &&
@@ -56,9 +89,7 @@ export function autoThunk(text: string): { code: string; wrapped: number } {
 				const s = checker.getSymbolAtLocation(el0.name);
 				if (s) getterSyms.add(s);
 			} else if (
-				((sigSym && callee === sigSym) ||
-					(compSym && callee === compSym) ||
-					(memoSym && callee === memoSym)) &&
+				(kind === "signal" || kind === "computed" || kind === "useMemo") &&
 				ts.isIdentifier(n.name)
 			) {
 				const s = checker.getSymbolAtLocation(n.name);
