@@ -69,7 +69,7 @@ i18n/    (defineTranslations/useTranslation)
 | react-pebble | decision | module | how |
 |---|---|---|---|
 | `Rect` | ✅ have (Container+Skin fill) — formalize sugar | `runtime/draw/rect` or doc | Container with skin; likely a doc/example, not new code |
-| `Circle` | ✅ P1 | `runtime/draw/circle` | Port + onDraw, filled/stroked (pattern TBD by our Port research) |
+| `Circle` | ✅ P1 | `runtime/draw` (ONE module, all primitives) | Port + onDraw; native circle NOT in Piu Port (only `fillColor` rects) → JS-rasterize scanline spans UNLESS the device probe finds native `port.drawCircle` on real firmware. Reactive via component `effect()` + `port.invalidate()` (NOT the jsx bind path). |
 | `Text` | ✅ have (`Label`/`Text` host) | core | already shipped |
 | `Line` | ✅ P1 | `runtime/draw/line` | Port + onDraw |
 | `Image` | ✅ have (`Texture`) — add rotation/scale | `runtime/draw/image` | rotation/scale via SVGImage/Port transform (we have slothvec) |
@@ -159,6 +159,70 @@ done) · Timeline web API (`pushUserPin/...`)⚠️P4 `timeline/` (server-side, 
 
 ---
 
+## Beyond react-pebble — React Native + Piu-native + watch-idiomatic
+
+react-pebble is one map; React Native's component vocabulary and **Piu's own
+native capabilities** suggest components it never had. Watch-appropriate only
+(small screen, button-driven, mostly no touch):
+
+### React Native-inspired (button-driven watch analogs)
+| RN idea | our component | module | how |
+|---|---|---|---|
+| `Switch` | `Toggle` | `runtime/ui/toggle` | boolean, flips on select; skin-swap on/off |
+| `Slider` | `Slider` | `runtime/ui/slider` | number via up/down; a filled `Meter` + value |
+| `ProgressBar`/`ActivityIndicator` | `Meter` + `Spinner` | `runtime/ui/meter`, `runtime/anim/spinner` | linear fill / animated arc (over draw/arc + tween) |
+| `Modal`/`Alert` | `Dialog` | `runtime/ui/dialog` | overlay Container + button actions (like the crash screen) |
+| `Picker`/`Select` | `Picker` | `runtime/ui/picker` | menu-backed single choice (over MenuLayer) |
+| `Tabs` | `Tabs` | `runtime/ui/tabs` | Navigator-backed horizontal sections + dot indicator |
+| `Checkbox`/`Radio` | `CheckList`/`RadioList` | `runtime/ui/checklist` | menu rows with a state glyph |
+| `TextInput` | `TextInput` | `runtime/ui/textinput` | FORMALIZE our button char-picker (`text-input` example) |
+| `Button`/`Pressable` | `Button` | `runtime/ui/button` | visual affordance + press binding |
+
+### Piu-native (react-pebble never surfaces these — a real edge)
+- **Screen transitions** — Piu has native `Transition` (slide/comb/wipe/fade).
+  Expose on `Navigator` push/pop as an opt-in `transition` prop → animated
+  navigation react-pebble can't do. 🔬 verify the Piu Transition API on device.
+- **Clip / reveal mask** (`Die`/clip) — `runtime/draw/clip` for wipe-reveal
+  effects (progress fills, unlocking animations).
+- **Constraint `Layout`** — we already have the host; document + a `Layout`
+  helper for proportional sizing.
+
+### Watch-idiomatic (the stuff a watch UI kit actually needs)
+- **`Gauge`/`Dial`** — radial progress/needle (over draw/arc) — THE watch
+  primitive; powers battery/health/timer faces.
+- **`ClockFace` helpers** — tick marks, hand angles, `polarPoint` (pairs with
+  the geometry helpers already planned in `runtime/anim`).
+- **`DotIndicator`** — page dots bound to `Navigator` depth (pairs with Tabs).
+- **`Sparkline`** — tiny inline trend chart (over draw/path) for health/data.
+
+These are all ✅ opt-in modules under the same zero-cost invariant; priority
+slots into P2/P3 after the P1 primitives + UI-kit they build on.
+
+## Showcase app (`gallery`) — every feature behind a menu
+
+Our lazy multi-screen feature (Navigator + `screens/` lazy modules, O(1) arena)
+is exactly the shape of a component gallery:
+
+- **Root** = a scrolling menu (`MenuLayer`/`VirtualList`) listing every catalog
+  entry, grouped (Draw · UI-kit · Hooks · Flow · …).
+- **Each item** pushes a **lazy demo screen** for that component — a live,
+  interactive example (button-drive the Toggle, watch the Gauge animate).
+- **Doubles as:** the catalog's on-device smoke (add `gallery` to
+  `tools/device-smoke.mts`), the screenshot source for `components.md`, and a
+  living proof that the whole catalog boots together via lazy loading (each demo
+  is O(1) arena — the exact strength react-pebble's combined app lacked).
+- Lives at `src/tsx/examples/gallery/` with `gallery.tsx` (menu) +
+  `screens/<component>.tsx` (one lazy demo each).
+
+## components.md — the visual catalog
+
+A `docs/components.md` (linked from docs/README) where every component has:
+its name, a one-line description, a minimal usage snippet, and a **screenshot**
+captured from its `gallery` demo screen (`pebble screenshot`, committed under
+`screenshots/gallery/<component>-gabbro.png`). "This component looks like this"
+— the doc a user actually browses to pick a component. Generated/curated as each
+component ships (part of every phase's definition-of-done).
+
 ## What we WON'T do (and why)
 - ❌ **Compile-time snapshot model** — it can't do runtime-dynamic structure
   (bench-proven failure). Our components stay runtime-reactive. This is the whole
@@ -178,7 +242,16 @@ Texture/pdc/raw/apng resources via gen-manifest) — document parity, no new cod
 ## Phasing (each phase = one PR: opt-in module + tests + 100% cov + gabbro
 receipt + zero-cost A/B + example in the smoke catalog + docs/api regen)
 
-1. **P1 draw primitives** — Circle, Line, Arc, Path, Canvas (`runtime/draw/*`).
+0. **P1 gating device probe (FIRST, before any draw code).** A 5-line Port
+   `onDraw` that reports `typeof port.drawCircle`/`drawLine`/`drawRoundRect` and
+   the accepted color-arg form (Piu string vs Poco int) on gabbro. If native →
+   Circle/Line/Arc are trivial native calls; if not → JS-rasterize scanline
+   `fillColor` spans. This one measurement decides the whole draw substrate
+   (Rule 1/Rule 2) — no draw module is written until it lands.
+1. **P1 draw primitives** — Circle, Line, Arc (one `runtime/draw` module, ONE
+   Port paints many — never one Port per shape, gotcha 16). Path/Canvas need a
+   different substrate (JS scanline fill, SVGImage/PDC for vectors, or a
+   raw-Poco escape hatch that is NO LONGER a Piu node) — decide after the probe.
 2. **P1 UI-kit** — StatusBar, ActionBar, Card, Badge (`runtime/ui/*`).
 3. **P1 storage** — useLocalStorage / useKVStorage (`runtime/data/localstorage`).
 4. **P2 menus + input** — MenuLayer/SimpleMenu/ActionMenu/NumberWindow,
