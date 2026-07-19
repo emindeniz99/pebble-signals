@@ -10,6 +10,31 @@ Legend: ✅ WILL (planned, phased below) · ⚠️ LATER (real, deferred by prio
 ❌ WON'T (with reason) · 🔬 RESEARCH-GATED (need the real Moddable module shape
 first, Rule 1 — NOT copyable from react-pebble, which removed these).
 
+## Design principle: take the ideas, build the BETTER version
+
+react-pebble is the map of *what a Pebble app needs*, not a spec to clone. For
+every item we ask "what's the best version OUR model makes possible?" and ship
+that — often strictly better than theirs:
+
+- **Runtime-dynamic, not static snapshot.** Their `MenuLayer`/lists/animation are
+  compiled snapshots (multiview drops screens, animation is 1fps). Ours are live
+  signals — a menu whose items come from phone data at runtime just works; an
+  animation runs at the real tween rate.
+- **Reactive by default.** A `<Circle r={radius}>` where `radius` is a signal
+  re-draws on change with no VDOM diff — one Port invalidate. Their props are
+  build-time values.
+- **Real, not stubbed.** Their sensor hooks were fictional-global stubs they
+  removed. Ours wrap the actual Moddable/firmware module and expose it as a
+  signal you can compose (`useBattery()` drives a reactive gauge).
+- **Honest + measured.** Every component ships a device receipt and a zero-cost
+  proof (Rule 2 / Rule 12). We never advertise what doesn't boot.
+- **Smaller where it counts.** Opt-in modules + tree-shaking mean a 3-component
+  watchface pays for 3 components, not a 65-hook framework.
+
+So the API *names* may echo react-pebble (familiarity), but the semantics,
+correctness, and cost are ours to make excellent. Parity is the floor, not the
+goal.
+
 ## The zero-cost invariant (the rule every item obeys)
 
 **A new catalog entry costs ZERO boot symbols, ZERO arena bytes, ZERO archive
