@@ -38,6 +38,20 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round seventeen (part 3, build pipeline).** (1) split-brain accounting now
+  counts a lazy root as an owner of ITSELF: `app/a` importing `./b` while the
+  entry also ships `importNow("app/b")` used to pass (b looked like a private
+  single-copy helper) even though b's module-scope state exists twice — once in
+  app/a's bundle, once in the standalone app/b module (A/B build probe: the
+  fix fails loud, baseline misses it). (2) a manifest.base.json-honored `app/*`
+  module's SOURCE now joins the scan sets, so its own `runtime/*` imports
+  survive treeshake and its Texture/pdc ship (was: the escape hatch only
+  suppressed the error, silently pruning the module's deps); an out-of-tree
+  mapping warns loud instead. (3) every naive comment-strip in `build.mts`
+  (lazy-import scan, self-render, JSX-runtime scan, lazy-helper walk) is now the
+  string-aware `stripComments` — a `//` inside `"https://host"` on the same
+  line as `importNow("app/s1")` used to eat the lazy target off the line and
+  drop it from the manifest (A/B probe confirms app/s1 now ships).
 - **Round seventeen (part 2).** Three more. (1) `lint-reads` now collects the
   getter from a read-only `const [count] = useState(0)` (setter omitted) so a
   getter on a static host prop (`<Container width={count}>`) is caught at build

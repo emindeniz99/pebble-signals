@@ -49,6 +49,7 @@ import { classify } from "./tools/classify-module.mts";
 import { relativeClosure } from "./tools/treeshake.mts";
 import { packageRoot } from "./tools/pkg-root.mts";
 import { renameRuntimeExports } from "./tools/symbol-rename.mts";
+import { stripComments } from "./tools/gen-manifest.mts";
 
 // PACKAGE root (where signal-piu lives — the repo itself, or
 // node_modules/signal-piu inside a consumer project) vs PROJECT root (the app
@@ -169,6 +170,10 @@ const appClosure = existsSync(appSrc) ? relativeClosure(appSrc, readSrc) : [appS
 // flash on the first call). Resolved literals don't defeat the scans, so
 // treeshake/prune stay ON; any OTHER dynamic import still self-disables.
 const lazySet = new Set<string>();
+// sources of honored manifest.base.json `app/*` modules — pulled into the scan
+// sets below so their OWN runtime imports survive treeshake and their
+// Texture/pdc resources ship, instead of a silent prune (codex P2)
+const baseHonoredSrcs = new Set<string>();
 // module ids a hand-written manifest.base.json already maps — the one legit
 // way to satisfy an importNow("app/…") target the static scans can't resolve
 const baseManifestModules = new Set<string>(
@@ -191,9 +196,7 @@ for (const closureFile of appClosure.filter(existsSync)) {
 	// importNow() in a doc comment is not a dynamic import). The WHOLE
 	// closure is scanned: a helper's importNow()/import() was invisible
 	// before (P1b) — its lazy target went unshipped with the guard silent.
-	const src = readFileSync(closureFile, "utf8")
-		.replace(/\/\*[\s\S]*?\*\//g, "")
-		.replace(/\/\/[^\n]*/g, "");
+	const src = stripComments(readFileSync(closureFile, "utf8"));
 	for (const m of src.matchAll(/import(?:Now)?\s*\(\s*([^)]*)\)/g)) {
 		// any string form — 'x', "x", or a no-substitution `x` template — is a
 		// valid, statically resolvable specifier and must join the manifest,
@@ -244,6 +247,24 @@ for (const closureFile of appClosure.filter(existsSync)) {
 				err("      convention for computed names, or map the id in manifest.base.json.");
 				err("      Failing loud (the navigation would die on device).");
 				process.exit(1);
+			} else {
+				// honored via manifest.base.json — but this escape hatch only
+				// suppressed the error; the mapped module's OWN runtime imports and
+				// Texture/pdc resources were never scanned, so treeshake could prune
+				// its runtime/flow and gen-manifest could drop its assets (codex P2).
+				// Resolve its source by the app-tree convention and feed it into the
+				// scan sets below; if the mapping points OUTSIDE the tree (the
+				// exotic escape case), warn loud so the user maps those by hand too.
+				const relBase = litId.slice("app/".length);
+				const src = [".tsx", ".ts"]
+					.map((e) => join("src/tsx/examples", APP, relBase + e))
+					.find((p) => existsSync(p));
+				if (src) baseHonoredSrcs.add(src);
+				else {
+					err(`lazy: NOTE ${litId} is mapped in manifest.base.json but its source is not`);
+					err(`      under src/tsx/examples/${APP}/ — its runtime imports and Texture/pdc`);
+					err("      resources are NOT auto-derived; add them to manifest.base.json yourself.");
+				}
 			}
 		} else unresolvedDynamicImport = true;
 	}
@@ -281,6 +302,8 @@ const shakeSources = [
 			const entry = existsSync(tsx) ? tsx : join("src/tsx/examples", APP, `${b}.ts`);
 			return relativeClosure(entry, readSrc);
 		}),
+		// honored manifest.base.json app/* modules + their closures (codex P2)
+		...[...baseHonoredSrcs].flatMap((s) => relativeClosure(s, readSrc)),
 	]),
 ];
 
@@ -297,8 +320,7 @@ const shakeSources = [
 // can seed the keep-set (--need below).
 const rootShim = (() => {
 	if (!existsSync(appSrc)) return false;
-	const strip = (s: string): string =>
-		s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+	const strip = stripComments;
 	const bare = strip(readFileSync(appSrc, "utf8"));
 	// self-rendering = the RUNTIME render is IMPORTED and CALLED — named
 	// (`render(`), aliased (`import { render as mount }` + `mount(`), or
@@ -416,9 +438,7 @@ const jsxTsx = shakeSources.some(
 		f.endsWith(".tsx") &&
 		existsSync(f) &&
 		/<[A-Za-z]/.test(
-			readFileSync(f, "utf8")
-				.replace(/\/\*[\s\S]*?\*\//g, "")
-				.replace(/\/\/[^\n]*/g, ""),
+			stripComments(readFileSync(f, "utf8")),
 		),
 );
 if (treeshake)
@@ -653,9 +673,7 @@ if (lazyBases.length) {
 		const queue = [rootJs];
 		while (queue.length) {
 			const cur = queue.pop() as string;
-			const s = readFileSync(cur, "utf8")
-				.replace(/\/\*[\s\S]*?\*\//g, "")
-				.replace(/\/\/[^\n]*/g, "");
+			const s = stripComments(readFileSync(cur, "utf8"));
 			// static + bare `from`/`import "./x"` AND literal relative DYNAMIC
 			// imports (`import("./x")`) — relativeClosure follows the latter too,
 			// so esbuild inlines the helper into the lazy artifact and a stateful
@@ -678,6 +696,13 @@ if (lazyBases.length) {
 		return out;
 	};
 	const helperOwners = new Map<string, number>();
+	// the compiled .js of every SHIPPED lazy root — a helper that IS one of
+	// these already ships as its own standalone module, so any lazy screen that
+	// ALSO imports it relatively inlines a SECOND, disconnected copy (codex P2:
+	// `app/a` imports `./b` while the entry ships `importNow("app/b")`).
+	const lazyRootFiles = new Set(
+		lazyBases.map((b) => `src/embeddedjs/app/examples/${APP}/${b}.js`),
+	);
 	for (const b of lazyBases) {
 		const rootJs = `src/embeddedjs/app/examples/${APP}/${b}.js`;
 		if (existsSync(rootJs))
@@ -744,9 +769,7 @@ if (lazyBases.length) {
 				const cur = queue.pop() as string;
 				// comments off — a doc-comment `from "./x"` / importNow() mention
 				// must not be followed or flagged (same strip as the source scans)
-				const curSrc = readFileSync(cur, "utf8")
-					.replace(/\/\*[\s\S]*?\*\//g, "")
-					.replace(/\/\/[^\n]*/g, "");
+				const curSrc = stripComments(readFileSync(cur, "utf8"));
 				// NESTED lazy imports: discovery only walks the ENTRY closure, so
 				// an importNow("app/x") issued from inside a lazy module names a
 				// module the manifest never shipped — dead on the first
@@ -810,7 +833,11 @@ if (lazyBases.length) {
 						// entry's main.js bundle, or ≥2 lazy modules each bundle their
 						// own copy. A helper PRIVATE to this one lazy module is a single
 						// copy — its live reactive state is legal (docs; codex P2).
-						if (inEntryBundle(helper) || (helperOwners.get(helper) ?? 0) >= 2) {
+						if (
+							inEntryBundle(helper) ||
+							lazyRootFiles.has(helper) ||
+							(helperOwners.get(helper) ?? 0) >= 2
+						) {
 							err(`lazy: app/${base} shares ${rm[1]} with another shipped bundle, and it has`);
 							err(`      MODULE-SCOPE STATE (${verdict.reasons[0] ?? "runs code at load"}) — the`);
 							err("      copies' state is DISCONNECTED (split-brain). Keep shared state in the");
