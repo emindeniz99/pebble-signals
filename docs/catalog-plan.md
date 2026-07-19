@@ -217,9 +217,11 @@ is exactly the shape of a component gallery:
 ## components.md — the visual catalog
 
 A `docs/components.md` (linked from docs/README) where every component has:
-its name, a one-line description, a minimal usage snippet, and a **screenshot**
-captured from its `gallery` demo screen (`pebble screenshot`, committed under
-`screenshots/gallery/<component>-gabbro.png`). "This component looks like this"
+its name, a one-line description, a minimal usage snippet, and **two
+screenshots** — round (gabbro 260×260) AND rect (emery 200×228) — captured from
+its `gallery` demo screen (`pebble screenshot`, committed under
+`screenshots/gallery/<component>-{gabbro,emery}.png`) so the doc shows how it
+looks on both shapes. "This component looks like this"
 — the doc a user actually browses to pick a component. Generated/curated as each
 component ships (part of every phase's definition-of-done).
 
