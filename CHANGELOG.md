@@ -38,6 +38,20 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round eleven (codex review of b813133).** (1) `Navigator` screens get
+  the same per-axis wrapper sizing as Show/ErrorBoundary — an anchored
+  (l/r/t/b) navigator used to wrap every screen at concrete FULL-SCREEN
+  dimensions, overflowing/ignoring the host's box; explicit width/height
+  and the unconstrained full-screen fallback keep their measured-safe
+  concrete shapes (device receipt: screenshots/navlrtb-gabbro.png, a
+  two-label column inside an anchored navigator); (2) classify treats
+  class HERITAGE (`extends makeBase()`) and COMPUTED member names
+  (`[key()]`) as load-time effects — both execute at class definition, so
+  preloading ran them in the build compartment; (3) treeshake's prune
+  keeps NON-runtime base-manifest modules — the hand-written `app/…`
+  mapping build.mts honors as the unresolved-importNow escape hatch was
+  dropped by the prune (build passed, navigation died on device); its
+  preload entry survives too.
 - **Round ten (codex review of 47eaf83).** (1) `ErrorBoundary` sides get the
   same per-axis wrapper sizing as `Show` — a l/r/t/b-sized boundary handed
   its protected/fallback subtree an unconstrained wrapper that ignored the
