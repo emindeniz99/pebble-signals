@@ -27,6 +27,13 @@ the flagship on device — the build now fails loud with the wrap in the
 message (`[setter-as-value]`).
 [Debugging](debugging.md#typeerror-call-not-a-function-an-escaped-usestate-accessor).
 
+**What happens when a cleanup function throws?** Contained, by contract: the
+error is logged via `report()` and the REMAINING cleanups still run — a
+throwing cleanup never orphans its siblings and is never routed to an
+ErrorBoundary (boundaries protect builds and bindings, not teardown). If
+cleanup-to-boundary routing is ever added it will be a documented change,
+not silent drift.
+
 **Why does an exported `signal` build fine when an exported setter fails the
 build?** Asymmetry by design. An exported `useState` accessor has a strictly
 better spelling (the wrap above) and its escape shape was once device-fatal,

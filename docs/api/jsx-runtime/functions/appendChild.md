@@ -8,7 +8,7 @@
 
 > **appendChild**(`parent`, `child`): `void`
 
-Defined in: jsx-runtime.ts:260
+Defined in: jsx-runtime.ts:281
 
 Append a child (node / string / number / array) to a parent Piu node.
 

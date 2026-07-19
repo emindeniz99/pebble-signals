@@ -8,7 +8,7 @@
 
 > **ErrorBoundary**(`props`): `Container`
 
-Defined in: jsx-runtime.ts:523
+Defined in: jsx-runtime.ts:544
 
 ErrorBoundary({ children, fallback }) — Solid's per-subtree boundary, on a
 watch. `children` is a thunk (like Show); `fallback(err, reset)` renders

@@ -6,7 +6,7 @@
 
 # Interface: ErrorBoundaryProps
 
-Defined in: jsx-runtime.ts:484
+Defined in: jsx-runtime.ts:505
 
 Props for [ErrorBoundary](../functions/ErrorBoundary.md). Box coordinates size the host (like Show).
 
@@ -16,7 +16,7 @@ Props for [ErrorBoundary](../functions/ErrorBoundary.md). Box coordinates size t
 
 > `optional` **bottom?**: `number`
 
-Defined in: jsx-runtime.ts:490
+Defined in: jsx-runtime.ts:511
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: jsx-runtime.ts:490
 
 > **children**: () => [`JSXNode`](../type-aliases/JSXNode.md)
 
-Defined in: jsx-runtime.ts:494
+Defined in: jsx-runtime.ts:515
 
 the subtree to protect — a thunk returning nodes (like Show's children).
 
@@ -38,7 +38,7 @@ the subtree to protect — a thunk returning nodes (like Show's children).
 
 > **fallback**: (`err`, `reset`) => [`JSXNode`](../type-aliases/JSXNode.md)
 
-Defined in: jsx-runtime.ts:496
+Defined in: jsx-runtime.ts:517
 
 shown when the subtree throws; `reset` re-runs `children` under a fresh root.
 
@@ -62,7 +62,7 @@ shown when the subtree throws; `reset` re-runs `children` under a fresh root.
 
 > `optional` **height?**: `number`
 
-Defined in: jsx-runtime.ts:486
+Defined in: jsx-runtime.ts:507
 
 ***
 
@@ -70,7 +70,7 @@ Defined in: jsx-runtime.ts:486
 
 > `optional` **left?**: `number`
 
-Defined in: jsx-runtime.ts:487
+Defined in: jsx-runtime.ts:508
 
 ***
 
@@ -78,7 +78,7 @@ Defined in: jsx-runtime.ts:487
 
 > `optional` **right?**: `number`
 
-Defined in: jsx-runtime.ts:488
+Defined in: jsx-runtime.ts:509
 
 ***
 
@@ -86,7 +86,7 @@ Defined in: jsx-runtime.ts:488
 
 > `optional` **skin?**: `Skin` \| `SkinDictionary`
 
-Defined in: jsx-runtime.ts:491
+Defined in: jsx-runtime.ts:512
 
 ***
 
@@ -94,7 +94,7 @@ Defined in: jsx-runtime.ts:491
 
 > `optional` **style?**: `Style` \| `StyleDictionary`
 
-Defined in: jsx-runtime.ts:492
+Defined in: jsx-runtime.ts:513
 
 ***
 
@@ -102,7 +102,7 @@ Defined in: jsx-runtime.ts:492
 
 > `optional` **top?**: `number`
 
-Defined in: jsx-runtime.ts:489
+Defined in: jsx-runtime.ts:510
 
 ***
 
@@ -110,4 +110,4 @@ Defined in: jsx-runtime.ts:489
 
 > `optional` **width?**: `number`
 
-Defined in: jsx-runtime.ts:485
+Defined in: jsx-runtime.ts:506

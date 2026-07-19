@@ -10,6 +10,14 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Changed
+- **Children on a non-container Piu host now throw at build.**
+  `<Label>…</Label>` (or any leaf — Piu `Content` has no `add()`) used to
+  either render nothing silently or die later inside appendChild with an
+  unactionable `add: not a function`; the element now fails loud by name:
+  `jsx: <Label> cannot take children (not a container)`. Children that
+  render nothing (null/booleans from a dead conditional like
+  `{debug && <X/>}`) remain legal on any host. Part of the 1.0 contract so
+  the tightening never lands as a post-release surprise.
 - **`Show` (default mode) no longer rebuilds on a same-truthiness predicate
   re-eval.** `when: () => count() > 0` used to dispose+rebuild the shown
   subtree on EVERY `count` change; now it swaps only when truthiness flips,
