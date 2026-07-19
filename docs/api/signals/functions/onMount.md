@@ -8,7 +8,7 @@
 
 > **onMount**(`fn`): `void`
 
-Defined in: signals.ts:945
+Defined in: signals.ts:956
 
 onMount(fn): run fn ONCE, untracked. In this run-once model a component body
 already executes a single time as it builds, so this is just "do it once,

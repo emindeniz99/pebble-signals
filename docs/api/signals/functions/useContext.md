@@ -8,7 +8,7 @@
 
 > **useContext**\<`T`\>(`ctx`): `T`
 
-Defined in: signals.ts:960
+Defined in: signals.ts:971
 
 ## Type Parameters
 

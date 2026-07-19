@@ -8,7 +8,7 @@
 
 > **provide**\<`T`, `R`\>(`ctx`, `value`, `build`): `R`
 
-Defined in: signals.ts:963
+Defined in: signals.ts:974
 
 ## Type Parameters
 

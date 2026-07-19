@@ -8,7 +8,7 @@
 
 > **useState**\<`T`\>(`init`): \[() => `T`, (`v`) => `void`\]
 
-Defined in: signals.ts:868
+Defined in: signals.ts:879
 
 React-style state, Solid semantics: returns `[getter, setter]` where the
 getter is a CALL — `count()`, not `count`. The setter takes a value or a

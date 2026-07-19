@@ -8,7 +8,7 @@
 
 > **untrack**\<`T`\>(`fn`): `T`
 
-Defined in: signals.ts:742
+Defined in: signals.ts:753
 
 Read signals inside `fn` WITHOUT subscribing to them.
 

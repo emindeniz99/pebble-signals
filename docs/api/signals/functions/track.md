@@ -8,7 +8,7 @@
 
 > **track**(`disposable`): [`Disposable`](../type-aliases/Disposable.md)
 
-Defined in: signals.ts:839
+Defined in: signals.ts:850
 
 Register an effect id / disposer with the current owner; returns it.
 

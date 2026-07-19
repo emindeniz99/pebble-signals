@@ -38,6 +38,27 @@ No registry releases yet; entries accumulate under Unreleased until the first
   parity. Primitive rows still auto-wrap into a Label.
 
 ### Fixed
+- **Round eight (codex review of b8ce47d).** (1) bare side-effect imports
+  (`import "./x"` / `import "runtime/flow"`) now count everywhere `from`
+  clauses did: the treeshake keep-set (pruning a bare-imported runtime
+  module failed valid builds at the tripwire), the lazy split-brain walk
+  (a stateful helper reached only via `import "./state"` escaped the
+  fail-loud guard), and preload-pure's no-nested-import check (esbuild
+  would inline the helper's load-time work into a ROM module); (2) a
+  nested `importNow("app/x")` issued from INSIDE a lazy module now fails
+  the build loud — discovery only scans the entry closure (#27 v1), so
+  the nested target never shipped and died on first navigation; (3)
+  classify treats initializer-embedded ASSIGNMENTS
+  (`export const ok = (globalThis.ready = true)`, `counter++`, `delete`)
+  as load-time effects — preloaded, the mutation ran in the build
+  compartment instead of at app load; (4) `runtime/jsx-runtime` is seeded
+  whenever a shipped `.tsx` looks JSX-bearing — tsc injects the automatic
+  JSX import only AFTER the source-level treeshake scan, so a JSX lazy
+  screen under a hand-Piu entry pruned the module and failed a valid
+  build; (5) font KEY grammar covers equivalent JS spellings — `"font":`
+  and `font :` are the same Piu dictionary key, but deriveFonts shipped no
+  TTF and fontcheck never validated the literal (silent blank render),
+  while `myfont:` no longer matches at all.
 - **Round seven (codex review of e7a0b65).** (1) a child effect whose FIRST
   run throws now unparks its id from the owner list — the freed id could be
   recycled and the owner's teardown then disposed an innocent unrelated
