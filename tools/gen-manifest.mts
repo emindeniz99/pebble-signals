@@ -79,6 +79,24 @@ export function deriveFonts(src: string, ttfs: string[]): FontEntry[] {
 
 const uniq = (xs: string[]): string[] => [...new Set(xs)];
 
+/**
+ * Every `new Texture("…")` STRING-arg literal whose path does NOT end in
+ * `.png` (empty = all valid). The Pebble Texture constructor only resolves the
+ * `.bm4` pair when the path ends in `.png` — `new Texture("ball0")` throws
+ * `Texture ball0 not found!` ON DEVICE (README gotcha 19, measured), yet
+ * deriveResources tolerantly ships `../../assets/ball0` either way: the
+ * mismatch is silent at build and fatal at runtime. Fail loud at build like
+ * fontcheck (gotcha 20). Comments stripped; substitution templates (`$`)
+ * excluded — the runtime string is computed, not this literal. Pure.
+ */
+export function badTextures(src: string): string[] {
+	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+	const bad: string[] = [];
+	for (const m of src.matchAll(/new\s+Texture\(\s*["'`]([^"'`$]+?)["'`]/g))
+		if (!m[1].endsWith(".png")) bad.push(m[0]);
+	return bad;
+}
+
 /** Return the manifest with resources/data derived from `src`. Pure. */
 export function deriveResources(src: string, manifest: Manifest): Manifest {
 	const m: Manifest = { ...manifest };
@@ -120,6 +138,16 @@ if (import.meta.main) {
 	// screens) — their Texture/pdc/romTable refs must ship too (finding P2)
 	const [appSrc, manifestPath, ...moreSrcs] = process.argv.slice(2);
 	const src = [appSrc, ...moreSrcs].map((p) => readFileSync(p, "utf8")).join("\n");
+	// Texture footgun-catch (gotcha 19 — a suffixless `new Texture("x")` ships
+	// the asset but throws "Texture x not found!" on device). Fail loud before
+	// writing the manifest, exactly like fontcheck's blank-render catch.
+	const badTex = badTextures(src);
+	if (badTex.length) {
+		console.error('TEXTURE FAIL (gotcha 19 — `new Texture("x")` throws "not found!" on device):');
+		for (const b of badTex)
+			console.error(`  ${b}  <- name needs the .png suffix (new Texture("x.png"))`);
+		process.exit(1);
+	}
 	const m = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
 	let out = deriveResources(src, m);
 	// custom fonts: TTFs under src/tsx/examples/<app>/fonts/, referenced

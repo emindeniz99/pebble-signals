@@ -3,7 +3,7 @@
 // natively (Node >=22.18 type-stripping). Run: node --test tests/tools.test.mts
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { deriveFonts, deriveResources } from "../tools/gen-manifest.mts";
+import { deriveFonts, deriveResources, badTextures } from "../tools/gen-manifest.mts";
 import { badFonts } from "../tools/fontcheck.mts";
 import { neededModules, pruneManifest } from "../tools/treeshake.mts";
 import { classify } from "../tools/classify-module.mts";
@@ -966,4 +966,18 @@ test("treeshake: NON-runtime base-manifest modules survive the prune", () => {
 	assert.equal(m.modules!["runtime/flow"], undefined); // runtime still prunes
 	assert.deepEqual(dropped, ["runtime/flow"]);
 	assert.deepEqual(m.preload, ["runtime/signals", "app/custom"]); // preload survives too
+});
+
+test("gen-manifest: badTextures flags suffixless new Texture (gotcha 19)", () => {
+	// `new Texture("x")` ships the asset but throws "Texture x not found!" on
+	// device — the .png suffix is required (README gotcha 19, measured)
+	assert.deepEqual(badTextures('new Texture("ball0")'), ['new Texture("ball0"']);
+	assert.deepEqual(badTextures('new Texture("ball0.png")'), []); // the shipped form
+	assert.deepEqual(badTextures("new Texture('ball0')"), ["new Texture('ball0'"]);
+	assert.deepEqual(badTextures("new Texture(`ball0`)"), ["new Texture(`ball0`"]);
+	// comments never fail; substitution templates are computed (not this literal)
+	assert.deepEqual(badTextures('// new Texture("nope")\n/* new Texture("x") */'), []);
+	assert.deepEqual(badTextures("new Texture(`${name}.png`)"), []);
+	// a real mix: only the suffixless one is flagged
+	assert.deepEqual(badTextures('new Texture("a.png"); new Texture("b")'), ['new Texture("b"']);
 });
