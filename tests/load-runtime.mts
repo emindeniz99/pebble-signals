@@ -178,6 +178,15 @@ export async function loadRuntime() {
 	// how many intervals are live right now — lets the animate suite prove the
 	// shared ticker registers ONE timer for N concurrent tweens (the A2 fix).
 	const liveTimers = () => timers.size;
+	// Load + evaluate ANY opt-in runtime module by specifier and return its
+	// namespace — so a new catalog module's suite can exercise it WITHOUT
+	// editing this shared harness (its deps resolve through the same cache).
+	// e.g. `const ui = await loadModule("runtime/ui/statusbar")`.
+	const loadModule = async (spec) => {
+		const mod = await load(spec);
+		await mod.evaluate();
+		return mod.namespace;
+	};
 	return {
 		signals: cache["runtime/signals"].namespace,
 		jsx: cache["runtime/jsx-runtime"].namespace,
@@ -186,6 +195,7 @@ export async function loadRuntime() {
 		sandbox,
 		tick,
 		liveTimers,
+		loadModule,
 	};
 }
 
