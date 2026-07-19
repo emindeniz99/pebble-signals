@@ -248,9 +248,9 @@ setSink(null);
 	});
 	check(
 		"guard logs prop + node class context",
-		// the sandbox stub's class is StubContent — asserting it proves the
+		// the sandbox Label stub's class is StubLeaf — asserting it proves the
 		// context includes the NODE CLASS name (on-device this reads "Label")
-		lines.some((l) => l.includes("binding 'string' on StubContent") && l.includes("ctxboom")),
+		lines.some((l) => l.includes("binding 'string' on StubLeaf") && l.includes("ctxboom")),
 	);
 	// a NAMELESS node class (class `name` is configurable) falls back to "content"
 	const savedName = Object.getOwnPropertyDescriptor(sandbox.Label, "name");
@@ -627,6 +627,29 @@ setSink(null);
 		u10 = e.message;
 	}
 	check("U10 behavior + onTap conflict fails loud", /behavior.*conflicts/.test(u10));
+}
+
+// --- non-container guard: a Piu LEAF cannot take children — fail loud AT the
+// element (silent nothing / a later raw `add: not a function` before) ---
+{
+	let leafErr = "";
+	try {
+		jsx(Label, { string: "score", children: jsx(Container, {}) });
+	} catch (e) {
+		leafErr = String((e && e.message) || e);
+	}
+	check(
+		"children on a Label throw loud with the element named",
+		leafErr.includes("<StubLeaf> cannot take children (not a container)"),
+	);
+	// `nothing` children — a dead conditional like {debug && <X/>} — stay legal
+	const quiet = jsx(Label, { string: "ok", children: false });
+	check("nothing-children (false/null) on a leaf are legal", quiet.string === "ok");
+	const quiet2 = jsx(Label, { string: "ok2", children: [null, false, [undefined]] });
+	check("nested nothing-children arrays are legal too", quiet2.string === "ok2");
+	// containers keep taking children exactly as before
+	const box = jsx(Container, { children: jsx(Label, { string: "in" }) });
+	check("containers still take children", box.contents[0].string === "in");
 }
 
 done();

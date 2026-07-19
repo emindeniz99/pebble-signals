@@ -135,6 +135,15 @@ for (const n of BUTTON_EVENTS)
 		return h ? h(content) !== false : false;
 	};
 
+// Does a children value contain anything that would actually MOUNT?
+// null/undefined/booleans are the legal "render nothing" values (a dead
+// conditional like `{debug && <X/>}`), recursively through arrays. A const
+// arrow, not a `function` declaration (preloaded-module alias rule, gotcha 13).
+const hasRenderable = (c: JSXNode): boolean =>
+	Array.isArray(c)
+		? c.some(hasRenderable)
+		: c !== null && c !== undefined && c !== false && c !== true;
+
 function createHost(type: any, props: Props): PiuContent {
 	const dict: Record<string, any> = {};
 	let bindings: (string | (() => unknown))[] | null = null,
@@ -209,7 +218,19 @@ function createHost(type: any, props: Props): PiuContent {
 			});
 		}
 	}
-	if (children !== undefined) appendChild(node, children);
+	if (children !== undefined) {
+		// NON-container guard: a Piu leaf (Label, Text, …) cannot parent
+		// children — Content has no add(), so the mistake either rendered
+		// NOTHING or died later inside appendChild with an unactionable
+		// `add: not a function`. Fail loud AT the element instead (same rule
+		// as bindErr and For's asRow). Children that render nothing —
+		// null/booleans from a dead conditional — stay legal on any host.
+		if (typeof (node as { add?: unknown }).add !== "function" && hasRenderable(children))
+			throw new Error(
+				`jsx: <${(type && type.name) || "content"}> cannot take children (not a container)`,
+			);
+		appendChild(node, children);
+	}
 	return node;
 }
 

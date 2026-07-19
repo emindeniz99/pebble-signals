@@ -74,13 +74,20 @@ export class StubContent {
 	}
 }
 
+// Piu LEAVES (Label, Text, Content) cannot parent children — Content has no
+// add() on the device. Mapping them to this faithful stub makes the runtime's
+// non-container guard testable; extending StubContent keeps the suites'
+// `instanceof StubContent` wrap assertions true for runtime-created Labels.
+export class StubLeaf extends StubContent {}
+(StubLeaf.prototype as { add?: unknown }).add = undefined;
+
 export class StubBehavior {}
 
 export async function loadRuntime() {
 	const sandbox = {
-		Label: StubContent,
-		Text: StubContent,
-		Content: StubContent,
+		Label: StubLeaf,
+		Text: StubLeaf,
+		Content: StubLeaf,
 		Container: StubContent,
 		Column: StubContent,
 		Row: StubContent,
