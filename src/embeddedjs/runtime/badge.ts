@@ -16,10 +16,13 @@
 // reads changes. No bind path, no manual invalidate: the enclosing Canvas
 // effect (registered under the running owner, disposed with the screen) does it.
 //
-// FONT (gotcha — an invalid font key renders BLANK): the default label style is
-// precreated at module scope with "18px Gothic", a valid Pebble system font
-// (tools/fontcheck). `Style` is a host compartment global (present on-device;
-// the Node test sandbox injects a stub before loading this module).
+// FONT (gotcha — an invalid font key renders BLANK): the default label style
+// uses "18px Gothic", a valid Pebble system font (tools/fontcheck). It is
+// created LAZILY (first Badge, at runtime) — NOT at module scope: this is a
+// PRELOADED module, and a top-level `new Style(...)` would run in the
+// build-time preload compartment and freeze into a broken instance (measured:
+// blank on device). `Style` is a host compartment global (the Node test
+// sandbox injects a stub before loading this module).
 import { Canvas } from "runtime/draw";
 import type { Color, Content, Style } from "../../../types/moddable/piu/MC-types";
 
