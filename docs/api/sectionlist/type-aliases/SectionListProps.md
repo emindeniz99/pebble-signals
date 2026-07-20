@@ -8,7 +8,7 @@
 
 > **SectionListProps**\<`H`, `R`\> = `object`
 
-Defined in: sectionlist.ts:91
+Defined in: sectionlist.ts:104
 
 Props for [SectionList](../functions/SectionList.md).
 
@@ -28,7 +28,7 @@ Props for [SectionList](../functions/SectionList.md).
 
 > `optional` **height?**: `number`
 
-Defined in: sectionlist.ts:117
+Defined in: sectionlist.ts:130
 
 List height in px — split evenly into `rows` row heights. Defaults to `rows * 34`.
 
@@ -38,7 +38,7 @@ List height in px — split evenly into `rows` row heights. Defaults to `rows * 
 
 > **renderHeader**: (`header`) => `string`
 
-Defined in: sectionlist.ts:101
+Defined in: sectionlist.ts:114
 
 Header datum -> caption string (SectionList styles it BOLD; headers never highlight).
 
@@ -58,7 +58,7 @@ Header datum -> caption string (SectionList styles it BOLD; headers never highli
 
 > **renderRow**: (`row`) => `string`
 
-Defined in: sectionlist.ts:103
+Defined in: sectionlist.ts:116
 
 Item datum -> caption string (SectionList styles it normal, or highlighted when selected).
 
@@ -78,7 +78,7 @@ Item datum -> caption string (SectionList styles it normal, or highlighted when 
 
 > `optional` **rows?**: `number`
 
-Defined in: sectionlist.ts:113
+Defined in: sectionlist.ts:126
 
 Visible slot count (recycled Labels — each is live Piu nodes on the 32KB heap; keep small). Defaults to 4.
 
@@ -88,7 +88,7 @@ Visible slot count (recycled Labels — each is live Piu nodes on the 32KB heap;
 
 > **sections**: () => [`Section`](Section.md)\<`H`, `R`\>[]
 
-Defined in: sectionlist.ts:99
+Defined in: sectionlist.ts:112
 
 The sections — a THUNK returning `[{ header, rows }, …]`, read ONCE at
 construction (like grid.ts's `items`): Piu lays the list out at construction
@@ -106,7 +106,7 @@ compute the sections inline.
 
 > `optional` **selected?**: `number` \| (() => `number`)
 
-Defined in: sectionlist.ts:111
+Defined in: sectionlist.ts:124
 
 The selected ITEM index — 0-based over ROWS only (headers are never counted
 or selectable), so "selection skips headers" holds by construction. A THUNK
@@ -120,6 +120,6 @@ view on change (idiom 5b); a bare number applies once (static). Clamped to
 
 > `optional` **width?**: `number`
 
-Defined in: sectionlist.ts:115
+Defined in: sectionlist.ts:128
 
 List width in px. Defaults to the screen width (a width-less list measures 0 — gotcha 16).

@@ -27,8 +27,9 @@ No registry releases yet; entries accumulate under Unreleased until the first
   (`Scrollable` + `ContentIndicator` — free-form clip+`moveBy` scroll with `Label`
   chevron gutters, device-verified; a draw-Canvas overlay wedges the firmware — gotcha 24),
   `runtime/grid` (`Grid` — N-column tiles), `runtime/sectionlist` (`SectionList` —
-  grouped headers+rows over `VirtualList`). Output: `runtime/vibration` (`useHaptics`
-  over the static `pebble/vibes`; buzz felt only on hardware).
+  grouped headers+rows over `VirtualList`; **DEVICE-GATED — hangs on gabbro, see
+  Fixed/Changed below**). Output: `runtime/vibration` (`useHaptics` over the static
+  `pebble/vibes`; buzz felt only on hardware).
 - **`runtime/anim` motion models — `useSequence`/`useSpring` + combinators.**
   `useSequence(steps, opts)` chains keyframe moves/holds (optionally looping — RN
   `withSequence`); pure `withDelay`/`withRepeat`/`yoyo` compose into it; `useSpring`
@@ -155,6 +156,20 @@ No registry releases yet; entries accumulate under Unreleased until the first
   the measured `column.height`). Device-verified on gabbro across the full scroll
   (top → both-chevron mid-scroll → bottom). ASCII `"^"`/`"v"` because Pebble Gothic
   renders no `▲`/`▼`/`↑`/`↓` (MEASURED: tofu).
+- **`SectionList` reclassified device-gated — it HANGS on gabbro** (honest
+  correction of a false "runs on the device-verified VirtualList" claim; the same
+  device retry that fixed Scrollable caught it). SectionList needs per-row styling
+  (bold headers, highlight fill), so it drives `VirtualList` in RICH mode
+  (`renderRow`) with `rows>1` — and that combination wedges the firmware. Bisected
+  on a clean emulator (dots/richlist render as controls, proving the transport is
+  healthy): `richlist` (rich, `rows=1`) renders, `forbind5vl` (simple `format`,
+  `rows=5`) renders, but a rich list with `rows>1` hangs even NON-scrolling and even
+  string-only — so it is the rich multi-row layout itself, not the content, styling,
+  or scroll. Node suite passes (stub Piu never hangs) — the exact build-passes/
+  device-hangs class. Strengthened the `VLRich` API warning with the measurement;
+  banner'd `runtime/sectionlist` and its components.md entry. Fix (a VirtualList
+  rich-multi-row change or a SectionList redesign to simple mode) is tracked
+  separately — do not ship SectionList to a device until then.
 - **`fontcheck` now rejects `bold 30px Bitham`** — a build-passes/device-fails
   gap the device retry caught: the vibration example crashed on gabbro with
   `URIError: font not found: Bitham-Bold-30.fnt`. The 30px Bitham face is

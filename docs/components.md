@@ -772,7 +772,14 @@ import { SectionList } from "runtime/sectionlist";
 <SectionList sections={() => groups()} renderHeader={(h) => h} renderRow={(r) => r.name} selected={() => i()} />
 ```
 
-_Node-100%-covered; builds; runs on the device-verified `VirtualList` — demo: `pnpm run dev -- --app sectionlist`._
+_Node-100%-covered; builds. **DEVICE-GATED — HANGS on gabbro (MEASURED 2026-07).**
+SectionList needs per-row styling (bold headers, highlight fill), so it uses
+`VirtualList` **rich** mode (`renderRow`) with `rows>1` — and that combination wedges
+the firmware (the screenshot/watch-info transport times out). Bisected on a clean
+emulator: `richlist` (rich, `rows=1`) renders, `forbind5vl` (simple `format`, `rows=5`)
+renders, but a rich list with `rows>1` hangs even non-scrolling and even string-only.
+The fix is a VirtualList-level change (rich multi-row layout) or a SectionList redesign,
+tracked separately — do not ship SectionList to a device until then._
 
 ---
 

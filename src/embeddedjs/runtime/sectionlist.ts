@@ -3,6 +3,17 @@
 // imports `runtime/sectionlist` never ships it (the manifest prunes to the
 // import closure — README tree-shaking), so this module costs non-users nothing.
 //
+// ⚠️ DEVICE-GATED — HANGS on gabbro (MEASURED 2026-07). SectionList needs
+// per-row styling (bold headers, highlight fill), so it drives VirtualList in
+// RICH mode (`renderRow`) with `rows>1` — and THAT combination wedges the
+// firmware (the screenshot/watch-info transport times out). Bisected on a clean
+// emulator: `richlist` (rich, rows=1) renders; `forbind5vl` (simple `format`,
+// rows=5) renders; a rich list with rows>1 hangs even NON-scrolling and even
+// string-only. The Node suite passes (the stub Piu never hangs) — this is the
+// exact "build passes, device fails" class. The fix is a VirtualList-level
+// change (rich multi-row layout) or a SectionList redesign, tracked separately.
+// Do NOT ship SectionList to a device until then.
+//
 // WHAT (Rule 2 — no new substrate): RN's <SectionList> — section HEADERS
 // interleaved with item ROWS — composed over flow.ts's windowed VirtualList (our
 // FlatList). SectionList owns NO scroll/recycle machinery of its own: it FLATTENS
@@ -37,8 +48,10 @@
 // construction-time on this port and a reactive write THROWS); the Label's width +
 // rowHeight are construction-time statics (gotcha 16 — a size-less Label and the
 // active fill Skin need an explicit box). This is menu.ts's `cell.style`/`.skin`
-// highlight idiom + VirtualList's reactive-string recycling, so it inherits their
-// on-device proof (no moveBy at all — even safer than menu.ts's scrolled Column).
+// highlight idiom + VirtualList's reactive-string recycling. (NB: the earlier
+// claim that this "inherits their on-device proof — no moveBy at all" was WRONG
+// on both counts — VirtualList DOES moveBy internally, and rich `rows>1` HANGS on
+// gabbro; see the device-gated banner at the top of this file.)
 //
 // KEEP-IN-VIEW (menu.ts's idiom, in ROW-INDEX units): the visible window start is
 // a signal VirtualList reads; ONE effect watches the selected flat index and, when

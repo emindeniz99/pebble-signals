@@ -125,7 +125,15 @@ export type VLSimple<T> = VLBase<T> & {
  * {@link VirtualList} rich mode: a recycled SUBTREE per slot via `renderRow`
  * (built once, never destroyed). Mutually exclusive with `format`. Each
  * extra node per row costs arena — the measured ceiling is brutal (see the
- * `richlist` example); prefer simple mode for scrollable multi-row lists.
+ * `richlist` example).
+ *
+ * ⚠️ rich mode is only device-proven at `rows: 1` (the `richlist` example).
+ * `renderRow` with `rows>1` HANGS the gabbro firmware (MEASURED 2026-07 —
+ * the screenshot/watch-info transport times out; reproduced non-scrolling and
+ * string-only, so it is the rich multi-row layout itself, not the content or
+ * the scroll). For a scrollable MULTI-row list use simple mode (`format`),
+ * which is device-proven at `rows: 5` (`forbind5vl`). `SectionList` is
+ * device-gated for exactly this reason.
  */
 export type VLRich<T> = VLBase<T> & {
 	/**

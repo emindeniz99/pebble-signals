@@ -8,7 +8,7 @@
 
 > **SectionList**\<`H`, `R`\>(`props`): `Content`
 
-Defined in: sectionlist.ts:140
+Defined in: sectionlist.ts:153
 
 SectionList — a grouped list of section HEADERS + item ROWS over the windowed
 VirtualList: React Native's <SectionList> on a watch.
