@@ -1,0 +1,19 @@
+[**signal-piu**](../README.md)
+
+***
+
+[signal-piu](../README.md) / lifecycle
+
+# lifecycle
+
+## Interfaces
+
+- [LaunchInfo](interfaces/LaunchInfo.md)
+- [Wakeup](interfaces/Wakeup.md)
+- [WakeupInfo](interfaces/WakeupInfo.md)
+
+## Functions
+
+- [useAppFocus](functions/useAppFocus.md)
+- [useLaunchReason](functions/useLaunchReason.md)
+- [useWakeup](functions/useWakeup.md)

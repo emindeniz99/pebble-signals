@@ -42,7 +42,9 @@
   "runtime/accel": "./runtime-min/accel",
   "runtime/compass": "./runtime-min/compass",
   "runtime/battery": "./runtime-min/battery",
-  "runtime/connection": "./runtime-min/connection"
+  "runtime/connection": "./runtime-min/connection",
+  "runtime/fetch": "./runtime-min/fetch",
+  "runtime/lifecycle": "./runtime-min/lifecycle"
  },
  "preload": [
   "runtime/signals",
@@ -83,6 +85,8 @@
   "runtime/accel",
   "runtime/compass",
   "runtime/battery",
-  "runtime/connection"
+  "runtime/connection",
+  "runtime/fetch",
+  "runtime/lifecycle"
  ]
 }

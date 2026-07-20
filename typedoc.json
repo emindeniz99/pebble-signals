@@ -38,7 +38,9 @@
     "src/embeddedjs/runtime/accel.ts",
     "src/embeddedjs/runtime/compass.ts",
     "src/embeddedjs/runtime/battery.ts",
-    "src/embeddedjs/runtime/connection.ts"
+    "src/embeddedjs/runtime/connection.ts",
+    "src/embeddedjs/runtime/fetch.ts",
+    "src/embeddedjs/runtime/lifecycle.ts"
   ],
   "entryPointStrategy": "expand",
   "tsconfig": "tsconfig.check.json",

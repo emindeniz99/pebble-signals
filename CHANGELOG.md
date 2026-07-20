@@ -39,6 +39,12 @@ No registry releases yet; entries accumulate under Unreleased until the first
   QEMU via `pebble emu-accel`/`emu-compass`/`emu-battery`/`emu-bt-connection`.
   `useHealth`/`useLight` are documented (docs/components.md) as **not feasible**
   from watch JS today (no Moddable/host surface).
+- **Device-gated data + lifecycle hooks** (typed API + honest caveats; 100%-covered):
+  `runtime/fetch` (`useFetch` — reactive HTTP over `createResource`; watch-side
+  `fetch` OOMs a signal-runtime app per gotcha 18a, so keep it lean or use
+  fetch-over-message), `runtime/lifecycle` (`useLaunchReason` / `useAppFocus` /
+  `useWakeup` over the bare `watch` global + `pebble/wakeup`; `didFocus`/`wakeup`
+  are device-event-gated — Node-verified, build + boot on device).
 - **`runtime/gauge` (`Gauge`) + `runtime/clockface` (`ClockFace`)** — arc-based
   Canvas widgets: a circular value dial (with an optional centered label) and an
   analog clock face (12 ticks + hour/minute/second hands). Device-verified.

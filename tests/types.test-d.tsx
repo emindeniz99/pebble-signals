@@ -42,6 +42,9 @@ import { useAccel, useTap } from "runtime/accel";
 import { useCompass } from "runtime/compass";
 import { useBattery } from "runtime/battery";
 import { useConnection } from "runtime/connection";
+// batch 6c: device-gated data / lifecycle hooks
+import { useFetch } from "runtime/fetch";
+import { useLaunchReason, useAppFocus, useWakeup } from "runtime/lifecycle";
 
 const data = { count: () => 3, get: (i: number) => "row" + i };
 
@@ -138,6 +141,26 @@ void _accV;
 void _cmpV;
 void _batV;
 void _connV;
+// batch 6c: useFetch returns a Resource<T>; lifecycle hooks are typed
+const _fr = useFetch<{ v: number }>("http://x/thing.json");
+const _frd: { v: number } | undefined = _fr.data();
+void _fr.loading();
+void _fr.error();
+_fr.refetch();
+const _fr2 = useFetch(() => "http://x/y", { parse: (r) => r.text() });
+void _fr2.data();
+const _lr = useLaunchReason();
+const _lrr: number = _lr.reason;
+const _af: boolean = useAppFocus()();
+const _wk = useWakeup();
+const _wid: number = _wk.schedule(1000, 42);
+_wk.cancel();
+void _wk.query(_wid);
+void _wk.last();
+void _frd;
+void _lrr;
+void _af;
+void _wid;
 
 // --- misuse: each MUST be a type error (guards biting) ---
 // @ts-expect-error — Canvas requires `paint`

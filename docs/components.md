@@ -512,6 +512,22 @@ const cfg = useConfig({ text: "hi", invert: 0 });
 
 ![useConfig on gabbro](../screenshots/config-hook-gabbro.png)
 
+### useFetch — `runtime/fetch`
+
+Reactive HTTP fetch composed over the shipped `createResource` — a `{ data,
+loading, error, refetch }` `Resource<T>`. **Device-gated:** watch-side `fetch`
+proxies through the phone and its `Response` allocations OOM the 32KB arena from a
+signal-runtime app (gotcha 18a) — keep a `useFetch` app lean, or prefer
+fetch-over-message (XHR pkjs-side → string AppMessage → `createResource`).
+
+```tsx
+import { useFetch } from "runtime/fetch";
+const res = useFetch<{ value: string }>("https://api.example.com/thing.json");
+<Label string={() => (res.loading() ? "…" : String(res.data()?.value))} />
+```
+
+_Node-100%-covered; device-gated (gotcha 18a) — demo: `pnpm run dev -- --app fetch`._
+
 ---
 
 ## Hooks — sensors
@@ -573,6 +589,25 @@ const conn = useConnection();
 ```
 
 ![useConnection on gabbro](../screenshots/connection-gabbro.png)
+
+---
+
+## Hooks — lifecycle
+
+`useLaunchReason()` (why the app launched — a one-shot `{ reason, arguments }`),
+`useAppFocus()` (a reactive focus getter), and `useWakeup()`
+(`schedule`/`query`/`cancel` + a reactive `last` wakeup event) over the bare
+`watch` global and `pebble/wakeup`. **Device-gated:** `didFocus`/`wakeup` are
+event-driven and need a real device (or a scheduled wakeup) to fire — the hooks
+are Node-verified and build+boot, but QEMU may not emit those events.
+
+```tsx
+import { useLaunchReason, useAppFocus } from "runtime/lifecycle";
+const focused = useAppFocus();
+<Label string={() => (focused() ? "focused" : "background")} />
+```
+
+_Node-100%-covered; device-gated (focus/wakeup events) — demo: `pnpm run dev -- --app lifecycle`._
 
 ---
 
