@@ -14,7 +14,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 // "family|size|bold" — the full firmware table README §"gotchas" item 7
 // documents (Gothic-Regular 9-36, Gothic-Bold 14-36, Bitham Black/Bold/
 // Light/Medium, Roboto, DroidSerif, Leco), mapped through the shorthand's
-// face rule: `bold` -> the -Bold (Bitham 30: -Black) face, no weight -> the
+// face rule: `bold` -> the -Bold face, no weight -> the
 // Regular/Light/Medium face at that size. Seeding only the four Gothic
 // sizes rejected documented built-ins like "36px Gothic" (codex P2).
 const VALID = new Set<string>();
@@ -24,7 +24,12 @@ for (const n of [14, 18, 24, 28, 36]) {
 }
 for (const k of [
 	"gothic|9|false", // Gothic-Regular 9 has no Bold twin
-	"bitham|30|true", // Bitham-Black
+	// NB: "bold 30px Bitham" is NOT valid — MEASURED on gabbro (2026-07): the
+	// runtime requests `Bitham-Bold-30.fnt`, which does NOT exist (the 30px
+	// Bitham face is Black-only, and the shorthand cannot address it — there is
+	// no Bitham-Bold-30 the way 42px has Bitham-Bold-42). It threw
+	// `URIError: font not found: Bitham-Bold-30.fnt` at render() → crash screen.
+	// So neither weight of 30px Bitham is accepted; use a Gothic size instead.
 	"bitham|42|true",
 	"bitham|18|false", // Bitham-Light
 	"bitham|34|false", // Bitham-Light/Medium
@@ -126,7 +131,7 @@ if (import.meta.main) {
 	if (bad.length) {
 		console.error("FONTCHECK FAIL (gotcha 20 — invalid font renders BLANK, no error):");
 		for (const b of bad) console.error(`  ${b}  <- not a Pebble system font key`);
-		console.error("  valid: [bold] 14|18|24|28px Gothic, bold 30px Bitham, [bold] 42px Bitham,");
+		console.error("  valid: [bold] 14|18|24|28px Gothic, [bold] 42px Bitham,");
 		console.error(
 			"         21px Roboto, bold 49px Roboto, bold 28px Droid  (SKIP_FONTCHECK=1 to override,",
 		);

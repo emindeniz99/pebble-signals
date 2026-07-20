@@ -189,9 +189,17 @@ test("fontcheck: invalid font size/family is flagged", () => {
 	assert.deepEqual(badFonts('font: "24px Comic"'), ['font: "24px Comic"']);
 });
 
-test("fontcheck: bold matters (bold 30px Bitham valid, 30px Bitham not)", () => {
-	assert.deepEqual(badFonts('font: "bold 30px Bitham"'), []);
+test("fontcheck: 30px Bitham is rejected in BOTH weights (device-measured)", () => {
+	// MEASURED on gabbro (2026-07): "bold 30px Bitham" crashed at render() —
+	// `URIError: font not found: Bitham-Bold-30.fnt`. The 30px Bitham face is
+	// Black-only and the shorthand cannot address it (unlike 42px, which has a
+	// real Bitham-Bold-42). fontcheck previously accepted "bold 30px Bitham" (a
+	// build-passes/device-fails gap); it now rejects BOTH weights.
+	assert.deepEqual(badFonts('font: "bold 30px Bitham"'), ['font: "bold 30px Bitham"']);
 	assert.deepEqual(badFonts('font: "30px Bitham"'), ['font: "30px Bitham"']);
+	// 42px Bitham DOES have a real Bold face — still valid, both weights.
+	assert.deepEqual(badFonts('font: "bold 42px Bitham"'), []);
+	assert.deepEqual(badFonts('font: "42px Bitham"'), []);
 });
 
 test("fontcheck: italic on a system font is rejected (no italic face → blank)", () => {

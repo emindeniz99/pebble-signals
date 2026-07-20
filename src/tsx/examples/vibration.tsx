@@ -7,7 +7,7 @@ import { useState } from "runtime/signals";
 import { useHaptics } from "runtime/vibration";
 
 const bg = new Skin({ fill: "black" });
-const big = new Style({ font: "bold 30px Bitham", color: "white" });
+const big = new Style({ font: "bold 28px Gothic", color: "white" });
 const dim = new Style({ font: "18px Gothic", color: "#FFAA55" });
 
 const [last, setLast] = useState("ready");

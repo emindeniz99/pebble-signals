@@ -11,9 +11,9 @@ No registry releases yet; entries accumulate under Unreleased until the first
 
 ### Added
 - **Binding-expansion catalog — media, input, layout (opt-in; 100%-covered; all
-  build for gabbro + emery, five render-verified on gabbro — image, imagebackground
-  (bitmap + live clock), vectorimage (PDC scaled 2×), grid, button — the rest on
-  device-proven substrate).** Media:
+  build for gabbro + emery, six render-verified on gabbro — image, imagebackground
+  (bitmap + live clock), vectorimage (PDC scaled 2×), grid, button, vibration — the
+  rest on device-proven substrate).** Media:
   `runtime/image` (`Image` — a bitmap on one Content, optional reactive-`variant`
   sprite), `runtime/imagebackground` (`ImageBackground` — children over a bitmap),
   `runtime/vectorimage` (`VectorImage` — a PDC vector on `SVGImage`, hiding the four
@@ -140,6 +140,14 @@ No registry releases yet; entries accumulate under Unreleased until the first
   `-grown` reactive-change frames). Example: `src/tsx/examples/draw.tsx`.
 
 ### Fixed
+- **`fontcheck` now rejects `bold 30px Bitham`** — a build-passes/device-fails
+  gap the device retry caught: the vibration example crashed on gabbro with
+  `URIError: font not found: Bitham-Bold-30.fnt`. The 30px Bitham face is
+  Black-only (unlike 42px, which has a real Bitham-Bold-42), so the shorthand's
+  `bold 30px Bitham` requests a font that does not exist. fontcheck had a
+  special-case accepting it; removed (both weights of 30px Bitham now rejected).
+  Fixed the vibration example to `bold 28px Gothic` and re-verified it renders on
+  gabbro (a 6th batch-7 device receipt).
 - **Per-app treeshake now follows runtime→runtime imports** (derived from
   source, not a hardcoded edge table). An app that imported only a composed
   catalog module (e.g. `Badge`, which imports `Canvas`) had its transitive

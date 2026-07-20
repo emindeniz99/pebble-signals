@@ -785,7 +785,9 @@ const h = useHaptics();
 <Button label="OK" onPress={() => { save(); h.short(); }} />
 ```
 
-_Node-100%-covered; builds; the `importNow` host-module substrate is device-proven (see useAccel/useBattery). The physical buzz is **not** observable on QEMU (no motor / `emu-vibe`) — felt only on real hardware._
+![useHaptics on gabbro](../screenshots/vibration-gabbro.png)
+
+_The physical buzz is **not** observable on QEMU (no motor / `emu-vibe`) — felt only on real hardware._
 
 ---
 
