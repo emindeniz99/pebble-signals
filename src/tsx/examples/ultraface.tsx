@@ -25,7 +25,6 @@ const num = new Style({ font: "bold 18px Gothic", color: "white" });
 const dir = new Style({ font: "bold 14px Gothic", color: "#e5e5ea" });
 
 const ORANGE = "#ff9500";
-const ORANGE_DIM = "#7a4a10";
 const MOVE = "#fa114f";
 const EXER = "#92e82a";
 const STAND = "#1eeaef";
@@ -50,10 +49,11 @@ render(
 						const d = now();
 						const s = d.getSeconds();
 
-						// ---- instrument bezel + TICK-BY-TICK seconds ----
-						// 60 ticks; the ones 12→now light orange one-per-second (the current
-						// tick brightest), the rest are the white dial. This IS the seconds:
-						// each second one more bar lights, stepping çubuk çubuk.
+						// ---- instrument bezel + TICK-BY-TICK seconds that GROW ----
+						// 60 ticks. The elapsed seconds 12→now are LONG orange bars (each
+						// second one more bar grows in), the current tick the LONGEST and
+						// brightest; future ticks are the short white dial. So the seconds
+						// read as a ring of growing bars, stepping çubuk çubuk each second.
 						for (let i = 0; i < 60; i++) {
 							const a = (i * 6 - 90) * RAD;
 							const ca = Math.cos(a);
@@ -61,17 +61,21 @@ render(
 							const hour = i % 5 === 0;
 							let col: string;
 							let th: number;
+							let len: number; // inward length from the rim — elapsed seconds GROW
 							if (i === s) {
 								col = ORANGE;
-								th = 3;
+								th = 4;
+								len = 22; // current second: longest + brightest
 							} else if (i < s) {
-								col = ORANGE_DIM;
-								th = hour ? 2 : 1;
+								col = ORANGE;
+								th = 2;
+								len = 15; // elapsed: grown orange bars
 							} else {
 								col = hour ? "#d0d0d2" : "#48484a";
 								th = hour ? 2 : 1;
+								len = hour ? 12 : 6; // future: the short white dial
 							}
-							const rIn = hour || i === s ? R - 13 : R - 7;
+							const rIn = R - 2 - len;
 							g.line(cx + rIn * ca, cy + rIn * sa, cx + (R - 2) * ca, cy + (R - 2) * sa, th, col);
 						}
 
