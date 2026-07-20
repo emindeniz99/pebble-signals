@@ -10,6 +10,35 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **P2 catalog — menus, input & lists (opt-in; each device-verified on gabbro +
+  emery):** `runtime/menu` (`Menu`, a scrolling selectable list — clip viewport +
+  `moveBy` scroll), `runtime/picker` (`Picker`, a 3-row value carousel),
+  `runtime/numberfield` (`NumberField`, a big-number stepper), `runtime/textflow`
+  (`TextFlow`, manual word-wrap into a Column of Label lines), `runtime/actionmenu`
+  (`ActionMenu`, a modal action sheet).
+- **`runtime/spinner` (`Spinner`)** — an animated indeterminate loading indicator
+  (Canvas + `arc` + a ~30fps `setInterval`, cleared on owner dispose).
+  Device-verified on gabbro + emery.
+- **Ergonomic hooks (pure reactive logic, torn down on owner dispose):**
+  `runtime/timers` (`useInterval`/`useTimeout`, `setInterval`-based — no
+  `setTimeout` on device), `runtime/state` (`useToggle`/`useCounter`/`useDebounce`),
+  `runtime/anim` (`useTween` — eases toward a reactive target, composes `animate`).
+  `timers` and `useTween` device-verified on gabbro; all three 100%-covered.
+- **P3 device/time/connectivity/sensor hooks** (wrap proven Pebble host APIs
+  verified against the on-disk Moddable/Pebble host; 100%-covered with the
+  `watch` global / `importNow` stubbed, typed, and device-verified on gabbro —
+  `useAccel`/`useBattery`/`watchInfo` read live values under `emu-*` injection):
+  `runtime/clock` (`useClock`/`useTimeParts` over the native watch tick service —
+  one shared, wall-clock-aligned firmware timer), `runtime/watchinfo`
+  (`watchInfo`/`useDisplayBounds`), `runtime/message` (`useMessage`/`useAppMessage`
+  over `pebble/message`), `runtime/config` (`useConfig` — Clay settings merged into
+  a persisted `useKVStorage` cell), `runtime/accel` (`useAccel`/`useTap`),
+  `runtime/compass` (`useCompass`), `runtime/battery` (`useBattery`, specifier
+  `embedded:sensor/Battery`), `runtime/connection` (`useConnection`). Sensors and
+  battery are single-instance host singletons with refcount cleanup, driven under
+  QEMU via `pebble emu-accel`/`emu-compass`/`emu-battery`/`emu-bt-connection`.
+  `useHealth`/`useLight` are documented (docs/components.md) as **not feasible**
+  from watch JS today (no Moddable/host surface).
 - **`runtime/gauge` (`Gauge`) + `runtime/clockface` (`ClockFace`)** — arc-based
   Canvas widgets: a circular value dial (with an optional centered label) and an
   analog clock face (12 ticks + hour/minute/second hands). Device-verified.

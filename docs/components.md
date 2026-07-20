@@ -305,6 +305,293 @@ const x = animate(0, 100, 800, backOut);
 
 ---
 
+## Menus, input & lists
+
+### Menu — `runtime/menu`
+
+A vertical **scrolling, selectable** list (react-pebble MenuLayer analog). A clip
+viewport over a Column of rows; the active row is highlighted and kept in view by
+shifting the Column with `moveBy` (the proven Move idiom). Display-only — the app
+owns `selected` and drives it with buttons.
+
+```tsx
+import { Menu } from "runtime/menu";
+<Menu items={["Alarms", "Timers", "Stopwatch"]} selected={() => sel()} />
+```
+
+| round | rect |
+|---|---|
+| ![menu round](../screenshots/menu-gabbro.png) | ![menu rect](../screenshots/menu-emery.png) |
+
+### Picker — `runtime/picker`
+
+A value **carousel**: the current option centered and bold, its neighbors faded
+above and below (a 3-row window). Optional `wrap` for a circular list.
+
+```tsx
+import { Picker } from "runtime/picker";
+<Picker options={["Mango", "Apple", "Banana"]} selected={() => i()} wrap />
+```
+
+| round | rect |
+|---|---|
+| ![picker round](../screenshots/picker-gabbro.png) | ![picker rect](../screenshots/picker-emery.png) |
+
+### NumberField — `runtime/numberfield`
+
+A big-number **stepper** display (Pebble NumberWindow analog): the value centered
+with `+`/`−` affordance hints and an optional unit suffix. The app owns the value.
+
+```tsx
+import { NumberField } from "runtime/numberfield";
+<NumberField value={() => pct()} unit="%" min={0} max={100} />
+```
+
+| round | rect |
+|---|---|
+| ![numberfield round](../screenshots/numberfield-gabbro.png) | ![numberfield rect](../screenshots/numberfield-emery.png) |
+
+### TextFlow — `runtime/textflow`
+
+**Wrapped** multi-line paragraph text — manual word-wrap into a Column of Label
+lines (Piu `Text` isn't used; Labels are the device-proven substrate). Reactive
+`text` re-wraps.
+
+```tsx
+import { TextFlow } from "runtime/textflow";
+<TextFlow text="Signal Piu wraps this text into a column of label lines." />
+```
+
+| round | rect |
+|---|---|
+| ![textflow round](../screenshots/textflow-gabbro.png) | ![textflow rect](../screenshots/textflow-emery.png) |
+
+### ActionMenu — `runtime/actionmenu`
+
+A modal **action sheet** (Pebble ActionMenu analog): a filled backdrop, a bold
+title, and a Column of actions with the active one highlighted.
+
+```tsx
+import { ActionMenu } from "runtime/actionmenu";
+<ActionMenu title="Message" actions={["Reply", "Archive", "Delete"]} active={() => a()} />
+```
+
+| round | rect |
+|---|---|
+| ![actionmenu round](../screenshots/actionmenu-gabbro.png) | ![actionmenu rect](../screenshots/actionmenu-emery.png) |
+
+---
+
+## Loading & animation
+
+### Spinner — `runtime/spinner`
+
+An animated indeterminate **loading indicator** (RN ActivityIndicator analog):
+composes a `Canvas` + the `arc` primitive with an owned `angle` signal driven by a
+~30fps `setInterval`. `running` (thunk) starts/stops it; the timer is cleared on
+owner dispose.
+
+```tsx
+import { Spinner } from "runtime/spinner";
+<Spinner size={48} running={() => loading()} />
+```
+
+| round | rect |
+|---|---|
+| ![spinner round](../screenshots/spinner-gabbro.png) | ![spinner rect](../screenshots/spinner-emery.png) |
+
+---
+
+## Hooks — timers, state & animation
+
+Pure reactive logic on top of signals; no Piu nodes. Each cleans up (timers,
+subscriptions) on owner dispose via `onCleanup`. Timers use `setInterval` only
+(no `setTimeout` on device). Hook demos render the hook driving a `Label` — shown
+on gabbro, since a hook's output is shape-independent.
+
+### timers — `runtime/timers`
+
+`useInterval(cb, delay)` / `useTimeout(cb, delay)` — reactive timer hooks. A thunk
+`delay` re-arms the timer; `null` pauses. Both return a manual `cancel()`.
+
+```tsx
+import { useInterval } from "runtime/timers";
+useInterval(() => setCount((c) => c + 1), () => (paused() ? null : 1000));
+```
+
+| round | rect |
+|---|---|
+| ![timers round](../screenshots/timers-gabbro.png) | ![timers rect](../screenshots/timers-emery.png) |
+
+### state — `runtime/state`
+
+`useToggle`, `useCounter` (bounded, `inc/dec/reset/set`), and `useDebounce`
+(follows a source but settles only after it's stable).
+
+```tsx
+import { useCounter } from "runtime/state";
+const [count, c] = useCounter(0, { min: 0, max: 10 });
+```
+
+_Node-100%-covered; builds + boots on device — demo: `pnpm run dev -- --app state`._
+
+### useTween — `runtime/anim`
+
+Smoothly eases a value toward a **reactive target** (RN Reanimated `withTiming`
+analog) — composes `animate`. Retargeting mid-flight continues from the current
+value.
+
+```tsx
+import { useTween } from "runtime/anim";
+const x = useTween(() => target(), { duration: 400 });
+```
+
+| round | rect |
+|---|---|
+| ![usetween round](../screenshots/usetween-gabbro.png) | ![usetween rect](../screenshots/usetween-emery.png) |
+
+---
+
+## Hooks — time & device
+
+### useClock — `runtime/clock`
+
+A reactive current-time `Date` getter over the **native watch tick service**
+(`secondchange`/`minutechange`) — one shared, wall-clock-aligned firmware timer,
+better than a drifting `setInterval`. `useTimeParts()` splits it into per-field
+getters.
+
+```tsx
+import { useClock } from "runtime/clock";
+const now = useClock();
+<Label string={() => now().toTimeString().slice(0, 8)} />
+```
+
+_Node-100%-covered; builds + boots on device — demo: `pnpm run dev -- --app clockhook`._
+
+### watchInfo — `runtime/watchinfo`
+
+`watchInfo()` — a one-shot snapshot of `model`, `firmware`, `hour12`, plus the
+screen bounds (`width`/`height`/`round`/`color`). `useDisplayBounds()` returns just
+the screen subset.
+
+```tsx
+import { watchInfo } from "runtime/watchinfo";
+const info = watchInfo();  // { model, firmware, width, height, round, color, hour12 }
+```
+
+![watchInfo on gabbro](../screenshots/watchinfo-gabbro.png)
+
+---
+
+## Hooks — connectivity
+
+### useMessage — `runtime/message`
+
+A reactive **AppMessage** channel (watch ⇄ pkjs ⇄ phone) over `pebble/message`.
+`last()` is the reactive inbound map; `send(obj)` writes outbound (outbox-full is
+swallowed). `useAppMessage(keys, handler)` is the callback form.
+
+```tsx
+import { useMessage } from "runtime/message";
+const { last, send } = useMessage(["cmd"]);
+```
+
+![useMessage on gabbro](../screenshots/message-gabbro.png)
+
+### useConfig — `runtime/config`
+
+Clay **settings** as a reactive, persisted object: merges the config page's
+payload (via pkjs `showConfiguration`) into a `useKVStorage` cell.
+
+```tsx
+import { useConfig } from "runtime/config";
+const cfg = useConfig({ text: "hi", invert: 0 });
+<Label string={() => cfg().text} />
+```
+
+![useConfig on gabbro](../screenshots/config-hook-gabbro.png)
+
+---
+
+## Hooks — sensors
+
+Each wraps a single-instance Pebble host sensor (`embedded:sensor/*` or the bare
+`watch` global) as a module-level singleton with refcount cleanup; `onSample` /
+event callbacks write a signal. Drive live values under QEMU with the `pebble
+emu-*` commands noted below.
+
+### useAccel — `runtime/accel`
+
+`useAccel()` → `{ x, y, z }` accelerometer readings (raw milli-g). `useTap()` →
+the last tap direction (`"x+"` … `"z-"`). Drive: `pebble emu-accel gravity+x`,
+`pebble emu-tap --direction x+`.
+
+```tsx
+import { useAccel } from "runtime/accel";
+const a = useAccel({ hz: 25 });
+<Label string={() => `x ${a().x}`} />
+```
+
+![useAccel on gabbro](../screenshots/accel-gabbro.png)
+
+### useCompass — `runtime/compass`
+
+`useCompass()` → the magnetic heading in **degrees** (0–360, CCW from north). A
+`filter` throttles updates. Drive: `pebble emu-compass --heading 90`.
+
+```tsx
+import { useCompass } from "runtime/compass";
+const heading = useCompass({ filter: 2 });
+```
+
+![useCompass on gabbro](../screenshots/compass-gabbro.png)
+
+### useBattery — `runtime/battery`
+
+`useBattery()` → `{ percent, charging, plugged }` (specifier
+`embedded:sensor/Battery`). Drive: `pebble emu-battery --percent 25 --charging`.
+
+```tsx
+import { useBattery } from "runtime/battery";
+const bat = useBattery();
+<Label string={() => `${bat().percent}%`} />
+```
+
+![useBattery on gabbro](../screenshots/battery-gabbro.png)
+
+### useConnection — `runtime/connection`
+
+`useConnection()` → `{ app, pebblekit }` bluetooth/phone connection state (the bare
+`watch.connected` + its `connected` event). Drive: `pebble emu-bt-connection
+--connected no`.
+
+```tsx
+import { useConnection } from "runtime/connection";
+const conn = useConnection();
+<Label string={() => (conn().app ? "Connected" : "Disconnected")} />
+```
+
+![useConnection on gabbro](../screenshots/connection-gabbro.png)
+
+---
+
+## Not feasible from watch JS today
+
+Two RN/Pebble sensor families are **intentionally not shipped** — the research
+(against the on-disk Moddable/Pebble host) found no watch-side JS surface:
+
+- **`useHealth`** (steps / activity / heart rate) — the HealthService lives only
+  in the Pebble **C** SDK; Moddable ships no health JS module or typing. The QEMU
+  emulator can inject values (`pebble emu-steps` …) but there is nothing on the JS
+  side to observe them. Needs a new native/host module upstream.
+- **`useLight`** (ambient light) — there is **no live light service anywhere**,
+  even in C (only a per-minute historical `AmbientLightLevel` buried in the Health
+  API); no `emu-light` command. Treat ambient light as unavailable. (`watch.light()`
+  controls the **backlight**, an output — not an ambient sensor.)
+
+---
+
 ## Note on a single all-in-one gallery
 
 An on-watch "browse every component from one menu" app is **not** shippable as a
