@@ -8,37 +8,19 @@
 
 > **ContentIndicatorProps** = `object`
 
-Defined in: scrollable.ts:83
+Defined in: scrollable.ts:81
 
 Props for [ContentIndicator](../functions/ContentIndicator.md).
 
 ## Properties
 
-### canDown
+### edge
 
-> **canDown**: () => `boolean`
+> **edge**: `"up"` \| `"down"`
 
-Defined in: scrollable.ts:87
+Defined in: scrollable.ts:83
 
-Thunk — true while there is content BELOW (paints the down chevron). Read a signal inside so it tracks.
-
-#### Returns
-
-`boolean`
-
-***
-
-### canUp
-
-> **canUp**: () => `boolean`
-
-Defined in: scrollable.ts:85
-
-Thunk — true while there is content ABOVE (paints the up chevron). Read a signal inside so it tracks.
-
-#### Returns
-
-`boolean`
+Which chevron: `"up"` (a "^") or `"down"` (a "v").
 
 ***
 
@@ -46,9 +28,33 @@ Thunk — true while there is content ABOVE (paints the up chevron). Read a sign
 
 > `optional` **height?**: `number`
 
+Defined in: scrollable.ts:89
+
+Gutter (band) height in px. Defaults to `GUTTER` (26).
+
+***
+
+### show
+
+> **show**: () => `boolean`
+
+Defined in: scrollable.ts:85
+
+Thunk — true while there is content in that direction (shows the chevron). Read a signal inside so it tracks.
+
+#### Returns
+
+`boolean`
+
+***
+
+### style?
+
+> `optional` **style?**: `PiuStyle`
+
 Defined in: scrollable.ts:91
 
-Overlay height in px — the chevrons sit at its top and bottom edges. Defaults to the screen height.
+Override the chevron Style. Defaults to a lazily-created centered bold 24px Gothic style.
 
 ***
 
@@ -56,6 +62,6 @@ Overlay height in px — the chevrons sit at its top and bottom edges. Defaults 
 
 > `optional` **width?**: `number`
 
-Defined in: scrollable.ts:89
+Defined in: scrollable.ts:87
 
-Overlay width in px. Defaults to the screen width (a width-less port measures 0 — gotcha 16).
+Gutter width in px. Defaults to the screen width (a width-less label measures 0 — gotcha 16).

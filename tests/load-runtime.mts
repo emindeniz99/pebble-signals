@@ -124,6 +124,23 @@ export async function loadRuntime() {
 		Layout: StubContent,
 		Behavior: StubBehavior,
 		Application: StubContent,
+		// Style/Skin are opaque host resources — a passthrough that records its
+		// dict is enough for modules that build one (e.g. scrollable's lazy chevron
+		// Style, gauge's label Style). `new Style({…})` takes the dict as its only
+		// arg (unlike `new Container(null, {…})`), so assign the last object arg to
+		// support both shapes. Never parents content, so a plain class.
+		Style: class {
+			constructor(...args: unknown[]) {
+				const it = args[args.length - 1];
+				if (it && typeof it === "object") Object.assign(this, it);
+			}
+		},
+		Skin: class {
+			constructor(...args: unknown[]) {
+				const it = args[args.length - 1];
+				if (it && typeof it === "object") Object.assign(this, it);
+			}
+		},
 		console,
 		Set,
 		Map,

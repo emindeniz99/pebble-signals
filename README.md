@@ -882,6 +882,21 @@ is the JS-value-stack post-mortem (the third fixed budget: 384 slots).
    pair on the cheap packed API. (Exception by design: a getter as a JSX
    prop — `<Readout value={count} />` — IS the documented thunk contract
    and stays clean.) Symptom walkthrough: docs/debugging.md.
+24. **A `runtime/draw` Canvas Port OVERLAPPING a `moveBy`'d content Column
+   WEDGES the firmware** — the `pebble screenshot` / watch-info transport
+   times out and the Piu run loop never idles again (MEASURED on gabbro,
+   2026-07: `dots`'s single in-flow Canvas renders; an overlapping chevron
+   Port over the scrolled Column does not — bisected across ~10 clean-reset
+   installs). It is NOT the clip, the measured `.height` read, `moveBy`
+   itself, or arena weight — those all render. Two shapes trip it: a Port
+   whose rectangle overlaps the moveBy'd Column (any size/position), and
+   even TWO non-overlapping chevron Canvases beside it. ONE non-overlapping
+   Canvas + `moveBy` is fine. Fix: draw scroll chevrons as `Label`s in
+   reserved, non-overlapping gutters (what `runtime/scrollable` now does),
+   not as a transparent draw overlay. Related: writing a Piu property from
+   `onDisplaying` (e.g. poking a signal that an effect turns into a
+   `label.string` write) wedges it the same out-of-sequence way — pass the
+   value in instead of measuring during the display phase.
 
 ## vs react-pebble
 

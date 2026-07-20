@@ -203,8 +203,8 @@ _hap.short();
 _hap.double();
 _hap.pattern([100, 50, 100]);
 _hap.cancel();
-Scrollable({ height: 140, offset: () => 0, indicator: true, children: <Column /> });
-ContentIndicator({ canUp: () => true, canDown: () => false, width: 20, height: 40 });
+Scrollable({ height: 140, offset: () => 0, max: 160, indicator: true, children: <Column /> });
+ContentIndicator({ edge: "down", show: () => false, width: 20, height: 40 });
 Button({ label: "OK", onPress: () => {} });
 Button({
 	label: () => "x",

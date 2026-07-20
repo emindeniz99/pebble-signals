@@ -8,22 +8,21 @@
 
 > **ContentIndicator**(`props`): `Content`
 
-Defined in: scrollable.ts:110
+Defined in: scrollable.ts:109
 
-ContentIndicator — a transparent Canvas overlay painting an up chevron
-(top-center) while `canUp()` and a down chevron (bottom-center) while
-`canDown()`: Pebble's ContentIndicator, the "more content this way" hint.
+ContentIndicator — a one-line Label showing ONE chevron ("^" for up,
+"v" for down) while `show()` is true, else blank: Pebble's ContentIndicator,
+the "more content this way" hint.
 
-  <ContentIndicator canUp={() => off() > 0} canDown={() => off() < max}
-    width={140} height={140} />
+  <ContentIndicator edge="down" show={() => off() < max} width={140} />
 
-`canUp`/`canDown` are boolean THUNKS: reading them inside [Canvas](../../draw/functions/Canvas.md)'s
-`paint` auto-subscribes to whatever signals they touch, so the chevrons
-repaint for free when the scroll position changes (the dots.ts idiom — no
-bind path, no manual invalidate). BOTH thunks are evaluated every frame (each
-gates one chevron), so both stay subscribed regardless of which arrow draws.
-There is no `fill`, so the port composites over the content beneath it.
-Returns a single Piu Port. See the module header.
+It is a GUTTER band, placed in FLOW above/below the content (that is how
+[Scrollable](Scrollable.md) composes it). It is a Label — NOT a draw Canvas — ON
+PURPOSE: a Canvas Port beside/over a moveBy'd content Column wedges the
+firmware (gotcha 24, MEASURED on gabbro). `show` is a boolean THUNK: an
+`effect` reads it and writes the Label's `string` (the bind path's own
+mechanism), so the chevron appears/vanishes for free when the scroll position
+changes. Returns a single Piu Label. See the module header.
 
 ## Parameters
 

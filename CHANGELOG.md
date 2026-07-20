@@ -11,9 +11,10 @@ No registry releases yet; entries accumulate under Unreleased until the first
 
 ### Added
 - **Binding-expansion catalog — media, input, layout (opt-in; 100%-covered; all
-  build for gabbro + emery, six render-verified on gabbro — image, imagebackground
-  (bitmap + live clock), vectorimage (PDC scaled 2×), grid, button, vibration — the
-  rest on device-proven substrate).** Media:
+  build for gabbro + emery, seven render-verified on gabbro — image, imagebackground
+  (bitmap + live clock), vectorimage (PDC scaled 2×), grid, button, vibration,
+  scrollable (full scroll + chevron flip) — the rest on device-proven substrate).**
+  Media:
   `runtime/image` (`Image` — a bitmap on one Content, optional reactive-`variant`
   sprite), `runtime/imagebackground` (`ImageBackground` — children over a bitmap),
   `runtime/vectorimage` (`VectorImage` — a PDC vector on `SVGImage`, hiding the four
@@ -23,7 +24,8 @@ No registry releases yet; entries accumulate under Unreleased until the first
   (`useLongPress`/`useRepeatClick`/`useMultiClick` — handler bags to spread on a
   focused node), `runtime/backhandler` (`useBackHandler` — intercept Back; in-app
   pop proven, firmware exit-override device-gated). Layout/lists: `runtime/scrollable`
-  (`Scrollable` + `ContentIndicator` — free-form clip+`moveBy` scroll with chevrons),
+  (`Scrollable` + `ContentIndicator` — free-form clip+`moveBy` scroll with `Label`
+  chevron gutters, device-verified; a draw-Canvas overlay wedges the firmware — gotcha 24),
   `runtime/grid` (`Grid` — N-column tiles), `runtime/sectionlist` (`SectionList` —
   grouped headers+rows over `VirtualList`). Output: `runtime/vibration` (`useHaptics`
   over the static `pebble/vibes`; buzz felt only on hardware).
@@ -140,6 +142,19 @@ No registry releases yet; entries accumulate under Unreleased until the first
   `-grown` reactive-change frames). Example: `src/tsx/examples/draw.tsx`.
 
 ### Fixed
+- **`Scrollable`'s `indicator` no longer wedges the firmware** (a
+  build-passes/device-hangs bug the device retry caught, gotcha 24). The old
+  `ContentIndicator` was a transparent `runtime/draw` Canvas Port OVERLAPPING the
+  scrolled Column; on gabbro that hangs the Piu run loop (the screenshot /
+  watch-info transport times out — not the emulator "rotting", as first assumed,
+  but the app). Bisected across ~10 clean-reset installs: the clip, the measured
+  `.height` read, `moveBy`, and arena weight all render fine; a Canvas Port that
+  overlaps the `moveBy`'d Column — OR a second chevron Canvas beside it — is what
+  wedges it. Rebuilt the indicator as `"^"`/`"v"` `Label`s in reserved,
+  non-overlapping gutters (the down chevron takes an optional `max`; falls back to
+  the measured `column.height`). Device-verified on gabbro across the full scroll
+  (top → both-chevron mid-scroll → bottom). ASCII `"^"`/`"v"` because Pebble Gothic
+  renders no `▲`/`▼`/`↑`/`↓` (MEASURED: tofu).
 - **`fontcheck` now rejects `bold 30px Bitham`** — a build-passes/device-fails
   gap the device retry caught: the vibration example crashed on gabbro with
   `URIError: font not found: Bitham-Bold-30.fnt`. The 30px Bitham face is

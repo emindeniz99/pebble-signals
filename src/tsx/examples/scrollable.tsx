@@ -42,7 +42,7 @@ render(
 			onPressUp={up}
 			onPressDown={down}
 		>
-			<Scrollable height={VIEW_H} offset={() => y()} indicator>
+			<Scrollable height={VIEW_H} offset={() => y()} max={MAX} indicator>
 				{ROWS.map((r) => (
 					<Label style={base} width={screen.width} height={ROW_H} string={r} />
 				))}

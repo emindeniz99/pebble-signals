@@ -731,15 +731,21 @@ _Node-100%-covered; builds; the `onPressBack` substrate is device-proven (see Bu
 Free-form scroll of arbitrary-height content (RN `ScrollView` + Pebble
 `ContentIndicator`) — the one foundational primitive the catalog lacked (`Menu` is
 selectable rows, `VirtualList` recycles). A clip viewport over a Column scrolled by
-`offset` via `moveBy` (the proven Menu idiom); optional up/down chevrons drawn on a
-`Canvas` bound to the offset. `ContentIndicator` is also exported standalone.
+`offset` via `moveBy` (the proven Menu idiom); with `indicator`, up/down chevrons in
+reserved, non-overlapping `Label` gutters (`"^"` / `"v"`) that flip as the offset
+crosses the ends. Pass `max` (content − viewport) so the down chevron is correct from
+the first frame. `ContentIndicator` is also exported standalone. NB: the chevrons are
+`Label`s, NOT a draw `Canvas` overlay — a Canvas Port over (or a second chevron Canvas
+beside) the `moveBy`'d Column wedges the firmware (gotcha 24, MEASURED on gabbro).
 
 ```tsx
 import { Scrollable } from "runtime/scrollable";
-<Scrollable height={140} offset={() => y()} indicator>{tallColumn}</Scrollable>
+<Scrollable height={140} offset={() => y()} max={84} indicator>{tallColumn}</Scrollable>
 ```
 
-_Node-100%-covered; builds; the clip+`moveBy` scroll substrate is device-proven (see Grid / Menu) — demo: `pnpm run dev -- --app scrollable`._
+![Scrollable on gabbro](../screenshots/scrollable-gabbro.png)
+
+_Device-verified on gabbro (scrolled to offset 56 — content advanced and BOTH chevrons show; `"v"`-only at the top, `"^"`-only at the max). Node-100%-covered; typecheck + biome clean._
 
 ### Grid — `runtime/grid`
 

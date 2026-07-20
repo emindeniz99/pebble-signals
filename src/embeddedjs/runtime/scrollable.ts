@@ -12,13 +12,13 @@
 // can still travel. No input handling, no momentum, no touch — a loader is the
 // sole self-owning widget and this is not one.
 //
-// COMPOSITION (mirrors menu.ts's outer-clip + inner-Column + moveBy idiom): an
-// OUTER clipping `Container` sized to the viewport (EXPLICIT width+height —
-// gotcha 16) holds an INNER `Column` of the children. The Column flows the
-// children top-to-bottom and MEASURES its own content height (the gotcha-16
-// fix: a Column composes vertically where a bare Container measures 0 and draws
-// nothing); it is pinned top:0/left:0 so `offset` 0 shows the content top, and
-// the outer CLIPS the overflow to the viewport window.
+// COMPOSITION (mirrors menu.ts's clip + inner-Column + moveBy idiom): a CLIPPING
+// `Container` sized to the content window (EXPLICIT width+height — gotcha 16)
+// holds an INNER `Column` of the children. The Column flows the children
+// top-to-bottom and MEASURES its own content height (the gotcha-16 fix: a Column
+// composes vertically where a bare Container measures 0 and draws nothing); it
+// is pinned top:0/left:0 so `offset` 0 shows the content top, and the clip hides
+// the overflow.
 //
 // SCROLL (the device-proven Move idiom, flow.ts): coordinate props are
 // construction-time statics on this port — a post-mount position WRITE crashes
@@ -31,110 +31,110 @@
 // unchanged offset issues no moveBy at all (Move's lx/ly guard). The content
 // shifts UP as the offset grows, so the y delta handed to moveBy is negative.
 //
-// INDICATOR (a composed runtime/draw Canvas — like dots.ts, NOT a hand-drawn
-// node): with `indicator`, an overlay {@link ContentIndicator} paints an up
-// chevron while there is content ABOVE (offset > 0) and a down chevron while
-// there is content BELOW (offset < contentHeight − viewport). `canUp`/`canDown`
-// are boolean THUNKS read inside the Canvas `paint`, so they auto-subscribe to
-// `offset` and the chevrons repaint for free on scroll (the dots.ts reactivity
-// contract — no bind path, no manual invalidate). The down-chevron's max is
-// DERIVED from the inner Column's MEASURED height (`column.height`, valid after
-// Piu's post-mount measure pass), so an arbitrary-content viewport needs no
-// content-height prop. The overlay carries no `fill`, so it composites over the
-// scrolled content beneath it.
+// INDICATOR — LABEL CHEVRONS IN RESERVED GUTTERS (gotcha 24, MEASURED on gabbro
+// 2026-07, the whole reason this is not a draw-Canvas overlay): with `indicator`
+// the viewport becomes a Column of THREE stacked, NON-overlapping bands — a "^"
+// gutter, the clip window, a "v" gutter. Each gutter is a `Label` whose string
+// an effect flips between the glyph and "" as `offset` crosses the ends, so the
+// chevron appears/vanishes for free (a device-safe Label `.string` write — the
+// bind path's own mechanism). It is DELIBERATELY a Label and NOT a runtime/draw
+// Canvas: a Canvas Port that OVERLAPS a moveBy'd content Column WEDGES the
+// firmware (the screenshot / watch-info transport times out — the Piu run loop
+// never idles), and even TWO non-overlapping chevron Canvases beside a moveBy'd
+// Column wedge it the same way (MEASURED: `dots`'s single Canvas renders; an
+// overlapping chevron Port, or a second chevron Canvas, does not). Labels carry
+// no such cost (8 rows + moveBy already scroll fine). The glyphs are ASCII
+// "^"/"v" because Pebble Gothic renders no ▲/▼/↑/↓ (MEASURED: all tofu). The
+// down-chevron's max is DERIVED from the inner Column's MEASURED height
+// (`column.height`, valid once the enclosing Column has measured it).
 //
-// NO MODULE SCOPE (Rule 5 / gotcha 13): every Container / Column / Port / effect
-// is built INSIDE the exported functions at call time — this module constructs
-// NOTHING at top level (the one module-scope helper, `chevron`, is a PURE
-// fillColor-span emitter that builds no host object), so nothing freezes into a
-// broken preload instance, and the exports are `function` declarations exactly
-// like menu.ts / statusbar.ts.
+// NO MODULE SCOPE (Rule 5 / gotcha 13): every Container / Column / Label / Style
+// / effect is built INSIDE the exported functions at call time — this module
+// constructs NOTHING at top level (the lazy `chevStyle` is created on the first
+// indicator, at runtime), so nothing freezes into a broken preload instance, and
+// the exports are `function` declarations exactly like menu.ts / statusbar.ts.
 import { effect } from "runtime/signals";
 import { appendChild, screen, type JSXNode } from "runtime/jsx-runtime";
-import { Canvas, type DrawContext } from "runtime/draw";
 import type {
-	Color,
 	Content,
 	Container as PiuContainer,
+	Label as PiuLabel,
+	Style as PiuStyle,
 } from "../../../types/moddable/piu/MC-types";
 
-// Chevron geometry (px), shared by both arrows: PAD insets the apex from the
-// edge, HALF_W is each arm's horizontal reach, ARM_H its vertical drop, THICK
-// the stroke width. "white" reads on the black watchfaces the examples ship.
-const PAD = 3;
-const HALF_W = 8;
-const ARM_H = 6;
-const THICK = 2;
-const CHEVRON: Color = "white";
+// Default gutter (chevron band) height in px — the reserved, non-overlapping
+// strip at each edge that a chevron Label sits in. Tall enough for the bold 24px
+// caret with a pixel of breathing room.
+const GUTTER = 26;
 
-// Paint one chevron as two diagonal strokes meeting at an apex (draw.ts's
-// line() DDA-stamps each). apex at (cx, apexY); the arms reach to
-// (cx ± HALF_W, apexY + armDy) — a POSITIVE armDy drops the arms BELOW the apex
-// ("^", points up), a NEGATIVE armDy raises them ABOVE it ("v", points down).
-// Pure: it only emits fillColor spans through `g`, constructing no host object,
-// so it is safe at module scope (like draw.ts's isqrt). A const arrow, not a
-// `function` (preloaded-module alias rule, gotcha 13).
-const chevron = (g: DrawContext, cx: number, apexY: number, armDy: number): void => {
-	g.line(cx - HALF_W, apexY + armDy, cx, apexY, THICK, CHEVRON);
-	g.line(cx, apexY, cx + HALF_W, apexY + armDy, THICK, CHEVRON);
-};
+// The default chevron Style, created ONCE but LAZILY — on the first indicator,
+// at RUNTIME. It must NOT be constructed at module scope: `runtime/scrollable`
+// is a PRELOADED module and a top-level `new Style(...)` would freeze into a
+// broken preload instance and render blank on-device (gotcha 13, badge.ts).
+// Centered so the caret sits mid-gutter; "white" reads on the black watchfaces
+// the examples ship.
+let chevStyle: PiuStyle | undefined;
+const getChevStyle = (): PiuStyle =>
+	(chevStyle ??= new Style({ font: "bold 24px Gothic", color: "white", horizontal: "center" }));
 
 /** Props for {@link ContentIndicator}. */
 export type ContentIndicatorProps = {
-	/** Thunk — true while there is content ABOVE (paints the up chevron). Read a signal inside so it tracks. */
-	canUp: () => boolean;
-	/** Thunk — true while there is content BELOW (paints the down chevron). Read a signal inside so it tracks. */
-	canDown: () => boolean;
-	/** Overlay width in px. Defaults to the screen width (a width-less port measures 0 — gotcha 16). */
+	/** Which chevron: `"up"` (a "^") or `"down"` (a "v"). */
+	edge: "up" | "down";
+	/** Thunk — true while there is content in that direction (shows the chevron). Read a signal inside so it tracks. */
+	show: () => boolean;
+	/** Gutter width in px. Defaults to the screen width (a width-less label measures 0 — gotcha 16). */
 	width?: number;
-	/** Overlay height in px — the chevrons sit at its top and bottom edges. Defaults to the screen height. */
+	/** Gutter (band) height in px. Defaults to `GUTTER` (26). */
 	height?: number;
+	/** Override the chevron {@link Style}. Defaults to a lazily-created centered bold 24px Gothic style. */
+	style?: PiuStyle;
 };
 
 /**
- * ContentIndicator — a transparent Canvas overlay painting an up chevron
- * (top-center) while `canUp()` and a down chevron (bottom-center) while
- * `canDown()`: Pebble's ContentIndicator, the "more content this way" hint.
+ * ContentIndicator — a one-line {@link Label} showing ONE chevron ("^" for up,
+ * "v" for down) while `show()` is true, else blank: Pebble's ContentIndicator,
+ * the "more content this way" hint.
  *
- *   <ContentIndicator canUp={() => off() > 0} canDown={() => off() < max}
- *     width={140} height={140} />
+ *   <ContentIndicator edge="down" show={() => off() < max} width={140} />
  *
- * `canUp`/`canDown` are boolean THUNKS: reading them inside {@link Canvas}'s
- * `paint` auto-subscribes to whatever signals they touch, so the chevrons
- * repaint for free when the scroll position changes (the dots.ts idiom — no
- * bind path, no manual invalidate). BOTH thunks are evaluated every frame (each
- * gates one chevron), so both stay subscribed regardless of which arrow draws.
- * There is no `fill`, so the port composites over the content beneath it.
- * Returns a single Piu Port. See the module header.
+ * It is a GUTTER band, placed in FLOW above/below the content (that is how
+ * {@link Scrollable} composes it). It is a Label — NOT a draw Canvas — ON
+ * PURPOSE: a Canvas Port beside/over a moveBy'd content Column wedges the
+ * firmware (gotcha 24, MEASURED on gabbro). `show` is a boolean THUNK: an
+ * `effect` reads it and writes the Label's `string` (the bind path's own
+ * mechanism), so the chevron appears/vanishes for free when the scroll position
+ * changes. Returns a single Piu Label. See the module header.
  */
 export function ContentIndicator(props: ContentIndicatorProps): Content {
 	const width = props.width ?? screen.width;
-	const height = props.height ?? screen.height;
-	const canUp = props.canUp;
-	const canDown = props.canDown;
-	const cx = width / 2;
-	return Canvas({
-		width,
-		height,
-		paint: (g) => {
-			// up chevron near the top edge (apex up, arms drop toward the center)
-			if (canUp()) chevron(g, cx, PAD, ARM_H);
-			// down chevron near the bottom edge (apex down, arms rise toward center)
-			if (canDown()) chevron(g, cx, height - 1 - PAD, -ARM_H);
-		},
+	const height = props.height ?? GUTTER;
+	const glyph = props.edge === "up" ? "^" : "v";
+	const show = props.show;
+	const style = props.style ?? getChevStyle();
+	const label = new Label(null, { width, height, style, string: "" }) as PiuLabel;
+	// reactive show/hide: the effect writes the glyph or "" as `show()` flips — a
+	// device-safe Label `.string` write (gotcha 24 — NEVER a draw Canvas beside
+	// the moveBy'd content). Registered under the running owner, disposed with the
+	// screen.
+	effect(() => {
+		label.string = show() ? glyph : "";
 	});
+	return label as unknown as Content;
 }
 
 /** Props for {@link Scrollable}. */
 export type ScrollableProps = {
-	/** Viewport height in px — the clip window the content scrolls within (a size-less container measures 0 — gotcha 16). */
+	/** Height of the clip window the content scrolls within, in px (a size-less container measures 0 — gotcha 16). With `indicator`, two `GUTTER`-tall chevron bands are added OUTSIDE it, so the widget renders `height + 2·GUTTER` tall. */
 	height: number;
 	/** Viewport width in px. Defaults to the screen width. */
 	width?: number;
 	/** Scroll position in px (content shifted UP) — a THUNK; read a signal inside so scrolling is live. Rounded to whole px. */
 	offset: () => number;
-	/** Overlay up/down chevrons (a Pebble ContentIndicator) reflecting the travel remaining. Default off. */
+	/** Reserve up/down chevron gutters (a Pebble ContentIndicator) reflecting the travel remaining. Default off. */
 	indicator?: boolean;
+	/** Max scroll in px (content height − `height`) for the down chevron. A plain number is correct from the first frame; omit and the widget falls back to the inner Column's MEASURED height (accurate once measured — the initial frame may miss the down chevron). */
+	max?: number;
 	/** The content to scroll — any nodes; stacked in an inner Column and clipped to the viewport. */
 	children?: JSXNode;
 };
@@ -150,29 +150,35 @@ export type ScrollableProps = {
  *     <Label ... /> <Label ... /> ...
  *   </Scrollable>
  *
- * Hand-builds an outer clipping Container over an inner Column of the children
+ * Hand-builds a clipping Container over an inner Column of the children
  * (menu.ts's idiom); ONE effect scrolls the Column via the device-proven moveBy
- * DELTA (flow.ts's Move — rounded, guarded), and an optional overlay
- * {@link ContentIndicator} paints the chevrons. Unlike {@link Menu} /
- * VirtualList (fixed-shape rows), the content is anything and its height is
- * MEASURED, not declared. See the module header for the composition + scroll +
- * indicator contract.
+ * DELTA (flow.ts's Move — rounded, guarded). With `indicator`, the viewport is a
+ * Column of THREE non-overlapping bands — "^" gutter, clip window, "v" gutter —
+ * whose chevrons are {@link ContentIndicator} Labels (NOT draw Canvases: a Canvas
+ * beside a moveBy'd Column wedges the firmware — gotcha 24, MEASURED). Unlike
+ * {@link Menu} / VirtualList (fixed-shape rows), the content is anything and its
+ * height is MEASURED, not declared. See the module header for the composition +
+ * scroll + indicator contract.
  */
 export function Scrollable(props: ScrollableProps): Content {
-	const height = props.height;
 	const width = props.width ?? screen.width;
 	const offset = props.offset;
+	// The clip window is EXACTLY `height`; with `indicator` the two chevron bands
+	// are added OUTSIDE it, so `height` means the same content window with or
+	// without the indicator — the app's max-scroll math (content − height) is
+	// unchanged by toggling it, and stays decoupled from GUTTER.
+	const innerH = props.height;
 
-	// OUTER clip window: EXPLICIT width + height (gotcha 16 — a size-less
-	// container measures 0 and draws nothing) + clip so the overflowing content
-	// stays inside the viewport (the whole point of a scroller).
-	const outer = new Container(null, { width, height, clip: true }) as PiuContainer;
+	// CLIP window: EXPLICIT width + height (gotcha 16 — a size-less container
+	// measures 0 and draws nothing) + clip so the overflowing content stays inside
+	// the window (the whole point of a scroller).
+	const clip = new Container(null, { width, height: innerH, clip: true }) as PiuContainer;
 	// INNER content column: explicit width, pinned top-left; its height is
 	// MEASURED from the children (a Column flows them vertically — the gotcha-16
-	// fix), so it can exceed the viewport and be clipped.
+	// fix), so it can exceed the window and be clipped.
 	const column = new Column(null, { left: 0, top: 0, width }) as PiuContainer;
 	if (props.children !== undefined) appendChild(column, props.children);
-	outer.add(column);
+	clip.add(column);
 
 	// Last-applied scroll offset (px the content has shifted UP). Persists across
 	// effect runs so each change scrolls INCREMENTALLY (Move's lx/ly), not from
@@ -186,16 +192,26 @@ export function Scrollable(props: ScrollableProps): Content {
 		}
 	});
 
-	if (props.indicator) {
-		// The chevrons track `offset` (read inside these thunks → auto-subscribed in
-		// the Canvas paint). Down-travel remains while offset is short of the max
-		// scroll = MEASURED content height − viewport (column.height is valid after
-		// Piu's post-mount measure pass; before it, a still-unmeasured height only
-		// suppresses the down chevron for the first, non-drawing tracking frame).
-		const canUp = () => Math.round(offset()) > 0;
-		const canDown = () => Math.round(offset()) < column.height - height;
-		outer.add(ContentIndicator({ canUp, canDown, width, height }));
-	}
+	if (!props.indicator) return clip;
 
-	return outer;
+	// The chevrons track `offset` (read inside these thunks → the ContentIndicator
+	// effects subscribe to it). Down-travel remains while offset is short of the
+	// max scroll: an app-provided `max` (a plain number, correct from the first
+	// frame) if given, else the inner Column's MEASURED height − clip window
+	// (`column.height` is a host property, not a signal — valid after Piu measures
+	// the Column, so the down chevron settles from the first scroll). NOTE: we do
+	// NOT poke a signal from onDisplaying to force an early re-read — a Piu
+	// property write during the display phase wedges the firmware (gotcha 24, same
+	// out-of-sequence class as an in-onDraw invalidate; MEASURED on gabbro).
+	const maxScroll = props.max;
+	const canUp = () => Math.round(offset()) > 0;
+	const canDown = () => Math.round(offset()) < (maxScroll ?? column.height - innerH);
+	// THREE non-overlapping bands stacked top-to-bottom: the chevron Labels sit in
+	// FLOW beside the content (gotcha 24 — NEVER a draw Canvas over the moveBy'd
+	// Column). The wrap is GUTTER taller on each side than the clip window.
+	const wrap = new Column(null, { width, height: props.height + 2 * GUTTER }) as PiuContainer;
+	wrap.add(ContentIndicator({ edge: "up", show: canUp, width, height: GUTTER }));
+	wrap.add(clip);
+	wrap.add(ContentIndicator({ edge: "down", show: canDown, width, height: GUTTER }));
+	return wrap;
 }

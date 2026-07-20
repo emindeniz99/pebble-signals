@@ -8,7 +8,7 @@
 
 > **Scrollable**(`props`): `Content`
 
-Defined in: scrollable.ts:161
+Defined in: scrollable.ts:163
 
 Scrollable — a free-form scrolling viewport for ARBITRARY content: RN's
 <ScrollView> on a watch. DISPLAY-ONLY — the app owns the scroll position and
@@ -20,13 +20,15 @@ drives `offset` (buttons / a rotary); the widget shifts the content and, with
     <Label ... /> <Label ... /> ...
   </Scrollable>
 
-Hand-builds an outer clipping Container over an inner Column of the children
+Hand-builds a clipping Container over an inner Column of the children
 (menu.ts's idiom); ONE effect scrolls the Column via the device-proven moveBy
-DELTA (flow.ts's Move — rounded, guarded), and an optional overlay
-[ContentIndicator](ContentIndicator.md) paints the chevrons. Unlike Menu /
-VirtualList (fixed-shape rows), the content is anything and its height is
-MEASURED, not declared. See the module header for the composition + scroll +
-indicator contract.
+DELTA (flow.ts's Move — rounded, guarded). With `indicator`, the viewport is a
+Column of THREE non-overlapping bands — "^" gutter, clip window, "v" gutter —
+whose chevrons are [ContentIndicator](ContentIndicator.md) Labels (NOT draw Canvases: a Canvas
+beside a moveBy'd Column wedges the firmware — gotcha 24, MEASURED). Unlike
+Menu / VirtualList (fixed-shape rows), the content is anything and its
+height is MEASURED, not declared. See the module header for the composition +
+scroll + indicator contract.
 
 ## Parameters
 
