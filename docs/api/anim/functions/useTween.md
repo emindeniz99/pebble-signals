@@ -8,7 +8,7 @@
 
 > **useTween**(`target`, `opts?`): () => `number`
 
-Defined in: anim.ts:82
+Defined in: anim.ts:91
 
 useTween(target, opts?) — smoothly eases a value toward `target` over `duration`
 ms on each change: the RN Reanimated `withTiming` analog with Solid ownership.

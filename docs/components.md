@@ -435,20 +435,26 @@ const [count, c] = useCounter(0, { min: 0, max: 10 });
 
 _Node-100%-covered; builds + boots on device — demo: `pnpm run dev -- --app state`._
 
-### useTween — `runtime/anim`
+### useTween / useSequence / useSpring — `runtime/anim`
 
-Smoothly eases a value toward a **reactive target** (RN Reanimated `withTiming`
-analog) — composes `animate`. Retargeting mid-flight continues from the current
-value.
+Motion hooks over the shared ~30fps ticker. `useTween` eases toward a **reactive
+target** (RN `withTiming`) — composes `animate`, retargeting mid-flight from the
+current value. `useSequence(steps, opts)` chains keyframes (moves + holds, optionally
+looping — RN `withSequence`); the pure combinators `withDelay`/`withRepeat`/`yoyo`
+compose into it. `useSpring(target, opts)` is physics-based motion (RN `withSpring`).
+Each `useSequence`/`useSpring` owns one interval, cleaned up on dispose.
 
 ```tsx
-import { useTween } from "runtime/anim";
-const x = useTween(() => target(), { duration: 400 });
+import { useSequence, useSpring, yoyo } from "runtime/anim";
+const x = useSequence(yoyo([{ to: 110, ms: 700 }]), { loop: true }); // bounce
+const y = useSpring(() => open() ? 100 : 0, { stiffness: 180 });     // springy
 ```
 
 | round | rect |
 |---|---|
 | ![usetween round](../screenshots/usetween-gabbro.png) | ![usetween rect](../screenshots/usetween-emery.png) |
+
+_`useSequence`/`useSpring` Node-100%-covered; build + boot — demo: `pnpm run dev -- --app sequence`._
 
 ---
 
@@ -611,10 +617,181 @@ _Node-100%-covered; device-gated (focus/wakeup events) — demo: `pnpm run dev -
 
 ---
 
+## Media
+
+Bitmap and vector images as reactive components — formalizing the hand-built
+`Texture`/`SVGImage` idioms every watchface previously rolled by hand. The
+`.png`/`.pdc` resource is derived from the `src` string **literal** at build time
+(gen-manifest scans the app source), so passing a literal ships the asset
+automatically. All substrate here is device-proven (`sloth`/`imgwatch`/`slothvec`).
+
+### Image — `runtime/image`
+
+A single bitmap on one Piu Content (RN `<Image>` analog): `new Texture(src)` (the
+`.png` suffix is **mandatory** — gotcha 19) framed by a texture Skin. An optional
+`variants` (per-frame width) + reactive `variant` turns it into a sprite filmstrip
+that animates by ONE integer write (a whitelisted reactive prop).
+
+```tsx
+import { Image } from "runtime/image";
+<Image src="logo.png" width={64} height={64} />
+```
+
+_Node-100%-covered; builds (asset derived from the `src` literal) + boots — demo: `pnpm run dev -- --app image`. Substrate device-proven (imgwatch)._
+
+### ImageBackground — `runtime/imagebackground`
+
+Children composited **over** a bitmap (RN `<ImageBackground>` analog): a texture Skin
+is the Container's background and `children` mount on top — the watchface "art +
+clock" pattern. Distinct from `Image` (a lone leaf) and `Card` (a flat fill).
+
+```tsx
+import { ImageBackground } from "runtime/imagebackground";
+<ImageBackground src="bg.png" width={120} height={120}><Label string={() => t()} /></ImageBackground>
+```
+
+_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app imagebackground`._
+
+### VectorImage — `runtime/vectorimage`
+
+A resolution-independent **PDC vector** on one `SVGImage` node — free scaling, zero
+pixel RAM. It hides the four hard SVGImage rules (transforms applied post-mount via
+an `onDisplaying` hook; `center` required; forced `scale(1,1)` so it draws at all;
+`rotate` absolute), turning the multi-hour slothvec saga into one component.
+`scale`/`rotate` are reactive; a driving effect re-applies them (idiom 5b).
+
+```tsx
+import { VectorImage } from "runtime/vectorimage";
+<VectorImage src="icon.pdc" width={120} height={120} center={[30, 7]} translate={[30, 7]} scale={() => s()} />
+```
+
+_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app vectorimage`. Substrate device-proven (slothvec)._
+
+---
+
+## Input
+
+Button-driven interaction over the jsx-runtime focus/press substrate
+(`onPress*`/`onRelease*` events reach the **focused** node; pair with the `focus`
+prop). Touch is deliberately unused — gotcha 2: a real-coordinate touch reboots the
+emulator, and most Pebbles have no digitizer. Drive on QEMU with `pebble emu-button`.
+
+### Button — `runtime/button`
+
+A focusable Container+Label with a pressed-skin swap (RN Button/Pressable +
+react-pebble `useButton`): owns a `pressed` signal wired to `onPressSelect`/
+`onReleaseSelect`, fires `onPress` on release, optional `onLongPress`. One focused
+Button per screen (or manage focus yourself).
+
+```tsx
+import { Button } from "runtime/button";
+<Button label="OK" onPress={() => fire()} />
+```
+
+_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app button` (drive with `pebble emu-button select`)._
+
+### press — `runtime/press`
+
+Three press-timing hooks that return handler **bags** to spread on a focused node:
+`useLongPress(button, ms, onFire)` (hold-to-fire), `useRepeatClick(button, onFire,
+opts)` (press-and-hold auto-repeat, accelerating), `useMultiClick(button, handlers,
+opts)` (double/triple click). All share the `setInterval` timing substrate and clean
+up on dispose.
+
+```tsx
+import { useLongPress } from "runtime/press";
+<Container focus {...useLongPress("Select", 600, () => confirm())} />
+```
+
+_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app press`._
+
+### useBackHandler — `runtime/backhandler`
+
+Intercept the **Back** button (RN `BackHandler`): returns `{ onPressBack }` to spread
+on a focused node; the handler returns `true` to consume Back (stay in-app, e.g. pop
+a Navigator) or `false` to allow exit. **Device caveat:** the in-app intercept is
+proven; whether consuming Back prevents the *firmware* app-exit is unverified under
+QEMU (a guaranteed override needs `pebble/button` — see device-gated below).
+
+```tsx
+import { useBackHandler } from "runtime/backhandler";
+<Container focus {...useBackHandler(() => nav.canPop() ? (nav.pop(), true) : false)} />
+```
+
+_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app backhandler`._
+
+---
+
+## Layout & lists
+
+### Scrollable — `runtime/scrollable`
+
+Free-form scroll of arbitrary-height content (RN `ScrollView` + Pebble
+`ContentIndicator`) — the one foundational primitive the catalog lacked (`Menu` is
+selectable rows, `VirtualList` recycles). A clip viewport over a Column scrolled by
+`offset` via `moveBy` (the proven Menu idiom); optional up/down chevrons drawn on a
+`Canvas` bound to the offset. `ContentIndicator` is also exported standalone.
+
+```tsx
+import { Scrollable } from "runtime/scrollable";
+<Scrollable height={140} offset={() => y()} indicator>{tallColumn}</Scrollable>
+```
+
+_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app scrollable`._
+
+### Grid — `runtime/grid`
+
+An N-column tile layout (RN `FlatList numColumns`): a Column of Rows built from
+`items` via a `cell(item, index)` render prop — app launchers, icon pickers, keypads.
+Static structure (drive a changing set with `<For>`/`VirtualList` over the rows).
+
+```tsx
+import { Grid } from "runtime/grid";
+<Grid columns={3} items={icons} cell={(it, i) => <Image src={it.png} width={40} height={40} />} />
+```
+
+_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app grid`._
+
+### SectionList — `runtime/sectionlist`
+
+Grouped headers + rows over the windowed `VirtualList` (RN `<SectionList>`): flattens
+sections+headers into one index space, headers non-selectable, `selected` kept in
+view. `renderHeader`/`renderRow` return **string** captions (a recycled slot is one
+reused Label).
+
+```tsx
+import { SectionList } from "runtime/sectionlist";
+<SectionList sections={() => groups()} renderHeader={(h) => h} renderRow={(r) => r.name} selected={() => i()} />
+```
+
+_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app sectionlist`._
+
+---
+
+## Hooks — output
+
+### useHaptics — `runtime/vibration`
+
+The vibration motor (RN `Vibration` + react-pebble `useVibration`) — the biggest
+missing OUTPUT channel: `useHaptics()` → `{ short, long, double, pattern, cancel }`
+over the static `pebble/vibes` class. `pattern([on, off, …])` takes alternating ms
+segments; the motor is cancelled on owner dispose.
+
+```tsx
+import { useHaptics } from "runtime/vibration";
+const h = useHaptics();
+<Button label="OK" onPress={() => { save(); h.short(); }} />
+```
+
+_Node-100%-covered; builds + boots. The physical buzz is **not** observable on QEMU (no motor / `emu-vibe`) — felt only on real hardware._
+
+---
+
 ## Not feasible from watch JS today
 
-Two RN/Pebble sensor families are **intentionally not shipped** — the research
-(against the on-disk Moddable/Pebble host) found no watch-side JS surface:
+The exhaustive Piu/Pebble API survey (against the on-disk Moddable/Pebble host)
+classified the remaining RN/Pebble surface. These families are **intentionally not
+shipped** — no watch-side JS surface reaches them from a mod:
 
 - **`useHealth`** (steps / activity / heart rate) — the HealthService lives only
   in the Pebble **C** SDK; Moddable ships no health JS module or typing. The QEMU
@@ -624,6 +801,43 @@ Two RN/Pebble sensor families are **intentionally not shipped** — the research
   even in C (only a per-minute historical `AmbientLightLevel` buried in the Health
   API); no `emu-light` command. Treat ambient light as unavailable. (`watch.light()`
   controls the **backlight**, an output — not an ambient sensor.)
+- **`QRCode`** — the `data/qrcode` encoder is a **native** function (`@ "xs_qrcode"`,
+  backed by `qrcodegen.c`). It appears in the SDK's Pebble host manifest, but
+  `xs_qrcode` is **not present in the built Pebble device tree**, and a mod is JS-only
+  (cannot compile C), so `import qrCode from "qrcode"` would not resolve on the actual
+  firmware. Reclassified from the survey's "build-now": needs an on-device probe of
+  `importNow("qrcode")` on healthy firmware (and a build-tripwire whitelist), or a
+  pure-JS encoder too heavy for the 32 KB arena. A device-gated *probe*, not shipped.
+- **Sound / audio** — no watch-side JS audio surface and no speaker (only the
+  vibration motor); `piu/Sound` has no Pebble implementation. Route tones to
+  `useHaptics`.
+- **Touch gestures** (swipe / drag / pan / pull-to-refresh) — button-first platform;
+  a real-coordinate touch reboots QEMU (gotcha 2) and most Pebbles have no digitizer.
+  Steer all gesture UX to buttons.
+- **`Die` clip / `Wipe`&`Comb` transitions**, **native `AnimatedImage`/APNG**,
+  **`Shape`** — not Pebble globals (absent from `piuPebble.js` / the Pebble Piu
+  manifest). The feasible substitutes: rectangular clip via a container `clip`,
+  reactive-`variant` sprites (see `Image`), and vector art via `VectorImage`.
+- **`useContentSize`**, **`useAppGlance`**, **`useTimelinePin`**, **`useQuietTime` /
+  `useNotification`**, **`useTouch`** — no Moddable JS getter/binding exists (C-SDK,
+  phone/pkjs, or dead surface); the emulator can *set* some but nothing on the JS side
+  observes them.
+- **RN system APIs** — `useColorScheme`, `Clipboard`, `Share`, `Linking`/`openURL`,
+  `Keyboard`, `AccessibilityInfo`, `PixelRatio`: no Pebble surface (use `useDictation`
+  or the char-picker for text input; `openURL` is pkjs-config-only).
+
+## Device-gated (probe-pending)
+
+Reachable in principle (the host surface exists) but **not yet device-verified**, so
+not shipped this round — each needs a healthy emulator or a real watch to confirm. In
+rough priority: **`useUnobstructedArea`** (Quick-View resize; watchface-only),
+**animated Navigator transitions** (base `Transition` + `moveBy`; ~2× arena overlap),
+**`useLocation`** (GPS via pkjs; no QEMU fix), **`useDictation`** (probe-proven UI, no
+transcript without mic+phone), **`usePhysicalButtons`** (focus-free buttons +
+guaranteed Back-override via `pebble/button`), **`useWebSocket`** (phone-tunnelled,
+arena pressure), the **Pebble-only native content nodes** (`RoundRect`, `Inverter`,
+`RichText`, `NinePatch` — globalThis'd but never exercised), a **native content-clock
+animator**, and **`ScreenBuffer`**.
 
 ---
 

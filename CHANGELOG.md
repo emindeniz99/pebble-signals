@@ -10,6 +10,39 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **Binding-expansion catalog — media, input, layout (opt-in; 100%-covered; each
+  builds for gabbro + emery from an exhaustive Piu/Pebble API survey).** Media:
+  `runtime/image` (`Image` — a bitmap on one Content, optional reactive-`variant`
+  sprite), `runtime/imagebackground` (`ImageBackground` — children over a bitmap),
+  `runtime/vectorimage` (`VectorImage` — a PDC vector on `SVGImage`, hiding the four
+  post-mount transform rules); substrate device-proven by imgwatch/slothvec. Input
+  (over the jsx-runtime focus/press substrate, `pebble emu-button`-driven): `runtime/button`
+  (`Button` — focusable, pressed-skin swap, optional long-press), `runtime/press`
+  (`useLongPress`/`useRepeatClick`/`useMultiClick` — handler bags to spread on a
+  focused node), `runtime/backhandler` (`useBackHandler` — intercept Back; in-app
+  pop proven, firmware exit-override device-gated). Layout/lists: `runtime/scrollable`
+  (`Scrollable` + `ContentIndicator` — free-form clip+`moveBy` scroll with chevrons),
+  `runtime/grid` (`Grid` — N-column tiles), `runtime/sectionlist` (`SectionList` —
+  grouped headers+rows over `VirtualList`). Output: `runtime/vibration` (`useHaptics`
+  over the static `pebble/vibes`; buzz felt only on hardware).
+- **`runtime/anim` motion models — `useSequence`/`useSpring` + combinators.**
+  `useSequence(steps, opts)` chains keyframe moves/holds (optionally looping — RN
+  `withSequence`); pure `withDelay`/`withRepeat`/`yoyo` compose into it; `useSpring`
+  is physics-based motion (RN `withSpring`, a semi-implicit Euler integrator). Each
+  owns one ~30fps interval under the `timers.ts` teardown contract.
+- **gen-manifest derives bitmaps from bare `"x.png"` literals** (build enabler for
+  the ergonomic `<Image src>` — the component builds `new Texture(src)` from a
+  variable, so the only scannable literal is the `src` prop; URL/path-safe).
+- **Exhaustive feasibility catalog** (docs/components.md): the survey classified the
+  remaining Piu/Pebble surface — **9 device-gated** items (`useUnobstructedArea`,
+  animated Navigator transitions, `useLocation`, `useDictation`, `usePhysicalButtons`,
+  `useWebSocket`, native `RoundRect`/`Inverter`/`RichText`/`NinePatch`, content-clock
+  animator, `ScreenBuffer`) documented as probe-pending, and the infeasible set
+  expanded (Sound, touch gestures, `Die`/Wipe/Comb, native APNG, `Shape`,
+  `useContentSize`/`useAppGlance`/`useTimelinePin`/`useQuietTime`, RN system APIs).
+  **`QRCode` reclassified** from build-now to device-gated: its encoder is a native
+  `xs_qrcode` absent from the built Pebble device tree, so a JS-only mod cannot
+  resolve it without an on-device probe (or a too-heavy pure-JS encoder).
 - **P2 catalog — menus, input & lists (opt-in; each device-verified on gabbro +
   emery):** `runtime/menu` (`Menu`, a scrolling selectable list — clip viewport +
   `moveBy` scroll), `runtime/picker` (`Picker`, a 3-row value carousel),
