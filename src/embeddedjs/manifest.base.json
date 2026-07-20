@@ -44,7 +44,17 @@
   "runtime/battery": "./runtime-min/battery",
   "runtime/connection": "./runtime-min/connection",
   "runtime/fetch": "./runtime-min/fetch",
-  "runtime/lifecycle": "./runtime-min/lifecycle"
+  "runtime/lifecycle": "./runtime-min/lifecycle",
+  "runtime/image": "./runtime-min/image",
+  "runtime/imagebackground": "./runtime-min/imagebackground",
+  "runtime/vectorimage": "./runtime-min/vectorimage",
+  "runtime/vibration": "./runtime-min/vibration",
+  "runtime/scrollable": "./runtime-min/scrollable",
+  "runtime/button": "./runtime-min/button",
+  "runtime/press": "./runtime-min/press",
+  "runtime/backhandler": "./runtime-min/backhandler",
+  "runtime/sectionlist": "./runtime-min/sectionlist",
+  "runtime/grid": "./runtime-min/grid"
  },
  "preload": [
   "runtime/signals",
@@ -87,6 +97,16 @@
   "runtime/battery",
   "runtime/connection",
   "runtime/fetch",
-  "runtime/lifecycle"
+  "runtime/lifecycle",
+  "runtime/image",
+  "runtime/imagebackground",
+  "runtime/vectorimage",
+  "runtime/vibration",
+  "runtime/scrollable",
+  "runtime/button",
+  "runtime/press",
+  "runtime/backhandler",
+  "runtime/sectionlist",
+  "runtime/grid"
  ]
 }

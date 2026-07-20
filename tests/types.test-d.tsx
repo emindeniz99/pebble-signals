@@ -45,6 +45,17 @@ import { useConnection } from "runtime/connection";
 // batch 6c: device-gated data / lifecycle hooks
 import { useFetch } from "runtime/fetch";
 import { useLaunchReason, useAppFocus, useWakeup } from "runtime/lifecycle";
+// batch 7: media / input / layout catalog
+import { Image } from "runtime/image";
+import { ImageBackground } from "runtime/imagebackground";
+import { VectorImage } from "runtime/vectorimage";
+import { useHaptics } from "runtime/vibration";
+import { Scrollable, ContentIndicator } from "runtime/scrollable";
+import { Button } from "runtime/button";
+import { useLongPress, useRepeatClick, useMultiClick } from "runtime/press";
+import { useBackHandler } from "runtime/backhandler";
+import { SectionList } from "runtime/sectionlist";
+import { Grid } from "runtime/grid";
 
 const data = { count: () => 3, get: (i: number) => "row" + i };
 
@@ -172,6 +183,53 @@ void _frd;
 void _lrr;
 void _af;
 void _wid;
+
+// batch 7: media components take src/size; input hooks return handler bags; layout
+// components take render props. Each must compile clean.
+Image({ src: "logo.png", width: 64, height: 64 });
+Image({ src: "sheet.png", width: 32, height: 32, variants: 32, variant: () => 0 });
+ImageBackground({ src: "bg.png", width: 120, height: 120, children: <Label string="hi" /> });
+VectorImage({
+	src: "icon.pdc",
+	width: 120,
+	height: 120,
+	center: [30, 7],
+	translate: [30, 7],
+	scale: () => 2,
+	rotate: 0,
+});
+const _hap = useHaptics();
+_hap.short();
+_hap.double();
+_hap.pattern([100, 50, 100]);
+_hap.cancel();
+Scrollable({ height: 140, offset: () => 0, indicator: true, children: <Column /> });
+ContentIndicator({ canUp: () => true, canDown: () => false, width: 20, height: 40 });
+Button({ label: "OK", onPress: () => {} });
+Button({
+	label: () => "x",
+	onPress: () => {},
+	focus: true,
+	onLongPress: () => {},
+	width: 80,
+	height: 40,
+});
+const _lp = useLongPress("Select", 600, () => {});
+void _lp.onPressSelect;
+const _rc = useRepeatClick("Up", () => {}, { initial: 400, min: 80, accel: 0.8 });
+void _rc.onPressUp;
+useMultiClick("Select", { 2: () => {}, 3: () => {} }, { window: 300 });
+const _bh = useBackHandler(() => true);
+const _bhv: boolean = _bh.onPressBack();
+void _bhv;
+SectionList({
+	sections: () => [{ header: "Fruit", rows: ["Apple", "Pear"] }],
+	renderHeader: (h) => h,
+	renderRow: (r) => r,
+	selected: () => 0,
+	rows: 3,
+});
+Grid({ columns: 3, items: ["a", "b", "c"], cell: (it, i) => <Container width={10} height={10} /> });
 
 // --- misuse: each MUST be a type error (guards biting) ---
 // @ts-expect-error — Canvas requires `paint`

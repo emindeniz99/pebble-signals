@@ -40,7 +40,17 @@
     "src/embeddedjs/runtime/battery.ts",
     "src/embeddedjs/runtime/connection.ts",
     "src/embeddedjs/runtime/fetch.ts",
-    "src/embeddedjs/runtime/lifecycle.ts"
+    "src/embeddedjs/runtime/lifecycle.ts",
+    "src/embeddedjs/runtime/image.ts",
+    "src/embeddedjs/runtime/imagebackground.ts",
+    "src/embeddedjs/runtime/vectorimage.ts",
+    "src/embeddedjs/runtime/vibration.ts",
+    "src/embeddedjs/runtime/scrollable.ts",
+    "src/embeddedjs/runtime/button.ts",
+    "src/embeddedjs/runtime/press.ts",
+    "src/embeddedjs/runtime/backhandler.ts",
+    "src/embeddedjs/runtime/sectionlist.ts",
+    "src/embeddedjs/runtime/grid.ts"
   ],
   "entryPointStrategy": "expand",
   "tsconfig": "tsconfig.check.json",
