@@ -32,7 +32,7 @@ import { ActionMenu } from "runtime/actionmenu";
 import { Spinner } from "runtime/spinner";
 import { useInterval, useTimeout } from "runtime/timers";
 import { useToggle, useCounter, useDebounce } from "runtime/state";
-import { useTween } from "runtime/anim";
+import { useTween, useSequence, useSpring, withDelay, withRepeat, yoyo } from "runtime/anim";
 // batch 6: device / time / connectivity / sensor hooks
 import { useClock, useTimeParts } from "runtime/clock";
 import { watchInfo, useDisplayBounds } from "runtime/watchinfo";
@@ -114,6 +114,14 @@ cntCtl.reset();
 cntCtl.set(3);
 const _dbV: number = useDebounce(() => ctr(), 300)();
 const _twV: number = useTween(() => 100, { duration: 400 })();
+// anim additions: keyframe sequence (+combinators) and spring physics
+const _sqV: number = useSequence(withDelay(100, [{ to: 100, ms: 200 }, { hold: 50 }]), {
+	loop: true,
+})();
+useSequence(withRepeat([{ to: 10, ms: 50 }], 2, true));
+useSequence(yoyo([{ to: 10, ms: 50 }]));
+const _spV: number = useSpring(() => 100, { stiffness: 200, damping: 20, from: 0 })();
+const _spC: number = useSpring(42)();
 const _clkV: Date = useClock("second")();
 const _tpV: number = useTimeParts().hours();
 const _wiV: number = watchInfo().width;
@@ -132,6 +140,9 @@ void _tglV;
 void _cntV;
 void _dbV;
 void _twV;
+void _sqV;
+void _spV;
+void _spC;
 void _clkV;
 void _tpV;
 void _wiV;

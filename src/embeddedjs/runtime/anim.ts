@@ -43,8 +43,17 @@
 // the hook at call time — this module constructs NOTHING at top level, so there is
 // nothing to freeze into a broken preload instance, and the one export is a
 // `function` declaration exactly like flow.ts's animate().
-import { effect, untrack } from "runtime/signals";
+import { effect, signal, track, untrack } from "runtime/signals";
 import { animate, type Tween } from "runtime/flow";
+
+// ~30fps, mirroring flow.ts's private ticker cadence (STEP=33): the memory-LCD
+// flush rate, not the CPU, is the limiter and 30fps is the classic Pebble
+// animation cadence. useSequence/useSpring each own ONE setInterval at this
+// cadence (the timers.ts teardown contract), rather than surgery on flow's
+// shared ticker whose completion-cascade index math is delicate — the sharing
+// win is deferred (each opt-in hook = one timer; documented tradeoff).
+const STEP = 33;
+const linear = (t: number): number => t;
 
 /** Options for {@link useTween}. */
 export type TweenOptions = {
@@ -112,3 +121,253 @@ export function useTween(target: number | (() => number), opts?: TweenOptions): 
 	});
 	return get;
 }
+
+/**
+ * A single {@link useSequence} keyframe: either a MOVE (`to`, over `ms` with an
+ * optional `ease` curve) or a HOLD (stay put for `hold` ms). The sequence walks
+ * these in order, each move starting where the previous step left off.
+ */
+export type SeqStep = { to: number; ms?: number; ease?: (t: number) => number } | { hold: number };
+
+/** Options for {@link useSequence}. */
+export type SequenceOptions = {
+	/** Value the first move eases FROM (and the resting value before it). Default 0. */
+	from?: number;
+	/** Restart from the top when the last step finishes (looped motion). Default false. */
+	loop?: boolean;
+};
+
+// Precompute the piecewise segments once: a flat [from,to,t0,dur,ease] list the
+// per-tick reader indexes by elapsed ms. A move with `ms<=0` (or a `hold<=0`) is
+// a zero-duration segment — skipped by the reader, so it never divides by zero.
+type Seg = { from: number; to: number; t0: number; dur: number; ease: (t: number) => number };
+const planSequence = (steps: SeqStep[], start: number): { segs: Seg[]; total: number } => {
+	const segs: Seg[] = [];
+	let cur = start;
+	let t0 = 0;
+	for (const s of steps) {
+		if ("hold" in s) {
+			const dur = s.hold > 0 ? s.hold : 0;
+			segs.push({ from: cur, to: cur, t0, dur, ease: linear });
+			t0 += dur;
+		} else {
+			const dur = s.ms && s.ms > 0 ? s.ms : 300;
+			segs.push({ from: cur, to: s.to, t0, dur, ease: s.ease || linear });
+			cur = s.to;
+			t0 += dur;
+		}
+	}
+	return { segs, total: t0 };
+};
+
+/**
+ * useSequence(steps, opts?) — chain keyframes into one motion on the device's
+ * single interval timer: the RN Reanimated `withSequence` analog with Solid
+ * ownership. Returns a getter `() => number`; read it in a binding to drive UI.
+ *
+ *   const x = useSequence([{ to: 100, ms: 200 }, { hold: 300 }, { to: 0, ms: 400, ease: quadInOut }]);
+ *   <Label string={() => String(Math.round(x()))} />
+ *
+ * Each move eases FROM where the previous step ended (the first from `opts.from`,
+ * default 0); a `{ hold: ms }` step stays put. The steps are planned into a flat
+ * segment list ONCE at call time; ONE `setInterval` (~30fps) advances elapsed ms
+ * and writes the piecewise-eased value into a signal. Non-looping, it settles on
+ * the final value and releases the timer; `opts.loop` wraps elapsed modulo the
+ * total and never stops. The timer is auto-cleared when the owning screen is
+ * disposed (the timers.ts `track(clear)` contract); the returned getter carries a
+ * manual `.stop()`. Zero module scope — the signal, timer and plan are all built
+ * inside the call (Rule 5). Feed it {@link withDelay}/{@link withRepeat}/{@link yoyo}.
+ */
+export function useSequence(
+	steps: SeqStep[],
+	opts?: SequenceOptions,
+): (() => number) & { stop: () => void } {
+	const start = opts?.from ?? 0;
+	const loop = !!opts?.loop;
+	const { segs, total } = planSequence(steps, start);
+	// The resting value if there is nothing to animate (no steps, or all
+	// zero-duration): a constant getter, no timer (the zero-cost path).
+	const settledValue = segs.length ? segs[segs.length - 1].to : start;
+	const s = signal(start);
+	const get = (() => s.value as number) as (() => number) & { stop: () => void };
+	let current: number | null = null;
+	const clear = (): void => {
+		if (current !== null) {
+			clearInterval(current);
+			current = null;
+		}
+	};
+	get.stop = clear;
+	track(clear); // stop on owner dispose (mirrors animate()/timers.ts)
+	if (total <= 0) {
+		// nothing moves — settle immediately, arm no timer.
+		s.value = settledValue;
+		return get;
+	}
+	// Value at cumulative elapsed `e` ms across the segment list.
+	const valueAt = (e: number): number => {
+		for (let i = 0; i < segs.length; i++) {
+			const g = segs[i];
+			if (g.dur <= 0) continue; // zero-length (hold 0 / ms<=0) — never the active seg
+			if (e < g.t0 + g.dur) return g.from + (g.to - g.from) * g.ease((e - g.t0) / g.dur);
+		}
+		return settledValue; // past the end
+	};
+	let elapsed = 0;
+	current = setInterval(() => {
+		elapsed += STEP;
+		// looping wraps back into [0,total); non-looping lets elapsed run past
+		// `total` so valueAt returns the final value (landing EXACTLY on it), then
+		// the timer is released — one read path, no special-case settle value.
+		if (loop && elapsed >= total) elapsed %= total;
+		s.value = valueAt(elapsed);
+		if (!loop && elapsed >= total) clear(); // done — release the native timer
+	}, STEP);
+	return get;
+}
+
+/** Options for {@link useSpring}. */
+export type SpringOptions = {
+	/** Restoring force toward the target. Higher = snappier. Default 170 (RN default). */
+	stiffness?: number;
+	/** Velocity damping. Higher = less overshoot/bounce. Default 26 (RN default). */
+	damping?: number;
+	/** Inertial mass. Higher = slower, heavier motion. Default 1. */
+	mass?: number;
+	/** Settle threshold: stop when |x-target| and |velocity| both fall below this. Default 0.05. */
+	precision?: number;
+	/** Value to spring FROM. Default: the target (a bare-number target then rests, no motion). */
+	from?: number;
+};
+
+/**
+ * useSpring(target, opts?) — physics-based motion toward `target`: the RN
+ * Reanimated `withSpring` analog and the one motion model {@link useTween} (fixed
+ * duration) and {@link useSequence} (keyframes) lack. Returns a getter
+ * `() => number`; read it in a binding to drive UI.
+ *
+ *   const [open, setOpen] = useState(false);
+ *   const x = useSpring(() => (open() ? 100 : 0), { stiffness: 200, damping: 18 });
+ *   <Label string={() => String(Math.round(x()))} />
+ *
+ * A semi-implicit Euler integrator on the device's single interval timer (~30fps)
+ * accelerates toward the target under a spring force minus damping, so motion
+ * overshoots and settles naturally (bounce controlled by `damping`). A BARE-number
+ * `target` springs ONCE from `opts.from` (default the target itself → rests with
+ * no motion; pass `from` for a mount entrance). A THUNK `target` is REACTIVE: ONE
+ * driving effect tracks it and, on each change, re-aims the spring from the CURRENT
+ * position and velocity (a mid-flight change glides, never snaps). The `from` read
+ * is untracked so the effect subscribes to `target()` only — reading the spring's
+ * own output tracked would self-feed. On settle the timer is released and re-armed
+ * on the next change; auto-cleared on owner dispose; the getter carries `.stop()`.
+ * Zero module scope (Rule 5).
+ */
+export function useSpring(
+	target: number | (() => number),
+	opts?: SpringOptions,
+): (() => number) & { stop: () => void } {
+	const stiffness = opts?.stiffness ?? 170;
+	const damping = opts?.damping ?? 26;
+	const mass = opts?.mass ?? 1;
+	const precision = opts?.precision ?? 0.05;
+	const constTarget = typeof target === "number";
+	const readTarget = constTarget ? () => target : (target as () => number);
+	// Rest at `from` (defaulting to the initial target → a bare number with no
+	// `from` never moves). Untracked: settle without subscribing.
+	const first = opts?.from ?? untrack(readTarget);
+	const s = signal(first);
+	const get = (() => s.value as number) as (() => number) & { stop: () => void };
+	let x = first; // current position (float; the binding rounds)
+	let v = 0; // current velocity
+	let goal = first; // where the spring is currently aiming
+	let current: number | null = null;
+	const clear = (): void => {
+		if (current !== null) {
+			clearInterval(current);
+			current = null;
+		}
+	};
+	const tick = (): void => {
+		// semi-implicit Euler: a = (-k·(x-goal) - c·v) / m, integrate v then x.
+		const dt = STEP / 1000;
+		const a = (-stiffness * (x - goal) - damping * v) / mass;
+		v += a * dt;
+		x += v * dt;
+		if (Math.abs(x - goal) < precision && Math.abs(v) < precision) {
+			x = goal; // snap to rest and release the timer
+			v = 0;
+			s.value = goal;
+			clear();
+			return;
+		}
+		s.value = x;
+	};
+	const arm = (to: number): void => {
+		goal = to;
+		if (current === null && (Math.abs(x - goal) >= precision || Math.abs(v) >= precision))
+			current = setInterval(tick, STEP);
+	};
+	get.stop = clear;
+	track(clear);
+	// A thunk target drives one effect that re-aims on change; a bare number aims
+	// once (from `first` toward the constant target — moves only if `from` differs).
+	if (constTarget) arm(target);
+	else effect(() => arm(readTarget()));
+	return get;
+}
+
+/**
+ * withDelay(ms, steps) — prepend a `{ hold: ms }` pause before a step list, so a
+ * {@link useSequence} starts after a delay (RN Reanimated `withDelay`). Pure — no
+ * timer, no signal; it returns a fresh `SeqStep[]` to hand to `useSequence`.
+ *
+ *   useSequence(withDelay(500, [{ to: 100, ms: 300 }]));  // wait 500ms, then move
+ */
+export const withDelay = (ms: number, steps: SeqStep[]): SeqStep[] => [{ hold: ms }, ...steps];
+
+/**
+ * withRepeat(steps, count, yoyo?) — repeat a step list `count` times (RN Reanimated
+ * `withRepeat`). With `yoyo`, every other pass plays REVERSED so the motion bounces
+ * back and forth instead of jumping to the start. Pure — expands into one flat
+ * `SeqStep[]` for {@link useSequence} (so it shares the one sequence timer, not N).
+ *
+ *   useSequence(withRepeat([{ to: 100, ms: 200 }], 3, true));  // out, back, out
+ */
+export const withRepeat = (steps: SeqStep[], count: number, yoyo?: boolean): SeqStep[] => {
+	const out: SeqStep[] = [];
+	for (let i = 0; i < count; i++) out.push(...(yoyo && i % 2 ? reverseSteps(steps) : steps));
+	return out;
+};
+
+// Reverse a move list: play the `to` targets back toward the start. A hold keeps
+// its duration; a move re-aims at the PREVIOUS move's target (the value the
+// forward pass started that move from), so forward-then-reversed returns home.
+const reverseSteps = (steps: SeqStep[]): SeqStep[] => {
+	// collect the move targets in order; the reversed pass walks them backward,
+	// each reversed move easing toward the prior target (index-1), last -> its own start.
+	const moves: number[] = [];
+	for (const s of steps) if (!("hold" in s)) moves.push(s.to);
+	const rev: SeqStep[] = [];
+	let mi = moves.length - 1;
+	for (let i = steps.length - 1; i >= 0; i--) {
+		const s = steps[i];
+		if ("hold" in s) rev.push({ hold: s.hold });
+		else {
+			// reversed target = the value this move originally started FROM = the
+			// previous move's target (or, for the first move, undefined → 0 baseline).
+			const to = mi > 0 ? moves[mi - 1] : 0;
+			rev.push({ to, ms: s.ms, ease: s.ease });
+			mi--;
+		}
+	}
+	return rev;
+};
+
+/**
+ * yoyo(steps) — play a step list forward then reversed, so the motion returns to
+ * where it began (a single out-and-back). Sugar for `withRepeat(steps, 2, true)`.
+ * Pure — returns a `SeqStep[]` for {@link useSequence}.
+ *
+ *   useSequence(yoyo([{ to: 100, ms: 250 }]), { loop: true });  // bounce forever
+ */
+export const yoyo = (steps: SeqStep[]): SeqStep[] => withRepeat(steps, 2, true);

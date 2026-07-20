@@ -22,7 +22,8 @@ import { loadRuntime, makeChecker } from "./load-runtime.mts";
 
 const { signals, tick, liveTimers, loadModule } = await loadRuntime();
 const { signal, createRoot } = signals;
-const { useTween } = await loadModule("runtime/anim");
+const { useTween, useSequence, useSpring, withDelay, withRepeat, yoyo } =
+	await loadModule("runtime/anim");
 const { check, done } = makeChecker("anim");
 
 // --- bare number: constant getter, no tween, no timer ----------------------------
@@ -123,6 +124,145 @@ const { check, done } = makeChecker("anim");
 	ld();
 	ed();
 	check("both eased/linear owners dispose cleanly", liveTimers() === 0);
+}
+
+// === useSequence — keyframe chaining on one owned timer =============================
+// --- basic move: eases 0->99 over 99ms (3 ticks), lands EXACTLY, releases timer -----
+{
+	const [x, dispose] = createRoot(() => useSequence([{ to: 99, ms: 99 }]));
+	check("sequence rests at the start value before ticking", x() === 0);
+	check("a non-empty sequence arms exactly one timer", liveTimers() === 1);
+	tick(1); // elapsed 33 -> linear 99*(1/3)
+	check("the sequence advances toward the first target", Math.abs(x() - 33) < 1e-9);
+	tick(2); // elapsed 99 >= total -> lands on 99, releases
+	check("the sequence lands EXACTLY on the final value", x() === 99);
+	check("the timer is released once the sequence completes", liveTimers() === 0);
+	dispose();
+}
+
+// --- move + hold + eased return; default ms (300) when omitted; from option ---------
+{
+	// step 2 omits ms -> defaults to 300; opts.from seeds the resting/first value.
+	const [x, dispose] = createRoot(() =>
+		useSequence([{ to: 100, ms: 99 }, { hold: 99 }, { to: 0 }], { from: 10 }),
+	);
+	check("opts.from seeds the resting value", x() === 10);
+	tick(3); // elapsed 99 -> end of move 1 (past its 99) still within plan -> ~100
+	check("the first move reaches its target", Math.abs(x() - 100) < 1e-6);
+	tick(3); // elapsed 198 -> inside the hold (99..198) -> stays at 100
+	check("a hold step keeps the value put", x() === 100);
+	tick(10); // elapsed 528 >= total 498 -> lands on 0
+	check("the defaulted-duration final move settles at 0", x() === 0);
+	check("the timer releases after the whole chain", liveTimers() === 0);
+	dispose();
+}
+
+// --- loop: wraps modulo total forever; zero-duration hold is skipped by the reader --
+{
+	// a leading {hold:0} is a zero-length segment -> valueAt's `dur<=0` skip path.
+	const [x, dispose] = createRoot(() =>
+		useSequence([{ hold: 0 }, { to: 90, ms: 99 }], { loop: true }),
+	);
+	tick(1); // elapsed 33 -> skips the 0-hold, eases in seg2 -> 30
+	check("loop skips a zero-length segment and eases the next", Math.abs(x() - 30) < 1e-9);
+	tick(20); // many wraps
+	check("a looping sequence never releases its timer", liveTimers() === 1);
+	check("the looping value stays within range", x() >= 0 && x() <= 90);
+	dispose();
+	check("disposing the owner stops the looping sequence", liveTimers() === 0);
+}
+
+// --- empty steps: constant getter, no timer (zero-cost path) -------------------------
+{
+	const [x, dispose] = createRoot(() => useSequence([], { from: 7 }));
+	check("an empty sequence returns the constant from-value", x() === 7);
+	check("an empty sequence arms no timer", liveTimers() === 0);
+	dispose();
+}
+
+// --- manual stop() releases the timer mid-flight ------------------------------------
+{
+	const [x, dispose] = createRoot(() => useSequence([{ to: 100, ms: 9999 }]));
+	check("a long sequence holds one timer", liveTimers() === 1);
+	x.stop();
+	check("stop() releases the sequence timer by hand", liveTimers() === 0);
+	dispose();
+}
+
+// === useSpring — physics motion toward a target ====================================
+// --- bare number, no `from`: rests, no motion, no timer (the zero-cost path) --------
+{
+	const [x, dispose] = createRoot(() => useSpring(50));
+	check("a bare-number spring rests at the target", x() === 50);
+	check("a resting spring arms no timer", liveTimers() === 0);
+	tick(5);
+	check("a resting spring never moves", x() === 50);
+	dispose();
+}
+
+// --- bare number + from: springs from `from` to the target, settles, releases -------
+{
+	const [x, dispose] = createRoot(() => useSpring(100, { from: 0 }));
+	check("a spring with `from` starts there", x() === 0);
+	check("a moving spring arms one timer", liveTimers() === 1);
+	tick(1);
+	check("the spring accelerates away from the origin", x() > 0);
+	tick(150); // near-critical damping settles well within this
+	check("the spring settles exactly on the target", x() === 100);
+	check("the spring releases its timer once settled", liveTimers() === 0);
+	dispose();
+}
+
+// --- thunk target: reactive, no motion until change, then springs to the new goal ---
+{
+	const a = signal(0);
+	const [x, dispose] = createRoot(() => useSpring(() => a.value));
+	check("a thunk spring rests at its initial target", x() === 0);
+	check("no motion (or timer) until the target changes", liveTimers() === 0);
+	a.value = 80; // reactive re-aim
+	check("a target change arms the spring timer", liveTimers() === 1);
+	tick(150);
+	check("the spring reaches the new target", x() === 80);
+	check("the spring releases after settling", liveTimers() === 0);
+	dispose();
+}
+
+// === combinators — pure SeqStep[] transforms (no timer, no signal) ==================
+{
+	const d = withDelay(50, [{ to: 100, ms: 100 }]);
+	check("withDelay prepends a hold", d.length === 2 && "hold" in d[0] && d[0].hold === 50);
+
+	const r = withRepeat([{ to: 100, ms: 100 }], 2);
+	check("withRepeat expands N copies", r.length === 2 && r.every((s) => "to" in s && s.to === 100));
+
+	// yoyo reverses odd passes: forward move -> back toward 0
+	const y = withRepeat([{ to: 100, ms: 100 }], 2, true);
+	check(
+		"withRepeat yoyo reverses the odd pass back to the origin",
+		y.length === 2 && "to" in y[1] && y[1].to === 0,
+	);
+
+	// a hold inside a yoyo'd list survives the reversal (covers the hold branch)
+	const yh = withRepeat([{ to: 100, ms: 100 }, { hold: 40 }], 2, true);
+	check("a hold survives yoyo reversal", yh.length === 4 && "hold" in yh[2] && yh[2].hold === 40);
+
+	// two moves: the reversed pass re-aims each move at the PREVIOUS target (mi>0)
+	const two = withRepeat(
+		[
+			{ to: 100, ms: 80 },
+			{ to: 50, ms: 60 },
+		],
+		2,
+		true,
+	);
+	// forward [->100,->50], reversed [->100,->0]  (retrace the path home)
+	check(
+		"a multi-move yoyo retraces the path (mi>0 branch)",
+		"to" in two[2] && two[2].to === 100 && "to" in two[3] && two[3].to === 0,
+	);
+
+	const yy = yoyo([{ to: 60, ms: 60 }]);
+	check("yoyo is forward-then-reverse", yy.length === 2 && "to" in yy[1] && yy[1].to === 0);
 }
 
 done();
