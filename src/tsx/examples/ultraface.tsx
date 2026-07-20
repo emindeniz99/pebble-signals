@@ -1,14 +1,16 @@
 // Example: an Apple-Watch-Ultra "Wayfinder"-style watchface on the ROUND screen.
 // Design (Jony Ive / the Ultra face): TYPOGRAPHY is the hero — HH:MM white and
-// :SS the SAME size in quiet gray, baseline-locked as one wide unit; the EDGE is
-// an instrument tick dial (white), and the SECONDS step it TICK BY TICK — the
-// ticks 12→now light accent orange one per second (discrete "çubuk çubuk", not a
-// smooth sweep), the current tick brightest. ONE accent (Apple orange), deep
-// black, disciplined grays, the complications pushed toward the rim to use the
-// whole circle without clutter.
+// :SS the SAME size in quiet gray, baseline-locked as one wide unit. The EDGE is
+// a STATIC instrument dial: the ticks are LONGEST + WHITE at 12 o'clock and
+// taper — shorter and dimmer — SYMMETRICALLY toward the sides/bottom (a spotlight
+// at the top, exactly like the reference frame). It does NOT grow with elapsed
+// seconds. The seconds read DIGITALLY (`:SS` gray); a single bright orange tick
+// marks the current second and STEPS one bar per second around the rim (çubuk
+// çubuk) — the only moving mark on the frame. ONE accent (Apple orange), deep
+// black, disciplined grays, complications pushed to the rim to use the circle.
 //
-// `useClock("second")` repaints once a second, so the lit tick steps forward
-// exactly one bar each second. One draw.ts Canvas Port (arc/line/circle/text).
+// `useClock("second")` repaints once a second, so the orange second tick steps
+// forward exactly one bar each second. One draw.ts Canvas Port (arc/line/circle/text).
 import { render, screen } from "runtime/jsx-runtime";
 import { Canvas } from "runtime/draw";
 import { useClock } from "runtime/clock";
@@ -49,40 +51,53 @@ render(
 						const d = now();
 						const s = d.getSeconds();
 
-						// ---- instrument bezel + TICK-BY-TICK seconds that GROW ----
-						// 60 ticks. The elapsed seconds 12→now are LONG orange bars (each
-						// second one more bar grows in), the current tick the LONGEST and
-						// brightest; future ticks are the short white dial. So the seconds
-						// read as a ring of growing bars, stepping çubuk çubuk each second.
+						// ---- STATIC instrument bezel + a single stepping orange second ----
+						// 60 ticks. The dial is a SYMMETRIC gradient centered on 12 o'clock:
+						// longest + white at the top, tapering shorter + dimmer toward the
+						// sides/bottom (the reference "spotlight at the top", NOT a growing
+						// wedge). The current second is ONE bright orange tick that steps a
+						// bar per second — the only moving mark on the frame.
 						for (let i = 0; i < 60; i++) {
 							const a = (i * 6 - 90) * RAD;
 							const ca = Math.cos(a);
 							const sa = Math.sin(a);
+							// angular distance from 12 o'clock, 0 (top) .. 1 (bottom)
+							const fromTop = Math.min(i, 60 - i) / 30;
 							const hour = i % 5 === 0;
 							let col: string;
 							let th: number;
 							let len: number; // inward length from the rim
 							if (i === s) {
 								col = ORANGE;
-								th = 4;
-								len = 24; // current second: the longest + brightest — the head
-							} else if (i < s) {
-								// elapsed: a GROWING WEDGE — bars lengthen toward the head, so
-								// each second the ring visibly grows one taller bar (not a flat
-								// block). 12 o'clock ≈ 7px, ramping up to the current second.
-								col = ORANGE;
+								th = 3;
+								len = 16; // the moving second: brightest, tallest — no tail
+							} else if (fromTop < 0.18) {
+								col = "#ffffff";
 								th = 2;
-								len = 7 + Math.round((i / s) * 14);
+								len = hour ? 15 : 13;
+							} else if (fromTop < 0.38) {
+								col = "#c7c7cc";
+								th = 2;
+								len = hour ? 12 : 10;
+							} else if (fromTop < 0.58) {
+								col = "#8e8e93";
+								th = 1;
+								len = hour ? 9 : 7;
+							} else if (fromTop < 0.78) {
+								col = "#5a5a5e";
+								th = 1;
+								len = hour ? 7 : 5;
 							} else {
-								col = hour ? "#d0d0d2" : "#48484a";
-								th = hour ? 2 : 1;
-								len = hour ? 12 : 6; // future: the short white dial
+								col = "#3a3a3c";
+								th = 1;
+								len = hour ? 5 : 4;
 							}
 							const rIn = R - 2 - len;
 							g.line(cx + rIn * ca, cy + rIn * sa, cx + (R - 2) * ca, cy + (R - 2) * sa, th, col);
 						}
 
-						// ---- top complications, pushed toward the rim ----
+						// ---- top complications, pushed toward the rim (reference layout:
+						//      [53 gauge] [compass] [conditions icon]) ----
 						// left gauge "53" + 50/56
 						const lgx = cx - 58;
 						const gy = 58;
@@ -91,19 +106,21 @@ render(
 						g.text("53", num, "white", lgx - 11, gy - 11);
 						g.text("50", lblD, "#636366", lgx - 25, gy + 15);
 						g.text("56", lblD, "#636366", lgx + 13, gy + 15);
-						// center compass: ring + N/E/S/W + orange needle at 315°
+						// center compass: ring + N/E/S/W + orange CROSSHAIR (⌖, as in the ref)
 						g.strokeCircle(cx, gy, 19, "#48484a", 2);
 						g.text("N", dir, "#e5e5ea", cx - 4, gy - 30);
 						g.text("S", lblD, "#636366", cx - 3, gy + 20);
 						g.text("W", lblD, "#636366", cx - 26, gy - 8);
 						g.text("E", lblD, "#636366", cx + 20, gy - 8);
-						g.line(cx, gy, cx + 13 * Math.cos((315 - 90) * RAD), gy + 13 * Math.sin((315 - 90) * RAD), 2, ORANGE);
-						g.fillCircle(cx, gy, 2, "#e5e5ea");
-						// right gauge "4" (UV)
+						g.line(cx - 6, gy, cx + 6, gy, 2, ORANGE);
+						g.line(cx, gy - 6, cx, gy + 6, 2, ORANGE);
+						g.strokeCircle(cx, gy, 3, ORANGE, 1);
+						// right: conditions glyph — an orange mountain/tent triangle outline
 						const rgx = cx + 58;
-						g.arc(rgx, gy, 20, 145, 145 + 250, 3, "#2c2c2e");
-						g.arc(rgx, gy, 20, 145, 145 + 250 * 0.33, 3, ORANGE);
-						g.text("4", num, "white", rgx - 5, gy - 11);
+						g.line(rgx - 10, gy + 8, rgx, gy - 9, 2, ORANGE);
+						g.line(rgx, gy - 9, rgx + 10, gy + 8, 2, ORANGE);
+						g.line(rgx - 10, gy + 8, rgx + 10, gy + 8, 2, ORANGE);
+						g.line(rgx - 3, gy - 1, rgx + 3, gy - 1, 2, ORANGE);
 
 						// ---- HERO time: HH:MM white + :SS gray, SAME size, one baseline ----
 						const yt = cy - 30;
@@ -124,14 +141,23 @@ render(
 						g.line(cx, ly - 1, cx + 4, ly - 7, 2, ORANGE);
 						g.text("NW", lblD, "#636366", cx - 8, ly + 10);
 
-						// ---- bottom: activity rings + sunset + temp ----
-						const ay = H - 38;
-						g.arc(cx, ay, 17, -90, 270, 4, "#3a0a1a");
-						g.arc(cx, ay, 17, -90, 250, 4, MOVE);
-						g.arc(cx, ay, 11, -90, 190, 4, EXER);
-						g.arc(cx, ay, 5, -90, 120, 4, STAND);
-						g.text("7:33", lblW, "#e5e5ea", cx - 50, ay - 7);
-						g.text("53°", lblW, "#e5e5ea", cx + 26, ay - 7);
+						// ---- bottom row (reference: [rings] [sunset] [UV gauge]) ----
+						const ay = H - 40;
+						// left: activity rings
+						const blx = cx - 56;
+						g.arc(blx, ay, 16, -90, 270, 4, "#3a0a1a");
+						g.arc(blx, ay, 16, -90, 250, 4, MOVE);
+						g.arc(blx, ay, 10, -90, 190, 4, EXER);
+						g.arc(blx, ay, 4, -90, 120, 4, STAND);
+						// center: sunset — a small orange sun over the horizon + "7:33"
+						g.arc(cx, ay - 6, 6, 180, 360, 2, ORANGE);
+						g.line(cx - 9, ay - 6, cx + 9, ay - 6, 1, "#636366");
+						g.text("7:33", lblW, "#e5e5ea", cx - 15, ay + 2);
+						// right: UV index gauge "4"
+						const brx = cx + 56;
+						g.arc(brx, ay, 16, 145, 145 + 250, 3, "#2c2c2e");
+						g.arc(brx, ay, 16, 145, 145 + 250 * 0.33, 3, ORANGE);
+						g.text("4", num, "white", brx - 5, ay - 9);
 					}}
 				/>
 			</Container>
