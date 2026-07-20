@@ -21,6 +21,7 @@ the boot budgets twice — [the lessons](xs-heap-playbook.md) are part of it.
 
 | app | teaches | receipt |
 |---|---|---|
+| `ultraface` | Apple-Ultra "Modular Ultra", **re-interpreted natively for the round screen** — a 60-segment RADIAL seconds ring (elapsed / current-accent / future, stepping clockwise from 12), dense instrument complications pushed to the rim, big HH:MM + numeric seconds, all on one `useClock("second")` draw Canvas. A boot-floor lesson too: inline geometry (no retained array) + one Style per font keep it inside the 32KB arena | ![](../screenshots/ultraface-gabbro.png) |
 | `watchface` | ticking clock, same-value dedupe (the tutorial face) | ![](../screenshots/watchface-real.png) |
 | `sloth` 🦥 | sprite-sheet blink animation, one Texture | ![](../screenshots/sloth-gabbro-blink.png) |
 | `slothvec` 🦥 | PDC vectors via SVGImage — scaling + transform animation, zero pixel RAM | ![](../screenshots/slothvec-gabbro.png) |
