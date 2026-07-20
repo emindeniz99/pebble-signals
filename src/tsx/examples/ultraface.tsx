@@ -1,13 +1,14 @@
-// Example: an Apple-Watch-Ultra-style watchface on the ROUND screen — the circle
-// is the canvas, edge to edge. Seconds live in THREE places (as on the Ultra):
-//   1. a bright FILLED arc that sweeps the OUTERMOST ring from 12 o'clock to the
-//      current second (fills once a minute),
-//   2. a bright marker tick riding the head of that fill,
-//   3. digital ":SS" in gray, right of the big HH:MM.
-// Around it, Ultra-style complications (a gauge, a compass, activity rings, a
-// sunset, a heading strip) — hardcoded to match the reference, a design demo.
-// One draw.ts Canvas Port (arc/line/circle/text), repainted every second by
-// useClock("second"). Colours assume gabbro's colour round.
+// Example: an Apple-Watch-Ultra "Wayfinder"-style watchface on the ROUND screen.
+// Design principles (Jony Ive / the Ultra face): TYPOGRAPHY is the hero — a big
+// baseline-locked HH:MM with a quiet gray :SS reading as one unit; the circular
+// EDGE is an instrument-grade bezel (fine tick dial) with seconds counting up as
+// a thin accent fill; ONE accent (Apple system orange), everything else a
+// disciplined grayscale on deep black; precise spacing, nothing crude.
+//
+// Seconds live in THREE places (as the Ultra offers): the outer FILL sweeping
+// 12→now, a crisp marker at its head, and the digital gray :SS. `useClock(
+// "second")` repaints once a second, so it steps second-by-second. One draw.ts
+// Canvas Port (arc/line/circle/text). Colours assume gabbro's colour round.
 import { render, screen } from "runtime/jsx-runtime";
 import { Canvas } from "runtime/draw";
 import { useClock } from "runtime/clock";
@@ -15,13 +16,17 @@ import { useClock } from "runtime/clock";
 const bg = new Skin({ fill: "black" });
 const base = new Style({ font: "18px Gothic", color: "white" });
 // App-scope Styles are fine (only PRELOADED runtime/ modules freeze them).
-const timeStyle = new Style({ font: "bold 42px Bitham", color: "white" });
-const secStyle = new Style({ font: "bold 24px Gothic", color: "#8a8a8a" });
-const headStyle = new Style({ font: "18px Gothic", color: "#ff7a00" });
-const tiny = new Style({ font: "14px Gothic", color: "#c0c0c0" });
-const tinyDim = new Style({ font: "14px Gothic", color: "#6a6a6a" });
+const hhmm = new Style({ font: "bold 49px Roboto", color: "white" });
+const ss = new Style({ font: "bold 24px Gothic", color: "#8e8e93" });
+const lblO = new Style({ font: "18px Gothic", color: "#ff9500" });
+const lblW = new Style({ font: "14px Gothic", color: "#e5e5ea" });
+const lblD = new Style({ font: "14px Gothic", color: "#636366" });
+const num = new Style({ font: "bold 18px Gothic", color: "white" });
 
-const ACCENT = "#ff7a00";
+const ORANGE = "#ff9500"; // Apple system orange
+const MOVE = "#fa114f";
+const EXER = "#92e82a";
+const STAND = "#1eeaef";
 const TWO = (n: number) => (n < 10 ? "0" : "") + n;
 const RAD = Math.PI / 180;
 
@@ -43,82 +48,84 @@ render(
 						const d = now();
 						const s = d.getSeconds();
 
-						// ---- outer dial: 60 dim minute ticks (12 brighter hour ticks) ----
+						// ---- instrument bezel: a fine tick dial, brighter at the hours ----
 						for (let i = 0; i < 60; i++) {
 							const a = (i * 6 - 90) * RAD;
 							const hour = i % 5 === 0;
-							const rIn = hour ? R - 13 : R - 7;
 							const ca = Math.cos(a);
 							const sa = Math.sin(a);
+							const rIn = hour ? R - 12 : R - 6;
 							g.line(
 								cx + rIn * ca,
 								cy + rIn * sa,
 								cx + (R - 2) * ca,
 								cy + (R - 2) * sa,
-								hour ? 3 : 1,
-								hour ? "#7a7a7a" : "#333333",
+								hour ? 2 : 1,
+								hour ? "#d0d0d2" : "#48484a",
 							);
 						}
-
-						// ---- seconds FILL: a bright arc from 12 o'clock to the current
-						//      second on the outermost ring (fills once a minute) ----
-						if (s > 0) g.arc(cx, cy, R - 4, -90, -90 + s * 6, 4, ACCENT);
-						// marker tick at the head of the fill
+						// seconds fill: a thin accent arc 12→now, with a crisp head marker
+						if (s > 0) g.arc(cx, cy, R - 4, -90, -90 + s * 6, 3, ORANGE);
 						const sa = (s * 6 - 90) * RAD;
 						g.line(
-							cx + (R - 16) * Math.cos(sa),
-							cy + (R - 16) * Math.sin(sa),
-							cx + (R - 1) * Math.cos(sa),
-							cy + (R - 1) * Math.sin(sa),
-							5,
-							ACCENT,
+							cx + (R - 12) * Math.cos(sa),
+							cy + (R - 12) * Math.sin(sa),
+							cx + R * Math.cos(sa),
+							cy + R * Math.sin(sa),
+							4,
+							ORANGE,
 						);
 
-						// ---- top-left gauge complication: "53" over a green→yellow arc ----
-						const gx = cx - 58;
-						const gy = 62;
-						g.arc(gx, gy, 22, 150, 150 + 240, 4, "#303030");
-						g.arc(gx, gy, 22, 150, 150 + 240 * 0.66, 4, "#a6ff00");
-						g.text("53", base, "white", gx - 12, gy - 12);
+						// ---- top complications: gauge · compass · gauge, evenly spaced ----
+						// left gauge "53" with 50/56 min-max
+						const lgx = cx - 56;
+						const gy = 60;
+						g.arc(lgx, gy, 20, 145, 145 + 250, 3, "#2c2c2e");
+						g.arc(lgx, gy, 20, 145, 145 + 250 * 0.55, 3, EXER);
+						g.text("53", num, "white", lgx - 11, gy - 11);
+						g.text("50", lblD, "#636366", lgx - 24, gy + 16);
+						g.text("56", lblD, "#636366", lgx + 12, gy + 16);
+						// center compass ring with N and an orange needle at 315°
+						g.strokeCircle(cx, gy, 18, "#48484a", 2);
+						g.text("N", lblW, "#e5e5ea", cx - 4, gy - 30);
+						g.line(cx, gy, cx + 12 * Math.cos((315 - 90) * RAD), gy + 12 * Math.sin((315 - 90) * RAD), 2, ORANGE);
+						g.fillCircle(cx, gy, 2, "#e5e5ea");
+						// right gauge "4" (UV index)
+						const rgx = cx + 56;
+						g.arc(rgx, gy, 20, 145, 145 + 250, 3, "#2c2c2e");
+						g.arc(rgx, gy, 20, 145, 145 + 250 * 0.33, 3, ORANGE);
+						g.text("4", num, "white", rgx - 5, gy - 11);
 
-						// ---- top-center compass ring ----
-						const mx = cx;
-						const my = 56;
-						g.strokeCircle(mx, my, 20, "#505050", 2);
-						g.text("N", tiny, "white", mx - 5, my - 26);
-						g.line(mx, my, mx + 12 * Math.cos((315 - 90) * RAD), my + 12 * Math.sin((315 - 90) * RAD), 3, ACCENT);
+						// ---- HERO time: HH:MM white + :SS gray, baseline-locked, centered
+						const hm = TWO(d.getHours()) + ":" + TWO(d.getMinutes());
+						const yt = cy - 30; // HH:MM top
+						g.text(hm, hhmm, "white", cx - 80, yt);
+						// :SS smaller, its top dropped so the baseline matches HH:MM
+						g.text(":" + TWO(s), ss, "#8e8e93", cx + 46, yt + 19);
 
-						// ---- top-right gauge "4" (UV) ----
-						const ux = cx + 58;
-						const uy = 62;
-						g.arc(ux, uy, 22, 150, 150 + 240, 4, "#303030");
-						g.arc(ux, uy, 22, 150, 150 + 240 * 0.4, 4, "#ffcc00");
-						g.text("4", base, "white", ux - 6, uy - 12);
-
-						// ---- BIG time: HH:MM white, :SS gray, centered on one baseline ----
-						const time = TWO(d.getHours()) + ":" + TWO(d.getMinutes());
-						g.text(time, timeStyle, "white", cx - 84, cy - 26);
-						g.text(TWO(s), secStyle, "#8a8a8a", cx + 58, cy - 14);
-
-						// ---- heading strip: "315° NW" + a thin linear scale ----
-						g.text("315° NW", headStyle, ACCENT, cx - 34, cy + 24);
-						const ty = cy + 52;
-						for (let i = -6; i <= 6; i++) {
-							const x = cx + i * 9;
+						// ---- heading strip: 315° NW … 0°, a scale, an orange marker ----
+						const hy = cy + 30;
+						g.text("315° NW", lblO, ORANGE, cx - 74, hy);
+						g.text("0°", lblD, "#8e8e93", cx + 56, hy);
+						const ly = hy + 24;
+						for (let i = -7; i <= 7; i++) {
+							const x = cx + i * 8;
 							const big = i % 3 === 0;
-							g.line(x, ty, x, ty + (big ? 8 : 4), 1, i === 0 ? ACCENT : "#5a5a5a");
+							g.line(x, ly, x, ly + (big ? 9 : 5), 1, "#48484a");
 						}
-						g.text("NW", tinyDim, "#6a6a6a", cx - 8, ty + 10);
+						// orange marker triangle at center of the scale
+						g.line(cx - 4, ly - 6, cx, ly - 1, 2, ORANGE);
+						g.line(cx, ly - 1, cx + 4, ly - 6, 2, ORANGE);
+						g.text("NW", lblD, "#636366", cx - 8, ly + 11);
 
 						// ---- bottom: activity rings + sunset ----
-						const ax = cx;
-						const ay = H - 44;
-						g.arc(ax, ay, 20, -90, 210, 4, "#3a1020");
-						g.arc(ax, ay, 20, -90, 210, 4, "#ff2d70"); // move ring (full)
-						g.arc(ax, ay, 14, -90, 150, 4, "#a6ff00"); // exercise
-						g.arc(ax, ay, 8, -90, 90, 4, "#00d0ff"); // stand
-						g.text("7:33", tiny, "#c0c0c0", cx - 46, ay - 8);
-						g.text("53°", tiny, "#c0c0c0", cx + 30, ay - 8);
+						const ay = H - 40;
+						g.arc(cx, ay, 18, -90, 270, 4, "#3a0a1a");
+						g.arc(cx, ay, 18, -90, 250, 4, MOVE);
+						g.arc(cx, ay, 12, -90, 190, 4, EXER);
+						g.arc(cx, ay, 6, -90, 120, 4, STAND);
+						g.text("7:33", lblW, "#e5e5ea", cx - 52, ay - 7);
+						g.text("53°", lblW, "#e5e5ea", cx + 28, ay - 7);
 					}}
 				/>
 			</Container>
