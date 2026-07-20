@@ -23,6 +23,25 @@ import { ClockFace } from "runtime/clockface";
 import { Dialog } from "runtime/dialog";
 import { Tabs } from "runtime/tabs";
 import { RoundSafeArea } from "runtime/roundsafe";
+// batch 5: menus / input / widgets + ergonomic hooks
+import { Menu } from "runtime/menu";
+import { Picker } from "runtime/picker";
+import { NumberField } from "runtime/numberfield";
+import { TextFlow } from "runtime/textflow";
+import { ActionMenu } from "runtime/actionmenu";
+import { Spinner } from "runtime/spinner";
+import { useInterval, useTimeout } from "runtime/timers";
+import { useToggle, useCounter, useDebounce } from "runtime/state";
+import { useTween } from "runtime/anim";
+// batch 6: device / time / connectivity / sensor hooks
+import { useClock, useTimeParts } from "runtime/clock";
+import { watchInfo, useDisplayBounds } from "runtime/watchinfo";
+import { useMessage, useAppMessage } from "runtime/message";
+import { useConfig } from "runtime/config";
+import { useAccel, useTap } from "runtime/accel";
+import { useCompass } from "runtime/compass";
+import { useBattery } from "runtime/battery";
+import { useConnection } from "runtime/connection";
 
 const data = { count: () => 3, get: (i: number) => "row" + i };
 
@@ -68,6 +87,57 @@ ClockFace({ hours: 10, minutes: () => 30, seconds: 15 });
 Dialog({ title: "Alert", message: () => "Battery low", hint: "SELECT ok" });
 Tabs({ labels: ["A", "B"], active: () => 0 });
 RoundSafeArea({ inset: 16 });
+
+// batch 5: widgets take value/index props (thunk or bare); hooks return getters/controls
+Menu({ items: ["Alarms", "Timers"], selected: () => 0 });
+Picker({ options: ["A", "B", "C"], selected: 1, wrap: true });
+NumberField({ value: () => 5, unit: "%", min: 0, max: 100 });
+TextFlow({ text: () => "wrapped body text", charsPerLine: 20 });
+ActionMenu({ actions: ["Reply", "Delete"], active: () => 0, title: "Message" });
+Spinner({ size: 40, running: () => true });
+const _iv: () => void = useInterval(() => {}, 1000);
+const _to: () => void = useTimeout(() => {}, 500);
+void _iv;
+void _to;
+const [tgl, tglToggle, tglSet] = useToggle();
+const _tglV: boolean = tgl();
+tglToggle();
+tglSet(true);
+const [ctr, cntCtl] = useCounter(0, { min: 0, max: 10, step: 2 });
+const _cntV: number = ctr();
+cntCtl.inc();
+cntCtl.dec();
+cntCtl.reset();
+cntCtl.set(3);
+const _dbV: number = useDebounce(() => ctr(), 300)();
+const _twV: number = useTween(() => 100, { duration: 400 })();
+const _clkV: Date = useClock("second")();
+const _tpV: number = useTimeParts().hours();
+const _wiV: number = watchInfo().width;
+const _dbW: number = useDisplayBounds().width;
+const _msg = useMessage(["cfg"]);
+void _msg.last();
+_msg.send({ cfg: "x" });
+useAppMessage(["cfg"], (m) => void m);
+const _cfgV: number = useConfig({ n: 0 })().n;
+const _accV: number = useAccel({ hz: 25 })().x;
+void useTap()();
+const _cmpV: number = useCompass({ filter: 2 })();
+const _batV: number = useBattery()().percent;
+const _connV: boolean = useConnection()().app;
+void _tglV;
+void _cntV;
+void _dbV;
+void _twV;
+void _clkV;
+void _tpV;
+void _wiV;
+void _dbW;
+void _cfgV;
+void _accV;
+void _cmpV;
+void _batV;
+void _connV;
 
 // --- misuse: each MUST be a type error (guards biting) ---
 // @ts-expect-error — Canvas requires `paint`
