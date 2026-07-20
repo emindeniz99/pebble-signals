@@ -67,6 +67,31 @@ what you CAN see is C-side APP_LOG (instruments, fxAbort + stack) and
 render() error boundary already paints escaped errors on the watch
 itself (crash screen; `pebble screenshot` captures it as a receipt).
 
+**Screenshot capture recipe (2026-07 — do NOT rediscover this):** two failure
+modes bite when capturing catalog receipts, both MEASURED on gabbro:
+
+1. **Cold-boot timing.** After `tools/reset-emulator.sh`, the FIRMWARE itself
+   cold-boots for ~30 s BEFORE the installed app loads. A `pebble screenshot`
+   taken at the old ~18 s settle grabs a firmware-boot / empty
+   "Install an app to continue" frame, not the app. **Wait ≥ 32 s** after
+   `pebble install` on a freshly-reset emulator before the first screenshot.
+2. **Within-session transport rot.** pypkjs/libpebble2's screenshot transport
+   degrades as a session accumulates installs: after ~4–8 it starts returning
+   `libpebble2.exceptions.TimeoutError` (0-byte) OR a STALE frame (the last
+   app that actually rendered — a size check does NOT catch this). A hard
+   reset does NOT clear it (it is process/session state, not the persist dir;
+   both gabbro AND emery rot together). The FIRST app after a reset is the
+   reliable capture, so the robust pattern is **reset-per-app**:
+   `reset → install ONE app → sleep 34 → screenshot (retry a few times)`. Even
+   so it lands only intermittently (~1 in 5 once rotted); a fresh SESSION
+   (new container) is the only full fix.
+
+**ALWAYS verify a captured PNG by READING it** (not just a size check): the
+empty-home frame, a stale previous-app frame, and a `render() threw` crash
+screen all pass `size > 800 B`. A crash-screen capture is a genuine receipt of
+a DEVICE BUG (it caught `bold 30px Bitham` → `font not found: Bitham-Bold-30`,
+now rejected by fontcheck) — but it is NOT the component's render receipt.
+
 ## Rule 4 — The XS heap is the scarcest resource
 
 The JS heap ("arena") is firmware-fixed at 32KB and every design decision
