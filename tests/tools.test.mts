@@ -49,6 +49,28 @@ test("gen-manifest: backtick no-substitution literals ship; substitutions never 
 	assert.equal(sub.resources, undefined);
 });
 
+test("gen-manifest: derives bitmaps from bare .png literals (ergonomic <Image src>)", () => {
+	// runtime/image builds `new Texture(src)` from a variable, so the only
+	// scannable literal is the component's `src="sloth.png"` prop — it must
+	// still ship the bitmap (else blank/crash on device). Same breadth as .pdc.
+	const m = deriveResources('function Img(){ return <Image src="sloth.png" width={64}/>; }', {
+		...BASE,
+	});
+	assert.deepEqual(m.resources, { "*": ["../../assets/sloth"] });
+	// dedupes against a sibling new Texture() of the same asset
+	const d = deriveResources('new Texture("logo.png"); const s = "logo.png";', { ...BASE });
+	assert.deepEqual(d.resources, { "*": ["../../assets/logo"] });
+});
+
+test("gen-manifest: a .png URL or path is NOT shipped as a bitmap resource", () => {
+	// a bare asset filename never carries `/` or `:`; a URL or nested path does
+	// and must not ship a phantom `../../assets/http:/…` / nested entry.
+	const m = deriveResources('const u = "https://cdn.example.com/logo.png";', { ...BASE });
+	assert.equal(m.resources, undefined);
+	const p = deriveResources('const u = "sub/dir/logo.png";', { ...BASE });
+	assert.equal(p.resources, undefined);
+});
+
 test("gen-manifest: no assets -> no resources/data added", () => {
 	const m = deriveResources("const x = 1;", { ...BASE });
 	assert.equal(m.resources, undefined);

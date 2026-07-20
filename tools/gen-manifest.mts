@@ -146,14 +146,29 @@ export function deriveResources(src: string, manifest: Manifest): Manifest {
 	const tex = [...src.matchAll(/new\s+Texture\(\s*["'`]([^"'`$]+?)(?:\.png)?["'`]/g)].map(
 		(x) => x[1],
 	);
+	// Bare-name `"x.png"` STRING literals — the ergonomic media components
+	// (`<Image src="logo.png"/>`, `<ImageBackground src="bg.png"/>`) build their
+	// Texture from a variable INSIDE runtime/image, so the app never writes a
+	// scannable `new Texture(...)` literal; the only literal is the `.png` prop.
+	// Scan those like the `.pdc` rule below (any such literal ships the asset) so
+	// the bitmap reaches the mod. Exclude `/` and `:` — a bare asset filename
+	// never carries either, but a path or `http://…/x.png` URL would, and must
+	// not ship a phantom `../../assets/http:/…` entry. `.png` stripped for the
+	// png2bmp `<name>-color.bm4` resource name (same as the Texture path, so
+	// `new Texture("ball0.png")` dedupes against its bare-scan twin below).
+	const png = [...src.matchAll(/["'`]([^"'`$:/]+?)\.png["'`]/g)].map((x) => x[1]);
 	// UNION with anything a custom manifest.base already carries — assigning
 	// wholesale clobbered a consumer's hand-added entries (review finding P8)
 	const prevRes = (m.resources && m.resources["*"]) || [];
-	if (tex.length || prevRes.length)
+	if (tex.length || png.length || prevRes.length)
 		// spread keeps sibling keys ("*-alpha" font entries) intact
 		m.resources = {
 			...m.resources,
-			"*": uniq([...prevRes, ...tex.map((n) => `../../assets/${n}`)]),
+			"*": uniq([
+				...prevRes,
+				...tex.map((n) => `../../assets/${n}`),
+				...png.map((n) => `../../assets/${n}`),
+			]),
 		};
 	// any referenced `*.pdc` file, plus any romTable("<name>") blob (the
 	// packed string tables written by tools/pack-table.mts) — all three quote
