@@ -61,15 +61,18 @@ render(
 							const hour = i % 5 === 0;
 							let col: string;
 							let th: number;
-							let len: number; // inward length from the rim — elapsed seconds GROW
+							let len: number; // inward length from the rim
 							if (i === s) {
 								col = ORANGE;
 								th = 4;
-								len = 22; // current second: longest + brightest
+								len = 24; // current second: the longest + brightest — the head
 							} else if (i < s) {
+								// elapsed: a GROWING WEDGE — bars lengthen toward the head, so
+								// each second the ring visibly grows one taller bar (not a flat
+								// block). 12 o'clock ≈ 7px, ramping up to the current second.
 								col = ORANGE;
 								th = 2;
-								len = 15; // elapsed: grown orange bars
+								len = 7 + Math.round((i / s) * 14);
 							} else {
 								col = hour ? "#d0d0d2" : "#48484a";
 								th = hour ? 2 : 1;
