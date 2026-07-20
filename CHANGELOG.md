@@ -10,6 +10,13 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **`TextFlow` `shape="circle"` — text that FILLS a round screen (opt-in;
+  100%-covered; device-verified on gabbro).** With `shape="circle"` each line is
+  wrapped to the circle's chord at its own height (`wrapCircle`), so the top and
+  bottom lines are short and the middle lines long — the paragraph silhouette
+  becomes a lens that uses the whole round screen instead of a centered square
+  that wastes the corners. Always center-aligned; the line count/budgets converge
+  by a bounded fixed-point iteration. `fill` (0..1) trims a bezel margin.
 - **Binding-expansion catalog — media, input, layout (opt-in; 100%-covered; all
   build for gabbro + emery, seven render-verified on gabbro — image, imagebackground
   (bitmap + live clock), vectorimage (PDC scaled 2×), grid, button, vibration,

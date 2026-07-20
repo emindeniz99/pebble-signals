@@ -355,11 +355,14 @@ import { NumberField } from "runtime/numberfield";
 
 **Wrapped** multi-line paragraph text — manual word-wrap into a Column of Label
 lines (Piu `Text` isn't used; Labels are the device-proven substrate). Reactive
-`text` re-wraps.
+`text` re-wraps. **`shape="circle"`** wraps each line to the round screen's chord
+at its height, so the paragraph FILLS the circle as a lens (short top/bottom
+lines, long middle) instead of a centered square that wastes the corners.
 
 ```tsx
 import { TextFlow } from "runtime/textflow";
 <TextFlow text="Signal Piu wraps this text into a column of label lines." />
+<TextFlow text={() => body()} shape="circle" />   // fill the round screen
 ```
 
 | round | rect |

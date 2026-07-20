@@ -23,9 +23,13 @@ sandbox.Style = class {
 		this.d = d;
 	}
 };
+jsxM.screen.height = 168; // circle radius uses min(width,height)/2
 const { signal, createRoot } = signals;
-const { TextFlow, wrapText } = await loadModule("runtime/textflow");
+const { TextFlow, wrapText, wrapCircle } = await loadModule("runtime/textflow");
 const { check, done } = makeChecker("textflow");
+
+const LOREM =
+	"Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam";
 
 // --- wrapText: a known string wraps into the EXPECTED line sequence ---
 {
@@ -185,6 +189,60 @@ const { check, done } = makeChecker("textflow");
 	check(
 		"rebuilt line Labels still share the one Style",
 		col.contents[0].style === col.contents[3].style,
+	);
+}
+
+// --- wrapCircle: a lens silhouette — top/bottom lines NARROWER than the middle ---
+{
+	const lines = wrapCircle(LOREM, 130, 22, 9, 9, 0.92);
+	check("wrapCircle returns lines within the maxLines cap", lines.length > 1 && lines.length <= 9);
+	const mid = Math.floor(lines.length / 2);
+	check(
+		"the middle line is the WIDEST (fills the circle's widest chord)",
+		lines[0].length <= lines[mid].length && lines[lines.length - 1].length <= lines[mid].length,
+	);
+	// every line stays within its own chord budget (never overflows the circle);
+	// the middle chord budget floor(2*130*0.92/9)=26 is the max any line may hit.
+	check(
+		"no line exceeds the widest chord budget",
+		lines.every((l: string) => l.length <= Math.floor((2 * 130 * 0.92) / 9)),
+	);
+}
+
+// --- wrapCircle edge branches: maxLines<=0 -> none; empty text -> none; a tiny
+//     radius forces the chord clamp (half=0 -> budget clamps to >=1) ---
+{
+	check(
+		"wrapCircle with maxLines<=0 yields no lines",
+		wrapCircle(LOREM, 130, 22, 0, 9, 0.92).length === 0,
+	);
+	check(
+		"wrapCircle on empty text yields no lines",
+		wrapCircle("", 130, 22, 9, 9, 0.92).length === 0,
+	);
+	// radius 20, lineHeight 22 -> lines past the center fall OUTSIDE the circle,
+	// so their chord is 0 and the budget clamps to 1 (one word per line, no crash).
+	const tiny = wrapCircle("alpha beta gamma delta", 20, 22, 9, 9, 0.92);
+	check("a tiny radius still returns lines (chord clamp, no crash)", tiny.length > 0);
+	check("tiny-radius lines never exceed one short word", tiny[0].length <= 5);
+}
+
+// --- TextFlow shape="circle": forces center align + fills via wrapCircle ---
+{
+	const [col] = createRoot(() =>
+		TextFlow({ text: LOREM, shape: "circle", lineHeight: 22, maxLines: 9 }),
+	);
+	check("circle: Column carries the full screen width", col.width === 144);
+	check("circle: produced a multi-line lens", col.contents.length > 2 && col.contents.length <= 9);
+	check(
+		"circle: alignment is forced to center (a lens is inherently centered)",
+		col.contents[0].style.d.horizontal === "center",
+	);
+	// the top line holds fewer chars than a middle line — the circular silhouette
+	const cmid = Math.floor(col.contents.length / 2);
+	check(
+		"circle: the top line is narrower than the middle (fills the circle)",
+		col.contents[0].string.length <= col.contents[cmid].string.length,
 	);
 }
 

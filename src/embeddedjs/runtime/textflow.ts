@@ -114,6 +114,99 @@ export function wrapText(text: string, charsPerLine: number, maxLines: number): 
 	return lines;
 }
 
+// Per-line char budget for a block of N lines centered in a circle of `radius`.
+// Line i's box sits `dy` px off the vertical center; a horizontal chord there is
+// 2·sqrt(r²−dy²) wide, so the top/bottom lines (large |dy|) get a NARROW budget
+// and the middle lines a WIDE one — the paragraph silhouette becomes a lens that
+// FILLS the circle instead of a square. `fill` (0..1) trims a bezel margin.
+function circleBudget(
+	i: number,
+	n: number,
+	radius: number,
+	lineHeight: number,
+	pxPerChar: number,
+	fill: number,
+): number {
+	const dy = (i - (n - 1) / 2) * lineHeight;
+	const half = Math.sqrt(Math.max(0, radius * radius - dy * dy));
+	return Math.max(1, Math.floor((2 * half * fill) / pxPerChar));
+}
+
+// Greedy wrap where each line's budget comes from `budgetFor(lineIndex)` — the
+// same packing as wrapText, but the per-line budget varies (used by wrapCircle
+// to narrow the top/bottom lines). Pure; caps at `maxLines`.
+function wrapVariable(
+	words: string[],
+	budgetFor: (i: number) => number,
+	maxLines: number,
+): string[] {
+	const lines: string[] = [];
+	if (maxLines <= 0) return lines;
+	let cur = "";
+	for (let k = 0; k < words.length; k++) {
+		const w = words[k];
+		if (w.length === 0) continue;
+		if (cur === "") {
+			cur = w;
+		} else if (cur.length + 1 + w.length <= budgetFor(lines.length)) {
+			cur += " " + w;
+		} else {
+			lines.push(cur);
+			if (lines.length >= maxLines) return lines;
+			cur = w;
+		}
+	}
+	if (cur !== "") lines.push(cur);
+	return lines;
+}
+
+/**
+ * Word-wrap `text` to FILL a circle of `radius` (centered vertically): each line
+ * is packed to the chord width at its own height, so the top and bottom lines
+ * hold fewer words and the paragraph forms a lens/circle rather than a square.
+ * Pure — no Piu, no signals — so it is unit-testable and reused by {@link TextFlow}
+ * (`shape="circle"`).
+ *
+ * The line COUNT and the per-line budgets are mutually dependent (a taller block
+ * pushes its end lines further off-center, narrowing them), so this iterates to a
+ * fixed point: wrap with the current N, and if the result has a different line
+ * count, re-wrap with that N (bounded to a few passes — this is layout, not exact
+ * arithmetic). Lines are meant to be CENTER-aligned; the caller sizes the Column
+ * to the full width so each centered line has its chord available.
+ *
+ * @param text the paragraph to wrap
+ * @param radius the circle radius in px (typically screen radius minus a bezel)
+ * @param lineHeight per-line vertical pitch in px (sets each line's `dy`)
+ * @param maxLines hard cap on returned lines (extra lines dropped)
+ * @param pxPerChar approximate px per glyph at the font
+ * @param fill fraction of each chord to fill, 0..1 (a bezel/breath margin)
+ * @returns the wrapped lines, in order, forming a circular silhouette
+ */
+export function wrapCircle(
+	text: string,
+	radius: number,
+	lineHeight: number,
+	maxLines: number,
+	pxPerChar: number,
+	fill: number,
+): string[] {
+	const words = text.split(/\s+/);
+	// seed N from a wrap at the widest (center) budget, then refine to a fixed
+	// point — at most a handful of passes, and it always terminates on the cap.
+	let n = Math.max(1, Math.min(maxLines, 4));
+	let lines: string[] = [];
+	for (let pass = 0; pass < 6; pass++) {
+		lines = wrapVariable(
+			words,
+			(i) => circleBudget(i, n, radius, lineHeight, pxPerChar, fill),
+			maxLines,
+		);
+		if (lines.length === n || lines.length === 0) break;
+		n = lines.length;
+	}
+	return lines;
+}
+
 /** Props for {@link TextFlow}. */
 export type TextFlowProps = {
 	/** The paragraph text. A thunk (`() => s`) re-wraps + rebuilds on change; a bare string wraps once (static). */
@@ -128,10 +221,19 @@ export type TextFlowProps = {
 	color?: Color;
 	/** Per-line height in px (each Label's height + the Column's row pitch). Defaults to 22. */
 	lineHeight?: number;
-	/** Horizontal alignment. `"left"` (default, the reliable one) or `"center"`. */
+	/** Horizontal alignment. `"left"` (default, the reliable one) or `"center"`. Forced to `"center"` when `shape="circle"`. */
 	align?: "left" | "center";
 	/** Max wrapped lines; extra lines are dropped. Defaults to 8. */
 	maxLines?: number;
+	/**
+	 * Wrap silhouette. `"block"` (default) wraps to a fixed rectangle. `"circle"`
+	 * wraps each line to the circle's chord at its height, so the text FILLS the
+	 * round screen (a lens shape) instead of a square — designed for round
+	 * screens, always center-aligned. See {@link wrapCircle}.
+	 */
+	shape?: "block" | "circle";
+	/** Circle-fill fraction (0..1) — how much of each chord to use, leaving a bezel margin. Defaults to 0.92. Only used when `shape="circle"`. */
+	fill?: number;
 };
 
 /**
@@ -153,8 +255,16 @@ export function TextFlow(props: TextFlowProps): Content {
 	const font = props.font ?? DEFAULT_FONT;
 	const color = props.color ?? DEFAULT_COLOR;
 	const lineHeight = props.lineHeight ?? DEFAULT_LINE_HEIGHT;
-	const align = props.align ?? "left";
 	const maxLines = props.maxLines ?? DEFAULT_MAX_LINES;
+	// `shape="circle"` fills the round screen with a lens of text (each line
+	// wrapped to its chord) and is inherently center-aligned; `"block"` honors the
+	// caller's `align` (default left, the reliable one).
+	const circle = props.shape === "circle";
+	const align = circle ? "center" : (props.align ?? "left");
+	const fill = props.fill ?? 0.92;
+	// Circle radius: the screen's inscribed radius less a 2px bezel margin (the
+	// lens is centered on the screen, so the caller should center this Column).
+	const radius = Math.min(screen.width, screen.height) / 2 - 2;
 
 	// ONE shared Style backs every line Label (font + color + horizontal
 	// alignment) — indices, not per-line allocations (Rule 4). Built PER-CALL at
@@ -190,13 +300,17 @@ export function TextFlow(props: TextFlowProps): Content {
 	// Reactive thunk -> ONE effect re-wraps + rebuilds on change (idiom 5b: the
 	// `text()` read inside the effect auto-subscribes, the effect writes nodes, no
 	// loop). A bare string wraps + builds ONCE at construction (static, no effect).
+	const wrap = (s: string): string[] =>
+		circle
+			? wrapCircle(s, radius, lineHeight, maxLines, PX_PER_CHAR, fill)
+			: wrapText(s, charsPerLine, maxLines);
 	const text = props.text;
 	if (typeof text === "function") {
 		effect(() => {
-			rebuild(wrapText(text(), charsPerLine, maxLines));
+			rebuild(wrap(text()));
 		});
 	} else {
-		rebuild(wrapText(text, charsPerLine, maxLines));
+		rebuild(wrap(text));
 	}
 
 	return column;
