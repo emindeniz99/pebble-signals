@@ -637,7 +637,7 @@ import { Image } from "runtime/image";
 <Image src="logo.png" width={64} height={64} />
 ```
 
-_Node-100%-covered; builds (asset derived from the `src` literal) + boots — demo: `pnpm run dev -- --app image`. Substrate device-proven (imgwatch)._
+![Image on gabbro](../screenshots/image-gabbro.png)
 
 ### ImageBackground — `runtime/imagebackground`
 
@@ -650,7 +650,7 @@ import { ImageBackground } from "runtime/imagebackground";
 <ImageBackground src="bg.png" width={120} height={120}><Label string={() => t()} /></ImageBackground>
 ```
 
-_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app imagebackground`._
+![ImageBackground on gabbro](../screenshots/imagebackground-gabbro.png)
 
 ### VectorImage — `runtime/vectorimage`
 
@@ -665,7 +665,7 @@ import { VectorImage } from "runtime/vectorimage";
 <VectorImage src="icon.pdc" width={120} height={120} center={[30, 7]} translate={[30, 7]} scale={() => s()} />
 ```
 
-_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app vectorimage`. Substrate device-proven (slothvec)._
+![VectorImage on gabbro](../screenshots/vectorimage-gabbro.png)
 
 ---
 
@@ -688,7 +688,9 @@ import { Button } from "runtime/button";
 <Button label="OK" onPress={() => fire()} />
 ```
 
-_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app button` (drive with `pebble emu-button select`)._
+![Button on gabbro](../screenshots/button-gabbro.png)
+
+_Drive the press with `pebble emu-button select`._
 
 ### press — `runtime/press`
 
@@ -703,7 +705,7 @@ import { useLongPress } from "runtime/press";
 <Container focus {...useLongPress("Select", 600, () => confirm())} />
 ```
 
-_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app press`._
+_Node-100%-covered; builds; the focus/press substrate is device-proven (see Button) — demo: `pnpm run dev -- --app press`._
 
 ### useBackHandler — `runtime/backhandler`
 
@@ -718,7 +720,7 @@ import { useBackHandler } from "runtime/backhandler";
 <Container focus {...useBackHandler(() => nav.canPop() ? (nav.pop(), true) : false)} />
 ```
 
-_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app backhandler`._
+_Node-100%-covered; builds; the `onPressBack` substrate is device-proven (see Button) — demo: `pnpm run dev -- --app backhandler`._
 
 ---
 
@@ -737,7 +739,7 @@ import { Scrollable } from "runtime/scrollable";
 <Scrollable height={140} offset={() => y()} indicator>{tallColumn}</Scrollable>
 ```
 
-_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app scrollable`._
+_Node-100%-covered; builds; the clip+`moveBy` scroll substrate is device-proven (see Grid / Menu) — demo: `pnpm run dev -- --app scrollable`._
 
 ### Grid — `runtime/grid`
 
@@ -750,7 +752,7 @@ import { Grid } from "runtime/grid";
 <Grid columns={3} items={icons} cell={(it, i) => <Image src={it.png} width={40} height={40} />} />
 ```
 
-_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app grid`._
+![Grid on gabbro](../screenshots/grid-gabbro.png)
 
 ### SectionList — `runtime/sectionlist`
 
@@ -764,7 +766,7 @@ import { SectionList } from "runtime/sectionlist";
 <SectionList sections={() => groups()} renderHeader={(h) => h} renderRow={(r) => r.name} selected={() => i()} />
 ```
 
-_Node-100%-covered; builds + boots — demo: `pnpm run dev -- --app sectionlist`._
+_Node-100%-covered; builds; runs on the device-verified `VirtualList` — demo: `pnpm run dev -- --app sectionlist`._
 
 ---
 
@@ -783,7 +785,7 @@ const h = useHaptics();
 <Button label="OK" onPress={() => { save(); h.short(); }} />
 ```
 
-_Node-100%-covered; builds + boots. The physical buzz is **not** observable on QEMU (no motor / `emu-vibe`) — felt only on real hardware._
+_Node-100%-covered; builds; the `importNow` host-module substrate is device-proven (see useAccel/useBattery). The physical buzz is **not** observable on QEMU (no motor / `emu-vibe`) — felt only on real hardware._
 
 ---
 

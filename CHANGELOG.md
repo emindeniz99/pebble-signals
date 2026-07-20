@@ -10,8 +10,10 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
-- **Binding-expansion catalog — media, input, layout (opt-in; 100%-covered; each
-  builds for gabbro + emery from an exhaustive Piu/Pebble API survey).** Media:
+- **Binding-expansion catalog — media, input, layout (opt-in; 100%-covered; all
+  build for gabbro + emery, five render-verified on gabbro — image, imagebackground
+  (bitmap + live clock), vectorimage (PDC scaled 2×), grid, button — the rest on
+  device-proven substrate).** Media:
   `runtime/image` (`Image` — a bitmap on one Content, optional reactive-`variant`
   sprite), `runtime/imagebackground` (`ImageBackground` — children over a bitmap),
   `runtime/vectorimage` (`VectorImage` — a PDC vector on `SVGImage`, hiding the four
