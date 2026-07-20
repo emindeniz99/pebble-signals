@@ -27,14 +27,23 @@
 import { appendChild, screen, type JSXNode } from "runtime/jsx-runtime";
 import type { Content } from "../../../types/moddable/piu/MC-types";
 
-/** Default inset in px on a round screen — clears gabbro's bezel/corner clip. */
-const DEFAULT_INSET = 18;
+/**
+ * The corner-safe inset for a round screen of radius `r`. A SQUARE inset can't
+ * keep content inside a CIRCLE unless it clears the corners: a centered box of
+ * half-size `s` has its corners at `s·√2` from the center, so `s ≤ r/√2`, i.e.
+ * the inset must be `≥ r·(1 − 1/√2) ≈ 0.293·r` for the box's OWN corners to sit
+ * inside the circle. (MEASURED: the old flat 18px inset still clipped a top
+ * StatusBar — its top-left corner was in the bezel dead-zone.) `+2` clears the
+ * 2px bezel margin. Scales with the round's size, so it's right on any radius.
+ */
+const cornerSafeInset = (): number =>
+	Math.ceil((Math.min(screen.width, screen.height) / 2) * (1 - Math.SQRT1_2)) + 2;
 
 /** Props for {@link RoundSafeArea}. */
 export type RoundSafeAreaProps = {
 	/** Children inset into the safe area. May be omitted (an empty area). */
 	children?: JSXNode;
-	/** Round-screen inset in px on all sides. Defaults to 18. Ignored on a rect screen. */
+	/** Round-screen inset in px on all sides. Defaults to the corner-safe inset (~0.29·radius, so a full content box clears the bezel). Ignored on a rect screen. */
 	inset?: number;
 };
 
@@ -46,14 +55,15 @@ export type RoundSafeAreaProps = {
  *   </RoundSafeArea>
  *
  * On a ROUND screen (gabbro, `screen.round`) returns a Container inset by
- * `inset` (default 18) on all sides — centered, with an explicit width/height
- * of screen.{width,height} - 2*inset. On a RECT screen (emery) returns a
+ * `inset` (default: the corner-safe `~0.29·radius`, so a full content box clears
+ * the bezel) on all sides — centered, with an explicit width/height of
+ * screen.{width,height} - 2*inset. On a RECT screen (emery) returns a
  * full-bleed Container (all edges 0, full screen width/height) — a pass-through.
  * `children` mount in both cases. See the module header for the gotcha-16
  * explicit-size contract.
  */
 export function RoundSafeArea(props: RoundSafeAreaProps): Content {
-	const inset = screen.round ? (props.inset ?? DEFAULT_INSET) : 0;
+	const inset = screen.round ? (props.inset ?? cornerSafeInset()) : 0;
 	// Symmetric edge anchors + an explicit width/height (gotcha 16): a l/r/t/b-
 	// anchored container with no explicit measure draws NOTHING. inset === 0 on a
 	// rect screen makes this a full-bleed pass-through.

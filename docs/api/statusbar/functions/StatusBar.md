@@ -8,7 +8,7 @@
 
 > **StatusBar**(`props`): `Content`
 
-Defined in: statusbar.ts:89
+Defined in: statusbar.ts:87
 
 StatusBar — a top strip with a left title and a right time, on ONE Container.
 

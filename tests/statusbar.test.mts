@@ -82,4 +82,24 @@ const { check, done } = makeChecker("statusbar");
 	check("empty StatusBar still applies default height", bar.height === 20);
 }
 
+// --- ROUND screen: a centered STACK (title over time), dropped below the bezel
+//     dead-zone — a left/right edge anchor clips on the circle's narrow top band
+//     (MEASURED: "Inbox" → "ıx"). Rect keeps title-left / time-right (above). ---
+{
+	jsxM.screen.round = true;
+	const [bar] = createRoot(() => StatusBar({ title: "Inbox", time: () => "09:41" }));
+	check("round: taller strip dropped below the top edge", bar.top === 10 && bar.height === 46);
+	const title = bar.contents[0];
+	const time = bar.contents[1];
+	check(
+		"round: title is a full-width CENTERED top row",
+		title.left === 0 &&
+			title.right === 0 &&
+			title.top === 0 &&
+			title.style.d.horizontal === "center",
+	);
+	check("round: time is the centered row below the title", time.left === 0 && time.top === 22);
+	jsxM.screen.round = false;
+}
+
 done();

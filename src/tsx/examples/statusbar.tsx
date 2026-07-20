@@ -5,7 +5,7 @@
 // with no bind wiring). A plain-string title stays static.
 // Buttons (QEMU touch crashes the firmware — README gotcha 2):
 //   up = advance the clock by one minute.
-import { render } from "runtime/jsx-runtime";
+import { render, screen } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";
 import { StatusBar } from "runtime/statusbar";
 
@@ -21,7 +21,9 @@ render(
 	() => (
 		<Container left={0} right={0} top={0} bottom={0} focus={true} onPressUp={advance}>
 			<StatusBar title="Inbox" time={clock} background="#202020" />
-			<Label top={40} style={base} string="3 unread messages" />
+			{/* On round the status strip is a taller centered stack (~y0–56), so drop
+			    the body below it; the Label auto-centers (no left/right anchor). */}
+			<Label top={screen.round ? 72 : 40} style={base} string="3 unread messages" />
 		</Container>
 	),
 	{ skin: bg, style: base },

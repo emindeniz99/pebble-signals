@@ -36,9 +36,9 @@ import type {
 
 /** Props for {@link StatusBar}. */
 export type StatusBarProps = {
-	/** Left-aligned title. A thunk (`() => s`) makes it reactive; a bare string is static. Omitted = no title Label. */
+	/** Title — left on rect, centered on a round screen (top of the centered stack). A thunk (`() => s`) makes it reactive; a bare string is static. Omitted = no title Label. */
 	title?: string | (() => string);
-	/** Right-aligned time — a thunk (a clock is inherently live). Omitted = no time Label. */
+	/** Time — a thunk (a clock is inherently live). Right on rect, centered below the title on round. Omitted = no time Label. */
 	time?: () => string;
 	/** Strip height in px. Defaults to 20. */
 	height?: number;
@@ -48,22 +48,20 @@ export type StatusBarProps = {
 	background?: Color;
 };
 
-// Add one anchored Label to the bar. A thunk value drives it with an effect
+// Add one positioned Label to the bar. A thunk value drives it with an effect
 // (idiom 5b — reads inside the effect auto-track, so the label follows the
-// signal); a bare string is written once at construction (static). `anchor`
-// carries the horizontal edge (left for title, right for time). `top:0,bottom:0`
-// vertically fills the strip so the text centers on the row.
+// signal); a bare string is written once at construction (static). `anchor` is
+// the FULL position dict — on rect it carries the horizontal edge (left title /
+// right time) filling the strip height; on round it is a full-width centered row.
 function addLabel(
 	bar: PiuContainer,
 	value: string | (() => string),
-	anchor: { left: number } | { right: number },
+	anchor: Record<string, number>,
 	style: Style,
 ): void {
 	const reactive = typeof value === "function";
 	const lbl = new Label(null, {
 		...anchor,
-		top: 0,
-		bottom: 0,
 		style,
 		string: reactive ? "" : String(value),
 	});
@@ -87,16 +85,38 @@ function addLabel(
  * props are driven by effects (idiom 5b). See the module header.
  */
 export function StatusBar(props: StatusBarProps): Content {
-	const height = props.height ?? 20;
+	// ROUND HARMONY (gotcha 24 family — MEASURED: a top-left title clips to "ıx"):
+	// the top strip lives in the circle's NARROWEST band, and left/right edge
+	// anchors put the title/time in the bezel dead-zone. On round, CENTER the
+	// content and STACK it (title over time), and drop the strip below the very
+	// top so it sits where the circle is wide enough (Pebble's round convention —
+	// center, don't edge-anchor). On rect, keep the classic title-left/time-right.
+	const round = screen.round;
+	const height = props.height ?? (round ? 46 : 20);
 	const color = props.color ?? "white";
-	const style = new Style({ font: "18px Gothic", color });
+	const style = new Style({ font: "18px Gothic", color, horizontal: round ? "center" : "left" });
 	// EXPLICIT width (gotcha 16): a left+right-anchored container measures 0 in
 	// Piu's measure pass and draws NOTHING — the strip must carry a real width
-	// (screen.width) and height, exactly like Card's outer box.
-	const dict: Record<string, unknown> = { left: 0, top: 0, width: screen.width, height };
+	// (screen.width) and height, exactly like Card's outer box. On round, `top`
+	// drops it ~10px below the bezel dead-zone.
+	const dict: Record<string, unknown> = {
+		left: 0,
+		top: round ? 10 : 0,
+		width: screen.width,
+		height,
+	};
 	if (props.background !== undefined) dict.skin = new Skin({ fill: props.background });
 	const bar = new Container(null, dict);
-	if (props.title !== undefined) addLabel(bar, props.title, { left: 4 }, style);
-	if (props.time !== undefined) addLabel(bar, props.time, { right: 4 }, style);
+	if (round) {
+		// centered stack: title on the top row, time on the row below
+		if (props.title !== undefined)
+			addLabel(bar, props.title, { left: 0, right: 0, top: 0, height: 22 }, style);
+		if (props.time !== undefined)
+			addLabel(bar, props.time, { left: 0, right: 0, top: 22, height: 22 }, style);
+	} else {
+		if (props.title !== undefined)
+			addLabel(bar, props.title, { left: 4, top: 0, bottom: 0 }, style);
+		if (props.time !== undefined) addLabel(bar, props.time, { right: 4, top: 0, bottom: 0 }, style);
+	}
 	return bar;
 }

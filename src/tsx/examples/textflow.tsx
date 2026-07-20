@@ -5,7 +5,7 @@
 // so a button that flips the source signal rebuilds the lines with no bind wiring.
 // Buttons (QEMU touch crashes the firmware — README gotcha 2):
 //   up / down / back = swap between the two paragraphs (watch the block re-flow).
-import { render } from "runtime/jsx-runtime";
+import { render, screen } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";
 import { TextFlow } from "runtime/textflow";
 
@@ -37,7 +37,15 @@ render(
 		>
 			<Column>
 				<Label string="TextFlow" />
-				<TextFlow text={() => PARAS[which()]} width={140} lineHeight={20} />
+				{/* Center each wrapped line on a round screen (Pebble reflows centered)
+				    so the ragged left edge never runs under the bezel; left on rect.
+				    Evaluated at render time, so screen.round is valid. */}
+				<TextFlow
+					text={() => PARAS[which()]}
+					width={140}
+					lineHeight={20}
+					align={screen.round ? "center" : "left"}
+				/>
 			</Column>
 		</Container>
 	),

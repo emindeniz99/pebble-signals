@@ -8,7 +8,7 @@
 
 > **RoundSafeArea**(`props`): `Content`
 
-Defined in: roundsafe.ts:55
+Defined in: roundsafe.ts:65
 
 RoundSafeArea — inset children to the round-screen safe area.
 
@@ -17,8 +17,9 @@ RoundSafeArea — inset children to the round-screen safe area.
   </RoundSafeArea>
 
 On a ROUND screen (gabbro, `screen.round`) returns a Container inset by
-`inset` (default 18) on all sides — centered, with an explicit width/height
-of screen.{width,height} - 2*inset. On a RECT screen (emery) returns a
+`inset` (default: the corner-safe `~0.29·radius`, so a full content box clears
+the bezel) on all sides — centered, with an explicit width/height of
+screen.{width,height} - 2*inset. On a RECT screen (emery) returns a
 full-bleed Container (all edges 0, full screen width/height) — a pass-through.
 `children` mount in both cases. See the module header for the gotcha-16
 explicit-size contract.

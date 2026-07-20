@@ -8,7 +8,7 @@
 
 > **RoundSafeAreaProps** = `object`
 
-Defined in: roundsafe.ts:34
+Defined in: roundsafe.ts:43
 
 Props for [RoundSafeArea](../functions/RoundSafeArea.md).
 
@@ -18,7 +18,7 @@ Props for [RoundSafeArea](../functions/RoundSafeArea.md).
 
 > `optional` **children?**: [`JSXNode`](../../jsx-runtime/type-aliases/JSXNode.md)
 
-Defined in: roundsafe.ts:36
+Defined in: roundsafe.ts:45
 
 Children inset into the safe area. May be omitted (an empty area).
 
@@ -28,6 +28,6 @@ Children inset into the safe area. May be omitted (an empty area).
 
 > `optional` **inset?**: `number`
 
-Defined in: roundsafe.ts:38
+Defined in: roundsafe.ts:47
 
-Round-screen inset in px on all sides. Defaults to 18. Ignored on a rect screen.
+Round-screen inset in px on all sides. Defaults to the corner-safe inset (~0.29·radius, so a full content box clears the bezel). Ignored on a rect screen.

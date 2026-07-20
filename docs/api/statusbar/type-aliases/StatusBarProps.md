@@ -50,7 +50,7 @@ Strip height in px. Defaults to 20.
 
 Defined in: statusbar.ts:42
 
-Right-aligned time — a thunk (a clock is inherently live). Omitted = no time Label.
+Time — a thunk (a clock is inherently live). Right on rect, centered below the title on round. Omitted = no time Label.
 
 #### Returns
 
@@ -64,4 +64,4 @@ Right-aligned time — a thunk (a clock is inherently live). Omitted = no time L
 
 Defined in: statusbar.ts:40
 
-Left-aligned title. A thunk (`() => s`) makes it reactive; a bare string is static. Omitted = no title Label.
+Title — left on rect, centered on a round screen (top of the centered stack). A thunk (`() => s`) makes it reactive; a bare string is static. Omitted = no title Label.

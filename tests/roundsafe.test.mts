@@ -1,6 +1,6 @@
 // RoundSafeArea suite — runtime/roundsafe (opt-in round-screen safe-area inset).
 // Proves: on a ROUND screen the returned Container is inset on all sides by
-// `inset` (default 18) with an EXPLICIT width/height of screen.{width,height} -
+// `inset` (default: the corner-safe ~0.29·radius) with an EXPLICIT width/height of screen.{width,height} -
 // 2*inset (gotcha 16 — a l/r/t/b-anchored container with no measure draws
 // nothing); on a RECT screen it is full-bleed (all edges 0, full screen size) —
 // a pass-through; children mount in both shapes; an omitted `inset` falls back
@@ -33,12 +33,18 @@ const { check, done } = makeChecker("roundsafe");
 	check("round: child mounts inside the safe area", node.contents[0] === child);
 }
 
-// --- ROUND screen: omitted inset falls back to the 18px default ---
+// --- ROUND screen: omitted inset falls back to the corner-safe default ---
+// The default keeps a full content box's corners inside the circle: for radius r,
+// inset ≥ r·(1 − 1/√2), +2 for the bezel. On 260×260 → ceil(130·0.2929)+2 = 41.
 {
 	jsxM.screen.round = true;
+	const CORNER_SAFE = Math.ceil((260 / 2) * (1 - Math.SQRT1_2)) + 2; // 41
 	const [node] = createRoot(() => RoundSafeArea({}));
-	check("round: default inset is 18", node.left === 18);
-	check("round: default inset sizes width to screen - 36", node.width === 260 - 36);
+	check("round: default inset is corner-safe (41 on gabbro)", node.left === CORNER_SAFE);
+	check(
+		"round: default inset sizes width to screen - 2*corner-safe",
+		node.width === 260 - 2 * CORNER_SAFE,
+	);
 	check("round: omitted children yield an empty area", node.contents.length === 0);
 }
 

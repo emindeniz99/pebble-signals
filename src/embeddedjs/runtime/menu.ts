@@ -123,8 +123,13 @@ export function Menu(props: MenuProps): Content {
 	// Two shared Styles cover every row (active vs inactive text color); one Skin
 	// backs the active row. Built per-call at runtime — never module scope (a
 	// preloaded top-level `new Style/Skin` freezes broken, measured on Badge).
-	const activeStyle = new Style({ font, color: activeColor });
-	const inactiveStyle = new Style({ font, color });
+	// ROUND HARMONY (Pebble's own menu convention): center rows on a round screen
+	// so the narrowing circle never eats the leading glyphs; left-align on rect.
+	// screen.round is valid here (Menu is called during render(), after render()
+	// populates the screen dims).
+	const hAlign = screen.round ? "center" : "left";
+	const activeStyle = new Style({ font, color: activeColor, horizontal: hAlign });
+	const inactiveStyle = new Style({ font, color, horizontal: hAlign });
 	const activeSkin = new Skin({ fill: activeFill });
 
 	const n = items.length;

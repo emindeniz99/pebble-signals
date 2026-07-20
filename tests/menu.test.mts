@@ -206,4 +206,21 @@ const { check, done } = makeChecker("menu");
 	check("an empty menu performs no scroll (no crash)", (menu.contents[0].moveCalls || 0) === 0);
 }
 
+// --- ROUND vs RECT alignment: rows CENTER on a round screen (Pebble's own menu
+//     convention — the narrowing circle eats a left-aligned row's leading
+//     glyphs), and LEFT-align on rect. Both active + inactive Styles carry it. ---
+{
+	jsxM.screen.round = true;
+	const [rnd] = createRoot(() => Menu({ items: ["A", "B"], selected: 0 }));
+	const rcol = rnd.contents[0];
+	check(
+		"round: rows center-align (active + inactive Styles)",
+		rcol.contents[0].style.d.horizontal === "center" &&
+			rcol.contents[1].style.d.horizontal === "center",
+	);
+	jsxM.screen.round = false;
+	const [rect] = createRoot(() => Menu({ items: ["A", "B"], selected: 0 }));
+	check("rect: rows left-align", rect.contents[0].contents[0].style.d.horizontal === "left");
+}
+
 done();
