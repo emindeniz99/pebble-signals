@@ -42,6 +42,26 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > error routing. CONSEQUENCE: the S9 gate below is currently **unclearable**
 > (needs navreactive to boot), so S9 stays deferred; its `pullComputed` extraction
 > was written + Node-tested (150 pass) and discarded unshipped pending the gate.
+>
+> **UPDATE (same session, further bisection):** the two canaries split. **`navmany`
+> is the round-twelve regression and is FIXABLE:** restoring `7e88ad4`'s `flow.ts`
+> Navigator (lean `swap()`, no in-arrow boundary/try) + re-applying only the
+> inlined concrete-box wrapper boots it (MEASURED 15 hb, 0 abort). Incremental
+> reverts did NOT recover it (reverting just the wrapper, or just 6dc015e's
+> boundary, or moving the boundary to the push/pop call sites all still overflowed
+> — the added value-stack depth is spread across the round's `flow.ts` changes,
+> only the whole `7e88ad4` Navigator is lean enough). **`navreactive` is DEEPER:**
+> it overflows even with the `7e88ad4`-structure `flow.ts` (the concrete wrapper is
+> value-neutral for it), so it is over the 384-slot wall in THIS firmware
+> INDEPENDENT of round twelve — its "~1 slot from the wall" margin is negative
+> here. So the full "both canaries boot" goal needs actual render-DEPTH reduction
+> for navreactive (structural — fewer frames per nested reactive screen), not just
+> a `flow.ts` revert. FIX COST for the navmany-only revert is high: it reverts the
+> shipped `6dc015e`/`9fb63c4`/`33c9490` Navigator correctness fixes + their
+> `flow.test.mts` cases + the `navboundary` example's expected behavior — a whole
+> round, best done in a reliable-device session. Left at HEAD (not shipped) pending
+> that: a booting Navigator is the goal, but a half-revert that breaks the test
+> suite and still fails navreactive is worse than the documented regression.
 
 ## Core (signals.ts) — one OPEN (S9), rest resolved
 
