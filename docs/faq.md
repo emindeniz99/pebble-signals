@@ -44,8 +44,9 @@ packed lowering and stays a heap object (~2x slots for that signal, Rule 4).
 Keep state module-local when nothing else reads it.
 
 **Can I use `fetch` / talk to the internet?**
-Yes, through the phone: the pkjs proxy ships with every build. A full
-`fetch()` from the watch works (with arena-sized responses);
+Yes, through the phone: the pkjs proxy ships with every build. The
+`fetch()` mechanism is in place (arena-sized responses only), but a live
+round-trip hasn't been verified in the emulator sandbox — see
 [README gotcha 18](../README.md).
 
 **How do I make a settings page?**

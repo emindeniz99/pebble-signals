@@ -19,7 +19,7 @@ function applyConfig(next: { invert?: number }) {
 ```
 
 For RECORD data — a todo list, log entries — go through the library's byte
-store instead (`Store` in `runtime/signals`): records live as BYTES outside
+store instead (`createStore` in `runtime/signals`): records live as BYTES outside
 the object heap and `save()`/`load()` round-trip them through localStorage.
 That is the shipped, device-verified `list` example: its rows persist across
 launches, and the store is the same trick that keeps an unbounded list on a

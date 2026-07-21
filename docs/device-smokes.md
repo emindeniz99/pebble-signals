@@ -19,11 +19,19 @@ node tools/device-smoke.mts --apps navmany,navreactive   # just the canaries
 node tools/device-smoke.mts --platform emery              # rect watch
 ```
 
-**Both-platform status (2026-07): the full catalog is green on gabbro AND
-emery** (13/13 each at the matrix runs; pulse joined after — see its
-receipts). Emery receipts for the newer examples are committed
-(`screenshots/*-emery.png`); the emery run found ZERO platform-specific
-failures — `screen.width/round` adaptation carried every app unchanged.
+**Both-platform status (2026-07): the full catalog was green on gabbro AND
+emery** at the matrix runs (13/13 each; `pulse` joined after → the 14 apps
+tabulated below — see its receipts). Emery receipts for the newer examples are
+committed (`screenshots/*-emery.png`); the emery run found ZERO
+platform-specific failures — `screen.width/round` adaptation carried every app
+unchanged.
+
+> **⚠️ UPDATE (2026-07-21, HEAD — see [`review-findings.md` D1](review-findings.md)):**
+> the round-twelve `flow.ts` batch re-broke the two boot canaries. On HEAD
+> **`navmany` and `navreactive` both `fxAbort JavaScript stack overflow` at
+> boot** (2 heartbeats then abort); the other 12 apps are unaffected. Re-run
+> the matrix from a reliable-device session, and unblock the canaries (see D1),
+> before claiming full-catalog green again.
 
 Requires the Pebble SDK and a bootable emulator. Each app: build → `pebble
 logs` capture attached around a foreground install (~8s of heartbeats — the
@@ -57,6 +65,11 @@ transport (0 heartbeats) triggers one `tools/reset-emulator.sh` + retry
 | `deviceinfo` | none | size/round/color + ticking clock | host surface probe; first-boot sanity for new hardware |
 | `rootapp` | UP ×2 | "root 2" | root-component entry mounts via the generated shim |
 | `config` | none | "no config yet" | `pebble/message` channel opens at boot (the full settings round-trip needs pypkjs alive — drive it manually with `tools/config-drive.py`) |
+| `fontface` | none | serif clock + "Serif, from a TTF" | a shipped `.ttf` face loads into a Style and renders |
+| `kvprobe` | none | "kv works boot=_n_" | `device.keyValue` persists a counter across launches |
+| `devlog` | SELECT | "sent 1" | `report()` → AppMessage bridge (the `pkjs>` line needs the log capture — kept manual) |
+| `dictate` | none | "SELECT starts dictation" | dictation probe — boot-only ON PURPOSE (SELECT opens the system UI, BACK exits to the launcher) |
+| `pulse` | UP | serif clock + date/secs + accent dot turns green | the flagship showcase watchface (TTF + persisted theme + config greeting + lazy boot) |
 
 Adding an entry: one line in `SMOKES` in `tools/device-smoke.mts` (app name,
 drive.py actions, the human-readable expectation). Keep boot-only canaries

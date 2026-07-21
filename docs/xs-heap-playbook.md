@@ -294,7 +294,9 @@ proportional load cost that kills by 24KB. Consequences:
 - **Size limit hunt (single lazy module, runtime load):** ~104KB source /
   71,069B archive WORKS ("sum(3) = 492831"); ~208KB source / 130,892B
   archive INSTALLS but dies at launch — practical archive limit is
-  between 71KB and 131KB (bisect pending). Load speed: the 40KB and
+  between 71KB and 131KB (bisect SOLVED below — the edge is ~116.8KB and
+  MOVES with app-heap use: `archive + app-heap ≤ ~130,768B`). Load speed:
+  the 40KB and
   104KB modules loaded + rendered within the 3-4s driver step; MEASURED
   (2026-07, `loadms` example): a cold `importNow` of a ~2KB lazy module
   is **2ms** on gabbro ("load 2ms acc=247700",

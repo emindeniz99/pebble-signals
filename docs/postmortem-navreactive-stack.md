@@ -25,6 +25,19 @@ silently at boot and reaches for the wrong tool.
   (inline `asNode` inside `Navigator.swap()` so `build(nav)` is called
   directly instead of through `asNode(() => build(nav))`). Two frames was the
   *entire* margin. It now boots on gabbro (Round 2) and emery (Time 2).
+- **⚠️ UPDATE (2026-07-21 — this fix was later overturned; see
+  [`review-findings.md` D1](review-findings.md)):** the round-twelve `flow.ts`
+  batch (`14d07ca` anchored-screen `wdims` wrapper + `6dc015e` push-boundary
+  restore, adding `getBoundary`/`withBoundary`/`navBoundary` to the deepest
+  render path) re-added value-stack frames and pushed both canaries back over
+  the wall. On HEAD **both** `navmany` and `navreactive` `fxAbort JavaScript
+  stack overflow` at boot again. The asNode-inline fix above is *necessary but
+  no longer sufficient*: `navmany` needs the whole `7e88ad4` Navigator restored
+  (high collateral — it reverts shipped fixes), and `navreactive` is deeper
+  still (wants structural render-depth reduction, not just a `flow.ts` revert).
+  Deferred to a reliable-device session. **Everything below is the original
+  round-7 post-mortem, preserved as written** — the mechanism and numbers still
+  explain *why* the value stack is the constraint.
 
 ## What the JS value stack actually is (the "neyin derinliği" answer)
 

@@ -1,8 +1,8 @@
 # Part 2 — custom fonts
 
 Goal: your own typeface on the watch. The system table has about ten usable
-keys (Gothic 14-28, Bitham 30/42, Roboto 21/49, Droid 28 — the build's
-fontcheck knows them all); everything else comes from a TTF you ship.
+keys (Gothic 14/18/24/28/36, Bitham 18/34/42, Roboto 21/49, Droid 28 — the
+build's fontcheck knows them all); everything else comes from a TTF you ship.
 
 ## The whole recipe
 

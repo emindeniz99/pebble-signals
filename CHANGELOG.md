@@ -150,6 +150,20 @@ No registry releases yet; entries accumulate under Unreleased until the first
   `-grown` reactive-change frames). Example: `src/tsx/examples/draw.tsx`.
 
 ### Fixed
+- **Documentation-accuracy sweep — stale `.md` claims corrected against source
+  (four-agent audit; 99/99 screenshot refs and 1432/1432 internal links resolve).**
+  (a) `docs/postmortem-navreactive-stack.md` and `docs/device-smokes.md` presented
+  the `navmany`/`navreactive` boot canaries as green; on HEAD **both `fxAbort
+  JavaScript stack overflow` at boot** after the round-twelve `flow.ts` batch
+  (see review-findings D1) — added the explicit overturn banners Rule 2 requires,
+  cross-referencing D1, and the device-smoke catalog table now lists all 14 runner
+  apps. (b) `docs/faq.md` no longer claims a live `fetch()` round-trip "works" — the
+  mechanism is designed but unverified in the sandbox (README gotcha 18). (c) tutorial
+  fixes: `Bitham 30` → the fontcheck-valid `18/34/42`, Gothic sizes written discretely
+  (`14/18/24/28/36`), and the byte store named by its real export `createStore` (not
+  the module-private `Store`). (d) `docs/xs-heap-playbook.md` archive-limit "bisect
+  pending" corrected to the SOLVED ~116.8KB moving edge the same section later records.
+  (e) regenerated `docs/api/textflow` for the shipped `wrapCircle` / `shape="circle"`.
 - **`Scrollable`'s `indicator` no longer wedges the firmware** (a
   build-passes/device-hangs bug the device retry caught, gotcha 24). The old
   `ContentIndicator` was a transparent `runtime/draw` Canvas Port OVERLAPPING the
