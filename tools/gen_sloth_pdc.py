@@ -80,10 +80,10 @@ def eyes(mode):
     closed (happy stroked arcs)."""
     if mode == "open":
         return [
-            sh(ngon(24, 31, 3, 3, 10), fill=EYE),
-            sh(ngon(36, 31, 3, 3, 10), fill=EYE),
-            sh(ngon(23, 30, 1, 1, 6), fill=CATCH),   # catch-light up-left
-            sh(ngon(35, 30, 1, 1, 6), fill=CATCH),
+            sh(ngon(24, 31, 3, 4, 14), fill=EYE),     # tall round pupils
+            sh(ngon(36, 31, 3, 4, 14), fill=EYE),
+            sh(ngon(23, 30, 2, 2, 8), fill=CATCH),    # clearer catch-light up-left
+            sh(ngon(35, 30, 2, 2, 8), fill=CATCH),
         ]
     if mode == "half":
         return [
@@ -109,15 +109,16 @@ def frame(mode):
     # arms reaching to the branch
     S += [sh([(20, 30), (14, 8), (19, 8), (26, 28)], fill=FUR_M),
           sh([(40, 30), (46, 8), (41, 8), (34, 28)], fill=FUR_M)]
-    # ears
-    S += mass(15, 22, 6, 6, [FUR_M, FUR_L], n=12)
-    S += mass(45, 22, 6, 6, [FUR_M, FUR_L], n=12)
-    # head — 2 clean fur bands (mid brown -> light crown). The 64-colour grid
-    # has no true dark brown (it snaps to olive/maroon), so depth comes from
-    # the light crown + the cream-face contrast, not a dark rim.
-    S += mass(30, 33, 20, 19, [FUR_M, FUR_L], n=20)
-    # cream face — 3 bands (shadow -> light -> highlight sliver)
-    S += mass(30, 35, 14, 13, [FACE_D, FACE_L, FACE_H], n=20, shrink=0.72)
+    # ears (rounder, lit from up-left like the head)
+    S += mass(15, 22, 6, 6, [FUR_M, FUR_L], n=16)
+    S += mass(45, 22, 6, 6, [FUR_M, FUR_L], n=16)
+    # head — 2 clean fur bands (mid brown -> light crown), high N-gon for a
+    # smooth silhouette. The 64-colour grid has no true dark brown (it snaps to
+    # olive/maroon), so depth comes from the light crown + the cream-face
+    # contrast, not a dark rim.
+    S += mass(30, 33, 21, 20, [FUR_M, FUR_L], n=32)
+    # cream face — 3 bands (shadow -> light -> up-left highlight crescent)
+    S += mass(30, 35, 14, 13, [FACE_D, FACE_L, FACE_H], n=32, shrink=0.66)
     # eye-patch teardrops framing the eyes
     S += [sh(ngon(24, 31, 5, 7, 12, rot=0.3), fill=PATCH),
           sh(ngon(36, 31, 5, 7, 12, rot=-0.3), fill=PATCH)]
