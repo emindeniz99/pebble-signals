@@ -1,24 +1,24 @@
 // runtime/image receipt — a single bitmap Image (the RN <Image> analog) centered
-// with a caption. The sloth is assets/sloth.png at 68x68; the build packs it
-// automatically because the bare "sloth.png" string LITERAL appears in this app
-// source (gen-manifest scans it). The SCREENSHOT demo is the STATIC bitmap; the
-// sprite-sheet path (`variants` + a reactive `variant` thunk) is covered in the
-// module JSDoc and the Node suite (tests/image.test.mts), not shown here — a
-// static frame is the honest, screenshot-verifiable single-component demo.
-// Centered <Column> on the screen-filling root Container so it reads on both the
-// 260x260 round (gabbro) and 200x228 rect (emery) panels. Build: APP=image ./build.sh
+// with a caption. assets/sloth.png is a 280×140 sprite SHEET (two 140×140
+// frames), so the Image frames ONE frame at natural size: `variants={140}` (the
+// per-frame width) + a fixed `variant={0}` selects the open-sloth frame — drawing
+// it at width/height 68 without variants would blit only a 68px CROP of the sheet
+// (measured — a partial sloth). The build packs the asset automatically from the
+// bare "sloth.png" literal (gen-manifest scans it). A fixed variant keeps this a
+// STATIC single-frame demo; the reactive-variant animation is in sloth.tsx.
+// Centered <Column> on the screen-filling root Container. Build: APP=image ./build.sh
 import { render } from "runtime/jsx-runtime";
 import { Image } from "runtime/image";
 
 const bg = new Skin({ fill: "black" });
-const caption = new Style({ font: "bold 24px Gothic", color: "white" });
+const caption = new Style({ font: "bold 24px Gothic", color: "white", horizontal: "center" });
 
 render(
 	() => (
 		<Container left={0} right={0} top={0} bottom={0}>
 			<Column>
-				<Image src="sloth.png" width={68} height={68} />
-				<Label style={caption} string="sloth" />
+				<Image src="sloth.png" width={140} height={140} variants={140} variant={0} />
+				<Label left={0} right={0} style={caption} string="sloth" />
 			</Column>
 		</Container>
 	),

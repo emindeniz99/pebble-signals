@@ -9,7 +9,9 @@ import { useState } from "runtime/signals";
 import { ActionBar } from "runtime/actionbar";
 
 const bg = new Skin({ fill: "black" });
-const base = new Style({ font: "28px Gothic", color: "white" });
+// Center the counter in its box (a single-line Label fills the area to the left
+// of the bar and centers, so it never clips the round bezel at the top edge).
+const base = new Style({ font: "28px Gothic", color: "white", horizontal: "center" });
 
 const [count, setCount] = useState(0);
 const inc = () => setCount((c: number) => c + 1);
@@ -18,9 +20,7 @@ const dec = () => setCount((c: number) => c - 1);
 render(
 	() => (
 		<Container left={0} right={0} top={0} bottom={0} focus={true} onPressUp={inc} onPressDown={dec}>
-			<Column left={0} right={30} top={0} bottom={0}>
-				<Label string={() => "Count: " + count()} />
-			</Column>
+			<Label left={0} right={40} top={0} bottom={0} string={() => "Count: " + count()} />
 			<ActionBar up={() => String(count())} select="OK" down="-" background="#303030" />
 		</Container>
 	),

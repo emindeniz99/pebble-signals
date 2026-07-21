@@ -3,7 +3,7 @@
 // eye (the box shoots past its target, then springs back up to it). UP/DOWN
 // swap the active curve, so you can watch the SAME 0->120 move under different
 // timing (linear vs the springy backOut vs the decelerating expoOut). Build: APP=easing
-import { render } from "runtime/jsx-runtime";
+import { render, screen } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";
 import { Move, animate } from "runtime/flow";
 import { backOut, expoOut, linear } from "runtime/easing";
@@ -25,8 +25,10 @@ render(() => (
 		onPressUp={() => setI((v) => (v + 1) % curves.length)}
 		onPressDown={() => setI((v) => (v + curves.length - 1) % curves.length)}
 		onPressSelect={() => setTween(() => animate(0, 120, 1000, curves[i()].fn))}>
-		<Label top={6} style={st} string={() => `${curves[i()].name} — SELECT`} />
-		<Move left={65} top={30} width={30} height={30}
+		{/* On round, drop the title below the bezel (top:6 clips) — it auto-centers
+		    with no left/right anchor; push the box down to clear it. */}
+		<Label top={screen.round ? 42 : 6} style={st} string={() => `${curves[i()].name} — SELECT`} />
+		<Move left={65} top={screen.round ? 74 : 30} width={30} height={30}
 			y={() => { const t = tween(); return t ? t() : 0; }}>
 			<Container width={30} height={30} skin={box} />
 		</Move>
