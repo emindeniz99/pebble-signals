@@ -86,6 +86,24 @@ modes bite when capturing catalog receipts, both MEASURED on gabbro:
    so it lands only intermittently (~1 in 5 once rotted); a fresh SESSION
    (new container) is the only full fix.
 
+**BYPASS the rotted screenshot transport with the qemu MONITOR screendump
+(MEASURED 2026-07-21 — do NOT forget this).** `pebble screenshot` and `pebble
+logs` both ride the pypkjs/libpebble2 transport that rots; the qemu MONITOR is
+a separate localhost TCP socket that keeps working. Read the monitor port from
+`/tmp/pb-emulator.json` (`<plat>.<ver>.qemu.monitor`), connect, send
+`screendump /path.ppm\n`, then convert the PPM with PIL — this dumped a real
+260×260 framebuffer when `pebble screenshot` was 100% dead (0/10). `tools/
+drive.py` already uses exactly this. TWO catches: (a) it captures whatever is
+ON SCREEN, so the app must be launched first — and `pebble install` (the launch
+path) ALSO rides pypkjs and eventually stops landing (~1 in 5, then 0), so you
+still need an install to land to get the app up; (b) a monitor `system_reset`
+reboots qemu but does NOT relaunch a watchface (boots to the launcher). Net: the
+screendump makes the *capture* reliable, but launching the app still needs a
+pypkjs install to land — so it extends a session's usable captures, it does not
+fully replace a fresh container. It also catches CRASH-to-launcher: install →
+dump-immediately caught the sloth face, then repeated dumps showed the launcher
+= the watchface rendered then died (the D2 OOM receipt in review-findings.md).
+
 **ALWAYS verify a captured PNG by READING it** (not just a size check): the
 empty-home frame, a stale previous-app frame, and a `render() threw` crash
 screen all pass `size > 800 B`. A crash-screen capture is a genuine receipt of

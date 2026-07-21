@@ -63,6 +63,25 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > that: a booting Navigator is the goal, but a half-revert that breaks the test
 > suite and still fails navreactive is worse than the documented regression.
 
+> **D2 — DEVICE OOM (session 2026-07-21, gabbro QEMU, FIXED by revert):** the
+> 3-frame `sloth` watchface (`slothblink.png`, open/half/closed, 420×140, mod
+> archive **88.6KB**) RENDERS ONCE then crashes back to the launcher within
+> ~10s. Measured receipt via the qemu-monitor screendump (see CLAUDE.md Rule 3
+> note): a dump right after install caught the face (`18:39:49`), then 14
+> consecutive dumps over the next ~10s all showed "Install an app to continue".
+> A trivial control (`counter`, 13KB) stayed put in the same session, and the
+> 2-frame `sloth` (63KB) was stable earlier the same session — so it is
+> memory, not transport. ROOT CAUSE: the "build-verified 88.6KB < ~116.8KB
+> install edge" claim was INCOMPLETE — it counted only the archive, not the
+> archive + the *decoded* multi-frame texture coexisting in the shared ~130KB
+> native pool (`archive + app-heap ≤ ~130,768`, xs-heap-playbook). The 3rd
+> 140px frame's resident pixels tipped it over once the animation allocated.
+> FIX (shipped): reverted `sloth` to the proven 2-frame sheet (63KB, snap
+> blink); the smooth multi-frame blink now lives ONLY in the vector `slothvec`
+> (PDCS, ~20KB archive, near-zero pixel RAM — the OOM-safe home for rich
+> animation). LESSON: a bitmap watchface's memory cost is archive + Σ(resident
+> frame pixels), not archive alone; a frame count that builds can still OOM.
+
 ## Core (signals.ts) — one OPEN (S9), rest resolved
 
 | # | sev | finding | status |

@@ -1,14 +1,9 @@
-// Colorful animated sloth watchface 🦥 — a 3-frame EXPRESSION sprite-sheet
-// (assets/slothblink.png, 420×140: open / half-lidded / closed) drawn from code
-// by tools/gen_sloth.py, animated by swapping the reactive `variant` prop on a
-// timer for a SMOOTH blink (open→half→closed→half→open) instead of an instant
-// snap. ONE texture, decoded once, so the animation costs zero extra XS memory:
-// `variant` only picks which 140px slice is blitted. Pixels live in FLASH
-// (resources) + the native framebuffer, NOT the 32KB XS heap — see README
-// "Bitmaps". (The 2-frame assets/sloth.png stays the shared static demo bitmap
-// for image/imagebackground; this face owns its own sheet. Regenerate:
-// SLOTH_OUT=slothblink.png SLOTH_MODES=open,half,closed tools/gen_sloth.py — the
-// generator also draws `wink`/`wide`, dropped here to keep the archive lean.)
+// Colorful animated sloth watchface 🦥 — a single 2-frame sprite-sheet
+// bitmap (assets/sloth.png, 280×140: eyes open / closed) animated by swapping
+// the reactive `variant` prop on a slow timer. ONE texture, decoded once,
+// so the animation costs zero extra memory: `variant` only picks which
+// 140px slice is blitted. Pixels live in FLASH (resources) + the native
+// framebuffer, NOT the 32KB XS heap — see README "Bitmaps".
 //
 // Layout (design pass): the sloth is the hero; the type is its calm
 // counterpoint. HH:MM:SS sits on one baseline at the SAME 42px size — HH:MM in
@@ -29,18 +24,11 @@ const sec = new Style({ font: "bold 42px Bitham", color: "#a0a0a0" });
 // the date recedes on its own line: muted grey, uppercased
 const dim = new Style({ font: "18px Gothic", color: "#7a7a7a" });
 
-// dedicated 3-frame sheet, 140px frames: 0 open · 1 half-lidded · 2 closed
-const sheet = new Skin({ texture: new Texture("slothblink.png"), x: 0, y: 0, width: 140, height: 140, variants: 140 });
+// one sheet, 140px frames, variant N = the Nth 140px slice (0 open, 1 closed)
+const sheet = new Skin({ texture: new Texture("sloth.png"), x: 0, y: 0, width: 140, height: 140, variants: 140 });
 
-// mostly open; a smooth blink (half→closed→half) so the lid eases shut and
-// open again instead of snapping — stepped every 130ms to read quick + natural
-const FR = [
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // open (hold)
-	1, 2, 1, // blink: half → closed → half
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // open
-	1, 2, 1, // blink
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // open
-];
+// slow, mostly-open blink: hold open (0), brief blink closed (1)
+const BLINK = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1];
 const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const two = (n: number) => (n < 10 ? "0" : "") + n;
 
@@ -56,7 +44,7 @@ function tick() {
 }
 tick();
 setInterval(tick, 1000);
-setInterval(() => setStep((s: number) => (s + 1) % FR.length), 130);
+setInterval(() => setStep((s: number) => (s + 1) % BLINK.length), 220);
 
 render(() => (
 	<Container left={0} right={0} top={0} bottom={0}>
@@ -64,7 +52,7 @@ render(() => (
 			{/* on round, a slim spacer drops the whole group so the branch
 			    clears the top bezel (the centered column re-balances) */}
 			<Content width={2} height={screen.round ? 24 : 1} />
-			<Content width={140} height={140} skin={sheet} variant={() => FR[step()]} />
+			<Content width={140} height={140} skin={sheet} variant={() => BLINK[step()]} />
 			{/* HH:MM:SS on one baseline — same 42px size, seconds only dimmed */}
 			<Row>
 				<Label style={hm} string={() => hhmm()} />
