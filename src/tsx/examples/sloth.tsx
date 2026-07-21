@@ -1,8 +1,8 @@
-// Colorful animated sloth watchface 🦥 — a single 3-frame sprite-sheet
-// bitmap (assets/sloth.png: eyes open / half / closed) animated by swapping
+// Colorful animated sloth watchface 🦥 — a single 2-frame sprite-sheet
+// bitmap (assets/sloth.png, 280×140: eyes open / closed) animated by swapping
 // the reactive `variant` prop on a slow timer. ONE texture, decoded once,
 // so the animation costs zero extra memory: `variant` only picks which
-// 104px slice is blitted. Pixels live in FLASH (resources) + the native
+// 140px slice is blitted. Pixels live in FLASH (resources) + the native
 // framebuffer, NOT the 32KB XS heap — see README "Bitmaps".
 //
 // Watchface: sloth hero, then HH:MM:SS on one line with the seconds in a
