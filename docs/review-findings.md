@@ -14,19 +14,34 @@ must be stack-frame-neutral — try/catch scaffolding and extra locals in those
 frames tipped navmany over the 384-slot value stack even with all tests green.
 Boot-verify navmany AND navreactive after every runtime-touching change.
 
-> **DEVICE NOTE (session 2026-07-21, HEAD `50b4b91`, gabbro QEMU):** BOTH
+> **D1 — REGRESSION (session 2026-07-21, gabbro QEMU, ROOT-CAUSED):** BOTH
 > `navmany` AND `navreactive` `fxAbort JavaScript stack overflow` at boot (2
-> instrument heartbeats then abort), on the UNMODIFIED baseline — shallow apps
-> (`clock`, `ultraface`) boot fine (15+ heartbeats) in the same session. So the
-> deep-nav render tree is over the 384-slot wall in THIS emulator. Unresolved
-> whether this is (a) the razor-thin margin finally tipping in this container's
-> firmware/emulator build (environmental) or (b) a real regression predating this
-> session — needs a FRESH session / hardware to distinguish (transport was also
-> rotted). CONSEQUENCE: the S9 device gate below is currently **unclearable** (it
-> requires navreactive to boot), so the S9 fix stays deferred — a reactive-core
-> hot-path change must not ship without its boot gate. The S9 fix was written +
-> Node-tested (150 pass) via a `pullComputed` extraction that keeps `S.get`'s
-> frame LEANER than baseline, but discarded unshipped pending the gate.
+> instrument heartbeats then abort) on HEAD — shallow apps (`clock`, `ultraface`)
+> boot fine (15+ hb) in the same session, so it is the DEEP-nav render tree over
+> the firmware-fixed 384-slot value stack, not the arena/environment (a full
+> emulator wipe + firmware re-extract reproduced it — deterministic). **Bisected
+> to the round-twelve `flow.ts` batch:** restoring the ENTIRE `7e88ad4`
+> `src/embeddedjs/runtime/flow.ts` onto HEAD boots both canaries (17 hb, 144
+> archive symbols); HEAD's `flow.ts` (148 symbols) overflows. The delta is the
+> Navigator changes `14d07ca` (anchored-screen wrapper — an intermediate `const
+> wdims` value-stack local, live in the swap frame during the deep `build(nav)`
+> recursion) + `6dc015e` (push-boundary restore: `getBoundary`/`withBoundary`/
+> `report` imports + `navBoundary`) + `9fb63c4`/`33c9490` — together they add ≥1
+> value-stack slot on the deep initial-swap chain, and the canaries sat ~1 slot
+> from the wall. Inlining the `wdims` dict alone did NOT recover it (measured),
+> so the slot is spread across the batch. **FIX (needs reliable device iteration
+> — this session's transport rotted + 2-min command caps made per-change bisection
+> unreliable):** reimplement the `14d07ca` concrete-box wrapper (INLINE the dict,
+> no `wdims` local) AND the `6dc015e` boundary restore in a strictly
+> value-stack-neutral form vs `7e88ad4` (captured closure vars are heap, not
+> stack; keep try/catch OUT of the initial-swap frame), boot-verifying navmany +
+> navreactive after EACH sub-change. Interim option if a clean fix stalls: revert
+> `flow.ts` to `7e88ad4` + re-apply the inlined concrete box, accepting the loss
+> of the niche push-boundary-routing (`6dc015e`) + sync-throw-routing (`33c9490`)
+> fixes until the depth-neutral version lands — a booting Navigator outranks niche
+> error routing. CONSEQUENCE: the S9 gate below is currently **unclearable**
+> (needs navreactive to boot), so S9 stays deferred; its `pullComputed` extraction
+> was written + Node-tested (150 pass) and discarded unshipped pending the gate.
 
 ## Core (signals.ts) — one OPEN (S9), rest resolved
 
