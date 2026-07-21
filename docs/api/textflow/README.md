@@ -13,4 +13,5 @@
 ## Functions
 
 - [TextFlow](functions/TextFlow.md)
+- [wrapCircle](functions/wrapCircle.md)
 - [wrapText](functions/wrapText.md)
