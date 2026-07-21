@@ -69,11 +69,12 @@ def s(*vals):               # scale 104-space coords to hi-res
 
 def draw_eye(d, cx, cy, mode):
     cx, cy = cx * K, cy * K
-    rx, ry = 7 * K, 8 * K
     if mode == "closed":
         d.arc([cx - 7 * K, cy - 3 * K, cx + 7 * K, cy + 7 * K],
               200, 340, fill=EYE, width=int(2 * K))
         return
+    # "wide" is a bigger, wider-awake eye; the rest use the resting size
+    rx, ry = (9 * K, 10 * K) if mode == "wide" else (7 * K, 8 * K)
     # glossy dark eye with two catch-lights
     blob(d, cx, cy, rx, ry, (10, 8, 6), EYE, -0.3, -0.3, steps=14, shrink=0.7)
     d.ellipse([cx - 3 * K, cy - 4 * K, cx + K, cy], fill=WHITE)       # main gloss
@@ -132,9 +133,12 @@ def draw_frame(mode):
     im = Image.alpha_composite(im.convert("RGBA"), blush).convert("RGB")
     d = ImageDraw.Draw(im)
 
-    # --- eyes ---
-    draw_eye(d, cx - 12, 60, mode)
-    draw_eye(d, cx + 12, 60, mode)
+    # --- eyes (wink = one eye shut, the other open) ---
+    lm, rm = mode, mode
+    if mode == "wink":
+        lm, rm = "closed", "open"
+    draw_eye(d, cx - 12, 60, lm)
+    draw_eye(d, cx + 12, 60, rm)
 
     # --- nose + gentle smile ---
     blob(d, cx * K, 69 * K, 4 * K, 3 * K, NOSE, (110, 74, 58), -0.2, -0.3,
@@ -150,7 +154,11 @@ def main():
     for i, mode in enumerate(MODES):
         sheet.paste(draw_frame(mode), (i * FRAME, 0))
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    out = os.path.join(here, "assets", "sloth.png")
+    # SLOTH_OUT names the output file under assets/ (default sloth.png). The
+    # animated watchface uses a dedicated multi-frame sheet so the shared
+    # 2-frame sloth.png (image/imagebackground demos) stays untouched:
+    #   SLOTH_OUT=slothblink.png SLOTH_MODES=open,half,closed,wink python3 tools/gen_sloth.py
+    out = os.path.join(here, "assets", os.environ.get("SLOTH_OUT", "sloth.png"))
     sheet.save(out)
     print("wrote", out, sheet.size)
 
