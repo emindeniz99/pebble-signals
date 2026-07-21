@@ -29,6 +29,7 @@ const bg = new Skin({ fill: "black" });
 // one Style per font backs every colour. Fonts: {49px Roboto hero digits, 18px
 // Gothic, 14px Gothic}. `g18` doubles as the render's base Style.
 const g49 = new Style({ font: "bold 49px Roboto", color: "white" });
+const g28 = new Style({ font: "bold 28px Gothic", color: "white" }); // big-ish numeric SS
 const g18 = new Style({ font: "18px Gothic", color: "white" });
 const g14 = new Style({ font: "14px Gothic", color: "white" });
 
@@ -119,10 +120,11 @@ render(
 						g.line(rgx, gy - 9, rgx + 10, gy + 8, 2, ORANGE);
 						g.line(rgx - 10, gy + 8, rgx + 10, gy + 8, 2, ORANGE);
 
-						// ---- HERO time: big white HH:MM + small gray numeric SS ----
+						// ---- HERO time: big white HH:MM + a BIG gray numeric SS, baselines
+						//      aligned (SS drawn lower so its baseline meets the 49px digits) ----
 						const yt = cy - 28;
-						g.text(TWO(d.getHours()) + ":" + TWO(d.getMinutes()), g49, "white", cx - 62, yt);
-						g.text(TWO(s), g18, "#aaaaaa", cx + 64, yt + 18);
+						g.text(TWO(d.getHours()) + ":" + TWO(d.getMinutes()), g49, "white", cx - 74, yt);
+						g.text(TWO(s), g28, "#aaaaaa", cx + 54, yt + 16);
 
 						// ---- heading line under the clock ----
 						const hy = cy + 30;
