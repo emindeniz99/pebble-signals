@@ -14,6 +14,20 @@ must be stack-frame-neutral — try/catch scaffolding and extra locals in those
 frames tipped navmany over the 384-slot value stack even with all tests green.
 Boot-verify navmany AND navreactive after every runtime-touching change.
 
+> **DEVICE NOTE (session 2026-07-21, HEAD `50b4b91`, gabbro QEMU):** BOTH
+> `navmany` AND `navreactive` `fxAbort JavaScript stack overflow` at boot (2
+> instrument heartbeats then abort), on the UNMODIFIED baseline — shallow apps
+> (`clock`, `ultraface`) boot fine (15+ heartbeats) in the same session. So the
+> deep-nav render tree is over the 384-slot wall in THIS emulator. Unresolved
+> whether this is (a) the razor-thin margin finally tipping in this container's
+> firmware/emulator build (environmental) or (b) a real regression predating this
+> session — needs a FRESH session / hardware to distinguish (transport was also
+> rotted). CONSEQUENCE: the S9 device gate below is currently **unclearable** (it
+> requires navreactive to boot), so the S9 fix stays deferred — a reactive-core
+> hot-path change must not ship without its boot gate. The S9 fix was written +
+> Node-tested (150 pass) via a `pullComputed` extraction that keeps `S.get`'s
+> frame LEANER than baseline, but discarded unshipped pending the gate.
+
 ## Core (signals.ts) — one OPEN (S9), rest resolved
 
 | # | sev | finding | status |
