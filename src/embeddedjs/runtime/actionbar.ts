@@ -79,18 +79,27 @@ function slot(
 export function ActionBar(props: ActionBarProps): Content {
 	const width = props.width ?? 28;
 	const style = new Style({ font: HINT_FONT, color: props.color ?? "white" });
+	// ROUND HARMONY: a full-height bar flush to the right edge puts the up/down
+	// hints in the circle's narrow top/bottom bands, where they clip into the
+	// bezel. On round, INSET the bar from the right edge (clear the bezel) and
+	// shrink it to a vertically-CENTERED band (~62% height) so all three hints sit
+	// where the circle is wide. On rect, keep the classic full-height right strip.
+	const round = screen.round;
+	const rightInset = round ? Math.round(screen.width * 0.06) : 0;
+	const barHeight = round ? Math.round(screen.height * 0.62) : screen.height;
+	const barTop = round ? Math.round((screen.height - barHeight) / 2) : 0;
 	// EXPLICIT height (gotcha 16): a top+bottom-anchored container measures 0 in
-	// Piu's measure pass and draws NOTHING — the strip needs a real height
-	// (screen.height) as well as its width.
+	// Piu's measure pass and draws NOTHING — the strip needs a real height as well
+	// as its width.
 	const barDims: Record<string, number | object> = {
-		right: 0,
-		top: 0,
+		right: rightInset,
+		top: barTop,
 		width,
-		height: screen.height,
+		height: barHeight,
 	};
 	if (props.background !== undefined) barDims.skin = new Skin({ fill: props.background });
 	const bar = new Container(null, barDims);
-	const column = new Column(null, { left: 0, top: 0, width, height: screen.height });
+	const column = new Column(null, { left: 0, top: 0, width, height: barHeight });
 	column.add(slot(props.up, { style, top: 0 }));
 	column.add(slot(props.select, { style }));
 	column.add(slot(props.down, { style, bottom: 0 }));

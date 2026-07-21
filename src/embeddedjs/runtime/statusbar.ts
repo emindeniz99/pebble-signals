@@ -92,7 +92,7 @@ export function StatusBar(props: StatusBarProps): Content {
 	// top so it sits where the circle is wide enough (Pebble's round convention —
 	// center, don't edge-anchor). On rect, keep the classic title-left/time-right.
 	const round = screen.round;
-	const height = props.height ?? (round ? 46 : 20);
+	const height = props.height ?? (round ? 48 : 20);
 	const color = props.color ?? "white";
 	const style = new Style({ font: "18px Gothic", color, horizontal: round ? "center" : "left" });
 	// EXPLICIT width (gotcha 16): a left+right-anchored container measures 0 in
@@ -101,18 +101,19 @@ export function StatusBar(props: StatusBarProps): Content {
 	// drops it ~10px below the bezel dead-zone.
 	const dict: Record<string, unknown> = {
 		left: 0,
-		top: round ? 10 : 0,
+		top: round ? 14 : 0,
 		width: screen.width,
 		height,
 	};
 	if (props.background !== undefined) dict.skin = new Skin({ fill: props.background });
 	const bar = new Container(null, dict);
 	if (round) {
-		// centered stack: title on the top row, time on the row below
+		// centered stack with a little breathing room: title on the top row, time on
+		// the row below (a 2px inset + a wider title/time gap read calmer on round).
 		if (props.title !== undefined)
-			addLabel(bar, props.title, { left: 0, right: 0, top: 0, height: 22 }, style);
+			addLabel(bar, props.title, { left: 0, right: 0, top: 2, height: 22 }, style);
 		if (props.time !== undefined)
-			addLabel(bar, props.time, { left: 0, right: 0, top: 22, height: 22 }, style);
+			addLabel(bar, props.time, { left: 0, right: 0, top: 24, height: 22 }, style);
 	} else {
 		if (props.title !== undefined)
 			addLabel(bar, props.title, { left: 4, top: 0, bottom: 0 }, style);

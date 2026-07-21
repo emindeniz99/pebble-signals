@@ -88,17 +88,17 @@ const { check, done } = makeChecker("statusbar");
 {
 	jsxM.screen.round = true;
 	const [bar] = createRoot(() => StatusBar({ title: "Inbox", time: () => "09:41" }));
-	check("round: taller strip dropped below the top edge", bar.top === 10 && bar.height === 46);
+	check("round: taller strip dropped below the top edge", bar.top === 14 && bar.height === 48);
 	const title = bar.contents[0];
 	const time = bar.contents[1];
 	check(
-		"round: title is a full-width CENTERED top row",
+		"round: title is a full-width CENTERED top row (2px breath)",
 		title.left === 0 &&
 			title.right === 0 &&
-			title.top === 0 &&
+			title.top === 2 &&
 			title.style.d.horizontal === "center",
 	);
-	check("round: time is the centered row below the title", time.left === 0 && time.top === 22);
+	check("round: time is the centered row below the title", time.left === 0 && time.top === 24);
 	jsxM.screen.round = false;
 }
 

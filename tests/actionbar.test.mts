@@ -81,4 +81,23 @@ const slots = (bar: any) => bar.contents[0].contents;
 	check("custom hint color forwarded", slots(bar)[0].style.d.color === "black");
 }
 
+// --- ROUND screen: the bar insets from the right edge and shrinks to a
+//     vertically-centered band so the up/down hints clear the circle's bezel
+//     (a full-height right strip clips them into the narrow top/bottom bands) ---
+{
+	jsxM.screen.round = true;
+	jsxM.screen.width = 260;
+	jsxM.screen.height = 260;
+	const [bar] = createRoot(() => ActionBar({ up: "+", select: "OK", down: "-" }));
+	// rightInset = round(260*0.06)=16, barHeight = round(260*0.62)=161,
+	// barTop = round((260-161)/2)=50
+	check("round: bar inset from the right edge (clears the bezel)", bar.right === 16);
+	check("round: bar is a vertically-centered band", bar.top === 50 && bar.height === 161);
+	check("round: the inner column matches the band height", bar.contents[0].height === 161);
+	// hints still present, still three slots
+	check("round: still three hint slots", slots(bar).length === 3);
+	jsxM.screen.round = false;
+	jsxM.screen.height = 168;
+}
+
 done();
