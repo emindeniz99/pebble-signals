@@ -19,8 +19,12 @@ import { useState } from "runtime/signals";
 declare const SVGImage: any;
 
 const bg = new Skin({ fill: "black" });
-const hms = new Style({ font: "bold 42px Bitham", color: "white" });
-const date = new Style({ font: "bold 24px Gothic", color: "#FFAA55" });
+// typography aligned with the raster `sloth`: HH:MM confident white, the
+// seconds the SAME 42px but dimmed grey (a quiet live tick), the date muted +
+// uppercased on its own line.
+const hm = new Style({ font: "bold 42px Bitham", color: "white" });
+const sec = new Style({ font: "bold 42px Bitham", color: "#a0a0a0" });
+const dim = new Style({ font: "18px Gothic", color: "#7a7a7a" });
 
 // explicit width/height = the SCALED size (2 x 60): the content box would
 // otherwise stay at the PDC's 60x60 bounds and the 2x drawing would spill.
@@ -36,13 +40,15 @@ const date = new Style({ font: "bold 24px Gothic", color: "#FFAA55" });
 // the real total sticks on the last frame).
 const svg = new SVGImage(null, { path: "slothvec.pdc", width: 120, height: 120 });
 
-const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const two = (n: number) => (n < 10 ? "0" : "") + n;
-const [hm, setHm] = useState("");
+const [hhmm, setHhmm] = useState("");
+const [secs, setSecs] = useState("");
 const [day, setDay] = useState("");
 function tick() {
 	const d = new Date();
-	setHm(two(d.getHours()) + ":" + two(d.getMinutes()) + ":" + two(d.getSeconds()));
+	setHhmm(two(d.getHours()) + ":" + two(d.getMinutes()));
+	setSecs(":" + two(d.getSeconds()));
 	setDay(DOW[d.getDay()] + " " + d.getDate());
 }
 tick();
@@ -52,11 +58,14 @@ render(() => (
 	<Container left={0} right={0} top={0} bottom={0}>
 		<Column>
 			{svg}
-			<Label style={hms} string={() => hm()} />
-			<Label style={date} string={() => day()} />
+			<Row>
+				<Label style={hm} string={() => hhmm()} />
+				<Label style={sec} string={() => secs()} />
+			</Row>
+			<Label style={dim} string={() => day()} />
 		</Column>
 	</Container>
-), { skin: bg, style: hms });
+), { skin: bg, style: hm });
 
 // post-mount (Bind has run). The PDC is PRECISE paths (1/8-px, type 3), so
 // the port's cx*8/tx*8 transform math is unit-correct and we can pivot:

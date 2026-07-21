@@ -142,7 +142,7 @@ square screenshots below come from identical `.tsx`.
 | `slothface` | **animated sloth watchface** 🦥 (text-frame animation + clock) | timer-driven frame animation via signals | ✅ `slothface-*.png` (awake/blink/sleepy) | — |
 | `imgwatch` | **animated COLOR bitmap watchface** + HH:MM:SS | bundled bitmaps (png2bmp), `Texture`, frame-swap animation | ✅ `imgwatch-red.png` / `imgwatch-blue.png` | — |
 | `sloth` | **polished animated sloth watchface** 🦥 (soft-shaded 140px emoji, sprite-sheet blink; one-line HH:MM:SS at a single 42px size — HH:MM white, the seconds dimmed grey as a quiet live tick — over a muted uppercased date) | one `Texture` sheet, reactive `variant` sprite animation | ✅ `sloth-gabbro-open.png` / `sloth-gabbro-blink.png` | ✅ `sloth-emery-open.png` / `sloth-emery-blink.png` |
-| `slothvec` | **VECTOR sloth watchface** 🦥 (2.8KB PDCS, drawn 2×/120px, SWINGS from the branch AND BLINKS) + one-line HH:MM:SS + date | `SVGImage` + PDC: free scaling, transform animation + native frame sequence, zero pixel RAM | ✅ `slothvec-gabbro.png` / `slothvec-gabbro-blink.png` | ✅ `slothvec-emery.png` / `slothvec-emery-blink.png` |
+| `slothvec` | **VECTOR sloth watchface** 🦥 (6.5KB cell-shaded PDCS, drawn 2×/120px, SWINGS from the branch AND BLINKS) + one-line HH:MM:SS + date | `SVGImage` + PDC: free scaling, transform animation + native frame sequence, zero pixel RAM | ✅ `slothvec-gabbro.png` / `slothvec-gabbro-blink.png` | ✅ `slothvec-emery.png` / `slothvec-emery-blink.png` |
 | `multilazy` | **lazy multiscreen**: 3 screens, SELECT cycles, ONE built at a time (dispose + on-demand rebuild) | arena holds O(1 screen) — survives repeated full cycles with live bindings | — | ✅ verified (screens cycle, tick binding live after each rebuild) |
 | `multiscreen` | 4 PREBUILT screens in one mod | does NOT boot — kept as the arena-OOM artifact that motivated `multilazy` | ❌ by design | ❌ |
 | `lazyscreen` | **TRUE lazy screen** (#27): SELECT `importNow`s a NON-preloaded module from flash, BACK returns | screen 2's bytecode is not in main.js and loads on first push; module exports `default` only (symbol diet — the module still costs 2 ids + its symbols AT BOOT, gotcha 15 correction) | ✅ verified (boot → lazy s2 renders → back) | — |
@@ -579,9 +579,13 @@ The Pebble Piu port ships a native **`SVGImage`** class backed by **PDC**
 sequence variant). Vector is the proper way to make an icon *bigger* without
 the raster native-heap cost: `scale()`/`rotate()`/`translate()` are runtime
 transforms on the draw-command coordinates, no per-scale pixels. The
-`slothvec` watchface proves it end to end: a **701-byte** PDC authored at
-60×60 renders at **2× (120px)** on both gabbro and emery — vs the raster
-sloth's 68KB sheet + native-heap decode (~97× less flash, zero pixel RAM).
+`slothvec` watchface proves it end to end: a **6.5KB** CELL-SHADED PDC
+authored at 60×60 renders at **2× (120px)** on both gabbro and emery — vs the
+raster sloth's ~63KB mod archive + native-heap decode (~10× less flash, zero
+pixel RAM). It grew from the original 701-byte flat sloth because PDC has no
+gradient fill (verified against the official pdc-format doc), so volume is
+faked with concentric flat-colour bands (cell-shading) — still an order of
+magnitude leaner than the bitmap, and device-verified on both panels.
 
 Pipeline: `tools/gen_pdc.py` emits PDCI bytes directly (output verified
 BYTE-IDENTICAL to the official `svg2pdc.py`, ported to py3 and diffed);
