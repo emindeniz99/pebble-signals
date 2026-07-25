@@ -26,12 +26,15 @@ committed (`screenshots/*-emery.png`); the emery run found ZERO
 platform-specific failures — `screen.width/round` adaptation carried every app
 unchanged.
 
-> **⚠️ UPDATE (2026-07-21, HEAD — see [`review-findings.md` D1](review-findings.md)):**
-> the round-twelve `flow.ts` batch re-broke the two boot canaries. On HEAD
-> **`navmany` and `navreactive` both `fxAbort JavaScript stack overflow` at
-> boot** (2 heartbeats then abort); the other 12 apps are unaffected. Re-run
-> the matrix from a reliable-device session, and unblock the canaries (see D1),
-> before claiming full-catalog green again.
+> **✅ RESOLVED (2026-07-21, later the same day — see
+> [`review-findings.md` D1](review-findings.md)):** the round-twelve `flow.ts`
+> batch had re-broken the two boot canaries (`fxAbort JavaScript stack
+> overflow` at boot on HEAD). Fixed by DEFERRING the Navigator's initial swap
+> onto `onDisplaying` — both canaries verified live again on gabbro
+> (qemu-monitor screendump: navmany "Screen #1 + tick", navreactive "depth 1 +
+> ping"), plus `multilazy`. A full 14-app matrix re-run in a fresh session is
+> still the clean way to re-stamp "full catalog green" (only the canaries +
+> multilazy were re-proven here).
 
 Requires the Pebble SDK and a bootable emulator. Each app: build → `pebble
 logs` capture attached around a foreground install (~8s of heartbeats — the

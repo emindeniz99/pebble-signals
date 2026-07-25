@@ -35,8 +35,17 @@ silently at boot and reaches for the wrong tool.
   no longer sufficient*: `navmany` needs the whole `7e88ad4` Navigator restored
   (high collateral — it reverts shipped fixes), and `navreactive` is deeper
   still (wants structural render-depth reduction, not just a `flow.ts` revert).
-  Deferred to a reliable-device session. **Everything below is the original
-  round-7 post-mortem, preserved as written** — the mechanism and numbers still
+  ~~Deferred to a reliable-device session.~~
+- **✅ RESOLVED (2026-07-21, later the same day):** the structural
+  render-depth reduction landed — the Navigator's initial `swap()` is now
+  DEFERRED onto the host's `onDisplaying`, so the screen builds from the Piu
+  run loop's shallow stack instead of on top of `render()`'s chain. Both
+  canaries boot again on gabbro (monitor-screendump receipts; see
+  [`review-findings.md` D1](review-findings.md)) with NO revert of the
+  round-twelve correctness fixes. The frame-shaving story below (asNode
+  inline, r-tuple) is thus historical: still-good hygiene, no longer the thing
+  keeping navreactive alive. **Everything below is the original round-7
+  post-mortem, preserved as written** — the mechanism and numbers still
   explain *why* the value stack is the constraint.
 
 ## What the JS value stack actually is (the "neyin derinliği" answer)
