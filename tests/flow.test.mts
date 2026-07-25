@@ -545,6 +545,12 @@ const [navHost] = createRoot(() =>
 		},
 	}),
 );
+// The root screen builds on DISPLAY, not at construction: the initial swap is
+// deferred onto the host's onDisplaying so the deep render chain is unwound
+// before a screen tree stacks on it (the 384-slot value-stack wall — both nav
+// canaries only boot on device with this). Nothing is mounted until then.
+check("nav builds nothing before display", navHost.contents.length === 0 && nbuilt.length === 0);
+navHost.display(); // Piu fires onDisplaying when the host joins the display tree
 check("nav mounts one screen", navHost.contents.length === 1);
 check("nav root built once", nbuilt.join(",") === "root");
 check("nav depth starts at 1, cannot pop", navRef.depth() === 1 && navRef.canPop() === false);
@@ -666,7 +672,7 @@ check("Show owner-dispose runs cleanup", true);
 
 // coverage: disposing the OWNER of a Navigator runs its tracked cleanup
 const [, disposeNavOwner] = createRoot(() => {
-	Navigator({ root: () => jsx(StubContent, { string: "screen" }) });
+	Navigator({ root: () => jsx(StubContent, { string: "screen" }) }).display();
 	return 0;
 });
 disposeNavOwner(); // runs Navigator's `if (disposeTop) disposeTop()` cleanup
@@ -685,7 +691,7 @@ check("Navigator owner-dispose runs cleanup", true);
 				built.push("root");
 				return jsx(StubContent, { string: "root" });
 			},
-		});
+		}).display();
 		return 0;
 	});
 	disposeStale(); // Navigator gone; the captured handle is now stale
@@ -706,6 +712,7 @@ check("Navigator owner-dispose runs cleanup", true);
 	const [navHost, disposeThunkNav] = createRoot(() =>
 		Navigator({ root: () => () => jsx(StubContent, { string: "thunked" }) }),
 	);
+	navHost.display();
 	const screenOf = (h) => h.contents[0].contents[0];
 	check(
 		"Navigator unwraps a thunk-returning screen builder",
@@ -1154,6 +1161,7 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 			},
 		}),
 	);
+	nh3.display();
 	check("U3 no double-mount after push-during-build", nh3.contents.length === 1);
 	const shown = nh3.contents[0].contents[0].string;
 	check("U3 the PUSHED screen is the one mounted", shown === "child0");
@@ -1309,6 +1317,7 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 		return jsx(StubContent, { string: () => "s" + p9.value });
 	};
 	const [nh9, disposeNav9] = createRoot(() => Navigator({ width: 60, height: 40, root: screen9 }));
+	nh9.display();
 	check(
 		"U3b same-builder redirect mounts exactly one screen",
 		nh9.contents.length === 1 && builds9 === 2,
@@ -1339,6 +1348,7 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 			root: () => jsx(StubContent, { string: "anchored" }),
 		}),
 	);
+	anch.display();
 	const nw = anch.contents[0];
 	check(
 		"Navigator: anchored host gives screens a fill wrapper",
@@ -1347,12 +1357,14 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 	const [sized] = createRoot(() =>
 		Navigator({ width: 60, height: 40, root: () => jsx(StubContent, {}) }),
 	);
+	sized.display();
 	const nw2 = sized.contents[0];
 	check(
 		"Navigator: explicit width/height wrapper unchanged",
 		nw2.width === 60 && nw2.height === 40 && nw2.left === undefined,
 	);
 	const [free] = createRoot(() => Navigator({ root: () => jsx(StubContent, {}) }));
+	free.display();
 	const nw3 = free.contents[0];
 	check(
 		"Navigator: unconstrained host keeps the concrete full-screen wrapper",
@@ -1371,7 +1383,7 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 	sandbox.console = { log: () => {} }; // swallow the log-on-catch line
 	const caught: string[] = [];
 	let navRef: { push: (b: unknown) => void } | null = null;
-	createRoot(() =>
+	const [bhost] = createRoot(() =>
 		withBoundary(
 			(e: unknown) => caught.push(String((e as Error).message)),
 			() =>
@@ -1385,6 +1397,11 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 				}),
 		),
 	);
+	// Display (Piu's onDisplaying) builds the root. Note the initial swap now
+	// ALSO runs outside the boundary scope — deferral moved it to the run loop —
+	// so it takes the same withBoundary branch push/pop take, and the screen is
+	// still tagged with the Navigator's construction-time boundary.
+	bhost.display();
 	// push OUTSIDE the boundary scope (getBoundary() === null here, so the swap
 	// takes the withBoundary branch and tags the pushed screen's binding).
 	// This screen is a THUNK — the withBoundary-path auto-thunk unwrap must

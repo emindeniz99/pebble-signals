@@ -54,6 +54,18 @@ export class StubContent {
 		this.contents.length = 0;
 	}
 	focus() {}
+	// Piu fires `onDisplaying` ONCE, when the content joins the DISPLAY tree —
+	// and the runtime hangs real work on it (Canvas's first paint; the
+	// Navigator's initial screen build, which is deferred there so the deep
+	// render chain is unwound before a screen tree stacks on it). The stub has
+	// no application root to attach to, so display() models that moment
+	// explicitly: fire the hook once, top-down.
+	display() {
+		if (this._displayed) return;
+		this._displayed = true;
+		this.behavior?.onDisplaying?.(this);
+		for (const c of this.contents) c.display?.();
+	}
 	moveBy(dx, dy) {
 		// track cumulative offset + call count so Move's delta math is assertable
 		this.movedX = (this.movedX || 0) + dx;

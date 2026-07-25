@@ -567,14 +567,16 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 				// the asNode call + its arg-arrow shaves two frames from that chain;
 				// the auto-thunk unwrap is identical to asNode's.
 				//
-				// Boundary restore, frame-free on the deep path: a button-driven
-				// push/pop runs with g.c=null, so wrap the build in the Navigator's
-				// construction-time boundary. The INITIAL swap already runs with that
-				// boundary in scope (it fires during construction, inside render's
-				// build) — getBoundary() === navBoundary there, so we fall through to
-				// the INLINE body and add ZERO extra value-stack frames on the deep
-				// initial-render path (Round 7 wall). Only the shallow-stack push/pop
-				// path pays the withBoundary frame. Verified: the routing is pinned by
+				// Boundary restore: every swap now runs from the Piu run loop with
+				// g.c=null — the initial one via onDisplaying (deferred, see the
+				// bottom of Navigator), push/pop from a button handler — so wrap the
+				// build in the Navigator's construction-time boundary whenever the
+				// ambient boundary differs. A Navigator built OUTSIDE any boundary has
+				// navBoundary === null === getBoundary() at swap time and falls through
+				// to the inline body; one built inside an ErrorBoundary takes the
+				// withBoundary branch. Frame cost no longer matters here (the swap runs
+				// on a shallow stack, not under render's chain), but the two bodies stay
+				// separate because the inline one is the common case. Verified: the routing is pinned by
 				// a flow.test.mts case against the real compiled runtime, and multilazy
 				// (a Navigator app) still boots clean on gabbro with this change (an
 				// ErrorBoundary+Navigator demo can't be device-screenshotted — the two
@@ -652,7 +654,17 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 			disposeTop = null;
 		}
 	});
-	swap(); // build the root screen (like Show's initial effect)
+	// D1 EXPERIMENT: defer the initial swap OUT of the deep render chain.
+	// Eager swap() ran during construction — i.e. INSIDE render()'s build — so
+	// the whole screen tree stacked on top of the render prefix and a deep-nav
+	// app blew the 384-slot value stack. onDisplaying fires from the Piu run
+	// loop when the host joins the display tree: a SHALLOW stack, so the screen
+	// builds with the render prefix fully unwound.
+	(host as unknown as { behavior: unknown }).behavior = {
+		onDisplaying() {
+			swap();
+		},
+	};
 	return host;
 };
 

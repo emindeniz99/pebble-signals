@@ -14,7 +14,30 @@ must be stack-frame-neutral — try/catch scaffolding and extra locals in those
 frames tipped navmany over the 384-slot value stack even with all tests green.
 Boot-verify navmany AND navreactive after every runtime-touching change.
 
-> **D1 — REGRESSION (session 2026-07-21, gabbro QEMU, ROOT-CAUSED):** BOTH
+> **D1 — ✅ FIXED (2026-07-21, gabbro QEMU) — the initial swap is DEFERRED out
+> of the render chain.** Both canaries now boot: `navmany` renders "Screen #1 +
+> tick" and `navreactive` "depth 1 + ping" (monitor-screendump receipts, 8–11
+> distinct animating frames each = live, vs a static launcher frame before).
+> `multilazy` still boots ("screen 1/3 · S1 live · tick"). ROOT INSIGHT: the
+> Navigator used to run its initial `swap()` during CONSTRUCTION — i.e. inside
+> `render()`'s build — so the whole screen tree stacked on top of the render
+> chain and a deep-nav app blew the 384-slot value stack. Hanging that first
+> swap on the host's `onDisplaying` (the same Piu hook `runtime/draw` uses for
+> its first paint) moves it to the run loop, where the render prefix is fully
+> unwound — the screen builds from a shallow stack. This is the "actual render-
+> DEPTH reduction" the analysis below called for, and it is why it fixes
+> `navreactive` too, which no `flow.ts` revert could. NOTHING was reverted: the
+> round-twelve correctness fixes (`6dc015e` push-boundary, `9fb63c4`,
+> `33c9490` sync-throw routing) all stay, and the suite is back to 1831 pass /
+> 100% coverage (the Node stub grew a `display()` that models Piu's
+> onDisplaying, so the tests now exercise the real lifecycle). Consequence: the
+> initial swap now runs with `g.c=null` like push/pop, so a Navigator built
+> inside an ErrorBoundary takes the `withBoundary` branch on its first build
+> too — same routing, one extra frame on a stack that has room. The S9 gate
+> below is therefore UNBLOCKED (navreactive boots again). The original analysis
+> is kept below as the record of how it was bisected.
+>
+> **ORIGINAL FINDING (superseded by the fix above):** BOTH
 > `navmany` AND `navreactive` `fxAbort JavaScript stack overflow` at boot (2
 > instrument heartbeats then abort) on HEAD — shallow apps (`clock`, `ultraface`)
 > boot fine (15+ hb) in the same session, so it is the DEEP-nav render tree over
