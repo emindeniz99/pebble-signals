@@ -775,14 +775,20 @@ import { SectionList } from "runtime/sectionlist";
 <SectionList sections={() => groups()} renderHeader={(h) => h} renderRow={(r) => r.name} selected={() => i()} />
 ```
 
-_Node-100%-covered; builds. **DEVICE-GATED — HANGS on gabbro (MEASURED 2026-07).**
-SectionList needs per-row styling (bold headers, highlight fill), so it uses
-`VirtualList` **rich** mode (`renderRow`) with `rows>1` — and that combination wedges
-the firmware (the screenshot/watch-info transport times out). Bisected on a clean
-emulator: `richlist` (rich, `rows=1`) renders, `forbind5vl` (simple `format`, `rows=5`)
-renders, but a rich list with `rows>1` hangs even non-scrolling and even string-only.
-The fix is a VirtualList-level change (rich multi-row layout) or a SectionList redesign,
-tracked separately — do not ship SectionList to a device until then._
+_Node-100%-covered; builds. **DEVICE-GATED — but for a BUDGET, not a hang
+(re-measured on gabbro 2026-07-21, correcting the earlier reading).** SectionList
+needs per-row styling (bold headers, highlight fill), so it uses `VirtualList`
+**rich** mode (`renderRow`), and rich rows have a small arena budget: each one is a
+createRoot'd subtree with its own bindings. Measured ceiling by row weight — rich
+→ ONE Label: `rows=2` renders, `rows=3` dies; rich → Row + 2 Labels: `rows=1`
+renders (`richlist`), `rows=2` dies; simple `format`: `rows=5` renders
+(`forbind5vl`). "Dies" is an EXIT to the launcher (the arena-OOM signature, caught
+via the qemu-monitor screendump) — NOT a wedged firmware; the old "hangs" reading
+came from the screenshot transport timing out, which also happens when that
+transport rots (CLAUDE.md Rule 3). So a rich multi-row list IS possible within the
+budget; SectionList's header+row pair is simply heavier than it. Fix direction:
+slim the SectionList row subtree (fewer nodes/bindings per row) rather than a
+VirtualList redesign._
 
 ---
 

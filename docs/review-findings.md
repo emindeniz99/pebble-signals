@@ -105,6 +105,24 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > animation). LESSON: a bitmap watchface's memory cost is archive + Σ(resident
 > frame pixels), not archive alone; a frame count that builds can still OOM.
 
+> **D3 — #103 RE-MEASURED (2026-07-21, gabbro QEMU): the VirtualList "rich
+> rows>1 HANGS" finding was a MISDIAGNOSIS — it is an arena BUDGET, ~2 rich
+> rows.** Bisected with fresh probes (monitor-screendump receipts): a rich
+> `renderRow` returning ONE Label renders fine at `rows: 2` ("row 1 / row 2" on
+> screen) and dies at `rows: 3`; the heavier `richlist` row (a Row + 2 Labels)
+> renders at `rows: 1` and dies at `rows: 2`; simple `format` mode still renders
+> at `rows: 5`. So `rows>1` is NOT structurally broken — a rich row is a
+> createRoot'd subtree with its own bindings and simply costs much more of the
+> 32KB arena than simple mode's recycled Label, and two of them is about the
+> ceiling. The failure signature is an EXIT to the launcher (arena OOM, same as
+> D2), not a wedged run loop: the original "hangs" call came from the
+> screenshot/watch-info transport timing out, which we now know ALSO happens
+> when that transport rots (CLAUDE.md Rule 3) — the monitor screendump would
+> have distinguished them. CONSEQUENCE for `SectionList`: it is not blocked by a
+> firmware bug, it is over budget; the fix direction is a SLIMMER row subtree
+> (fewer nodes/bindings per header+row), not a VirtualList redesign. Docs
+> corrected in `flow.ts` (VLRich) and `components.md`.
+
 ## Core (signals.ts) — one OPEN (S9), rest resolved
 
 | # | sev | finding | status |

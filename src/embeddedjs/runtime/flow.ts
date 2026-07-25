@@ -127,13 +127,19 @@ export type VLSimple<T> = VLBase<T> & {
  * extra node per row costs arena — the measured ceiling is brutal (see the
  * `richlist` example).
  *
- * ⚠️ rich mode is only device-proven at `rows: 1` (the `richlist` example).
- * `renderRow` with `rows>1` HANGS the gabbro firmware (MEASURED 2026-07 —
- * the screenshot/watch-info transport times out; reproduced non-scrolling and
- * string-only, so it is the rich multi-row layout itself, not the content or
- * the scroll). For a scrollable MULTI-row list use simple mode (`format`),
- * which is device-proven at `rows: 5` (`forbind5vl`). `SectionList` is
- * device-gated for exactly this reason.
+ * ⚠️ rich mode has a small ARENA BUDGET — roughly TWO rich rows (MEASURED on
+ * gabbro 2026-07-21, corrects the earlier "rows>1 hangs the firmware" note).
+ * A rich row is a createRoot'd subtree with its own bindings, so it costs far
+ * more of the 32KB arena than simple mode's recycled Label. Measured ceiling,
+ * by row weight:
+ *   - `renderRow` -> ONE Label:        `rows: 2` renders, `rows: 3` dies
+ *   - `renderRow` -> Row + 2 Labels:   `rows: 1` renders (`richlist`), 2 dies
+ *   - simple `format` (recycled Label): `rows: 5` renders (`forbind5vl`)
+ * "Dies" = the app EXITS to the launcher (the arena-OOM signature captured by
+ * the qemu-monitor screendump), NOT a wedged run loop — the earlier "hangs"
+ * reading came from the screenshot transport timing out, which we now know
+ * also happens when that transport rots (CLAUDE.md Rule 3). So budget rich
+ * rows: keep the subtree lean and prefer simple mode for tall lists.
  */
 export type VLRich<T> = VLBase<T> & {
 	/**
