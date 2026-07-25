@@ -32,9 +32,23 @@ unchanged.
 > overflow` at boot on HEAD). Fixed by DEFERRING the Navigator's initial swap
 > onto `onDisplaying` — both canaries verified live again on gabbro
 > (qemu-monitor screendump: navmany "Screen #1 + tick", navreactive "depth 1 +
-> ping"), plus `multilazy`. A full 14-app matrix re-run in a fresh session is
-> still the clean way to re-stamp "full catalog green" (only the canaries +
-> multilazy were re-proven here).
+> ping"), plus `multilazy`.
+>
+> **✅ RE-STAMPED GREEN — 14/14 on gabbro (same day, after D1 + S9 both
+> landed).** The whole catalog was re-run app-by-app with the reset-per-app +
+> qemu-monitor screendump recipe, and **every frame was READ, not size-checked**
+> (Rule 3): `counter` "Count: 0" · `autothunk` "Count: 0" · `movebox` "x=0" +
+> box · `loadms` "press select" · `deviceinfo` "screen 260x260 / round panel /
+> color" + clock · `rootapp` "root 0" · `config` "no config yet" · `fontface`
+> serif clock + "Serif, from a TTF" · `kvprobe` "kv works boot=1" · `devlog`
+> "sent 0 / UP throws, SELECT logs" · `dictate` "SELECT starts dictation" ·
+> `pulse` serif clock + date/secs · `navmany` "Screen #1 + tick" ·
+> `navreactive` "depth 1 + ping". The four live apps (deviceinfo, pulse,
+> navmany, navreactive) showed 3/3 DISTINCT frames = animating. Scope note
+> (Rule 12): this pass verified **boot + paint** for all 14; the button-drive
+> assertions in the table below were NOT re-driven, because the `pebble logs`
+> heartbeat channel was dead in this session and the screendump path replaced
+> the runner's log-based one.
 
 Requires the Pebble SDK and a bootable emulator. Each app: build → `pebble
 logs` capture attached around a foreground install (~8s of heartbeats — the
