@@ -150,6 +150,32 @@ No registry releases yet; entries accumulate under Unreleased until the first
   `-grown` reactive-change frames). Example: `src/tsx/examples/draw.tsx`.
 
 ### Fixed
+- **`Navigator` boots deep-nav apps again — the initial screen build is
+  DEFERRED to `onDisplaying` (review-findings D1).** The initial `swap()` used
+  to run during construction, inside `render()`'s build, stacking the whole
+  screen tree on the firmware's fixed 384-slot value stack — `navmany` and
+  `navreactive` both `fxAbort`ed at boot. It now runs when the host joins the
+  display tree (the Piu run loop, shallow stack); both canaries + `multilazy`
+  are device-verified live on gabbro. *Upgrading:* a Navigator's root screen
+  now builds at DISPLAY time, not construction time — code that inspected the
+  host's children (or relied on root-builder side effects) synchronously after
+  `Navigator(...)` returns must wait for display; the Node test stub models
+  this with `host.display()`.
+- **A lazy computed's pull now runs under the computed's OWN identity and
+  boundary (review-findings S9).** `S.get`'s recompute path drained the
+  computed's prior-run cleanups BEFORE switching `current`/`owner` to the
+  computed and never restored its captured ErrorBoundary — so a computed
+  primed under boundary A but re-read from under boundary B routed a throwing
+  cleanup to B (the reader's boundary) and attached cleanup-created trackables
+  to the reader's subtree. The pull now mirrors `run()` (identity + boundary
+  set before the drain, restored in `finally`); pinned by a conformance test
+  that fails on the old code, and the S.get frame growth is boot-verified on
+  gabbro (navmany + navreactive, the depth-audit gate).
+- **`VirtualList` rich mode re-measured: `rows>1` is an arena BUDGET, not a
+  firmware hang (review-findings D3).** A rich single-Label row renders at
+  `rows=2` on gabbro; the ceiling is the row subtree's arena weight (~2 lean
+  rich rows), and the failure is an exit-to-launcher OOM, not a wedge. VLRich
+  docs and `SectionList`'s gate note corrected.
 - **Documentation-accuracy sweep — stale `.md` claims corrected against source
   (four-agent audit; 99/99 screenshot refs and 1432/1432 internal links resolve).**
   (a) `docs/postmortem-navreactive-stack.md` and `docs/device-smokes.md` presented

@@ -530,13 +530,21 @@ export const S = {
 			if (fn !== undefined && cx[1][i] !== g.y && g.e[cx[2][i]]) {
 				cx[1][i] = g.y; // before fn: a re-entrant read sees "current"
 				const e = cx[2][i];
-				unsubscribe(e); // re-track sources on every recompute
+				// Mirror run() (S9): switch to the computed's identity BEFORE the
+				// cleanup drain, and restore its captured boundary. unsubscribe(e)
+				// runs the computed's prior-run cleanups — under the READER's
+				// current/owner/g.c they would subscribe the reader, attach
+				// trackables to the reader's subtree, and route a throwing cleanup
+				// to the reader's (wrong) boundary instead of the computed's own.
 				const prev = current;
 				const po = owner;
+				const pb = g.c;
 				current = e;
 				owner = e; // trackables created by fn belong to the computed
+				g.c = (g.z && g.z[e]) || null;
 				let ok = false;
 				try {
+					unsubscribe(e); // re-track sources on every recompute
 					g.f[i] = fn();
 					ok = true;
 				} finally {
@@ -544,10 +552,13 @@ export const S = {
 					// on EVERY read until a dep changes, never serve the stale
 					// cache as valid (reproduced). Flag-in-finally instead of a
 					// catch clause: a catch adds XS value-stack scaffolding to a
-					// frame that is live at MAX render depth (Round 7 budget).
+					// frame that is live at MAX render depth (Round 7 budget —
+					// though D1's deferred swap has since bought that chain real
+					// headroom; the `pb` local this fix adds is boot-verified).
 					if (!ok) cx[1][i] = -1;
 					current = prev;
 					owner = po;
+					g.c = pb;
 				}
 			}
 		}

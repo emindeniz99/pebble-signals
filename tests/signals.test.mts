@@ -706,6 +706,63 @@ globalThis.console = savedConsole;
 	globalThis.console = savedBC;
 }
 
+// (e) the S.get COMPUTED-PULL twin of (d) — S9: a lazy computed recomputes on
+// READ, and the pull drains the computed's prior-run cleanups. The pull must
+// switch to the computed's identity (current/owner) AND its captured boundary
+// BEFORE that drain, exactly like run() — else a computed primed under
+// boundary A but re-read from under boundary B routes its throwing cleanup to
+// B (the READER's ambient boundary), escalating past the computed's own
+// fallback (codex round 16, thread SF-tz).
+{
+	const savedBC = globalThis.console;
+	globalThis.console = { log: () => {} } as never; // swallow the log-on-catch line
+	const caughtA: string[] = [];
+	const caughtB: string[] = [];
+	const dep = signal(0);
+	const unrelated = signal(0);
+	let pulls = 0;
+	let c!: ReturnType<typeof computed<number>>;
+	withBoundary(
+		(e) => caughtA.push(String((e as Error).message)),
+		() => {
+			c = computed(() => {
+				pulls++;
+				const run = pulls; // pin THIS run's number (the drain fires before the next fn)
+				const v = dep.value;
+				onCleanup(() => {
+					if (run === 1) throw new Error("computed-cleanup-boom");
+				});
+				return v * 10;
+			});
+			return c.value; // prime under boundary A: registers the run-1 cleanup
+		},
+	);
+	// Invalidate WITHOUT notifying the computed's forward effect: a write to an
+	// UNRELATED signal bumps the global validation counter but never run()s the
+	// forward effect — so the run-1 cleanup is still pending and it is the
+	// S.get PULL (not run()) that drains it on the next read. (A write to `dep`
+	// itself would notify the forward effect, whose run() already restores
+	// identity/boundary correctly — test (d) — masking this path.)
+	unrelated.value = 1;
+	let got = -1;
+	withBoundary(
+		(e) => caughtB.push(String((e as Error).message)),
+		() => {
+			got = c.value; // the pull happens HERE, under a DIFFERENT boundary
+			return 0;
+		},
+	);
+	check(
+		"S9: a stale computed still recomputes past its throwing cleanup",
+		got === 0 && pulls === 2,
+	);
+	check(
+		"S9: the pull-path cleanup throw routes to the computed's OWN boundary",
+		caughtA.join() === "computed-cleanup-boom" && caughtB.length === 0,
+	);
+	globalThis.console = savedBC;
+}
+
 // high-word effect (id > 31) disposed MID-cascade -> qh quarantine path.
 // Pad past 32 so the victim lands in word 1, then dispose it from a
 // co-subscriber during the notification.
