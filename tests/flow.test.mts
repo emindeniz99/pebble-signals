@@ -1439,4 +1439,185 @@ sandbox.console = ebSavedConsole; // end of the stubbed ErrorBoundary section
 	sandbox.console = savedC;
 }
 
+// --- round 13: a boundary that disposes a control-flow node MID-BUILD -------
+// The new side/row/screen's first binding can throw during creation; report()
+// runs synchronously, so an ErrorBoundary above can clear + dispose the whole
+// Show/For/Navigator while its createRoot is STILL on the stack. That root then
+// returns normally, and adopting it left effects owned by nothing — free to keep
+// reacting after the fallback was already painted (codex P2, three sites).
+{
+	const savedC = sandbox.console;
+	sandbox.console = { log: () => {} };
+	const probe = signal(0);
+	const flip = signal(0);
+	let sideRuns = 0;
+	const [rs, ds] = createRoot(() =>
+		ErrorBoundary({
+			width: 60,
+			height: 40,
+			fallback: () => jsx(StubContent, { string: "show-fb" }),
+			children: () =>
+				Show({
+					width: 60,
+					height: 40,
+					when: () => flip.value === 1,
+					fallback: () => jsx(StubContent, { string: "off" }),
+					children: () =>
+						jsx(StubContent, {
+							string: () => {
+								sideRuns++;
+								void probe.value; // subscribe BEFORE throwing
+								throw new Error("side boom");
+							},
+						}),
+				}),
+		}),
+	);
+	flip.value = 1; // build the truthy side -> its binding throws at creation
+	const shown = rs.contents[0].contents[0].string === "show-fb";
+	const runsAtDispose = sideRuns;
+	probe.value = 1; // an ORPHANED side root would re-run its binding here
+	check(
+		"Show drops the side root its boundary disposed mid-build",
+		shown && sideRuns === runsAtDispose,
+	);
+	ds();
+	sandbox.console = savedC;
+}
+{
+	const savedC = sandbox.console;
+	sandbox.console = { log: () => {} };
+	const probe = signal(0);
+	const items = signal<number[]>([]);
+	let rowRuns = 0;
+	const [rf, df] = createRoot(() =>
+		ErrorBoundary({
+			width: 60,
+			height: 40,
+			fallback: () => jsx(StubContent, { string: "for-fb" }),
+			children: () =>
+				For({
+					width: 60,
+					height: 40,
+					each: () => items.value,
+					children: () =>
+						jsx(StubContent, {
+							string: () => {
+								rowRuns++;
+								void probe.value;
+								throw new Error("row boom");
+							},
+						}),
+				}),
+		}),
+	);
+	items.value = [1]; // build the first row -> its binding throws at creation
+	const shown = rf.contents[0].contents[0].string === "for-fb";
+	const runsAtDispose = rowRuns;
+	probe.value = 1; // an ORPHANED row root would re-run here
+	check(
+		"For drops the row root its boundary disposed mid-build",
+		shown && rowRuns === runsAtDispose,
+	);
+	df();
+	sandbox.console = savedC;
+}
+{
+	const savedC = sandbox.console;
+	sandbox.console = { log: () => {} };
+	const probe = signal(0);
+	let screenRuns = 0;
+	let navRef: { push: (b: unknown) => void } | null = null;
+	const [rn, dn] = createRoot(() =>
+		ErrorBoundary({
+			width: 100,
+			height: 100,
+			fallback: () => jsx(StubContent, { string: "nav-fb" }),
+			children: () =>
+				Navigator({
+					width: 100,
+					height: 100,
+					root: (nav: { push: (b: unknown) => void }) => {
+						navRef = nav;
+						return jsx(StubContent, { string: "root" });
+					},
+				}),
+		}),
+	);
+	rn.display();
+	navRef!.push(() =>
+		jsx(StubContent, {
+			string: () => {
+				screenRuns++;
+				void probe.value;
+				throw new Error("screen boom");
+			},
+		}),
+	);
+	const shown = rn.contents[0].contents[0].string === "nav-fb";
+	const runsAtDispose = screenRuns;
+	probe.value = 1; // an ORPHANED screen root would re-run here
+	check(
+		"Navigator drops the screen root its boundary disposed mid-build",
+		shown && screenRuns === runsAtDispose,
+	);
+	dn();
+	sandbox.console = savedC;
+}
+
+// --- round 13: a Navigator with NO local boundary must still REPORT ---------
+// Both getBoundary() and navBoundary are null, so the inline branch ran with no
+// try/catch — and since the initial swap moved to onDisplaying, render()'s own
+// build try/catch has already returned. The throw escaped the installed
+// top-level crash sink entirely instead of painting the crash UI (codex P2).
+{
+	const savedC = sandbox.console;
+	sandbox.console = { log: () => {} };
+	const caught: string[] = [];
+	sandbox.__spError = (e: unknown) => caught.push(String((e as Error).message));
+	const [nh, dnb] = createRoot(() =>
+		Navigator({
+			width: 100,
+			height: 100,
+			root: () => {
+				throw new Error("no-boundary-build-boom");
+			},
+		}),
+	);
+	// display() is the Piu run-loop callback: it must NOT rethrow past the host
+	nh.display();
+	check(
+		"Navigator with no local boundary reports its build throw to the sink",
+		caught.join() === "no-boundary-build-boom",
+	);
+	dnb();
+	sandbox.__spError = undefined;
+	sandbox.console = savedC;
+}
+
+// --- round 13: one advancement per tween per ticker turn --------------------
+// A completion/tick write can cascade into stop() for a tween at a LOWER index;
+// the array shifts down and the descending walk revisits the record it just
+// advanced, ticking it TWICE in the same 33 ms turn — shortening and distorting
+// the animation (codex P2).
+{
+	const [b, dcascade] = createRoot(() => {
+		const a = animate(0, 100, 990); // index 0 — the victim of the cascade
+		const bb = animate(0, 330, 330); // index 1 — walked FIRST (descending)
+		// reacting to bb's per-tick write, stop `a`: active [a, bb] becomes [bb],
+		// so slot 0 now holds bb — the very record this turn just advanced
+		signals.effect(() => {
+			if (bb() > 0) a.stop();
+		});
+		return bb;
+	});
+	tick(1);
+	check(
+		"a tween shifted down by a cascading stop() is not advanced twice",
+		Math.round(b()) === 33, // 330 * (33/330); a double advance would read 66
+	);
+	dcascade();
+	check("the cascade test released every timer", liveTimers() === 0);
+}
+
 done();

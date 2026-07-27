@@ -247,11 +247,19 @@ export function Show(props: ShowProps): PiuContainer {
 	}
 	let dispose: Disposer | null = null;
 	let cur = -1; // last rendered side: -1 unbuilt, 0 fallback, 1 children
+	// Set by the owner cleanup. A binding that throws while a side is BUILDING
+	// reports synchronously, and an ErrorBoundary above can clear + dispose this
+	// whole Show while the createRoot below is still on the stack — it then
+	// returns normally, and storing/mounting its result left the new side's
+	// effects owned by no live root, free to keep reacting after the fallback
+	// was already painted (codex P2).
+	let dead = false;
 	// registered BEFORE the effect (same reason as For's sweeper): if the
 	// initial build ever set `dispose` and then threw, a cleanup registered
 	// after the effect would never reach the owner — the side's root leaked
 	// past the caller's dispose.
 	track(() => {
+		dead = true;
 		if (dispose) {
 			dispose();
 			dispose = null;
@@ -284,6 +292,12 @@ export function Show(props: ShowProps): PiuContainer {
 				while (host.first) host.remove(host.first);
 				const build = on ? props.children : props.fallback;
 				const [tree, d] = createRoot(() => wrapSide(props, build));
+				// the boundary disposed us DURING that build (see `dead`): drop the
+				// orphan root instead of adopting it onto an unmounted host
+				if (dead) {
+					d();
+					return;
+				}
 				dispose = d;
 				host.add(tree);
 			});
@@ -363,7 +377,14 @@ export function For<T>(props: ForProps<T>): PiuContainer {
 	// caller's dispose; refuter probe). Order is otherwise inert — the
 	// cleanup only reads rd[], and owner teardown now disposes the effect
 	// first, so a row cleanup can no longer re-trigger a half-dead reconcile.
+	// Set by the sweeper. A row's first binding can throw DURING its build; the
+	// synchronous report lets an ErrorBoundary above clear + dispose this whole
+	// For while the createRoot below is still on the stack. The sweeper has
+	// already drained rd[] by then, so pushing the fresh disposer left that row
+	// root unowned and still reacting after the fallback appeared (codex P2).
+	let dead = false;
 	track(() => {
+		dead = true;
 		for (let x = 0; x < rd.length; x++) rd[x]();
 		rk.length = rn.length = rd.length = rs.length = 0;
 	});
@@ -387,6 +408,11 @@ export function For<T>(props: ForProps<T>): PiuContainer {
 					// fails LOUD on an array/null row, so the reconcile slot is
 					// always a real mounted node.
 					const [node, dispose] = createRoot(() => asRow(() => props.children(item, i), "For"));
+					// disposed mid-build (see `dead`): drop the orphan, never record it
+					if (dead) {
+						dispose();
+						return;
+					}
 					x = rk.length;
 					rk.push(k);
 					rn.push(node);
@@ -613,9 +639,22 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 						}
 						return wrapper;
 					});
-				let s: unknown = build(nav);
-				if (typeof s === "function") s = (s as () => unknown)();
-				appendChild(wrapper, s as JSXNode);
+				// Same containment for the NO-LOCAL-BOUNDARY path. With getBoundary()
+				// and navBoundary both null this branch ran unguarded — and since
+				// the initial swap moved onto onDisplaying, render()'s build
+				// try/catch has already returned by the time it runs, so a builder
+				// that throws synchronously bypassed the installed top-level crash
+				// sink instead of painting the documented crash UI (codex P2).
+				// report() with g.c === null routes to exactly that sink. The frame
+				// cost that once kept this body bare no longer applies: every swap
+				// now runs on the shallow run-loop stack (see the note above).
+				try {
+					let s: unknown = build(nav);
+					if (typeof s === "function") s = (s as () => unknown)();
+					appendChild(wrapper, s as JSXNode);
+				} catch (err) {
+					report(err, "Navigator screen build threw");
+				}
 				return wrapper;
 			});
 			// re-entrant push()/pop() DURING this build (a redirecting screen)
@@ -626,7 +665,13 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 			// redirect that pushes the SAME builder function object (the stack
 			// top then compares EQUAL while the inner mount already happened;
 			// clobbering disposeTop lost the real screen's disposer).
-			if (stack[stack.length - 1] !== build || disposeTop !== null) {
+			// `dead` joins them: a screen build that reports synchronously lets an
+			// ErrorBoundary above dispose this whole Navigator while the createRoot
+			// is still running. Neither reentrancy signal fires in that case, so the
+			// disposer was recorded and the screen mounted onto an already-unmounted
+			// host — its effects owned by no live root, still reacting after the
+			// fallback appeared (codex P2).
+			if (dead || stack[stack.length - 1] !== build || disposeTop !== null) {
 				r[1]();
 				return;
 			}
@@ -710,12 +755,23 @@ const tickAll = () => {
 	// branch that can't be taken.
 	const t = ticker!;
 	const a = t.active;
+	// The record the PREVIOUS iteration advanced. A per-tick write can cascade
+	// into stop() for a tween at a LOWER index; the splice shifts the record we
+	// just advanced DOWN into the slot this walk visits next, and it was ticked a
+	// SECOND time in the same 33 ms turn — shortening and distorting its
+	// animation (codex P2: active `[A, B]`, an effect on B calling A.stop()
+	// leaves `[B]`, then `i = 0` advances B again). ONE variable suffices, and
+	// costs no per-record field (Rule 4): the walk only ever steps down one slot,
+	// and the emptied tail slots read `undefined` — so a record that shifts by k
+	// still lands on the very next slot this loop actually advances.
+	let prev: TweenRec | undefined;
 	// walk downward so splicing a finished tween doesn't skip its neighbor
 	for (let i = a.length - 1; i >= 0; i--) {
 		const r = a[i];
 		// a cascade below us (a completion write stopping other tweens) can
 		// shrink the array past this index — the slot may now be empty
-		if (r === undefined) continue;
+		if (r === undefined || r === prev) continue;
+		prev = r;
 		r.elapsed += STEP;
 		const p = r.elapsed >= r.dur ? 1 : r.elapsed / r.dur;
 		r.sig.value = r.from + (r.to - r.from) * r.ease(p);
