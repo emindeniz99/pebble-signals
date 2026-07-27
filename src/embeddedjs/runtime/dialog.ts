@@ -115,6 +115,60 @@ function addLabel(
 	column.add(lbl);
 }
 
+// Greedy word wrap to a per-line character budget. Piu has no reliable text
+// wrapping on this port — runtime/textflow builds one Label PER LINE for exactly
+// that reason — so assigning a width to a single message Label did NOT make it
+// multiline: the advertised wrapping body stayed one line and was clipped
+// (codex P2). This is textflow's wrapText algorithm, kept LOCAL: importing
+// runtime/textflow would pull its whole module (TextFlow, wrapCircle, a Style
+// build) into every dialog-using app's manifest closure — Rule 4 says no.
+const MESSAGE_MAX_LINES = 6;
+const PX_PER_CHAR = 9; // 18px Gothic average advance (textflow's constant)
+function wrapMessage(text: string, charsPerLine: number): string[] {
+	const lines: string[] = [];
+	let cur = "";
+	for (const w of text.split(/\s+/)) {
+		if (w.length === 0) continue;
+		if (cur === "")
+			cur = w; // a lone over-long word gets its own line
+		else if (cur.length + 1 + w.length <= charsPerLine) cur += " " + w;
+		else {
+			lines.push(cur);
+			if (lines.length >= MESSAGE_MAX_LINES) return lines;
+			cur = w;
+		}
+	}
+	if (cur !== "") lines.push(cur);
+	return lines;
+}
+
+// Add the message as one Label PER WRAPPED LINE, inside its own Column so a
+// reactive message can be re-wrapped (full rebuild — flow.ts's device-safe
+// Show shape) without disturbing the title/hint siblings. The inner Column
+// carries no dimensions and its Labels carry the width, mirroring the outer
+// Column that already ships (gotcha 16 is satisfied by the Labels).
+function addMessage(
+	parent: PiuContainer,
+	value: string | (() => string),
+	style: Style,
+	width: number,
+): void {
+	const box = new Column(null, {}) as PiuContainer;
+	const charsPerLine = Math.max(1, Math.floor(width / PX_PER_CHAR));
+	const fill = (text: string): void => {
+		while (box.first) box.remove(box.first);
+		for (const line of wrapMessage(text, charsPerLine))
+			box.add(new Label(null, { style, string: line, width }) as PiuLabel);
+	};
+	if (typeof value === "function") {
+		const fn = value;
+		effect(() => {
+			fill(String(fn()));
+		});
+	} else fill(String(value));
+	parent.add(box);
+}
+
 /**
  * Dialog — a centered modal card: a bold title over a wrapping message and an
  * optional dismiss hint, on ONE fill-skinned Container.
@@ -157,9 +211,10 @@ export function Dialog(props: DialogProps): Content {
 	outer.add(column);
 
 	if (props.title !== undefined) addLabel(column, props.title, titleStyle);
-	// The message Label gets an explicit width so Piu wraps it across lines.
+	// The message is wrapped by hand into one Label per line (see addMessage) —
+	// a width alone does NOT wrap a Piu Label on this port.
 	if (props.message !== undefined)
-		addLabel(column, props.message, messageStyle, { width: width - PADDING * 2 });
+		addMessage(column, props.message, messageStyle, width - PADDING * 2);
 	if (props.hint !== undefined) addLabel(column, props.hint, hintStyle);
 
 	return outer;

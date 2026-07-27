@@ -83,4 +83,24 @@ const layout = (col: any): string[] =>
 	dispose();
 }
 
+// --- round 13: a non-positive `columns` used to hang or OOM the watch --------
+// `r += 0` never reaches items.length and `r += -1` runs away allocating Rows;
+// a noCheck build cannot lean on the type, so the count is clamped (codex P2).
+{
+	const [zero, dz] = createRoot(() =>
+		Grid({ items: [1, 2, 3], columns: 0, cell: (n: number) => ({ n }) as never }),
+	);
+	check("columns:0 renders one row per item instead of hanging", zero.contents.length === 3);
+	check(
+		"…each clamped row holds exactly one cell",
+		zero.contents.every((r: any) => r.contents.length === 1),
+	);
+	dz();
+	const [neg, dn] = createRoot(() =>
+		Grid({ items: [1, 2], columns: -4, cell: (n: number) => ({ n }) as never }),
+	);
+	check("a negative columns is clamped the same way", neg.contents.length === 2);
+	dn();
+}
+
 done();

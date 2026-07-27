@@ -56,7 +56,13 @@ export type GridProps<T> = {
  * — no module scope). See the module header.
  */
 export function Grid<T>(props: GridProps<T>): Content {
-	const { columns, cell } = props;
+	const { cell } = props;
+	// `columns` reaching 0 or a negative number (from config, or caller state)
+	// never advanced the walk below — `r += 0` loops forever and `r += -1` runs
+	// away allocating Rows until the arena dies. A noCheck build cannot rely on
+	// the type, so clamp: one column renders something recoverable, a hung watch
+	// does not (codex P2).
+	const columns = props.columns >= 1 ? props.columns : 1;
 	const items = typeof props.items === "function" ? props.items() : props.items;
 
 	const colDict: Record<string, number> = {};

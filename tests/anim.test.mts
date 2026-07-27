@@ -262,7 +262,64 @@ const { check, done } = makeChecker("anim");
 	);
 
 	const yy = yoyo([{ to: 60, ms: 60 }]);
-	check("yoyo is forward-then-reverse", yy.length === 2 && "to" in yy[1] && yy[1].to === 0);
+	// the reverse of the FIRST move carries `home` — it resolves to the sequence's
+	// own start inside planSequence, not to a hard-coded 0 (codex P2)
+	check(
+		"yoyo is forward-then-reverse, the return leg flagged home",
+		yy.length === 2 && "to" in yy[1] && yy[1].home === true,
+	);
+}
+
+// --- round 13: an explicit `ms: 0` is a ZERO-duration keyframe, not the default -
+// `s.ms && s.ms > 0 ? s.ms : 300` treated 0 as "omitted", so a caller asking for
+// an instant jump got a 300 ms animation and a live timer (codex P2).
+{
+	const [get, dispose] = createRoot(() => useSequence([{ to: 100, ms: 0 }]));
+	check("a zero-duration move lands immediately", get() === 100);
+	check("…and arms no timer", liveTimers() === 0);
+	dispose();
+	const [neg, dn] = createRoot(() => useSequence([{ to: 50, ms: -20 }]));
+	check("a negative duration clamps to zero the same way", neg() === 50);
+	dn();
+	const [def, dd] = createRoot(() => useSequence([{ to: 30 }]));
+	check("an OMITTED ms still takes the 300ms default", def() === 0 && liveTimers() === 1);
+	dd();
+}
+
+// --- round 13: yoyo returns to the sequence's own `from`, not to 0 -----------
+{
+	const [get, dispose] = createRoot(() => useSequence(yoyo([{ to: 100, ms: 66 }]), { from: 50 }));
+	check("the yoyo starts at from", get() === 50);
+	tick(2); // forward leg complete (66ms at STEP 33)
+	check("the forward leg reaches the target", get() === 100);
+	tick(2); // reverse leg complete
+	check("the reverse leg returns to from (50), not to 0", get() === 50);
+	dispose();
+}
+
+// --- round 13: a non-positive spring mass/precision never settled ------------
+// mass 0 -> a = Infinity -> v = NaN, and every NaN comparison is false, so the
+// 33ms interval ran forever; precision 0 makes `< precision` unsatisfiable and
+// even armed a timer at rest (codex P2). Both clamp to the default now.
+{
+	const [get, dispose] = createRoot(() => useSpring(100, { from: 0, mass: 0 }));
+	tick(200);
+	check("mass:0 still settles on the target", get() === 100);
+	check("…and releases its timer", liveTimers() === 0);
+	dispose();
+	const [rest, dr] = createRoot(() => useSpring(100, { precision: 0 }));
+	check("precision:0 at rest arms no timer at all", liveTimers() === 0 && rest() === 100);
+	dr();
+	// a VALID positive value is still honoured (a coarse precision settles sooner)
+	const [coarse, dc] = createRoot(() => useSpring(100, { from: 0, mass: 2, precision: 5 }));
+	tick(200);
+	check("an explicit finite mass/precision still settles", coarse() === 100);
+	dc();
+	// non-finite is rejected the same way as non-positive
+	const [inf, di] = createRoot(() => useSpring(100, { from: 0, mass: Infinity }));
+	tick(200);
+	check("mass:Infinity clamps to the default and settles", inf() === 100);
+	di();
 }
 
 done();

@@ -170,7 +170,10 @@ const LOREM =
 		"initial reactive lines match the wrap",
 		col.contents[0].string === "one two" && col.contents[1].string === "three",
 	);
-	check("initial reactive height is lines*lineHeight (2*10)", col.height === 20);
+	// a REACTIVE TextFlow reserves maxLines*lineHeight at CONSTRUCTION and never
+	// touches height again — Piu size is construction-time state, and the runtime
+	// rejects reactive `height` everywhere else for exactly that reason (codex P2)
+	check("reactive height is reserved up front (maxLines*lineHeight = 8*10)", col.height === 80);
 	const firstLabel = col.contents[0];
 	// drive the signal -> the effect re-wraps and rebuilds the line Labels
 	t.value = "alpha beta gamma delta";
@@ -182,7 +185,7 @@ const LOREM =
 			col.contents[2].string === "gamma" &&
 			col.contents[3].string === "delta",
 	);
-	check("reactive re-wrap updates the Column height (4*10)", col.height === 40);
+	check("reactive re-wrap does NOT resize the mounted Column", col.height === 80);
 	// the Column was REBUILT — the old Labels were removed (remove-loop), not reused
 	check("the rebuild replaced the old Label nodes", col.contents[0] !== firstLabel);
 	check("the old removed Label is detached from the Column", firstLabel.container === null);

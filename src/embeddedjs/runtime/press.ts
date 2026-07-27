@@ -163,6 +163,12 @@ export function useRepeatClick(
 	// Live repeat id + the current (accelerating) delay, held in this call's closure.
 	let current: number | null = null;
 	let delay = initial;
+	// `onFire()` may synchronously tear this component down — a handler calling
+	// Navigator.push() is the ordinary case. The owner cleanup then runs while
+	// we are still inside press()/step(), and re-arming AFTER it left an
+	// interval firing forever against an unmounted screen that can no longer
+	// receive onRelease (codex P2). Latch the dispose and never re-arm past it.
+	let dead = false;
 	const clear = (): void => {
 		if (current !== null) {
 			clearInterval(current);
@@ -173,16 +179,24 @@ export function useRepeatClick(
 	// the SINGLE timer at the new delay (clear-then-set, so it never stacks).
 	const step = (): void => {
 		onFire();
+		if (dead) {
+			clear();
+			return;
+		}
 		delay *= accel;
 		if (delay < min) delay = min;
 		clear();
 		current = setInterval(step, delay);
 	};
-	track(clear); // owner dispose stops a held repeat
+	track(() => {
+		dead = true;
+		clear();
+	}); // owner dispose stops a held repeat
 	const press = (): boolean => {
 		clear();
 		delay = initial; // restart the tempo from the top on each fresh hold
 		onFire(); // immediate first fire (a single tap still acts once)
+		if (dead) return true;
 		current = setInterval(step, delay);
 		return true;
 	};

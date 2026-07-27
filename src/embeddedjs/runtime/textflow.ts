@@ -213,6 +213,13 @@ export type TextFlowProps = {
 	text: string | (() => string);
 	/** Block width in px. Defaults to the screen width (a width-less Column measures 0 — gotcha 16). */
 	width?: number;
+	/**
+	 * Block height in px. A REACTIVE `text` thunk always gets a fixed
+	 * construction-time height (this value, else `maxLines * lineHeight`) —
+	 * Piu position/size is construction-time state, so the re-wrap must not
+	 * resize a mounted box. A bare string still shrinks to its own wrap.
+	 */
+	height?: number;
 	/** Per-line character budget for the wrap. Defaults to `max(1, floor(width / 9))`. */
 	charsPerLine?: number;
 	/** Text font — a valid Pebble system font key. Defaults to `"18px Gothic"`. */
@@ -273,17 +280,31 @@ export function TextFlow(props: TextFlowProps): Content {
 	const style = new Style({ font, color, horizontal: align });
 
 	// EXPLICIT width (gotcha 16): a width-less Column measures 0 and draws
-	// nothing. Height is set from the current wrap in `rebuild` below (an explicit
-	// numeric value, not opposite-edge anchors) before this node is ever mounted.
-	const column = new Column(null, { width }) as PiuContainer;
+	// nothing. HEIGHT depends on which text form this is:
+	//  - bare string: written once from the wrap in `rebuild`, BEFORE the node is
+	//    ever mounted, so the box shrinks to its own content (unchanged).
+	//  - thunk: FIXED here, at construction. `rebuild` runs again on every change
+	//    — i.e. after mount — and the runtime's own `bindErr()` rejects reactive
+	//    `height` precisely because Piu position/size is construction-time state
+	//    and post-mount writes can crash the port. The documented reflow path was
+	//    bypassing that gate on itself (codex P2). `maxLines * lineHeight` is the
+	//    tallest wrap this instance can ever produce, so no line is ever cut off;
+	//    pass `height` to reserve less.
+	const reflow = typeof props.text === "function";
+	const boxHeight = props.height ?? (reflow ? maxLines * lineHeight : undefined);
+	const column = new Column(
+		null,
+		boxHeight === undefined ? { width } : { width, height: boxHeight },
+	) as PiuContainer;
 
 	// Clear + re-add the line Labels for a given wrap. The remove-one-by-one loop
 	// is flow.ts's device-safe full-rebuild shape (Show uses it) — NOT
 	// Column.empty(), which For measured destabilizing the Piu port after ~15-25
-	// cycles. The height is (re)written here so the re-add's layout pass sees it.
+	// cycles. The height is written here ONLY when the box has none of its own —
+	// the bare-string path, which runs exactly once, pre-mount (see above).
 	const rebuild = (lines: string[]): void => {
 		while (column.first) column.remove(column.first);
-		column.height = lines.length * lineHeight;
+		if (boxHeight === undefined) column.height = lines.length * lineHeight;
 		for (let i = 0; i < lines.length; i++) {
 			// each line = one Label with an explicit width + height (gotcha 16),
 			// sharing the one Style; its `string` is the wrapped line.

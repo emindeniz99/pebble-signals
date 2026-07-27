@@ -247,4 +247,47 @@ const { check, done } = makeChecker("press");
 	check("disposing the focused node leaves no live timer", liveTimers() === 0);
 }
 
+// --- round 13: a callback that disposes the owner must not re-arm the repeat --
+// `onFire()` calling Navigator.push() tears the component down synchronously;
+// the owner cleanup ran, then press()/step() created a FRESH interval after it,
+// leaving a timer firing forever against a screen that can never see onRelease
+// (codex P2).
+{
+	let fires = 0;
+	let disposeSelf = () => {};
+	const [bag, dispose] = createRoot(() => {
+		const b = useRepeatClick("Up", () => {
+			fires++;
+			disposeSelf(); // the handler navigates away mid-press
+		});
+		return b;
+	});
+	disposeSelf = dispose;
+	(bag as any).onPressUp();
+	check("the press still fires its callback once", fires === 1);
+	check("no interval survives a callback-triggered dispose", liveTimers() === 0);
+	tick(3);
+	check("…and nothing keeps firing against the dead component", fires === 1);
+}
+
+// --- …and the same ordering inside a repeat TICK ----------------------------
+{
+	let fires = 0;
+	let disposeSelf = () => {};
+	const [bag, dispose] = createRoot(() =>
+		useRepeatClick("Up", () => {
+			fires++;
+			if (fires === 2) disposeSelf(); // navigate away on the first REPEAT
+		}),
+	);
+	disposeSelf = dispose;
+	(bag as any).onPressUp();
+	check("the immediate fire ran and the repeat is armed", fires === 1 && liveTimers() === 1);
+	tick(1);
+	check("the repeat tick ran once", fires === 2);
+	check("a dispose from inside step() leaves no timer", liveTimers() === 0);
+	tick(3);
+	check("…and no further repeats reach the dead component", fires === 2);
+}
+
 done();

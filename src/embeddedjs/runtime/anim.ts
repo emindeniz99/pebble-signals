@@ -127,7 +127,21 @@ export function useTween(target: number | (() => number), opts?: TweenOptions): 
  * optional `ease` curve) or a HOLD (stay put for `hold` ms). The sequence walks
  * these in order, each move starting where the previous step left off.
  */
-export type SeqStep = { to: number; ms?: number; ease?: (t: number) => number } | { hold: number };
+export type SeqStep =
+	| {
+			to: number;
+			ms?: number;
+			ease?: (t: number) => number;
+			/**
+			 * INTERNAL (set by {@link yoyo}/{@link withRepeat}'s reverse pass): re-aim
+			 * this move at the sequence's own start value instead of `to`. The reverse
+			 * of the FIRST move has no earlier target to return to, and hard-coding 0
+			 * made `useSequence(yoyo([{ to: 100 }]), { from: 50 })` finish at 0 —
+			 * breaking the out-and-back contract and making every loop jump (codex P2).
+			 */
+			home?: true;
+	  }
+	| { hold: number };
 
 /** Options for {@link useSequence}. */
 export type SequenceOptions = {
@@ -151,9 +165,14 @@ const planSequence = (steps: SeqStep[], start: number): { segs: Seg[]; total: nu
 			segs.push({ from: cur, to: cur, t0, dur, ease: linear });
 			t0 += dur;
 		} else {
-			const dur = s.ms && s.ms > 0 ? s.ms : 300;
-			segs.push({ from: cur, to: s.to, t0, dur, ease: s.ease || linear });
-			cur = s.to;
+			// `ms` OMITTED takes the 300 ms default; an explicit non-positive `ms`
+			// is the zero-duration keyframe the header promises. Treating `ms: 0`
+			// as "missing" substituted 300 ms, so a caller asking for an instant
+			// jump got an animation and a live timer instead (codex P2).
+			const dur = s.ms === undefined ? 300 : s.ms > 0 ? s.ms : 0;
+			const to = s.home ? start : s.to;
+			segs.push({ from: cur, to, t0, dur, ease: s.ease || linear });
+			cur = to;
 			t0 += dur;
 		}
 	}
@@ -268,8 +287,17 @@ export function useSpring(
 ): (() => number) & { stop: () => void } {
 	const stiffness = opts?.stiffness ?? 170;
 	const damping = opts?.damping ?? 26;
-	const mass = opts?.mass ?? 1;
-	const precision = opts?.precision ?? 0.05;
+	// mass and precision must be POSITIVE and finite or the integrator never
+	// settles and its 33 ms interval runs forever: `mass: 0` divides by zero
+	// (a = Infinity -> v = NaN, and every comparison against NaN is false), while
+	// `precision: 0` makes the strict `< precision` settle test unsatisfiable —
+	// `useSpring(100, { precision: 0 })` even armed a timer while already at rest
+	// (codex P2). Clamp to the default rather than throw: a bad animation option
+	// is not worth a crash screen.
+	const pos = (v: number | undefined, d: number): number =>
+		v !== undefined && v > 0 && v < Infinity ? v : d;
+	const mass = pos(opts?.mass, 1);
+	const precision = pos(opts?.precision, 0.05);
 	const constTarget = typeof target === "number";
 	const readTarget = constTarget ? () => target : (target as () => number);
 	// Rest at `from` (defaulting to the initial target → a bare number with no
@@ -355,8 +383,11 @@ const reverseSteps = (steps: SeqStep[]): SeqStep[] => {
 		else {
 			// reversed target = the value this move originally started FROM = the
 			// previous move's target (or, for the first move, undefined → 0 baseline).
-			const to = mi > 0 ? moves[mi - 1] : 0;
-			rev.push({ to, ms: s.ms, ease: s.ease });
+			// …and the FIRST move's reversal returns to the sequence's own start,
+			// which only useSequence knows — `home` defers that resolution to
+			// planSequence (a literal 0 here ignored `opts.from`; codex P2).
+			if (mi > 0) rev.push({ to: moves[mi - 1], ms: s.ms, ease: s.ease });
+			else rev.push({ to: 0, home: true, ms: s.ms, ease: s.ease });
 			mi--;
 		}
 	}

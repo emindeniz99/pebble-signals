@@ -60,6 +60,15 @@ export interface Haptics {
 	cancel(): void;
 }
 
+// The motor is one global device, so "who is buzzing right now" has to be
+// tracked globally too: two live subtrees each calling useHaptics used to mean
+// that disposing EITHER one ran `Vibes.cancel()` and killed a long alert the
+// OTHER, still-mounted owner had started (codex P2). Two plain numbers (a
+// per-hook id and the id of the last starter) — module scope is fine for these:
+// Rule 1 bars load-time HOST access, not integers.
+let hapticSeq = 0;
+let hapticActive = 0;
+
 /**
  * useHaptics() — fire the vibration motor: the RN `Vibration` / react-pebble
  * `useVibration` analog. Returns a small command object; call its methods from an
@@ -85,14 +94,37 @@ export function useHaptics(): Haptics {
 	// Resolve the all-static host class once per hook call (Rule 1 — lazy, never
 	// module scope). No instance is constructed, so there is nothing to refcount.
 	const Vibes = (importNow("pebble/vibes") as { default: VibesHost }).default;
-	// Stop the motor if the screen is torn down mid-buzz (Rule 5) — and hand the
-	// same cancel back for manual use.
-	onCleanup(() => Vibes.cancel());
+	const me = ++hapticSeq;
+	// Stop the motor if the screen is torn down mid-buzz (Rule 5) — but ONLY if
+	// the pattern still playing is one THIS hook started.
+	onCleanup(() => {
+		if (hapticActive === me) {
+			hapticActive = 0;
+			Vibes.cancel();
+		}
+	});
 	return {
-		short: () => Vibes.shortPulse(),
-		long: () => Vibes.longPulse(),
-		double: () => Vibes.doublePulse(),
-		pattern: (segments: number[]) => Vibes.pattern(segments),
-		cancel: () => Vibes.cancel(),
+		short: () => {
+			hapticActive = me;
+			Vibes.shortPulse();
+		},
+		long: () => {
+			hapticActive = me;
+			Vibes.longPulse();
+		},
+		double: () => {
+			hapticActive = me;
+			Vibes.doublePulse();
+		},
+		pattern: (segments: number[]) => {
+			hapticActive = me;
+			Vibes.pattern(segments);
+		},
+		// an EXPLICIT cancel stays unconditional — the caller is asking for
+		// silence, whoever started the pattern
+		cancel: () => {
+			hapticActive = 0;
+			Vibes.cancel();
+		},
 	};
 }

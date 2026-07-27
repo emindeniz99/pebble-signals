@@ -95,4 +95,21 @@ const thumbSpan = (node: any, cy: number, color: string) =>
 	check("max===min guards divide-by-zero, thumb at left (x === 0)", !!fThumb && fThumb.x === 0);
 }
 
+// --- round 13: a canvas narrower than it is tall must not spill the thumb ----
+// r was height/2 unconditionally, so [r, width-r] inverted and the clamp pinned
+// the thumb centre outside the canvas (codex P2).
+{
+	const [node] = createRoot(() => Slider({ value: 0.5, width: 10, height: 24 }));
+	node.paint();
+	const t = thumbSpan(node, 12, "white");
+	check("a narrow canvas still paints a thumb", !!t);
+	check("the thumb centre stays inside the canvas", t.x >= 0 && t.x <= 10);
+	// the disc rasterizes to 2r+1 px, so width+1 is the tight bound; BEFORE the
+	// fix r was height/2 = 12 and the disc spanned 25 px across a 10 px canvas
+	check(
+		"no painted span reaches past either track end",
+		node.spans.every((s: any) => s.x >= 0 && s.x + (s.w ?? 0) <= 11),
+	);
+}
+
 done();

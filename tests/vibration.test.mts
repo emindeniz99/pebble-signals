@@ -62,10 +62,29 @@ const { check, done } = makeChecker("vibration");
 	);
 	h.cancel();
 	check("manual cancel() calls Vibes.cancel", calls[calls.length - 1] === "cancel");
-	// disposing the owner cancels any in-flight buzz automatically (Rule 5)
+	// disposing the owner cancels ITS OWN in-flight buzz automatically (Rule 5)
+	h.long();
 	calls.length = 0;
 	dispose();
 	check("disposing the owner auto-cancels the motor", calls.length === 1 && calls[0] === "cancel");
+}
+
+// --- two live owners: disposing one must NOT kill the other's pattern ---
+// The motor is a single global device, so an unconditional Vibes.cancel() in
+// every owner's cleanup let a disappearing conditional child abruptly silence
+// a long alert its still-mounted parent had started (codex P2).
+{
+	const [, disposeA] = createRoot(() => useHaptics());
+	const [b, disposeB] = createRoot(() => useHaptics());
+	b.long(); // B owns the pattern that is actually playing
+	calls.length = 0;
+	disposeA();
+	check("disposing an IDLE owner leaves the other owner's pattern alone", calls.length === 0);
+	disposeB();
+	check(
+		"disposing the owner that STARTED the pattern still cancels",
+		calls.length === 1 && calls[0] === "cancel",
+	);
 }
 
 done();

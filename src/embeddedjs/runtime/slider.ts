@@ -63,7 +63,13 @@ export function Slider(props: SliderProps): Content {
 	const track = props.track ?? "#555555";
 	const thumb = props.thumb ?? "white";
 
-	const r = height / 2; // thumb radius = half the track height (full-height disc)
+	// Thumb radius = half the track height (a full-height disc) — but never more
+	// than half the WIDTH, or the `[r, width-r]` travel interval inverts and the
+	// clamp below pins the center outside it: `width={10} height={24}` painted a
+	// 25px disc centered at x=12, most of it clipped off the canvas, breaking the
+	// "never spills past the track ends" promise (codex P2). On a canvas narrower
+	// than it is tall the thumb simply fills the width and cannot travel.
+	const r = Math.min(height, width) / 2;
 	const cy = height / 2; // vertical center of both track and thumb
 	const trackH = Math.max(2, Math.round(height / 6)); // thin pill behind the thumb
 	const trackY = (height - trackH) / 2;
