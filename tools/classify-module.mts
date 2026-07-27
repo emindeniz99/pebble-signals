@@ -111,9 +111,23 @@ export function classify(src: string): Verdict {
 			}
 			return;
 		}
+		// An import of a PACKAGE is not automatically inert. build.mts screens
+		// relative imports separately, but a bare specifier gets BUNDLED into the
+		// preloaded module by the esbuild step, so any top-level state, host
+		// object or other side effect in that dependency runs in the BUILD
+		// compartment and freezes (or fails) before the app ever loads (codex P2).
+		// `runtime/*` and `app/*` are the exceptions: esbuild keeps them external,
+		// so they are resolved on-device like any other manifest module. A
+		// type-only import erases at emit and can never run.
+		if (ts.isImportDeclaration(stmt)) {
+			const spec = ts.isStringLiteral(stmt.moduleSpecifier) ? stmt.moduleSpecifier.text : "";
+			const external = /^(?:runtime|app)\//.test(spec) || /^\.\.?\//.test(spec);
+			if (!external && !stmt.importClause?.isTypeOnly)
+				reasons.push(`package import is bundled into the preload: ${trim(stmt.getText(sf))}`);
+			return;
+		}
 		// declarations that don't execute anything at load are always pure
 		if (
-			ts.isImportDeclaration(stmt) ||
 			ts.isFunctionDeclaration(stmt) ||
 			ts.isInterfaceDeclaration(stmt) ||
 			ts.isTypeAliasDeclaration(stmt) ||

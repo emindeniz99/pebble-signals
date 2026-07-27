@@ -16,8 +16,9 @@
 //   python3 -m http.server -d build/preview/<app> 8080
 //   open http://localhost:8080/?shape=round|emery   (default round 260x260)
 import * as esbuild from "esbuild";
-import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { deriveDeps, neededModules, relativeClosure } from "./treeshake.mts";
 
 const APP = process.argv[2];
 const ROOT = join(import.meta.dirname, "..");
@@ -45,8 +46,31 @@ esbuild.buildSync({
 	outfile: join(out, "app.js"),
 	logLevel: "error",
 });
-for (const f of ["signals.js", "jsx-runtime.js", "flow.js"])
-	cpSync(join(RUNTIME, f), join(out, "runtime", f));
+// Copy the SELECTED APP'S runtime closure, not a hard-coded core three. Any
+// catalog example that imports an opt-in module (button.tsx -> runtime/button)
+// left esbuild with an external specifier the page's import map never mapped,
+// so the browser failed module resolution before rendering anything — while
+// `pnpm run preview -- <app>` is advertised for arbitrary examples and only
+// LAZY modules are documented as unavailable (codex P2). Same derivation the
+// device build uses: the entry's relative closure seeds neededModules over the
+// runtime's own import graph.
+const readFile = (p: string): string | null => (existsSync(p) ? readFileSync(p, "utf8") : null);
+const modPath = (m: string): string => join(RUNTIME, `${m.slice("runtime/".length)}.js`);
+const deps = deriveDeps(
+	readdirSync(RUNTIME)
+		.filter((f) => f.endsWith(".js"))
+		.map((f) => `runtime/${f.slice(0, -3)}`),
+	(m) => readFile(modPath(m)),
+);
+const closureSrc = relativeClosure(entry, readFile)
+	.map((p) => readFile(p) ?? "")
+	.join("\n");
+// jsx-runtime is seeded explicitly: tsc's automatic JSX transform injects that
+// import AFTER this source-level scan (the same seed build.mts passes).
+const runtimeMods = [...neededModules(closureSrc, ["runtime/jsx-runtime"], deps)]
+	.filter((m) => existsSync(modPath(m)))
+	.sort();
+for (const m of runtimeMods) cpSync(modPath(m), join(out, "runtime", `${m.slice(8)}.js`));
 cpSync(join(ROOT, "tools/preview/piu-dom.js"), join(out, "piu-dom.js"));
 
 writeFileSync(
@@ -65,9 +89,7 @@ writeFileSync(
 Backspace back &middot; ?shape=round|emery &middot; layout approximate (QEMU is truth)</div>
 <script type="importmap">
 { "imports": {
-    "runtime/signals": "./runtime/signals.js",
-    "runtime/jsx-runtime": "./runtime/jsx-runtime.js",
-    "runtime/flow": "./runtime/flow.js"
+${runtimeMods.map((m) => `    "${m}": "./runtime/${m.slice(8)}.js"`).join(",\n")}
 } }
 </script>
 <script src="./piu-dom.js"></script>
@@ -75,4 +97,5 @@ Backspace back &middot; ?shape=round|emery &middot; layout approximate (QEMU is 
 `,
 );
 console.log(`preview: ${join("build/preview", APP)}/ — serve it and open index.html`);
+console.log(`  runtime modules: ${runtimeMods.join(", ")}`);
 console.log(`  python3 -m http.server -d build/preview/${APP} 8080`);

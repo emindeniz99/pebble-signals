@@ -54,7 +54,32 @@ if (existsSync(targetDir)) {
 	}
 }
 
-const appName = cli.name ?? basename(targetDir);
+// The DISPLAY name is what the user asked for (or the directory basename); the
+// npm PACKAGE name has to be a legal npm name on top of that. Substituting one
+// raw string into every placeholder broke the scaffold two ways: a normal
+// target like `My Watch` produced an invalid `"name"` that npm install rejects,
+// and a name carrying a quote or newline made package.json unparseable — so the
+// advertised next step failed on a freshly scaffolded project (codex P1).
+const displayName = cli.name ?? basename(targetDir);
+// npm's rule set, reduced to what matters here: lowercase, no spaces, only
+// URL-safe punctuation, no leading dot/underscore, <= 214 chars. Anything else
+// is normalized rather than rejected — the user asked for a scaffold, not a
+// lecture — and the result is echoed below so the rename is never a surprise.
+const packageName = displayName
+	.toLowerCase()
+	.replace(/[^a-z0-9._-]+/g, "-")
+	.replace(/^[._-]+/, "")
+	.replace(/-+$/, "")
+	.slice(0, 214);
+if (!packageName) {
+	err(`create-signal-piu: --name "${displayName}" has no characters npm allows in a package`);
+	err('            name. Pass a --name with letters or digits (e.g. --name "my-watch").');
+	process.exit(1);
+}
+// The display name still lands inside a JSON string literal, so it must be
+// escaped — JSON.stringify quotes it, and the placeholder sits between quotes
+// in the template, so drop the outer pair.
+const displayJson = JSON.stringify(displayName).slice(1, -1);
 const uuid = randomUUID();
 
 // Filenames the packed template renames on the way out: npm pack renames a
@@ -76,8 +101,11 @@ function copyTemplate(srcDir: string, destDir: string): void {
 			copyTemplate(srcPath, destPath);
 			continue;
 		}
+		// JSON files get the ESCAPED display name (it lands inside a string
+		// literal); everything else — the README heading — gets it verbatim.
 		const content = readFileSync(srcPath, "utf8")
-			.replaceAll("__APP_NAME__", appName)
+			.replaceAll("__PKG_NAME__", packageName)
+			.replaceAll("__APP_NAME__", destPath.endsWith(".json") ? displayJson : displayName)
 			.replaceAll("__UUID__", uuid);
 		writeFileSync(destPath, content);
 	}
@@ -85,9 +113,16 @@ function copyTemplate(srcDir: string, destDir: string): void {
 
 copyTemplate(TEMPLATE_DIR, targetDir);
 
-console.log(`create-signal-piu: scaffolded ${appName} in ${targetDir}\n`);
+console.log(`create-signal-piu: scaffolded ${displayName} in ${targetDir}\n`);
+if (packageName !== displayName)
+	console.log(`  (npm package name normalized to "${packageName}"; displayName kept verbatim)\n`);
 console.log("Next steps:");
 console.log(`  cd ${targetArg}`);
 console.log("  npm install signal-piu typescript esbuild @moddable/pebbleproxy");
-console.log("  pnpm run build");
+// `npm run build` — NOT `pnpm run build`: the advertised entry point is
+// `npx create-signal-piu`, and printing a pnpm command on a machine that only
+// has npm failed with "pnpm: command not found" one step after a successful
+// install. The generated README and the root quickstart both use npm, and the
+// script is identical either way (codex P2).
+console.log("  npm run build");
 console.log("  pebble install --emulator gabbro");

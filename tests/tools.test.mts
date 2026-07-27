@@ -301,10 +301,25 @@ test("classify: a module-level TAGGED template is a call in disguise (IMPURE)", 
 	assert.equal(classify("export const mk = () => makeStyle`bold 24px`;").pure, true);
 });
 
-test("classify: imports and nested new/call (inside fn bodies) stay PURE", () => {
-	// the new/call is deferred to call time, not module-eval time
-	const src = 'import { x } from "y";\nexport const make = () => new Container(null, {});';
+test("classify: runtime imports and nested new/call (inside fn bodies) stay PURE", () => {
+	// the new/call is deferred to call time, not module-eval time; a runtime/*
+	// import stays EXTERNAL through the preload bundle, so it cannot run at build
+	const src =
+		'import { signal } from "runtime/signals";\nexport const make = () => new Container(null, {});';
 	assert.equal(classify(src).pure, true);
+});
+
+test("classify: a PACKAGE import is bundled into the preload, so it is IMPURE", () => {
+	// esbuild inlines a bare specifier into the preloaded module, so ANY
+	// top-level state/host access in that dependency runs in the BUILD
+	// compartment and freezes (or fails) before the app loads (codex P2)
+	const v = classify('import { x } from "some-pkg";\nexport const n = 1;');
+	assert.equal(v.pure, false);
+	assert.match(v.reasons[0], /package import is bundled/);
+	// relative imports are screened by build.mts itself, not here
+	assert.equal(classify('import { x } from "./local";\nexport const n = 1;').pure, true);
+	// a TYPE-only import erases at emit and can never run
+	assert.equal(classify('import type { X } from "some-pkg";\nexport const n = 1;').pure, true);
 });
 
 test("classify: top-level control flow is IMPURE", () => {

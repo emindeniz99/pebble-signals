@@ -93,13 +93,20 @@ no UI role (e.g. a sensor poller), keep them in `src/c/` alongside `mdbl.c` —
 `wscript`'s `ctx.path.ant_glob('src/c/**/*.c')` compiles every `.c` file it
 finds, so nothing needs to change there.
 
-### 3. Add the mod manifest
+### 3. The mod manifest — nothing to do
 
-Copy `templates/app/src/embeddedjs/manifest.base.json` to
-`src/embeddedjs/manifest.base.json` — it maps the `runtime/*` device
-specifiers your `.tsx` will import (`runtime/jsx-runtime`, `runtime/signals`,
-`runtime/flow`) to the preloaded, ROM-resident runtime modules. You don't
-edit this by hand for a simple app; `build.mjs` reads it.
+Skip this step. The build reads the PACKAGE's
+`src/embeddedjs/manifest.base.json`, which maps every `runtime/*` device
+specifier — the core three (`runtime/jsx-runtime`, `runtime/signals`,
+`runtime/flow`) and the whole opt-in catalog — to its preloaded, ROM-resident
+module, then tree-shakes the map down to what your app actually imports.
+
+Only add a project-local `src/embeddedjs/manifest.base.json` when you need to
+change something (an extra resource, a hand-mapped `app/*` lazy id). It
+REPLACES the package default rather than extending it, so a partial copy is a
+footgun: the treeshake pass only prunes keys that are already there and never
+adds missing ones, so importing a catalog module the copy forgot fails the
+build's unmapped-import tripwire. Start from the package file, not a subset.
 
 ### 4. Add the two tsconfigs
 
