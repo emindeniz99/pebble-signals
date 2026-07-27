@@ -7,6 +7,14 @@
 // (extra sources: lazy `importNow("app/*")` modules — their runtime imports
 // must survive the prune even though the entry never imports them statically)
 import { readFileSync, writeFileSync } from "node:fs";
+// SHARED string-aware comment stripper. The naive regex pair this file used to
+// inline treated the `//` inside a URL string as a line comment and deleted the
+// rest of the line: `const api = "https://host"; import { signal } from
+// "runtime/signals";` lost its import, neededModules() pruned the mapping, and
+// the unmapped-import tripwire rejected a valid app; the same truncation in
+// relativeClosure() dropped helper files, so THEIR runtime imports and
+// Texture/.pdc literals never joined shakeSources (codex P2, three sites).
+import { stripComments } from "./gen-manifest.mts";
 
 interface Manifest {
 	modules?: Record<string, string>;
@@ -42,7 +50,7 @@ export function deriveDeps(
 	for (const mod of mods) {
 		const raw = read(mod);
 		if (raw === null) continue;
-		const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+		const code = stripComments(raw);
 		const edges: string[] = [];
 		for (const m of code.matchAll(
 			/\b(?:import|export)\s+([^;]*?)from\s+["'](runtime\/[a-zA-Z0-9_-]+)["']/g,
@@ -85,7 +93,7 @@ export function neededModules(
 	// whole flow/jsx/signals stack). An inline mix (`{ type X, y }`) still
 	// seeds — `y` is a value import. A form this scan misses fails LOUD at
 	// build time via the unmapped-import tripwire, not on device.
-	const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+	const code = stripComments(src);
 	const seed: string[] = [];
 	for (const m of code.matchAll(
 		/\b(?:import|export)\s+([^;]*?)from\s+["'](runtime\/[a-zA-Z0-9_-]+)["']/g,
@@ -134,7 +142,7 @@ export function relativeClosure(entry: string, read: (p: string) => string | nul
 		const raw = read(norm);
 		if (raw === null) return;
 		out.push(norm);
-		const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+		const src = stripComments(raw);
 		const dir = norm.slice(0, norm.lastIndexOf("/") + 1);
 		const follow = (rel: string): void => {
 			const spec = clean(dir + rel);

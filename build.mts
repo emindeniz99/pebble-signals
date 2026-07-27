@@ -49,7 +49,7 @@ import { classify } from "./tools/classify-module.mts";
 import { relativeClosure } from "./tools/treeshake.mts";
 import { packageRoot } from "./tools/pkg-root.mts";
 import { renameRuntimeExports } from "./tools/symbol-rename.mts";
-import { stripComments } from "./tools/gen-manifest.mts";
+import { maskStrings, stripComments } from "./tools/gen-manifest.mts";
 
 // PACKAGE root (where signal-piu lives — the repo itself, or
 // node_modules/signal-piu inside a consumer project) vs PROJECT root (the app
@@ -197,7 +197,16 @@ for (const closureFile of appClosure.filter(existsSync)) {
 	// closure is scanned: a helper's importNow()/import() was invisible
 	// before (P1b) — its lazy target went unshipped with the guard silent.
 	const src = stripComments(readFileSync(closureFile, "utf8"));
-	for (const m of src.matchAll(/import(?:Now)?\s*\(\s*([^)]*)\)/g)) {
+	// …then find the CALLS in a string-MASKED copy, so import-like text inside a
+	// literal (`const hint = 'call importNow("app/demo")'`) is not read as an
+	// executable dynamic import — that text used to exit through the
+	// unresolved-target error or needlessly disable tree-shaking (codex P2).
+	// The mask preserves offsets and length, so each hit is re-sliced from the
+	// ORIGINAL to recover the real specifier.
+	const CALL = /import(?:Now)?\s*\(\s*([^)]*)\)/;
+	for (const hit of maskStrings(src).matchAll(new RegExp(CALL, "g"))) {
+		const m = CALL.exec(src.slice(hit.index, hit.index + hit[0].length));
+		if (!m) continue;
 		// any string form — 'x', "x", or a no-substitution `x` template — is a
 		// valid, statically resolvable specifier and must join the manifest,
 		// else the lazy module dies on first navigation (build passes, device
@@ -322,6 +331,45 @@ const rootShim = (() => {
 	if (!existsSync(appSrc)) return false;
 	const strip = stripComments;
 	const bare = strip(readFileSync(appSrc, "utf8"));
+	// Module-INITIALIZATION view of a source: every function body blanked, so a
+	// call that only runs when someone invokes the function is invisible. A
+	// whole-file `render(` test marked `export function mount() { render(App) }`
+	// as self-rendering and suppressed the shim, booting the documented
+	// default-component entry blank (codex P2). Offsets/newlines are preserved
+	// so the line-anchored `export default` scans below are unaffected.
+	const topLevel = (t: string): string => {
+		const masked = maskStrings(t);
+		const out = t.split("");
+		const idc = (c: string | undefined): boolean => c !== undefined && /[\w$]/.test(c);
+		for (let i = 0; i < masked.length; i++) {
+			let open = -1; // index of the body's `{`
+			if (masked.startsWith("=>", i)) {
+				let j = i + 2;
+				while (j < masked.length && /\s/.test(masked[j])) j++;
+				if (masked[j] === "{") open = j;
+			} else if (masked.startsWith("function", i) && !idc(masked[i - 1]) && !idc(masked[i + 8])) {
+				let j = masked.indexOf("(", i);
+				if (j >= 0) {
+					for (let d = 0; j < masked.length; j++) {
+						if (masked[j] === "(") d++;
+						else if (masked[j] === ")" && --d === 0) break;
+					}
+					for (j++; j < masked.length && /\s/.test(masked[j]); j++);
+					if (masked[j] === "{") open = j;
+				}
+			}
+			if (open < 0) continue;
+			let close = open;
+			for (let d = 0; close < masked.length; close++) {
+				if (masked[close] === "{") d++;
+				else if (masked[close] === "}" && --d === 0) break;
+			}
+			for (let p = open + 1; p < close; p++) if (out[p] !== "\n") out[p] = " ";
+			i = close;
+		}
+		return out.join("");
+	};
+	const init = topLevel(bare);
 	// self-rendering = the RUNTIME render is IMPORTED and CALLED — named
 	// (`render(`), aliased (`import { render as mount }` + `mount(`), or
 	// namespaced (`R.render(`). Resolving the import matters in BOTH
@@ -341,8 +389,9 @@ const rootShim = (() => {
 			if (new RegExp(`\\b${im[1]}\\s*\\.\\s*render\\s*\\(`).test(t)) return true;
 		return false;
 	};
-	// (1) the entry mounts itself directly.
-	let selfRenders = renderScan(bare);
+	// (1) the entry mounts itself directly — at module INIT, not merely
+	// somewhere in the file (see topLevel above).
+	let selfRenders = renderScan(init);
 	// (2) the entry DELEGATES the mount to a relative helper it actually
 	// INVOKES: `import { boot } from "./boot"; boot(App)` where `./boot`
 	// imports+calls render. Then the helper's render runs when the shim
@@ -366,8 +415,9 @@ const rootShim = (() => {
 					const m = /(?:[A-Za-z_$][\w$]*\s+as\s+)?([A-Za-z_$][\w$]*)\s*$/.exec(part.trim());
 					if (m) names.push(m[1]);
 				}
-			// the entry must actually CALL one of these bindings
-			if (!names.some((n) => new RegExp(`\\b${n}\\s*\\(`).test(bare))) continue;
+			// the entry must actually CALL one of these bindings AT INIT — a call
+			// parked inside an uninvoked function mounts nothing (same rule as (1))
+			if (!names.some((n) => new RegExp(`\\b${n}\\s*\\(`).test(init))) continue;
 			// TS/relativeClosure resolve an ESM-style `./boot.js` specifier to the
 			// `boot.ts(x)` SOURCE — strip the runtime extension before appending
 			// .tsx/.ts, else `./boot.js` never resolves and the shim double-mounts
@@ -414,7 +464,22 @@ const rootShim = (() => {
 	// component from a relative module — resolve one level and shim if THAT
 	// module's default export is component-shaped, else the app boots blank
 	// (main.js exports the component but never calls render(); codex P2).
-	const impSpec = new RegExp(`\\bimport\\s+${id}\\s+from\\s*["'](\\.\\.?[^"']*)["']`).exec(bare)?.[1];
+	// A NAMED re-export barrel (`import { App } from "./App"; export default App`,
+	// alias included) is the same shape and was missed by the default-only scan:
+	// rootShim stayed false, main.js exported the component without ever calling
+	// render(), and the app booted blank (codex P2). `impName` = the name the
+	// component carries in the HELPER (null = its default export).
+	let impSpec = new RegExp(`\\bimport\\s+${id}\\s+from\\s*["'](\\.\\.?[^"']*)["']`).exec(bare)?.[1];
+	let impName: string | null = null;
+	if (!impSpec)
+		for (const im of bare.matchAll(/\bimport\s*\{([^}]*)\}\s*from\s*["'](\.\.?[^"']*)["']/g))
+			for (const part of im[1].split(",")) {
+				const mm = /^\s*([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?\s*$/.exec(part);
+				if (mm && (mm[2] ?? mm[1]) === id) {
+					impSpec = im[2];
+					impName = mm[1];
+				}
+			}
 	if (impSpec) {
 		const b = join(dirname(appSrc), impSpec.replace(/\.(?:m?jsx?|cjs)$/, ""));
 		const hsrc = [`${b}.tsx`, `${b}.ts`, join(b, "index.tsx"), join(b, "index.ts")]
@@ -422,6 +487,18 @@ const rootShim = (() => {
 			.find((s) => s != null);
 		if (hsrc) {
 			const h = strip(hsrc);
+			if (impName !== null)
+				// component-shaped NAMED export: `export function App(`,
+				// `export const App = (…) =>`, or `export { App }` over a local
+				// declaration. `async` is excluded for the same reason as the
+				// default path — render() cannot mount a Promise.
+				return (
+					new RegExp(
+						`\\bexport\\s+function\\s+${impName}\\s*\\(|\\bexport\\s+(?:const|let|var)\\s+${impName}\\b[^=\\n]*=\\s*(?:\\([^)]*\\)[^=\\n]*=>|[A-Za-z_$][\\w$]*\\s*=>|function\\b)`,
+					).test(h) ||
+					(new RegExp(`\\bexport\\s*\\{[^}]*\\b${impName}\\b[^}]*\\}`).test(h) &&
+						declRe(impName).test(h))
+				);
 			const hrhs = /^export default\s+(.+)$/m.exec(h)?.[1].trim();
 			if (hrhs) {
 				if (/^(?:async\s+)?function\b/.test(hrhs) && !/^async\b/.test(hrhs)) return true;
@@ -566,8 +643,14 @@ if (preloadPure && existsSync(entryJs)) {
 		modules: Record<string, string>;
 		preload: string[];
 	};
-	for (const m of [...entrySrc.matchAll(/from\s*"(\.\/[^"]+)"/g)]) {
-		const spec = m[1];
+	// BOTH quote styles: tsc preserves the source quote, so `import { data } from
+	// './data'` never matched a double-quote-only scan — the module silently
+	// stayed in main.js instead of going to ROM, defeating the requested split
+	// (codex P2). The matched quote is carried through to the retarget below so
+	// the rewrite lands on the same literal.
+	for (const m of [...entrySrc.matchAll(/from\s*(["'])(\.\/[^"']+)\1/g)]) {
+		const q = m[1];
+		const spec = m[2];
 		const rel = `examples/${spec.slice(2)}`; // entry lives in app/examples/
 		const file = `src/embeddedjs/app/${rel}.js`;
 		if (!existsSync(file)) continue;
@@ -597,7 +680,7 @@ if (preloadPure && existsSync(entryJs)) {
 		// export-from in tsc's emit) — a bare replaceAll of the quoted literal
 		// also rewrote same-text DATA strings in the entry (a "./data" label or
 		// path became "app/data"; codex P2)
-		entrySrc = entrySrc.replaceAll(`from "${spec}"`, `from "${id}"`);
+		entrySrc = entrySrc.replaceAll(`from ${q}${spec}${q}`, `from ${q}${id}${q}`);
 		pureIds.push(id);
 		pureFiles.push(file);
 		// ALWAYS bundle (like the main and lazy paths — only the mangling
@@ -953,7 +1036,12 @@ const importScan = (file: string, keeps: Map<string, Set<string> | "all">) => {
 		// link-time demand on that export exactly like an import — missing it
 		// let prune-exports demote a re-exported name out from under the
 		// module (codex P2). `export * from` (like `import * as`) keeps all.
-		/(?:import|export)\s*(\*\s*as\s+\w+|\*|{[^}]*})\s*from\s*['"]runtime\/([\w-]+)['"]/g,
+		// the namespace ALIAS uses the full JS identifier grammar — `\w+` misses
+		// `import * as $ from "runtime/signals"`, so the whole statement failed
+		// to match, the module was never marked "all", and prune-exports demoted
+		// exports the shipped app still reads through `$.signal` (codex P2;
+		// symbol-rename.mts carried the same restricted grammar).
+		/(?:import|export)\s*(\*\s*as\s+[A-Za-z_$][\w$]*|\*|{[^}]*})\s*from\s*['"]runtime\/([\w-]+)['"]/g,
 	)) {
 		const mod = m[2];
 		if (m[1].startsWith("*")) {

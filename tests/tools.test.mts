@@ -3,7 +3,7 @@
 // natively (Node >=22.18 type-stripping). Run: node --test tests/tools.test.mts
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { deriveFonts, deriveResources, badTextures } from "../tools/gen-manifest.mts";
+import { deriveFonts, deriveResources, badTextures, maskStrings } from "../tools/gen-manifest.mts";
 import { badFonts } from "../tools/fontcheck.mts";
 import { deriveDeps, neededModules, pruneManifest } from "../tools/treeshake.mts";
 import { classify } from "../tools/classify-module.mts";
@@ -1106,4 +1106,77 @@ test("lint-reads: getter-on-static-prop also catches read-only destructure + hos
 		"const [count, setCount] = useState(0);\nconst L = Label;\nexport const d = render(() => <L string={count} />, {});\n",
 	);
 	assert.deepEqual(okAlias, []);
+});
+
+// --- round thirteen: scanner-grammar findings -------------------------------
+
+test("maskStrings blanks literal interiors and preserves offsets", () => {
+	const src = 'const hint = \'call importNow("app/demo")\'; importNow("app/real");';
+	const masked = maskStrings(src);
+	// length/offsets must survive so callers can re-slice the ORIGINAL
+	assert.equal(masked.length, src.length);
+	// the call INSIDE the string is gone; the real one still parses
+	assert.equal(/importNow\s*\(/.test(masked.slice(0, 42)), false);
+	const hit = [...masked.matchAll(/importNow\s*\(\s*([^)]*)\)/g)];
+	assert.equal(hit.length, 1);
+	assert.equal(src.slice(hit[0].index, hit[0].index + hit[0][0].length), 'importNow("app/real")');
+});
+
+test("maskStrings keeps newlines so line-anchored scans stay aligned", () => {
+	const src = "const a = `x\ny`;\nexport default App;";
+	const masked = maskStrings(src);
+	assert.equal(masked.length, src.length);
+	assert.equal(masked.split("\n").length, src.split("\n").length);
+	assert.equal(/^export default App;$/m.test(masked), true);
+});
+
+test("badFonts survives a URL on the same line (string-aware strip)", () => {
+	// the naive `//` regex truncated the line at https:// and the invalid font
+	// escaped the build gate entirely
+	assert.deepEqual(badFonts('{ endpoint: "https://host", font: "99px Fake" }'), [
+		'font: "99px Fake"',
+	]);
+	// a genuinely commented-out literal must still be ignored
+	assert.deepEqual(badFonts('// font: "99px Fake"'), []);
+});
+
+test("hyphenated custom families are seen by both the manifest and the gate", () => {
+	const ttfs = ["../tsx/examples/x/fonts/Source-Sans-Regular.ttf"];
+	assert.deepEqual(deriveFonts('font: "20px Source-Sans"', ttfs), [
+		{
+			source: "../tsx/examples/x/fonts/Source-Sans-Regular",
+			size: 20,
+			characters: deriveFonts('font: "20px Source-Sans"', ttfs)[0].characters,
+		},
+	]);
+	// and fontcheck accepts it once the face ships — it used to skip the literal
+	assert.deepEqual(badFonts('font: "20px Source-Sans"', new Set(["Source-Sans|Regular"])), []);
+	// …while still flagging the missing-face case
+	assert.deepEqual(badFonts('font: "bold 20px Source-Sans"', new Set(["Source-Sans|Regular"])), [
+		'font: "bold 20px Source-Sans"',
+	]);
+});
+
+test("a remote .pdc URL is not shipped as a local asset", () => {
+	const m = deriveResources('useFetch("https://host/art.pdc");', { ...BASE });
+	assert.equal(m.data, undefined);
+	// a genuine local reference (including a subdirectory) still ships
+	const l = deriveResources('new SVGImage(null, { path: "sub/art.pdc" });', { ...BASE });
+	assert.deepEqual(l.data?.["*"], ["../../assets/sub/art.pdc"]);
+});
+
+test("a URL before a runtime import no longer prunes that import", () => {
+	const src = 'const api = "https://host"; import { signal } from "runtime/signals";';
+	assert.equal(neededModules(src).has("runtime/signals"), true);
+});
+
+test("symbol-rename: a $-aliased namespace import protects the module", () => {
+	// `\w+` did not match `$`, so the statement missed the namespace guard
+	// entirely and the wire was renamed out from under `$.sig` on device.
+	const files = {
+		"sig.js": "var a=1;export{a as sig}",
+		"main.js": 'import * as $ from"runtime/sig";$.sig(1)',
+	};
+	const { map } = renameRuntimeExports(files, new Set(["sig.js"]), TARGETS);
+	assert.equal(map.sig, undefined);
 });

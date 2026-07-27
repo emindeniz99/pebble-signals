@@ -9,6 +9,7 @@
 // in a bundled helper or lazy screen ships to the device and renders blank the
 // same way (build.mts passes the full closure, matching gen-manifest/lint-reads).
 import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { stripComments } from "./gen-manifest.mts";
 
 // Pebble system fonts reachable via piu "['bold '][N]px Family" strings, keyed
 // "family|size|bold" — the full firmware table README §"gotchas" item 7
@@ -58,8 +59,12 @@ for (const k of [
  */
 export function badFonts(src: string, customFaces?: Set<string>): string[] {
 	// comments off first — a commented-out example (`// font: "99px Fake"`)
-	// must not fail the build (deriveFonts strips the same way; codex P2)
-	src = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+	// must not fail the build (deriveFonts strips the same way; codex P2).
+	// SHARED string-aware stripper: the old regex pair truncated a line at the
+	// `//` inside a URL, so `{ endpoint: "https://host", font: "99px Fake" }`
+	// lost its font literal and the invalid face escaped the gate entirely
+	// (codex P2 — same defect class the manifest scan already fixed).
+	src = stripComments(src);
 	const bad: string[] = [];
 	// style tokens in ANY order — "bold italic 42px X" and "italic bold 42px X"
 	// are the same face request; a fixed italic-then-bold pattern let the
@@ -67,14 +72,17 @@ export function badFonts(src: string, customFaces?: Set<string>): string[] {
 	// letter-first word chars, so a digit-bearing custom family ("20px B612")
 	// is SEEN and rejected when no TTF backs it — the old [A-Za-z]+ grammar
 	// skipped the literal entirely and shipped a blank render (codex P2;
-	// matches deriveFonts' \w+ family grammar).
+	// matches deriveFonts' family grammar). HYPHENS count: a face shipped as
+	// `fonts/Source-Sans-Regular.ttf` is requested as `font: "20px Source-Sans"`,
+	// and a `\w`-only capture matched neither here nor in deriveFonts — the TTF
+	// was omitted AND the literal escaped validation (codex P2).
 	// all three quote styles — a backtick literal reaches the runtime as the
 	// same plain string (deriveFonts scans the same grammar). Key grammar
 	// matches deriveFonts too: `"font":` / `font :` are the same dictionary
 	// key at runtime, and a scan keyed to the exact `font:` text let those
 	// spellings ship unvalidated (codex P2); lookbehind excludes `myfont:`.
 	for (const m of src.matchAll(
-		/(?<![\w$])["']?font["']?\s*:\s*["'`]((?:(?:italic|bold)\s+)*)(\d+)px\s+([A-Za-z]\w*)["'`]/g,
+		/(?<![\w$])["']?font["']?\s*:\s*["'`]((?:(?:italic|bold)\s+)*)(\d+)px\s+([A-Za-z][\w-]*)["'`]/g,
 	)) {
 		const italic = /\bitalic\b/.test(m[1]);
 		const bold = /\bbold\b/.test(m[1]);

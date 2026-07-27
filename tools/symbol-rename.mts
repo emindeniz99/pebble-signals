@@ -104,7 +104,11 @@ export function renameRuntimeExports(
 			// `export * as ns from` reads by property name at runtime exactly
 			// like `import * as` — renaming its module's wires broke
 			// `ns.effect` silently under default SYMDIET=1 (codex P2)
-			/(?:import\s*\*\s*as\s+\w+\s*from|export\s*\*\s*(?:as\s+\w+\s+)?from)\s*["']runtime\/([\w-]+)["']/g,
+			// the alias is a full JS identifier: `\w+` missed `import * as $ from
+			// …`, so the module escaped the namespace guard and its wires were
+			// renamed out from under `$.signal` (codex P2, same grammar gap the
+			// prune scan carried).
+			/(?:import\s*\*\s*as\s+[A-Za-z_$][\w$]*\s*from|export\s*\*\s*(?:as\s+[A-Za-z_$][\w$]*\s+)?from)\s*["']runtime\/([\w-]+)["']/g,
 		))
 			nsModules.add(m[1]);
 	if (nsModules.size)
