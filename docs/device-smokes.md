@@ -49,6 +49,15 @@ unchanged.
 > assertions in the table below were NOT re-driven, because the `pebble logs`
 > heartbeat channel was dead in this session and the screendump path replaced
 > the runner's log-based one.
+>
+> **emery (rect) canaries also green** — the two Navigator canaries plus a
+> control were re-run on the 200×228 panel to prove D1's deferred swap and S9's
+> `S.get` change are not gabbro-specific: `navmany` "Screen #1 + tick 37" and
+> `navreactive` "depth 1 + ping 37" (3/3 distinct frames each = live),
+> `counter` "Count: 0". The remaining 11 apps were not re-run on emery — their
+> emery receipts predate these fixes and both changes are platform-independent
+> (value-stack depth + signal identity), so the canaries are the meaningful
+> guard.
 
 Requires the Pebble SDK and a bootable emulator. Each app: build → `pebble
 logs` capture attached around a foreground install (~8s of heartbeats — the

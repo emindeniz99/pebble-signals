@@ -105,23 +105,35 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > animation). LESSON: a bitmap watchface's memory cost is archive + Σ(resident
 > frame pixels), not archive alone; a frame count that builds can still OOM.
 
-> **D3 — #103 RE-MEASURED (2026-07-21, gabbro QEMU): the VirtualList "rich
-> rows>1 HANGS" finding was a MISDIAGNOSIS — it is an arena BUDGET, ~2 rich
-> rows.** Bisected with fresh probes (monitor-screendump receipts): a rich
-> `renderRow` returning ONE Label renders fine at `rows: 2` ("row 1 / row 2" on
-> screen) and dies at `rows: 3`; the heavier `richlist` row (a Row + 2 Labels)
-> renders at `rows: 1` and dies at `rows: 2`; simple `format` mode still renders
-> at `rows: 5`. So `rows>1` is NOT structurally broken — a rich row is a
-> createRoot'd subtree with its own bindings and simply costs much more of the
-> 32KB arena than simple mode's recycled Label, and two of them is about the
-> ceiling. The failure signature is an EXIT to the launcher (arena OOM, same as
-> D2), not a wedged run loop: the original "hangs" call came from the
-> screenshot/watch-info transport timing out, which we now know ALSO happens
-> when that transport rots (CLAUDE.md Rule 3) — the monitor screendump would
-> have distinguished them. CONSEQUENCE for `SectionList`: it is not blocked by a
-> firmware bug, it is over budget; the fix direction is a SLIMMER row subtree
-> (fewer nodes/bindings per header+row), not a VirtualList redesign. Docs
-> corrected in `flow.ts` (VLRich) and `components.md`.
+> **D3 — #103 RE-MEASURED TWICE (2026-07-21, gabbro QEMU). FINAL: rich rows
+> must not carry a FIXED HEIGHT — it is a layout shape, not an arena budget and
+> not rich-vs-simple.** The full A/B ladder (monitor-screendump receipts, every
+> frame READ):
+>
+> | row shape | `rows` | result |
+> |---|---|---|
+> | rich, Label **with** `height` | 2 | renders |
+> | rich, Label **with** `height` | 3 | **dies** |
+> | rich, Label **no** `height` | 3 | **renders** ("row 1/2/3") |
+> | simple `format` (height-less) | 3 | renders |
+> | simple `format` (`forbind5vl`) | 5 | renders |
+>
+> Same app, same row count, same text — only the height prop differs, so the
+> two earlier readings were BOTH wrong: not "rows>1 hangs the firmware"
+> (original), and not "~2-row arena budget" (my first re-measurement, recorded
+> here and now corrected per Rule 2). It is the port's "multi-child column with
+> no vertical box" family the Navigator host already documents: a height-LESS
+> host Column laying out FIXED-height children dies past two. Failure signature
+> is an EXIT to the launcher, not a wedged run loop — the original "hangs" call
+> came from the screenshot transport timing out, which also happens when that
+> transport rots (CLAUDE.md Rule 3).
+>
+> **`SectionList` remains device-gated — it dies EVEN with height-less rows**
+> (tested: dropping both the per-row `height` and the host `height` did not
+> save it), so it carries at least one MORE factor beyond the height shape. Its
+> rows additionally set `width` and drive `skin`/`style` reactively, and it adds
+> a keep-in-view effect; bisect those next. The speculative height-less edit was
+> REVERTED rather than shipped — it changed row geometry with no proven benefit.
 
 ## Core (signals.ts) — ALL RESOLVED (S9 fixed 2026-07-21)
 

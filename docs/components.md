@@ -775,20 +775,18 @@ import { SectionList } from "runtime/sectionlist";
 <SectionList sections={() => groups()} renderHeader={(h) => h} renderRow={(r) => r.name} selected={() => i()} />
 ```
 
-_Node-100%-covered; builds. **DEVICE-GATED — but for a BUDGET, not a hang
-(re-measured on gabbro 2026-07-21, correcting the earlier reading).** SectionList
-needs per-row styling (bold headers, highlight fill), so it uses `VirtualList`
-**rich** mode (`renderRow`), and rich rows have a small arena budget: each one is a
-createRoot'd subtree with its own bindings. Measured ceiling by row weight — rich
-→ ONE Label: `rows=2` renders, `rows=3` dies; rich → Row + 2 Labels: `rows=1`
-renders (`richlist`), `rows=2` dies; simple `format`: `rows=5` renders
-(`forbind5vl`). "Dies" is an EXIT to the launcher (the arena-OOM signature, caught
-via the qemu-monitor screendump) — NOT a wedged firmware; the old "hangs" reading
-came from the screenshot transport timing out, which also happens when that
-transport rots (CLAUDE.md Rule 3). So a rich multi-row list IS possible within the
-budget; SectionList's header+row pair is simply heavier than it. Fix direction:
-slim the SectionList row subtree (fewer nodes/bindings per row) rather than a
-VirtualList redesign._
+_Node-100%-covered; builds. **DEVICE-GATED (still) — but the VirtualList half of
+the old diagnosis was wrong twice over (re-measured on gabbro 2026-07-21; see
+review-findings D3).** Rich `renderRow` rows are NOT categorically broken at
+`rows>1`, and it is not an arena budget: a rich row with NO fixed height renders
+at `rows=3`, while the SAME row carrying `height` dies at 3 and survives at 2 —
+the port's "multi-child column with no vertical box" family. `SectionList`
+nonetheless still dies with height-less rows, so it carries at least one MORE
+factor (its rows also set `width` and drive `skin`/`style` reactively, plus a
+keep-in-view effect) — that bisect is the remaining work. "Dies" is an EXIT to the
+launcher, not a wedged firmware; the original "hangs" reading came from the
+screenshot transport timing out, which also happens when that transport rots
+(CLAUDE.md Rule 3)._
 
 ---
 
