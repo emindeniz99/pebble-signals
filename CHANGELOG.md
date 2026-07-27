@@ -150,6 +150,48 @@ No registry releases yet; entries accumulate under Unreleased until the first
   `-grown` reactive-change frames). Example: `src/tsx/examples/draw.tsx`.
 
 ### Fixed
+- **Round thirteen — 32 review findings across the runtime, the build scanners
+  and the scaffold.** Runtime: `Grid` clamps a non-positive `columns` (0 looped
+  forever, negative allocated Rows until the arena died); `useSpring` clamps a
+  non-positive or non-finite `mass`/`precision` (both left the 33 ms interval
+  running forever, and `precision: 0` armed one even at rest);
+  `useRepeatClick` no longer re-arms after a callback disposes its owner (the
+  ordinary `Navigator.push()` case left a timer firing at an unmounted screen);
+  `useSequence` honours an explicit `ms: 0` as a zero-duration keyframe instead
+  of substituting the 300 ms default; `yoyo`/`withRepeat` return to the
+  sequence's own `from` instead of a hard-coded 0; `Slider` bounds its thumb
+  radius by BOTH canvas dimensions (a narrow canvas clipped most of the thumb);
+  `useHaptics` only cancels the motor when the playing pattern is one IT
+  started (a disappearing child used to silence its parent's alert); `Dialog`
+  wraps its message by hand into one `Label` per line (a width alone does not
+  wrap a Piu Label on this port); `TextFlow` reserves a REACTIVE box's height at
+  construction instead of writing `height` after mount (the runtime rejects
+  reactive `height` everywhere else for the same reason); `Show`, `For` and
+  `Navigator` drop a subtree root their `ErrorBoundary` disposed mid-build
+  instead of adopting an orphan that keeps reacting; a `Navigator` with NO local
+  boundary reports a synchronous build throw to the crash sink (since the
+  initial swap moved to `onDisplaying`, `render()`'s try/catch has already
+  returned); and the shared tween ticker advances each tween ONCE per turn (a
+  cascading `stop()` at a lower index shifted the just-advanced record into the
+  next slot). Build scanners: the string-aware `stripComments` is now shared by
+  treeshake and fontcheck (a `//` inside a URL truncated the line, pruning a
+  needed import and hiding an invalid font); import-like text inside a string
+  literal is no longer read as a dynamic import; the root shim looks at
+  module-INITIALIZATION code only (a `render()` in an uninvoked function
+  suppressed it and booted blank) and resolves named-import barrels;
+  `import * as $` is seen by the prune and symbol-diet scans; a single-quoted
+  `from './x'` is seen by PRELOAD_PURE; hyphenated font families reach both
+  `deriveFonts` and `badFonts`; a remote `.pdc` URL is no longer shipped as a
+  local asset; and a package import keeps a candidate out of the preload.
+  Scaffold: the stale template manifest is gone (the complete package default is
+  used), the PKJS entry carries the configuration bridge, `create-app` splits
+  the npm package name from the display name and prints `npm run build`, and the
+  browser preview copies the selected app's whole runtime closure.
+  *Upgrading:* `TextFlow` with a `text` THUNK now occupies `maxLines *
+  lineHeight` unless you pass the new `height` — pass one to reserve less. A
+  project that copied `templates/app/src/embeddedjs/manifest.base.json` should
+  DELETE its copy unless it customized it (a partial copy shadows the complete
+  package default and fails the unmapped-import tripwire).
 - **`Navigator` boots deep-nav apps again — the initial screen build is
   DEFERRED to `onDisplaying` (review-findings D1).** The initial `swap()` used
   to run during construction, inside `render()`'s build, stacking the whole

@@ -8,7 +8,7 @@
 
 > **SpringOptions** = `object`
 
-Defined in: anim.ts:230
+Defined in: anim.ts:249
 
 Options for [useSpring](../functions/useSpring.md).
 
@@ -18,7 +18,7 @@ Options for [useSpring](../functions/useSpring.md).
 
 > `optional` **damping?**: `number`
 
-Defined in: anim.ts:234
+Defined in: anim.ts:253
 
 Velocity damping. Higher = less overshoot/bounce. Default 26 (RN default).
 
@@ -28,7 +28,7 @@ Velocity damping. Higher = less overshoot/bounce. Default 26 (RN default).
 
 > `optional` **from?**: `number`
 
-Defined in: anim.ts:240
+Defined in: anim.ts:259
 
 Value to spring FROM. Default: the target (a bare-number target then rests, no motion).
 
@@ -38,7 +38,7 @@ Value to spring FROM. Default: the target (a bare-number target then rests, no m
 
 > `optional` **mass?**: `number`
 
-Defined in: anim.ts:236
+Defined in: anim.ts:255
 
 Inertial mass. Higher = slower, heavier motion. Default 1.
 
@@ -48,7 +48,7 @@ Inertial mass. Higher = slower, heavier motion. Default 1.
 
 > `optional` **precision?**: `number`
 
-Defined in: anim.ts:238
+Defined in: anim.ts:257
 
 Settle threshold: stop when |x-target| and |velocity| both fall below this. Default 0.05.
 
@@ -58,6 +58,6 @@ Settle threshold: stop when |x-target| and |velocity| both fall below this. Defa
 
 > `optional` **stiffness?**: `number`
 
-Defined in: anim.ts:232
+Defined in: anim.ts:251
 
 Restoring force toward the target. Higher = snappier. Default 170 (RN default).

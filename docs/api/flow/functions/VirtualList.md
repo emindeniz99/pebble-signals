@@ -8,7 +8,7 @@
 
 > **VirtualList**\<`T`\>(`props`): `Container`
 
-Defined in: flow.ts:446
+Defined in: flow.ts:485
 
 VirtualList({ data, rows, at, format, ... }) — a virtualized ("windowed")
 list; our FlatList. Creates a FIXED set of `rows` Labels ONCE and rewrites

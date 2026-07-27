@@ -8,7 +8,7 @@
 
 > **SequenceOptions** = `object`
 
-Defined in: anim.ts:133
+Defined in: anim.ts:147
 
 Options for [useSequence](../functions/useSequence.md).
 
@@ -18,7 +18,7 @@ Options for [useSequence](../functions/useSequence.md).
 
 > `optional` **from?**: `number`
 
-Defined in: anim.ts:135
+Defined in: anim.ts:149
 
 Value the first move eases FROM (and the resting value before it). Default 0.
 
@@ -28,6 +28,6 @@ Value the first move eases FROM (and the resting value before it). Default 0.
 
 > `optional` **loop?**: `boolean`
 
-Defined in: anim.ts:137
+Defined in: anim.ts:151
 
 Restart from the top when the last step finishes (looped motion). Default false.

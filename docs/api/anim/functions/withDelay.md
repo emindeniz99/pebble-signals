@@ -8,7 +8,7 @@
 
 > **withDelay**(`ms`, `steps`): [`SeqStep`](../type-aliases/SeqStep.md)[]
 
-Defined in: anim.ts:326
+Defined in: anim.ts:354
 
 withDelay(ms, steps) — prepend a `{ hold: ms }` pause before a step list, so a
 [useSequence](useSequence.md) starts after a delay (RN Reanimated `withDelay`). Pure — no

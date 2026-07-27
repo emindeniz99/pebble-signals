@@ -8,7 +8,7 @@
 
 > **Dialog**(`props`): `Content`
 
-Defined in: dialog.ts:129
+Defined in: dialog.ts:183
 
 Dialog — a centered modal card: a bold title over a wrapping message and an
 optional dismiss hint, on ONE fill-skinned Container.

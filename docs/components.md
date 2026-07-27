@@ -80,6 +80,10 @@ import { Slider } from "runtime/slider";
 <Slider value={() => v()} min={0} max={1} width={180} />
 ```
 
+The thumb is a disc half the SMALLER of `width`/`height`, so on a canvas
+narrower than it is tall it fills the width and stops travelling rather than
+painting past the track ends.
+
 | round | rect |
 |---|---|
 | ![slider round](../screenshots/slider-gabbro.png) | ![slider rect](../screenshots/slider-emery.png) |
@@ -209,7 +213,10 @@ import { Card } from "runtime/card";
 
 ### Dialog — `runtime/dialog`
 
-A centered title/message/hint modal card.
+A centered title/message/hint modal card. The **message wraps** — it is split
+into one `Label` per line by hand, because a width alone does not make a Piu
+Label multiline on this port (the same reason `TextFlow` exists). Six lines max;
+a reactive `message` thunk re-wraps in place.
 
 ```tsx
 import { Dialog } from "runtime/dialog";
@@ -363,7 +370,14 @@ lines, long middle) instead of a centered square that wastes the corners.
 import { TextFlow } from "runtime/textflow";
 <TextFlow text="Signal Piu wraps this text into a column of label lines." />
 <TextFlow text={() => body()} shape="circle" />   // fill the round screen
+<TextFlow text={() => body()} height={60} />      // reserve less than maxLines
 ```
+
+⚠️ A **reactive** `text` box takes a FIXED height at construction — `height` if
+you pass one, else `maxLines * lineHeight`. Piu position and size are
+construction-time state (the runtime rejects reactive `height` on every other
+component for that reason), so the re-wrap cannot resize a mounted box. A bare
+string still shrinks to its own wrap.
 
 | round | rect |
 |---|---|
@@ -452,6 +466,13 @@ import { useSequence, useSpring, yoyo } from "runtime/anim";
 const x = useSequence(yoyo([{ to: 110, ms: 700 }]), { loop: true }); // bounce
 const y = useSpring(() => open() ? 100 : 0, { stiffness: 180 });     // springy
 ```
+
+Edges worth knowing: an explicit `ms: 0` (or negative) is a ZERO-duration
+keyframe — an instant jump, not the 300 ms default, which only applies when `ms`
+is omitted. A `yoyo` returns to the sequence's own `from`, so
+`useSequence(yoyo([{ to: 100 }]), { from: 50 })` ends back at 50. `useSpring`
+clamps a non-positive or non-finite `mass`/`precision` to its default — either
+would leave the integrator unable to settle and its interval running forever.
 
 | round | rect |
 |---|---|
@@ -761,6 +782,9 @@ import { Grid } from "runtime/grid";
 <Grid columns={3} items={icons} cell={(it, i) => <Image src={it.png} width={40} height={40} />} />
 ```
 
+`columns` is clamped to at least 1 — a `0` from config would otherwise loop
+forever and a negative would allocate Rows until the arena died.
+
 ![Grid on gabbro](../screenshots/grid-gabbro.png)
 
 ### SectionList — `runtime/sectionlist`
@@ -797,7 +821,10 @@ screenshot transport timing out, which also happens when that transport rots
 The vibration motor (RN `Vibration` + react-pebble `useVibration`) — the biggest
 missing OUTPUT channel: `useHaptics()` → `{ short, long, double, pattern, cancel }`
 over the static `pebble/vibes` class. `pattern([on, off, …])` takes alternating ms
-segments; the motor is cancelled on owner dispose.
+segments; the motor is cancelled on owner dispose — but only when the pattern
+still playing is one THIS hook started, so a disappearing child never silences a
+long alert its still-mounted parent fired. An explicit `cancel()` is
+unconditional.
 
 ```tsx
 import { useHaptics } from "runtime/vibration";

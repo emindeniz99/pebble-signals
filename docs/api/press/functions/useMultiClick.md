@@ -8,7 +8,7 @@
 
 > **useMultiClick**(`button`, `handlers`, `opts?`): [`PressHandlers`](../type-aliases/PressHandlers.md)
 
-Defined in: press.ts:228
+Defined in: press.ts:242
 
 useMultiClick(button, handlers, opts?) — DOUBLE / TRIPLE CLICK. Counts how many
 times `button` is clicked within a rolling `window` ms of quiet, then dispatches

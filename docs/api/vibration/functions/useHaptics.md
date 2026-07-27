@@ -8,7 +8,7 @@
 
 > **useHaptics**(): [`Haptics`](../interfaces/Haptics.md)
 
-Defined in: vibration.ts:84
+Defined in: vibration.ts:93
 
 useHaptics() — fire the vibration motor: the RN `Vibration` / react-pebble
 `useVibration` analog. Returns a small command object; call its methods from an

@@ -8,7 +8,7 @@
 
 > **useSequence**(`steps`, `opts?`): () => `number` & `object`
 
-Defined in: anim.ts:181
+Defined in: anim.ts:200
 
 useSequence(steps, opts?) — chain keyframes into one motion on the device's
 single interval timer: the RN Reanimated `withSequence` analog with Solid

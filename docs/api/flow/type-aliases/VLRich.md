@@ -8,20 +8,33 @@
 
 > **VLRich**\<`T`\> = `VLBase`\<`T`\> & `object`
 
-Defined in: flow.ts:138
+Defined in: flow.ts:151
 
 [VirtualList](../functions/VirtualList.md) rich mode: a recycled SUBTREE per slot via `renderRow`
 (built once, never destroyed). Mutually exclusive with `format`. Each
 extra node per row costs arena — the measured ceiling is brutal (see the
 `richlist` example).
 
-⚠️ rich mode is only device-proven at `rows: 1` (the `richlist` example).
-`renderRow` with `rows>1` HANGS the gabbro firmware (MEASURED 2026-07 —
-the screenshot/watch-info transport times out; reproduced non-scrolling and
-string-only, so it is the rich multi-row layout itself, not the content or
-the scroll). For a scrollable MULTI-row list use simple mode (`format`),
-which is device-proven at `rows: 5` (`forbind5vl`). `SectionList` is
-device-gated for exactly this reason.
+⚠️ rich rows must not carry a FIXED HEIGHT (MEASURED on gabbro 2026-07-21;
+this supersedes BOTH the original "rows>1 hangs the firmware" note and the
+first re-measurement's "~2-row arena budget" reading). The A/B ladder:
+  - `renderRow` -> Label with `height`, `rows: 2`  -> renders
+  - `renderRow` -> Label with `height`, `rows: 3`  -> DIES
+  - `renderRow` -> Label with NO height, `rows: 3` -> RENDERS  <- the tell
+  - simple `format` (height-less Label),  `rows: 3`/`5` -> renders
+Same app shape, same row count, same text in every cell — only the row's
+height prop differs, so this is NOT an arena budget and NOT rich-vs-simple:
+it is the port's "multi-child column with no vertical box" family the
+Navigator host documents (a height-LESS host Column laying out FIXED-height
+children dies past two). Let rich rows measure from their font, or give the
+whole list a box. "Dies" = the app EXITS to the launcher, not a wedged run
+loop (the original "hangs" came from the screenshot transport timing out,
+which also happens when that transport rots — CLAUDE.md Rule 3).
+
+NOTE `SectionList` still dies even with height-less rows, so it carries at
+least one MORE factor (its rows also set `width` and drive `skin`/`style`
+reactively, and it adds a keep-in-view effect) — bisect those next; it stays
+device-gated until then.
 
 ## Type Declaration
 

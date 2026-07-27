@@ -8,7 +8,7 @@
 
 > **TextFlow**(`props`): `Content`
 
-Defined in: textflow.ts:252
+Defined in: textflow.ts:259
 
 TextFlow — a wrapped multi-line paragraph: a Column of Label lines.
 

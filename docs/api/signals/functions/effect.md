@@ -8,7 +8,7 @@
 
 > **effect**(`fn`): `number`
 
-Defined in: signals.ts:609
+Defined in: signals.ts:620
 
 Run `fn` now and re-run it whenever a signal it READ changes. Dependencies
 are re-tracked every run (conditional deps work). Returns an integer effect

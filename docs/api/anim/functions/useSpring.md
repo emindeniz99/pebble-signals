@@ -8,7 +8,7 @@
 
 > **useSpring**(`target`, `opts?`): () => `number` & `object`
 
-Defined in: anim.ts:265
+Defined in: anim.ts:284
 
 useSpring(target, opts?) — physics-based motion toward `target`: the RN
 Reanimated `withSpring` analog and the one motion model [useTween](useTween.md) (fixed

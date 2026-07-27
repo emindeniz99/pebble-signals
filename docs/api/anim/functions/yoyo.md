@@ -8,7 +8,7 @@
 
 > **yoyo**(`steps`): [`SeqStep`](../type-aliases/SeqStep.md)[]
 
-Defined in: anim.ts:373
+Defined in: anim.ts:404
 
 yoyo(steps) — play a step list forward then reversed, so the motion returns to
 where it began (a single out-and-back). Sugar for `withRepeat(steps, 2, true)`.

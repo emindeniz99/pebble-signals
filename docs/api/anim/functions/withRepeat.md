@@ -8,7 +8,7 @@
 
 > **withRepeat**(`steps`, `count`, `yoyo?`): [`SeqStep`](../type-aliases/SeqStep.md)[]
 
-Defined in: anim.ts:336
+Defined in: anim.ts:364
 
 withRepeat(steps, count, yoyo?) — repeat a step list `count` times (RN Reanimated
 `withRepeat`). With `yoyo`, every other pass plays REVERSED so the motion bounces
