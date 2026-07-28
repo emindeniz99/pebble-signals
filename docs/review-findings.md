@@ -135,6 +135,51 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > a keep-in-view effect; bisect those next. The speculative height-less edit was
 > REVERTED rather than shipped — it changed row geometry with no proven benefit.
 
+> **D4 — 🔬 OPEN (found 2026-07-28, gabbro QEMU) — `navmany`'s SECOND Navigator
+> push dies with `fxAbort memory full`; root cause is FOOTPRINT GROWTH, not a
+> leak.** Deterministic across 5 clean trials: boot ✓, ticks indefinitely ✓,
+> push #1 ✓ ("Screen #2" painted, keeps ticking), push #2 → EXIT to launcher;
+> `pebble logs` catches `xsPlatform.c:125> fxAbort memory full`. A pop is FREE:
+> push → pop → push still dies on the SECOND PUSH, so it keys on pushes, not
+> swap count or depth. Node is exonerated — an async-corrected WeakRef probe
+> (a WeakRef target cannot be collected in the job that created it, which had
+> produced false "leaks" first) shows 0/4 disposed screens retained, and a V8
+> heap-snapshot marker walk agrees.
+>
+> **Bisect map (device, one variable per run):** `b841ba7` (navmany's birth,
+> Jul 4) pushes fine to Screen #4; commit 37/74 (`b9dd5f1`) still GOOD; the
+> band ~48–68 is untestable (those eras don't BOOT — the pre-D1 breakage this
+> ledger already records); first bootable point after, `2e49070` (D1), is
+> already BAD. A hybrid — commit-37 runtime + ONLY D1's deferral hand-ported —
+> is GOOD, so **D1 itself is exonerated**; the growth accumulated across the
+> catalog/boundary/wrapper commits in between.
+>
+> **The measured mechanism (instruments stream via `pebble logs`, ~1 Hz):**
+> the arena's slot pool self-balances to 20464 B at HEAD and navmany's
+> steady-state slot usage saw-tooths at **18.9–20.4 K — the GC-reclaimed peak
+> RIDES THE CEILING every second**. At `b841ba7` the same app used 17.4–19.0 K
+> against a 19440 B pool. Each push permanently costs ~60–100 B (the retained
+> builder closure + stack entry), and a push's build transient needs the
+> margin the old runtime had: HEAD's margin absorbs ONE push, and the second
+> push's peak no longer fits even post-GC → `fxAbort memory full`. So the
+> defect is ~1.3–1.5 KB of accumulated permanent slot growth on this app
+> shape, spent by 74 runtime commits of features — a budget regression the
+> boot canaries cannot see (boot survives; the ceiling-riding only kills the
+> N-th allocation SPIKE).
+>
+> **Fix direction (named, not started):** a slot-diet round on the
+> jsx/flow/signals footprint measured against `tools/memtest.py`'s post-GC
+> floor (the tool already exists and its `--ramp` was built for exactly this),
+> and/or trimming the per-push permanent cost (the pushed-builder retention in
+> `stack` is the only by-design permanent per-push allocation). Until then the
+> catalog's navmany row stays honest: **boot + tick + ONE push are verified on
+> HEAD; repeated pushes are over-budget** (receipts:
+> `screenshots/navmany-gabbro.png` tick 103, `navmany-push1-gabbro.png`
+> "Screen #2", `navmany-push2-launcher-gabbro.png` the exit). Caveat for
+> re-measurers: the very same drive on a freshly-RELAUNCHED (warm) emulator
+> died one push earlier — the baseline wobbles by roughly one push's margin,
+> which is exactly what riding the ceiling predicts.
+
 ## Core (signals.ts) — ALL RESOLVED (S9 fixed 2026-07-21)
 
 | # | sev | finding | status |

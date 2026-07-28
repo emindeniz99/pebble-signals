@@ -58,6 +58,21 @@ unchanged.
 > emery receipts predate these fixes and both changes are platform-independent
 > (value-stack depth + signal identity), so the canaries are the meaningful
 > guard.
+>
+> **2026-07-28 (round 13) — fresh gabbro receipts on HEAD:** `navmany`
+> "Screen #1 + tick 52→103" (15/15 alive samples over 30 s, then a verified
+> push to "Screen #2"), `navreactive` "depth 1 + ping" (3/3 distinct frames),
+> `dialog` "Alert / Battery low / SELECT ok" (the round-13 nested message
+> Column renders; the multi-line wrap itself has no example on-device yet).
+> **New finding while re-driving buttons: navmany's SECOND push dies —
+> `fxAbort memory full` (review-findings D4).** The catalog row above is
+> boot+tick; treat repeated Navigator pushes as over-budget on HEAD until the
+> D4 diet lands. Also MEASURED this round: the `instruments:` heartbeats DO
+> stream through `pebble logs` when the capture attaches to a LIVE pypkjs and
+> the app is then relaunched with a foreground `pebble install` — that is how
+> D4's slot/chunk numbers were read (the direct-transport enable that
+> `tools/memtest.py` uses was not honored this session; the pebble-logs route
+> is the reliable one).
 
 Requires the Pebble SDK and a bootable emulator. Each app: build → `pebble
 logs` capture attached around a foreground install (~8s of heartbeats — the
@@ -82,7 +97,7 @@ transport (0 heartbeats) triggers one `tools/reset-emulator.sh` + retry
 
 | app | buttons | a human should see | why it's here |
 |---|---|---|---|
-| `navmany` | none | "Screen #1" + live tick | **depth-audit canary** — 100-screen Navigator, boots ~1 slot from the 384 value-stack wall |
+| `navmany` | none | "Screen #1" + live tick | **depth-audit canary** — 100-screen Navigator, boots ~1 slot from the 384 value-stack wall. ⚠️ button pushes: ONE push verified; the SECOND dies on the arena ceiling — see review-findings **D4** |
 | `navreactive` | none | "depth 1" + live ping | **depth-audit canary** — Navigator over a reactive screen, the OTHER near-wall shape |
 | `counter` | UP ×2 | count = 2 | the smallest useState + handler loop |
 | `autothunk` | UP ×2 | "Count: 2" | the LOWERED bare `string={"…"+count()}` binding updates live |

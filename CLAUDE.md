@@ -104,6 +104,19 @@ fully replace a fresh container. It also catches CRASH-to-launcher: install →
 dump-immediately caught the sloth face, then repeated dumps showed the launcher
 = the watchface rendered then died (the D2 OOM receipt in review-findings.md).
 
+**Reading the XS memory instruments (MEASURED 2026-07-28 — the D4 route).**
+The per-second `instruments:` lines (chunk used/avail, slot used/avail, stack,
+GC count, keys) stream through `pebble logs` ONLY when the log capture is
+attached to a LIVE pypkjs BEFORE the app's XS machine is created — attach
+`pebble logs` first, then relaunch with a foreground `pebble install`, then
+drive buttons with `pebble emu-button` (which composes with pypkjs; drive.py's
+serial buttons need pypkjs DEAD instead, and its monitor screendump composes
+with either). The direct-transport enable `tools/memtest.py` sends is NOT
+reliably honored (same class as the drive.py `listen:` caveat). Column map
+for the numeric line: …,[7] chunk used,[8] chunk avail,[9] slot used,[10]
+slot avail,[11] stack peak,[12] stack total (6144),[13] GC runs,[14] keys.
+Slot+chunk avail together track the 26624 B arena budget (32768 − 6144).
+
 **ALWAYS verify a captured PNG by READING it** (not just a size check): the
 empty-home frame, a stale previous-app frame, and a `render() threw` crash
 screen all pass `size > 800 B`. A crash-screen capture is a genuine receipt of

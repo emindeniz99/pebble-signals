@@ -149,6 +149,19 @@ No registry releases yet; entries accumulate under Unreleased until the first
   shapes: `screenshots/draw-gabbro.png`, `screenshots/draw-emery.png` (+ their
   `-grown` reactive-change frames). Example: `src/tsx/examples/draw.tsx`.
 
+### Known issues
+- **D4 — repeated `Navigator` pushes are over the arena budget on gabbro
+  (found 2026-07-28 while re-driving the canary buttons).** `navmany` boots,
+  ticks, and survives ONE push; the SECOND push dies with `fxAbort memory
+  full`. Measured with the XS instruments stream: HEAD's steady-state slot
+  usage saw-tooths at 18.9–20.4 K against a 20464 B pool (the GC-reclaimed
+  peak rides the ceiling), where the Jul-4 runtime used 17.4–19.0 K against
+  19440 B — ~1.3–1.5 KB of accumulated permanent footprint spent the margin
+  that used to absorb pushes. Not a leak (Node retention probes are clean;
+  a pop is free; D1 in isolation is exonerated by a hybrid build). Fix
+  direction: a slot-diet round measured against `tools/memtest.py`'s post-GC
+  floor. Full evidence chain: docs/review-findings.md **D4**.
+
 ### Fixed
 - **Round thirteen — 32 review findings across the runtime, the build scanners
   and the scaffold.** Runtime: `Grid` clamps a non-positive `columns` (0 looped
