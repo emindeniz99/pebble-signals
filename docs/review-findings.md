@@ -128,12 +128,19 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > came from the screenshot transport timing out, which also happens when that
 > transport rots (CLAUDE.md Rule 3).
 >
-> **`SectionList` remains device-gated — it dies EVEN with height-less rows**
-> (tested: dropping both the per-row `height` and the host `height` did not
-> save it), so it carries at least one MORE factor beyond the height shape. Its
-> rows additionally set `width` and drive `skin`/`style` reactively, and it adds
-> a keep-in-view effect; bisect those next. The speculative height-less edit was
-> REVERTED rather than shipped — it changed row geometry with no proven benefit.
+> **`SectionList` remains device-gated — and the "one MORE factor" framing is
+> now REFUTED (2026-07-28, four one-variable device probes, all reverted after):**
+> `rows={2}` instead of 5 → dies; string-ONLY slot writes (no reactive
+> `skin`/`style`) → dies; static window (keep-in-view effect + `atSig` removed,
+> `at: () => 0`) → dies; dimension-less cells (no `width`, no `height`) → dies.
+> Every candidate this note named — width, reactive skin/style, keep-in-view —
+> was ablated individually and none saved it, so there is no single structural
+> poison left to find. Reclassified as **D4-class arena-budget pressure** (see
+> D4 below): the HEAD runtime baseline saw-tooths at the slot ceiling even for
+> slim navmany, and SectionList's total build (VirtualList + per-slot effects +
+> the flatten + its own module) lands on top of that. It stays device-gated
+> until the D4 slot-diet buys the headroom back; re-test it FIRST after any
+> diet round.
 
 > **D4 — 🔬 OPEN (found 2026-07-28, gabbro QEMU) — `navmany`'s SECOND Navigator
 > push dies with `fxAbort memory full`; root cause is FOOTPRINT GROWTH, not a

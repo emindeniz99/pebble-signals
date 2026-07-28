@@ -805,9 +805,13 @@ review-findings D3).** Rich `renderRow` rows are NOT categorically broken at
 `rows>1`, and it is not an arena budget: a rich row with NO fixed height renders
 at `rows=3`, while the SAME row carrying `height` dies at 3 and survives at 2 —
 the port's "multi-child column with no vertical box" family. `SectionList`
-nonetheless still dies with height-less rows, so it carries at least one MORE
-factor (its rows also set `width` and drive `skin`/`style` reactively, plus a
-keep-in-view effect) — that bisect is the remaining work. "Dies" is an EXIT to the
+nonetheless still dies with height-less rows — and the bisect is now DONE
+(2026-07-28): the row `width`, the reactive `skin`/`style` drive, and the
+keep-in-view effect were each removed on-device and NONE saved it, so there is
+no single structural culprit. Its death is arena-BUDGET pressure (the D4
+family in review-findings: the HEAD runtime baseline rides the slot ceiling,
+and SectionList's total build lands on top); it stays device-gated until a
+slot-diet round buys the headroom back. "Dies" is an EXIT to the
 launcher, not a wedged firmware; the original "hangs" reading came from the
 screenshot transport timing out, which also happens when that transport rots
 (CLAUDE.md Rule 3)._
