@@ -149,6 +149,24 @@ No registry releases yet; entries accumulate under Unreleased until the first
   shapes: `screenshots/draw-gabbro.png`, `screenshots/draw-emery.png` (+ their
   `-grown` reactive-change frames). Example: `src/tsx/examples/draw.tsx`.
 
+### Fixed
+- **D4 diet round 1 — `Navigator` pushes work again (device-verified).** A
+  200-closure module-scope probe proved the "preloaded" runtime trio's module
+  scope costs boot-RAM slots 1:1 (navmany failed to BOOT with the probe), so
+  the diet targeted module scope + per-boot allocations: the three frozen
+  prop arrays are comma strings behind a boundary-checked `has()`; `isPiu`
+  and the per-binding `setProp` are folded into their callers (each also
+  removes a deep-chain stack frame); `bindErr`/`fmtError`/
+  `consumePendingFocus` folded into their single call sites; the
+  HandlerBehavior button prototype wires lazily at first construction
+  (button-less watchfaces save ~8 closures at boot); Navigator's
+  `onDisplaying` wrapper is a direct `swap` reference. navmany: archive
+  16929 → 16565 B, and on gabbro it now survives push → #2 → #3 → #4 plus
+  pop ×2 / push ×2 (seven swaps; two used to be fatal). navreactive boots
+  and animates. No public API change; 1888 tests at 100 % coverage, XS laws
+  green. `SectionList` is still over budget (its gap exceeds this reclaim)
+  and stays device-gated.
+
 ### Known issues
 - **D4 — repeated `Navigator` pushes are over the arena budget on gabbro
   (found 2026-07-28 while re-driving the canary buttons).** `navmany` boots,
@@ -160,7 +178,9 @@ No registry releases yet; entries accumulate under Unreleased until the first
   that used to absorb pushes. Not a leak (Node retention probes are clean;
   a pop is free; D1 in isolation is exonerated by a hybrid build). Fix
   direction: a slot-diet round measured against `tools/memtest.py`'s post-GC
-  floor. Full evidence chain: docs/review-findings.md **D4**.
+  floor. Full evidence chain: docs/review-findings.md **D4**. *Update (same
+  day): diet round 1 landed — see Fixed above; navmany pushes verified live
+  again. SectionList remains over budget.*
 
 ### Fixed
 - **Round thirteen — 32 review findings across the runtime, the build scanners

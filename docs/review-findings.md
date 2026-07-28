@@ -174,7 +174,31 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > boot canaries cannot see (boot survives; the ceiling-riding only kills the
 > N-th allocation SPIKE).
 >
-> **Fix direction (named, not started):** a slot-diet round on the
+> **✅ DIET ROUND 1 LANDED (2026-07-28) — navmany pushes are BACK.** The
+> decisive instrument was a module-scope probe: 200 inert top-level arrows
+> added to `runtime/flow` made navmany fail to BOOT (twice), proving the
+> "preloaded" trio's module scope costs boot-RAM slots 1:1 — so the diet
+> targeted exactly that. Batch: the three frozen prop arrays became comma
+> strings behind a boundary-checked `has()`; `isPiu` and `setProp` folded
+> into their callers (each also removes a deep-chain frame); `bindErr`,
+> `fmtError` and `consumePendingFocus` folded into their single call sites;
+> the HandlerBehavior button prototype is wired lazily at first construction
+> (button-less watchfaces save ~8 closures); Navigator's `onDisplaying`
+> wrapper became a direct `swap` reference. Receipts: archive 16929 → 16565 B,
+> symbols 149 (unchanged), 1888 tests / 100 % coverage / XS laws green, and
+> on gabbro navmany now survives **push → #2 → #3 → #4, then pop ×2 + push
+> ×2 back to #4 at tick 106** — seven swaps where two used to be fatal.
+> navreactive still boots and animates ("depth 1 + ping 51", distinct
+> frames). The instruments channel was dead by this point in the session, so
+> the new floor could not be re-sampled numerically — binary outcomes only
+> (next session: one instruments run pins the reclaimed bytes).
+>
+> **SectionList is STILL over budget with this diet** (re-tested: boots to
+> the empty home) — its gap is larger than the reclaimed ~1-1.5 KB; its own
+> slim-down (per-slot costs, playbook backlog #2 shared-binding reaction)
+> stays the named follow-up.
+>
+> **Fix direction (remaining):** a slot-diet round on the
 > jsx/flow/signals footprint measured against `tools/memtest.py`'s post-GC
 > floor (the tool already exists and its `--ramp` was built for exactly this),
 > and/or trimming the per-push permanent cost (the pushed-builder retention in

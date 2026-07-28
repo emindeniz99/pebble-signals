@@ -46,17 +46,23 @@ type Props = Record<string, any>;
 // Piu content classes are compartment globals provided by the Alloy host.
 // Hardened JS freezes primordials and can make instanceof unreliable, so
 // host elements are recognized by identity in this registry. Built lazily:
-// this module is PRELOADED (instantiated at build time, stored in flash)
-// and the Piu globals only exist at runtime.
+// the Piu globals only exist at runtime, never in the module-instantiation
+// compartment. (D4 diet note: "preload" does NOT ROM-freeze a mod's module
+// scope — 200 probe closures added here cost real boot slots, measured
+// 2026-07-28 — so keep this scope LEAN; the lazy array is 9 entries, and
+// isPiu was folded into jsx() to drop a deep-chain frame + a binding.)
 let PIU: unknown[] | null = null;
 
-function isPiu(type: unknown): boolean {
-	if (PIU === null)
-		// a 9-entry array beats a Set on the 32KB arena
-		PIU = [Label, Text, Content, Container, Column, Row, Scroller, Port, Layout].filter(
-			(t) => t !== undefined,
-		);
-	return PIU.indexOf(type) >= 0;
+// Comma-list membership with word boundaries — the D4 slot-diet replacement
+// for the three frozen prop arrays (an N-string array costs ~2+N slots at
+// boot; one string costs 1 + chunk bytes). Zero-allocation: indexOf + edge
+// checks instead of padding concats. `list` never starts/ends with a comma.
+function has(list: string, name: string): boolean {
+	const ix = list.indexOf(name);
+	if (ix < 0) return false;
+	if (ix > 0 && list[ix - 1] !== ",") return false;
+	const end = ix + name.length;
+	return end === list.length || list[end] === ",";
 }
 
 /** `<>...</>` — returns its children unchanged. */
@@ -73,7 +79,12 @@ export function Fragment(props: Props): JSXNode {
 // Depth-safe: jsx frames never nest (children evaluate before the outer
 // call), so the extra parameter is one live stack slot, not xdepth.
 export function jsx(type: any, props: Props, key?: unknown): JSXNode {
-	if (isPiu(type)) return createHost(type, props);
+	if (PIU === null)
+		// a 9-entry array beats a Set on the 32KB arena (isPiu folded in — D4)
+		PIU = [Label, Text, Content, Container, Column, Row, Scroller, Port, Layout].filter(
+			(t) => t !== undefined,
+		);
+	if (PIU.indexOf(type) >= 0) return createHost(type, props);
 	if (typeof type === "function") {
 		if (key !== undefined) {
 			props = props || {};
@@ -90,16 +101,10 @@ export const jsxs = jsx;
 // Event props -> piu Behavior methods. onTap needs active:true; the
 // onPress*/onRelease* button events reach the behavior of the focused
 // content (or an ancestor), so pair them with the `focus` prop.
-const BUTTON_EVENTS = Object.freeze([
-	"onPressSelect",
-	"onReleaseSelect",
-	"onPressUp",
-	"onReleaseUp",
-	"onPressDown",
-	"onReleaseDown",
-	"onPressBack",
-	"onReleaseBack",
-]);
+// A comma STRING, not an array (D4 diet): the 8-entry array cost ~10 boot
+// slots; membership goes through `has()` above.
+const BUTTON_EVENTS =
+	"onPressSelect,onReleaseSelect,onPressUp,onReleaseUp,onPressDown,onReleaseDown,onPressBack,onReleaseBack";
 
 let pendingFocus: PiuContent | null = null;
 
@@ -107,9 +112,13 @@ let pendingFocus: PiuContent | null = null;
 // button bubbling when the method returns truthy — consume by default,
 // return false from a handler to pass the event up the chain. piu accepts
 // ANY object as a behavior (methods are looked up by name — no Behavior
-// inheritance required), so the class lives at module scope and preloads
-// to flash; the previous lazy `class extends Behavior` rebuilt its
-// prototype + 9 methods inside the 32KB arena at runtime.
+// inheritance required). The eight one-line button delegates are generated,
+// and LAZILY, on the first construction (D4 diet): "preload" does NOT put a
+// mod's module scope in flash (measured — the probe closures cost real boot
+// slots), so wiring the prototype eagerly charged every app ~8 closures at
+// boot; a button-less watchface now never pays. The delegates still exist at
+// most ONCE — later constructions skip the wiring.
+let btnWired = false;
 class HandlerBehavior {
 	// `declare` = type-only, no field initializer emitted (constructor sets them)
 	declare t: ((content: PiuContent, x: number, y: number) => void) | null;
@@ -118,6 +127,17 @@ class HandlerBehavior {
 		tap: ((content: PiuContent, x: number, y: number) => void) | null,
 		buttons: Record<string, (content: PiuContent) => unknown> | null,
 	) {
+		if (!btnWired) {
+			btnWired = true;
+			for (const n of BUTTON_EVENTS.split(","))
+				(HandlerBehavior.prototype as any)[n] = function (
+					this: HandlerBehavior,
+					content: PiuContent,
+				) {
+					const h = this.b && this.b[n];
+					return h ? h(content) !== false : false;
+				};
+		}
 		this.t = tap;
 		this.b = buttons;
 	}
@@ -125,15 +145,6 @@ class HandlerBehavior {
 		if (this.t) this.t(content, x, y);
 	}
 }
-// The eight identical one-line button delegates are GENERATED here instead
-// of copy-pasted: this module-scope loop runs at preload (build) time, so
-// the closures land in flash and the prototype is written before it
-// freezes. ~300B of archive saved over the literal methods.
-for (const n of BUTTON_EVENTS)
-	(HandlerBehavior.prototype as any)[n] = function (this: HandlerBehavior, content: PiuContent) {
-		const h = this.b && this.b[n];
-		return h ? h(content) !== false : false;
-	};
 
 // Does a children value contain anything that would actually MOUNT?
 // null/undefined/booleans are the legal "render nothing" values (a dead
@@ -165,7 +176,7 @@ function createHost(type: any, props: Props): PiuContent {
 			tap = v;
 			continue;
 		}
-		if (BUTTON_EVENTS.indexOf(k) >= 0) {
+		if (has(BUTTON_EVENTS, k)) {
 			if (buttons === null) buttons = {};
 			buttons[k] = v;
 			continue;
@@ -195,7 +206,22 @@ function createHost(type: any, props: Props): PiuContent {
 			// actionable message — not on every effect run. Only the whitelist
 			// can be written reactively; a reactive position prop is the classic
 			// React-refugee surprise (Piu layout is construction-time).
-			if (REACTIVE_PROPS.indexOf(key) < 0) throw new Error(bindErr(key));
+			// message built inline (bindErr folded — D4 diet; this is a throw
+			// path, so the ternary chain costs bytecode, not boot slots)
+			if (!has(REACTIVE_PROPS, key))
+				throw new Error(
+					key === "visible"
+						? "jsx: `visible` can't be reactive (crashes the port) — use <Show> for conditional UI"
+						: has(POSITION_PROPS, key)
+							? "jsx: position/size prop `" +
+								key +
+								"` is static — Piu lays out at construction time. Reposition by swapping with <Show>, not a reactive binding."
+							: "jsx: prop `" +
+								key +
+								"` can't be a reactive binding (reactive props: " +
+								REACTIVE_PROPS.split(",").join(", ") +
+								")",
+				);
 			// effect() auto-registers with the innermost owner (running-owner round).
 			// The binding body is GUARDED so a throwing thunk is caught WITH
 			// context (which prop, which node class) — including on the FIRST
@@ -210,7 +236,11 @@ function createHost(type: any, props: Props): PiuContent {
 			// value and the app survives. Conformance laws 24-25 pin this.
 			effect(() => {
 				try {
-					setProp(node, key, thunk());
+					// the raw write, inline (setProp folded away — D4 diet; the
+					// whitelist check above already vetted `key`, and folding
+					// drops a frame from the per-update path). Piu content types
+					// have no index signature for the dynamic key — type-only cast.
+					(node as unknown as Record<string, unknown>)[key] = thunk();
 				} catch (err) {
 					const cls = (node as { constructor?: { name?: string } }).constructor;
 					report(err, "binding '" + key + "' on " + ((cls && cls.name) || "content") + " threw");
@@ -238,44 +268,10 @@ function createHost(type: any, props: Props): PiuContent {
 // construction-dict state, not plain property writes. `visible` crashes the piu
 // Pebble port when written on bound content (measured); use Show. `string` is
 // battle-tested on-device; state/variant/skin/style/active follow the same path.
-const REACTIVE_PROPS = Object.freeze(["string", "state", "variant", "skin", "style", "active"]);
-const POSITION_PROPS = Object.freeze([
-	"left",
-	"right",
-	"top",
-	"bottom",
-	"width",
-	"height",
-	"x",
-	"y",
-]);
-
-// Actionable bind-time error for a prop that can't be a reactive binding.
-function bindErr(key: string): string {
-	if (key === "visible")
-		return "jsx: `visible` can't be reactive (crashes the port) — use <Show> for conditional UI";
-	if (POSITION_PROPS.indexOf(key) >= 0)
-		return (
-			"jsx: position/size prop `" +
-			key +
-			"` is static — Piu lays out at construction time. Reposition by swapping with <Show>, not a reactive binding."
-		);
-	return (
-		"jsx: prop `" +
-		key +
-		"` can't be a reactive binding (reactive props: " +
-		REACTIVE_PROPS.join(", ") +
-		")"
-	);
-}
-
-// createHost guarantees `key` is in REACTIVE_PROPS before it ever calls this, so
-// this is just the write. Kept as a named step so the binding effect reads well.
-function setProp(node: PiuContent, key: string, value: unknown) {
-	// Piu content types have no index signature for this dynamic key — the
-	// cast is type-only (erases in emit); the write stays `node[key] = value`.
-	(node as unknown as Record<string, unknown>)[key] = value;
-}
+// Comma STRINGS, not frozen arrays (D4 diet — module scope is boot RAM, and
+// the two arrays cost ~20 slots between them); membership via `has()`.
+const REACTIVE_PROPS = "string,state,variant,skin,style,active";
+const POSITION_PROPS = "left,right,top,bottom,width,height,x,y";
 
 /** Append a child (node / string / number / array) to a parent Piu node. */
 export function appendChild(parent: PiuContainer, child: JSXNode) {
@@ -302,12 +298,6 @@ export function appendChild(parent: PiuContainer, child: JSXNode) {
 // calling another preloaded module's function that writes its aliased
 // state is fatal on this XS build (measured). So the `focus` prop only
 // takes effect in the initial render() tree.
-function consumePendingFocus() {
-	if (pendingFocus) {
-		pendingFocus.focus();
-		pendingFocus = null;
-	}
-}
 
 // Compile-time flag: does this build ship the full crash SCREEN, or the lean
 // "log + contain" sink? Default ON. The build's `--no-crash-ui` / CRASH_UI=0
@@ -344,7 +334,15 @@ const mount = (app: PiuApplication, build: () => JSXNode): void => {
 	}
 	rootDispose = r[1];
 	appendChild(app, r[0]);
-	consumePendingFocus();
+	// pending `focus` applied inline (consumePendingFocus folded — D4 diet);
+	// focus() is a no-op on unbound content, so this runs only after mount
+	// (cast defeats TS's narrowing-to-null from the reset above — createRoot's
+	// build callback is what actually sets pendingFocus, invisible to CFA)
+	const pf = pendingFocus as PiuContent | null;
+	if (pf) {
+		pf.focus();
+		pendingFocus = null;
+	}
 };
 
 // Paint the crash screen. Order matters on the 32KB arena: dispose the tree

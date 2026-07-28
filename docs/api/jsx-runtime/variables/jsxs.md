@@ -8,7 +8,7 @@
 
 > `const` **jsxs**: (`type`, `props`, `key?`) => [`JSXNode`](../type-aliases/JSXNode.md) = `jsx`
 
-Defined in: jsx-runtime.ts:88
+Defined in: jsx-runtime.ts:99
 
 JSX factory for elements with static children (same behavior as [jsx](../functions/jsx.md)).
 

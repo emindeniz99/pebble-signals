@@ -8,7 +8,7 @@
 
 > **VLRich**\<`T`\> = `VLBase`\<`T`\> & `object`
 
-Defined in: flow.ts:151
+Defined in: flow.ts:153
 
 [VirtualList](../functions/VirtualList.md) rich mode: a recycled SUBTREE per slot via `renderRow`
 (built once, never destroyed). Mutually exclusive with `format`. Each
@@ -31,10 +31,12 @@ whole list a box. "Dies" = the app EXITS to the launcher, not a wedged run
 loop (the original "hangs" came from the screenshot transport timing out,
 which also happens when that transport rots — CLAUDE.md Rule 3).
 
-NOTE `SectionList` still dies even with height-less rows, so it carries at
-least one MORE factor (its rows also set `width` and drive `skin`/`style`
-reactively, and it adds a keep-in-view effect) — bisect those next; it stays
-device-gated until then.
+NOTE `SectionList` still dies even with height-less rows — and the
+"one more factor" candidates (row `width`, reactive `skin`/`style`, the
+keep-in-view effect) were each ablated on-device and NONE saved it
+(2026-07-28). Its death is D4-class arena-budget pressure, not a layout
+shape — see review-findings D4; it stays device-gated until a slot-diet
+round buys the headroom back.
 
 ## Type Declaration
 

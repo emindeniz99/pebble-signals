@@ -8,7 +8,7 @@
 
 > **setSink**(`s`): `void`
 
-Defined in: signals.ts:316
+Defined in: signals.ts:298
 
 Install the top-level error sink — the jsx-runtime's `render()` calls this;
 apps normally never do. A function receives every escalated error (plus the

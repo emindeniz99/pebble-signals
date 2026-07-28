@@ -49,19 +49,26 @@ function extractRuntimeMeta(): { hosts: Set<string>; props: Set<string> } {
 			if (ts.isArrayLiteralExpression(e))
 				for (const el of e.elements) if (ts.isIdentifier(el)) hosts.add(el.text);
 		}
-		// `const REACTIVE_PROPS = Object.freeze([...])` — pull the string literals.
+		// `const REACTIVE_PROPS = "a,b,c"` — the D4 slot-diet turned the frozen
+		// array into a comma STRING (module scope is boot RAM); split it. The
+		// old `Object.freeze([...])` shape is still accepted so the extractor
+		// survives either representation.
 		if (
 			ts.isVariableDeclaration(n) &&
 			ts.isIdentifier(n.name) &&
 			n.name.text === "REACTIVE_PROPS"
 		) {
 			const init = n.initializer;
-			const arg =
-				init && ts.isCallExpression(init) && init.arguments.length === 1
-					? init.arguments[0]
-					: undefined;
-			if (arg && ts.isArrayLiteralExpression(arg))
-				for (const el of arg.elements) if (ts.isStringLiteral(el)) props.add(el.text);
+			if (init && ts.isStringLiteral(init)) {
+				for (const p of init.text.split(",")) props.add(p);
+			} else {
+				const arg =
+					init && ts.isCallExpression(init) && init.arguments.length === 1
+						? init.arguments[0]
+						: undefined;
+				if (arg && ts.isArrayLiteralExpression(arg))
+					for (const el of arg.elements) if (ts.isStringLiteral(el)) props.add(el.text);
+			}
 		}
 		ts.forEachChild(n, walk);
 	};

@@ -8,7 +8,7 @@
 
 > **signal**\<`T`\>(`value`): [`Signal`](../interfaces/Signal.md)\<`T`\>
 
-Defined in: signals.ts:489
+Defined in: signals.ts:483
 
 Create a reactive value. Reading `.value` inside an [effect](effect.md) (or a JSX
 binding thunk) subscribes to it; writing `.value` notifies subscribers. The

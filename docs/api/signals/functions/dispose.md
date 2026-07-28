@@ -8,7 +8,7 @@
 
 > **dispose**(`d`): `void`
 
-Defined in: signals.ts:686
+Defined in: signals.ts:680
 
 Terminal disposal for a closure disposer or a packed effect id.
 

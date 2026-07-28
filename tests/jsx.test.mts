@@ -652,4 +652,39 @@ setSink(null);
 	check("containers still take children", box.contents[0].string === "in");
 }
 
+// --- D4 diet: comma-string membership must respect word boundaries ----------
+// REACTIVE_PROPS/BUTTON_EVENTS/POSITION_PROPS became comma STRINGS (module
+// scope is boot RAM — a frozen array costs ~2+N slots); a naive indexOf would
+// accept substrings ("tring" inside "string") and bind an illegal prop.
+{
+	let boom = "";
+	try {
+		jsx(Container, { tring: () => "x" });
+	} catch (e) {
+		boom = String((e as Error).message);
+	}
+	check("substring of a valid reactive prop is still rejected", boom.indexOf("tring") >= 0);
+	boom = "";
+	try {
+		jsx(Container, { strings: () => "x" });
+	} catch (e) {
+		boom = String((e as Error).message);
+	}
+	check("superstring of a valid reactive prop is still rejected", boom.indexOf("strings") >= 0);
+	// a PREFIX of a button event with a function value is not a button — it
+	// falls through to the reactive-prop whitelist and throws there
+	boom = "";
+	try {
+		jsx(Container, { onPress: () => 0 });
+	} catch (e) {
+		boom = String((e as Error).message);
+	}
+	check("prefix of a button event is not treated as a button", boom.indexOf("onPress") >= 0);
+	// boundary positives: first and last entries of each list still match
+	const first = jsx(Container, { string: () => "ok" }) as any;
+	check("first whitelist entry still binds", first.string === "ok");
+	const last = jsx(Container, { active: () => true }) as any;
+	check("last whitelist entry still binds", last.active === true);
+}
+
 done();

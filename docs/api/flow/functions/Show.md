@@ -8,7 +8,7 @@
 
 > **Show**(`props`): `Container`
 
-Defined in: flow.ts:233
+Defined in: flow.ts:235
 
 Show({ when, children, fallback, keepAlive }) — `when` is a thunk;
 children/fallback are thunks returning nodes. The host is sized by the

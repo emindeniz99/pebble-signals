@@ -8,7 +8,7 @@
 
 > **batch**\<`T`\>(`fn`): `T`
 
-Defined in: signals.ts:756
+Defined in: signals.ts:750
 
 Coalesce writes: N `.value` sets inside `fn` produce ONE notification per
 subscriber (union of touched signals), after `fn` returns. Reads inside the

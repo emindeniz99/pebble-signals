@@ -720,11 +720,9 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 	// app blew the 384-slot value stack. onDisplaying fires from the Piu run
 	// loop when the host joins the display tree: a SHALLOW stack, so the screen
 	// builds with the render prefix fully unwound.
-	(host as unknown as { behavior: unknown }).behavior = {
-		onDisplaying() {
-			swap();
-		},
-	};
+	// `swap` directly as the hook (D4 diet): the wrapper method was one more
+	// per-Navigator closure; swap ignores Piu's `content` argument anyway.
+	(host as unknown as { behavior: unknown }).behavior = { onDisplaying: swap };
 	return host;
 };
 

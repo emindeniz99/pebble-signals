@@ -8,7 +8,7 @@
 
 > **useReducer**\<`S`, `A`\>(`reducer`, `init`): \[() => `S`, (`action`) => `void`\]
 
-Defined in: signals.ts:960
+Defined in: signals.ts:954
 
 React's useReducer, trivially over useState. `dispatch(action)` applies the
 reducer as a functional update, so it composes with batching and lowering.

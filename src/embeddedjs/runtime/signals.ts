@@ -279,24 +279,6 @@ export interface ReadonlySignal<T> {
 	readonly value: T;
 }
 
-// Format a caught reaction error for the console fallback — dump EVERYTHING
-// we can (type, message, stack) so a would-be silent blank becomes a loud,
-// complete log line. XS may or may not populate `.stack`; whatever it gives
-// us, we print.
-function fmtError(err: unknown): string {
-	if (err && typeof err === "object") {
-		const e = err as { name?: string; message?: string; stack?: string };
-		const head = (e.name || "Error") + (e.message ? ": " + e.message : "");
-		const st = e.stack;
-		if (!st) return head;
-		// XS and V8 stacks already open with the "Name: message" line — don't
-		// print it twice (measured on the gabbro crash screen, where every
-		// duplicated line costs visible space).
-		return st.indexOf(head) === 0 ? st : head + "\n" + st;
-	}
-	return String(err);
-}
-
 // Top-level failure sink, installed by render() (jsx-runtime). Three states:
 //   fn    — render()'s default boundary: report() hands the error over and
 //           the fn paints the crash screen (2026-07 redesign).
@@ -358,7 +340,19 @@ export function report(err: unknown, ctx: string): void {
 	}
 	// 2. log FIRST, unconditionally — boundary-caught errors included (owner
 	//    call: harmless where invisible, useful where visible).
-	const msg = "[signal-piu] " + ctx + ":\n" + fmtError(err);
+	// error formatting inline (fmtError folded — D4 diet; error path only).
+	// Dump EVERYTHING we can (type, message, stack): XS may or may not
+	// populate `.stack`, and both XS and V8 stacks already open with the
+	// "Name: message" line — don't print it twice (measured on the gabbro
+	// crash screen, where every duplicated line costs visible space).
+	let fmt: string;
+	if (err && typeof err === "object") {
+		const e = err as { name?: string; message?: string; stack?: string };
+		const head = (e.name || "Error") + (e.message ? ": " + e.message : "");
+		const st = e.stack;
+		fmt = st ? (st.indexOf(head) === 0 ? st : head + "\n" + st) : head;
+	} else fmt = String(err);
+	const msg = "[signal-piu] " + ctx + ":\n" + fmt;
 	const c = (globalThis as { console?: { error?: LogFn; log?: LogFn } }).console;
 	const f = c && (c.error || c.log);
 	// Pass BOTH a fully-formatted string (nothing lost on consoles that

@@ -176,6 +176,22 @@ Mechanism (source receipts: `fxMapArchive` in the SDK toolchain's
   beats data-as-structure at boot exactly like it does in steady state.
 - **The export-pruning #29 fix worked mostly as a SYMBOL diet**: every
   demoted export removes an archive symbol (a boot slot), not just bytes.
+- **Top-level CLOSURES in the "preloaded" runtime trio are NOT free (D4
+  probe, 2026-07-28):** adding 200 inert module-scope arrows to
+  `runtime/flow` (+4.2 KB archive, +1 symbol, all budgets otherwise green)
+  made navmany fail to BOOT — twice, while the stock build booted through
+  the same procedure. Whatever the mod "preload" freezes, top-level
+  function objects in the runtime modules materialize as boot-RAM slots
+  1:1. Corollary (banked as the D4 diet): three frozen prop ARRAYS →
+  comma strings + a boundary-checked `has()`, the per-binding `setProp`
+  and `isPiu` frames folded into their callers, `bindErr`/`fmtError`/
+  `consumePendingFocus` folded into their single call sites, the
+  HandlerBehavior prototype wired LAZILY at first construction (a
+  button-less watchface no longer pays ~8 closures), and Navigator's
+  `onDisplaying` wrapper object-method replaced by a direct `swap` ref.
+  MEASURED: navmany's archive 16929 → 16565 B and the second-push
+  `fxAbort memory full` (review-findings D4) became FOUR live pushes +
+  two pops (Screen #4, tick 106, still ticking).
 - **The export-RENAME diet (2026-07, `tools/symbol-rename.mts`, default
   ON):** an export that survives pruning still costs a slot IF its wire
   name is new-to-host — and the runtime's public names (`jsx`, `useState`,
