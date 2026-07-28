@@ -800,8 +800,8 @@ import { SectionList } from "runtime/sectionlist";
 <SectionList sections={() => groups()} renderHeader={(h) => h} renderRow={(r) => r.name} selected={() => i()} />
 ```
 
-_Device-verified on gabbro (2026-07-28) after the standalone rewrite — the
-first on-device render in the component's history. The old composed-over-
+_Device-verified on gabbro AND emery (2026-07-28) after the standalone
+rewrite — the first on-device render in the component's history. The old composed-over-
 VirtualList build was arena-BUDGET death (review-findings D3/D4): the flatten
 allocated a parallel record array AND pulled `runtime/flow` into the archive.
 The rewrite derives each cell from `sections` + an int `start[]` offsets array,
@@ -811,6 +811,7 @@ crossing selection (headers skipped) are device-proven with button drives._
 
 ![SectionList on gabbro](../screenshots/sectionlist-gabbro.png)
 ![SectionList scrolled, selection past a section boundary](../screenshots/sectionlist-scroll-gabbro.png)
+![SectionList on emery](../screenshots/sectionlist-emery.png)
 
 ---
 

@@ -191,7 +191,15 @@ Mechanism (source receipts: `fxMapArchive` in the SDK toolchain's
   `onDisplaying` wrapper object-method replaced by a direct `swap` ref.
   MEASURED: navmany's archive 16929 → 16565 B and the second-push
   `fxAbort memory full` (review-findings D4) became FOUR live pushes +
-  two pops (Screen #4, tick 106, still ticking).
+  two pops (Screen #4, tick 106, still ticking). Instruments floor
+  re-sampled on a fresh session (2026-07-28, same day): boot steady state
+  dropped from 18.9–20.4 K slots against a 20464 B pool (peak riding the
+  ceiling) to **18.2–18.5 K against a 19440 B pool** — the pool
+  self-balances back to the healthy Jul-4 baseline size, boot GC floor
+  −0.7 K, boot peak −1.9 K. Under a 3-push drive the pool grows to
+  20464 B, stack peaks 4768/6144, and the post-push floor settles at
+  ~18.8–19.0 K — ~1.5 K of margin where the second push used to be fatal
+  (Screen #4 alive at tick 58 during the same capture).
 - **The export-RENAME diet (2026-07, `tools/symbol-rename.mts`, default
   ON):** an export that survives pruning still costs a slot IF its wire
   name is new-to-host — and the runtime's public names (`jsx`, `useState`,

@@ -160,7 +160,8 @@ No registry releases yet; entries accumulate under Unreleased until the first
   archive 17354→15028 B). Device receipts: boot frame (`Fruit` header, `Apple`
   highlighted) and a 3×DOWN drive (window scrolled, selection crossed the
   section boundary skipping the `Veg` header, `Carrot` highlighted) —
-  `screenshots/sectionlist-gabbro.png`, `sectionlist-scroll-gabbro.png`.
+  `screenshots/sectionlist-gabbro.png`, `sectionlist-scroll-gabbro.png`;
+  emery re-run identically (boot + DOWN ×3 scroll, `sectionlist-emery.png`).
   Closes the D3 gate and the D4 "SectionList still over budget" residue.
 - **D4 diet round 1 — `Navigator` pushes work again (device-verified).** A
   200-closure module-scope probe proved the "preloaded" runtime trio's module
@@ -178,10 +179,19 @@ No registry releases yet; entries accumulate under Unreleased until the first
   and animates. No public API change; 1888 tests at 100 % coverage, XS laws
   green. `SectionList` was still over budget after this reclaim alone (its
   gap exceeds it) — its standalone rewrite (entry above) closed the rest.
+  Reclaim pinned by a post-diet instruments re-sample (fresh emulator, same
+  day): navmany's boot steady state fell from 18.9–20.4 K slots / 20464 B
+  pool (peak riding the ceiling) to 18.2–18.5 K / 19440 B (the healthy
+  Jul-4 pool size back) — −0.7 K at the GC floor, −1.9 K at the boot peak;
+  a 3-push drive settles at ~18.8–19.0 K / 20464 B with ~1.5 K margin. The
+  emery canaries are green post-diet too: navmany SELECT ×3 → "Screen #4 +
+  tick 66", navreactive "depth 1 + ping 55" animating.
 
 ### Known issues
-- **D4 — repeated `Navigator` pushes are over the arena budget on gabbro
-  (found 2026-07-28 while re-driving the canary buttons).** `navmany` boots,
+- **D4 — RESOLVED same day (kept here as the finding record; fix + measured
+  reclaim in Fixed above) — repeated `Navigator` pushes were over the arena
+  budget on gabbro (found 2026-07-28 while re-driving the canary
+  buttons).** `navmany` boots,
   ticks, and survives ONE push; the SECOND push dies with `fxAbort memory
   full`. Measured with the XS instruments stream: HEAD's steady-state slot
   usage saw-tooths at 18.9–20.4 K against a 20464 B pool (the GC-reclaimed

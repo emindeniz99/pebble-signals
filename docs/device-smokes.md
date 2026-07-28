@@ -22,7 +22,8 @@ node tools/device-smoke.mts --platform emery              # rect watch
 **Both-platform status (2026-07): the full catalog was green on gabbro AND
 emery** at the matrix runs (13/13 each; `pulse` joined after, then
 `sectionlist` on 2026-07-28 → the 15 apps tabulated below — see their
-receipts; `sectionlist` is gabbro-verified only so far). Emery receipts for the newer examples are
+receipts; `sectionlist` is verified on BOTH platforms, including the
+DOWN-×3 scroll drive on each). Emery receipts for the newer examples are
 committed (`screenshots/*-emery.png`); the emery run found ZERO
 platform-specific failures — `screen.width/round` adaptation carried every app
 unchanged.
@@ -59,6 +60,15 @@ unchanged.
 > emery receipts predate these fixes and both changes are platform-independent
 > (value-stack depth + signal identity), so the canaries are the meaningful
 > guard.
+>
+> **✅ emery canaries re-green POST-D4-DIET (2026-07-28):** after the
+> jsx/flow/signals slot diet and the SectionList standalone rewrite, the
+> rect panel was re-proven with reset-per-app + screendump: `navmany`
+> "Screen #1 + tick 50" then SELECT ×3 → "Screen #4 + tick 66" (the
+> once-fatal repeated pushes, live on emery too), `navreactive` "depth 1 +
+> ping 55" (distinct frames = animating), and `sectionlist` boot + DOWN ×3
+> scroll (Carrot highlighted past the Veg header) — identical behavior to
+> gabbro.
 >
 > **2026-07-28 (round 13) — fresh gabbro receipts on HEAD:** `navmany`
 > "Screen #1 + tick 52→103" (15/15 alive samples over 30 s, then a verified
@@ -112,7 +122,7 @@ transport (0 heartbeats) triggers one `tools/reset-emulator.sh` + retry
 | `devlog` | SELECT | "sent 1" | `report()` → AppMessage bridge (the `pkjs>` line needs the log capture — kept manual) |
 | `dictate` | none | "SELECT starts dictation" | dictation probe — boot-only ON PURPOSE (SELECT opens the system UI, BACK exits to the launcher) |
 | `pulse` | UP | serif clock + date/secs + accent dot turns green | the flagship showcase watchface (TTF + persisted theme + config greeting + lazy boot) |
-| `sectionlist` | DOWN ×3 | boot: "Fruit" header + "Apple" highlighted; after: window scrolled, "Carrot" highlighted (Veg header skipped) | grouped recycled window — keep-in-view scroll + header-skipping selection (first device render 2026-07-28, post standalone rewrite; see review-findings D3) |
+| `sectionlist` | DOWN ×3 | boot: "Fruit" header + "Apple" highlighted; after: window scrolled, "Carrot" highlighted (Veg header skipped) | grouped recycled window — keep-in-view scroll + header-skipping selection (first device render 2026-07-28, post standalone rewrite; verified gabbro + emery incl. the drive; see review-findings D3) |
 
 Adding an entry: one line in `SMOKES` in `tools/device-smoke.mts` (app name,
 drive.py actions, the human-readable expectation). Keep boot-only canaries

@@ -151,11 +151,13 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > `screenshots/sectionlist-gabbro.png` (boot frame, Apple highlighted) and
 > `sectionlist-scroll-gabbro.png` (after 3 down clicks: window scrolled,
 > selection crossed the Fruit→Veg boundary skipping the header, Carrot
-> highlighted — keep-in-view device-proven).
+> highlighted — keep-in-view device-proven). Re-run identically on emery
+> (boot + DOWN ×3, `sectionlist-emery.png`) — not platform-specific.
 
-> **D4 — 🔬 OPEN (found 2026-07-28, gabbro QEMU) — `navmany`'s SECOND Navigator
-> push dies with `fxAbort memory full`; root cause is FOOTPRINT GROWTH, not a
-> leak.** Deterministic across 5 clean trials: boot ✓, ticks indefinitely ✓,
+> **D4 — ✅ RESOLVED (found + fixed 2026-07-28, gabbro QEMU) — `navmany`'s
+> SECOND Navigator push died with `fxAbort memory full`; root cause was
+> FOOTPRINT GROWTH, not a leak. Fixed by diet round 1 (below), with the
+> reclaim pinned by a post-diet instruments re-sample.** Deterministic across 5 clean trials: boot ✓, ticks indefinitely ✓,
 > push #1 ✓ ("Screen #2" painted, keeps ticking), push #2 → EXIT to launcher;
 > `pebble logs` catches `xsPlatform.c:125> fxAbort memory full`. A pop is FREE:
 > push → pop → push still dies on the SECOND PUSH, so it keys on pushes, not
@@ -201,8 +203,17 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > ×2 back to #4 at tick 106** — seven swaps where two used to be fatal.
 > navreactive still boots and animates ("depth 1 + ping 51", distinct
 > frames). The instruments channel was dead by this point in the session, so
-> the new floor could not be re-sampled numerically — binary outcomes only
-> (next session: one instruments run pins the reclaimed bytes).
+> the first pass had binary outcomes only. **Re-sampled after a fresh
+> emulator reset (same day): boot steady state is now 18.2–18.5 K slots
+> against a 19440 B pool** — the pool self-balances back to the healthy
+> Jul-4 size (pre-diet HEAD: 18.9–20.4 K against 20464 B, peak riding the
+> ceiling), i.e. the diet bought back ~0.7 K at the GC floor and ~1.9 K at
+> the boot peak. Under a 3-push drive the pool grows to 20464 B, the value
+> stack peaks 4768/6144, and the post-push GC floor settles at ~18.8–19.0 K
+> — ~1.5 K margin where the second push used to abort (Screen #4 alive at
+> tick 58 in the same capture). The diet is not gabbro-specific: emery
+> canaries re-proven the same day (navmany SELECT ×3 → "Screen #4 + tick
+> 66"; navreactive "depth 1 + ping 55" animating).
 >
 > **SectionList was STILL over budget with this diet alone** (re-tested:
 > boots to the empty home) — its gap was larger than the reclaimed ~1-1.5 KB.
@@ -210,18 +221,17 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > the app) closed the rest the same day: it now renders on gabbro (see the
 > D3 note above for receipts).
 >
-> **Fix direction (remaining):** a slot-diet round on the
-> jsx/flow/signals footprint measured against `tools/memtest.py`'s post-GC
-> floor (the tool already exists and its `--ramp` was built for exactly this),
-> and/or trimming the per-push permanent cost (the pushed-builder retention in
-> `stack` is the only by-design permanent per-push allocation). Until then the
-> catalog's navmany row stays honest: **boot + tick + ONE push are verified on
-> HEAD; repeated pushes are over-budget** (receipts:
+> **Remaining levers (optional, banked):** further slot-diet rounds measured
+> against `tools/memtest.py`'s post-GC floor (its `--ramp` was built for
+> exactly this), and/or trimming the per-push permanent cost (~60–100 B — the
+> pushed-builder retention in `stack` is the only by-design permanent
+> per-push allocation). The catalog's navmany row now reads: **boot + tick +
+> four pushes + pops verified on HEAD post-diet** (receipts:
 > `screenshots/navmany-gabbro.png` tick 103, `navmany-push1-gabbro.png`
-> "Screen #2", `navmany-push2-launcher-gabbro.png` the exit). Caveat for
-> re-measurers: the very same drive on a freshly-RELAUNCHED (warm) emulator
-> died one push earlier — the baseline wobbles by roughly one push's margin,
-> which is exactly what riding the ceiling predicts.
+> "Screen #2"; the historical `navmany-push2-launcher-gabbro.png` exit frame
+> documents the pre-diet failure). Caveat for re-measurers: a warm-relaunch
+> drive can die one push earlier than a cold boot — the baseline wobbles by
+> roughly one push's margin, exactly what a near-ceiling budget predicts.
 
 ## Core (signals.ts) — ALL RESOLVED (S9 fixed 2026-07-21)
 
