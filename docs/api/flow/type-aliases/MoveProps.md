@@ -8,7 +8,7 @@
 
 > **MoveProps** = [`BoxProps`](BoxProps.md) & `object`
 
-Defined in: flow.ts:163
+Defined in: flow.ts:162
 
 ## Type Declaration
 

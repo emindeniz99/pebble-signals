@@ -34,8 +34,8 @@ No registry releases yet; entries accumulate under Unreleased until the first
   (`Scrollable` + `ContentIndicator` — free-form clip+`moveBy` scroll with `Label`
   chevron gutters, device-verified; a draw-Canvas overlay wedges the firmware — gotcha 24),
   `runtime/grid` (`Grid` — N-column tiles), `runtime/sectionlist` (`SectionList` —
-  grouped headers+rows over `VirtualList`; **DEVICE-GATED — hangs on gabbro, see
-  Fixed/Changed below**). Output: `runtime/vibration` (`useHaptics` over the static
+  grouped headers+rows in one recycled window; device-gated at first, un-gated
+  after its standalone rewrite — see Fixed below). Output: `runtime/vibration` (`useHaptics` over the static
   `pebble/vibes`; buzz felt only on hardware).
 - **`runtime/anim` motion models — `useSequence`/`useSpring` + combinators.**
   `useSequence(steps, opts)` chains keyframe moves/holds (optionally looping — RN
@@ -150,6 +150,18 @@ No registry releases yet; entries accumulate under Unreleased until the first
   `-grown` reactive-change frames). Example: `src/tsx/examples/draw.tsx`.
 
 ### Fixed
+- **`SectionList` un-gated — first device render ever (gabbro, 2026-07-28).**
+  Rewritten standalone: it owns its recycled Label window directly instead of
+  composing over `VirtualList`, and DERIVES each visible cell from `sections`
+  plus an int `start[]` offsets array instead of flattening into a parallel
+  record array. Same public API and behavior (headers non-selectable,
+  keep-in-view, reactive highlight); the win is arena budget — no flattened
+  copy, and treeshake now drops `runtime/flow` from the app (symbols 149→140,
+  archive 17354→15028 B). Device receipts: boot frame (`Fruit` header, `Apple`
+  highlighted) and a 3×DOWN drive (window scrolled, selection crossed the
+  section boundary skipping the `Veg` header, `Carrot` highlighted) —
+  `screenshots/sectionlist-gabbro.png`, `sectionlist-scroll-gabbro.png`.
+  Closes the D3 gate and the D4 "SectionList still over budget" residue.
 - **D4 diet round 1 — `Navigator` pushes work again (device-verified).** A
   200-closure module-scope probe proved the "preloaded" runtime trio's module
   scope costs boot-RAM slots 1:1 (navmany failed to BOOT with the probe), so
@@ -164,8 +176,8 @@ No registry releases yet; entries accumulate under Unreleased until the first
   16929 → 16565 B, and on gabbro it now survives push → #2 → #3 → #4 plus
   pop ×2 / push ×2 (seven swaps; two used to be fatal). navreactive boots
   and animates. No public API change; 1888 tests at 100 % coverage, XS laws
-  green. `SectionList` is still over budget (its gap exceeds this reclaim)
-  and stays device-gated.
+  green. `SectionList` was still over budget after this reclaim alone (its
+  gap exceeds it) — its standalone rewrite (entry above) closed the rest.
 
 ### Known issues
 - **D4 — repeated `Navigator` pushes are over the arena budget on gabbro
@@ -180,7 +192,7 @@ No registry releases yet; entries accumulate under Unreleased until the first
   direction: a slot-diet round measured against `tools/memtest.py`'s post-GC
   floor. Full evidence chain: docs/review-findings.md **D4**. *Update (same
   day): diet round 1 landed — see Fixed above; navmany pushes verified live
-  again. SectionList remains over budget.*
+  again, and SectionList's standalone rewrite closed its remaining gap.*
 
 ### Fixed
 - **Round thirteen — 32 review findings across the runtime, the build scanners
@@ -289,9 +301,10 @@ No registry releases yet; entries accumulate under Unreleased until the first
   string-only — so it is the rich multi-row layout itself, not the content, styling,
   or scroll. Node suite passes (stub Piu never hangs) — the exact build-passes/
   device-hangs class. Strengthened the `VLRich` API warning with the measurement;
-  banner'd `runtime/sectionlist` and its components.md entry. Fix (a VirtualList
-  rich-multi-row change or a SectionList redesign to simple mode) is tracked
-  separately — do not ship SectionList to a device until then.
+  banner'd `runtime/sectionlist` and its components.md entry. *(Since
+  superseded twice: the D3 re-measure showed the failure was arena budget, not
+  a rich-multi-row hang, and the standalone rewrite — see the SectionList
+  Fixed entry above — un-gated it with device receipts.)*
 - **`fontcheck` now rejects `bold 30px Bitham`** — a build-passes/device-fails
   gap the device retry caught: the vibration example crashed on gabbro with
   `URIError: font not found: Bitham-Bold-30.fnt`. The 30px Bitham face is

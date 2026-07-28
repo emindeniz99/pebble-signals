@@ -8,7 +8,7 @@
 
 > **Section**\<`H`, `R`\> = `object`
 
-Defined in: sectionlist.ts:96
+Defined in: sectionlist.ts:77
 
 One section: a `header` datum plus its item `rows`.
 
@@ -28,7 +28,7 @@ One section: a `header` datum plus its item `rows`.
 
 > **header**: `H`
 
-Defined in: sectionlist.ts:98
+Defined in: sectionlist.ts:79
 
 The section header datum — passed to `renderHeader`; rendered bold + non-selectable.
 
@@ -38,6 +38,6 @@ The section header datum — passed to `renderHeader`; rendered bold + non-selec
 
 > **rows**: `R`[]
 
-Defined in: sectionlist.ts:100
+Defined in: sectionlist.ts:81
 
 The section's item data — each passed to `renderRow` and independently selectable.

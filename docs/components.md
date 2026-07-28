@@ -789,32 +789,28 @@ forever and a negative would allocate Rows until the arena died.
 
 ### SectionList — `runtime/sectionlist`
 
-Grouped headers + rows over the windowed `VirtualList` (RN `<SectionList>`): flattens
-sections+headers into one index space, headers non-selectable, `selected` kept in
-view. `renderHeader`/`renderRow` return **string** captions (a recycled slot is one
-reused Label).
+Grouped headers + rows in one recycled window (RN `<SectionList>`): headers and
+rows share a flat index space (headers non-selectable), `selected` is kept in
+view, and each visible slot is ONE reused Label whose caption/style/skin derive
+from the window position — no flattened record array, no `VirtualList`
+composition. `renderHeader`/`renderRow` return **string** captions.
 
 ```tsx
 import { SectionList } from "runtime/sectionlist";
 <SectionList sections={() => groups()} renderHeader={(h) => h} renderRow={(r) => r.name} selected={() => i()} />
 ```
 
-_Node-100%-covered; builds. **DEVICE-GATED (still) — but the VirtualList half of
-the old diagnosis was wrong twice over (re-measured on gabbro 2026-07-21; see
-review-findings D3).** Rich `renderRow` rows are NOT categorically broken at
-`rows>1`, and it is not an arena budget: a rich row with NO fixed height renders
-at `rows=3`, while the SAME row carrying `height` dies at 3 and survives at 2 —
-the port's "multi-child column with no vertical box" family. `SectionList`
-nonetheless still dies with height-less rows — and the bisect is now DONE
-(2026-07-28): the row `width`, the reactive `skin`/`style` drive, and the
-keep-in-view effect were each removed on-device and NONE saved it, so there is
-no single structural culprit. Its death is arena-BUDGET pressure (the D4
-family in review-findings: the HEAD runtime baseline rides the slot ceiling,
-and SectionList's total build lands on top); it stays device-gated until a
-slot-diet round buys the headroom back. "Dies" is an EXIT to the
-launcher, not a wedged firmware; the original "hangs" reading came from the
-screenshot transport timing out, which also happens when that transport rots
-(CLAUDE.md Rule 3)._
+_Device-verified on gabbro (2026-07-28) after the standalone rewrite — the
+first on-device render in the component's history. The old composed-over-
+VirtualList build was arena-BUDGET death (review-findings D3/D4): the flatten
+allocated a parallel record array AND pulled `runtime/flow` into the archive.
+The rewrite derives each cell from `sections` + an int `start[]` offsets array,
+which also lets treeshake drop `flow` from the app entirely (symbols 149→140,
+archive −2326 B) — that headroom is the whole fix. Keep-in-view + boundary-
+crossing selection (headers skipped) are device-proven with button drives._
+
+![SectionList on gabbro](../screenshots/sectionlist-gabbro.png)
+![SectionList scrolled, selection past a section boundary](../screenshots/sectionlist-scroll-gabbro.png)
 
 ---
 

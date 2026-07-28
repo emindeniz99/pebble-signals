@@ -138,9 +138,20 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > poison left to find. Reclassified as **D4-class arena-budget pressure** (see
 > D4 below): the HEAD runtime baseline saw-tooths at the slot ceiling even for
 > slim navmany, and SectionList's total build (VirtualList + per-slot effects +
-> the flatten + its own module) lands on top of that. It stays device-gated
-> until the D4 slot-diet buys the headroom back; re-test it FIRST after any
-> diet round.
+> the flatten + its own module) lands on top of that.
+>
+> **✅ CLOSED (2026-07-28, same day): SectionList RENDERS on gabbro** after a
+> standalone rewrite — the first on-device render in the component's history.
+> The budget diagnosis pointed at the fix: the composed build paid for a
+> flattened parallel record array AND for `runtime/flow` (VirtualList's module
+> plus its imports) in the archive. The rewrite owns its recycled window
+> directly and DERIVES each cell (`sections` + an int `start[]` offsets array,
+> per-slot index walk) instead of flattening; treeshake then drops `flow` from
+> the app entirely — symbols 149→140, archive 17354→15028 B. Receipts:
+> `screenshots/sectionlist-gabbro.png` (boot frame, Apple highlighted) and
+> `sectionlist-scroll-gabbro.png` (after 3 down clicks: window scrolled,
+> selection crossed the Fruit→Veg boundary skipping the header, Carrot
+> highlighted — keep-in-view device-proven).
 
 > **D4 — 🔬 OPEN (found 2026-07-28, gabbro QEMU) — `navmany`'s SECOND Navigator
 > push dies with `fxAbort memory full`; root cause is FOOTPRINT GROWTH, not a
@@ -193,10 +204,11 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > the new floor could not be re-sampled numerically — binary outcomes only
 > (next session: one instruments run pins the reclaimed bytes).
 >
-> **SectionList is STILL over budget with this diet** (re-tested: boots to
-> the empty home) — its gap is larger than the reclaimed ~1-1.5 KB; its own
-> slim-down (per-slot costs, playbook backlog #2 shared-binding reaction)
-> stays the named follow-up.
+> **SectionList was STILL over budget with this diet alone** (re-tested:
+> boots to the empty home) — its gap was larger than the reclaimed ~1-1.5 KB.
+> Its own standalone rewrite (derive-don't-flatten, drops `runtime/flow` from
+> the app) closed the rest the same day: it now renders on gabbro (see the
+> D3 note above for receipts).
 >
 > **Fix direction (remaining):** a slot-diet round on the
 > jsx/flow/signals footprint measured against `tools/memtest.py`'s post-GC

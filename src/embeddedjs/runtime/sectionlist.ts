@@ -3,55 +3,37 @@
 // imports `runtime/sectionlist` never ships it (the manifest prunes to the
 // import closure — README tree-shaking), so this module costs non-users nothing.
 //
-// ⚠️ DEVICE-GATED — HANGS on gabbro (MEASURED 2026-07). SectionList needs
-// per-row styling (bold headers, highlight fill), so it drives VirtualList in
-// RICH mode (`renderRow`) with `rows>1` — and THAT combination wedges the
-// firmware (the screenshot/watch-info transport times out). Bisected on a clean
-// emulator: `richlist` (rich, rows=1) renders; `forbind5vl` (simple `format`,
-// rows=5) renders; a rich list with rows>1 hangs even NON-scrolling and even
-// string-only. The Node suite passes (the stub Piu never hangs) — this is the
-// exact "build passes, device fails" class. The fix is a VirtualList-level
-// change (rich multi-row layout) or a SectionList redesign, tracked separately.
-// Do NOT ship SectionList to a device until then.
+// HISTORY: this module was device-gated from birth — it died at boot on
+// gabbro through every earlier reading (first "rich rows>1 hangs", then a
+// height-shape theory, finally D4: plain arena-BUDGET pressure — the
+// one-variable ablations in review-findings D3/D4 killed every structural
+// suspect). The 2026-07-28 slim-down below (standalone window, derive-don't-
+// flatten, no runtime/flow import) plus the D4 runtime diet is what finally
+// brought its build under the budget.
 //
 // WHAT (Rule 2 — no new substrate): RN's <SectionList> — section HEADERS
-// interleaved with item ROWS — composed over flow.ts's windowed VirtualList (our
-// FlatList). SectionList owns NO scroll/recycle machinery of its own: it FLATTENS
-// the sections+headers into ONE index space and hands that flat model to
-// VirtualList, which recycles a fixed set of `rows` slot Labels as the window
-// moves (RAM O(rows), not O(items) — the whole VirtualList trick). DISPLAY-ONLY
-// (Rule 8): the APP owns the selected ITEM index (a signal) and drives it
-// (buttons / a rotary); SectionList highlights the selected row and keeps it in
-// view. No input handling — a loader is the sole self-owning widget, not this.
+// interleaved with item ROWS — a STANDALONE recycled window (D4 slot-diet;
+// it no longer composes VirtualList, whose RICH mode cost two extra arrows
+// per slot and shipped runtime/flow into apps that use nothing else from
+// it). DISPLAY-ONLY (Rule 8): the APP owns the selected ITEM index (a
+// signal) and drives it (buttons / a rotary); SectionList highlights the
+// selected row and keeps it in view. No input handling.
 //
-// FLATTEN (the one piece of real logic): sections `[{header, rows:[…]}, …]`
-// become `flat = [{type:'header',data}, {type:'row',data}, …]` in section order —
-// each section contributes ONE non-selectable header record followed by its row
-// records. A parallel `rowFlat[]` records the flat index of every ROW (headers
-// skipped), so a `selected` ITEM index (0-based over rows only, never a header)
-// maps to a flat index by `rowFlat[selected]` — that is how "selection skips
-// headers" (a header index can never be selected). `sections` is a THUNK but read
-// ONCE at construction (like grid.ts's `items`): Piu lays the list out at
-// construction and VirtualList windows a FIXED model — for a CHANGING section set,
-// rebuild the screen (the port's static-layout rule). The thunk is purely so a
-// caller can compute sections inline.
+// DERIVE, DON'T FLATTEN (D4 slot-diet): the sections are read ONCE (the
+// static-layout rule — a CHANGING section set means rebuilding the screen);
+// the only stored index is `start[s]`, the flat index of each section's
+// header. Record kind/datum and the selected row's flat index are DERIVED by
+// a short walk at read time — CPU for RAM. The old `{type,data}` record
+// array + rowFlat[] cost ~45 boot slots on the demo alone.
 //
-// RECYCLED HETEROGENEOUS SLOTS (the dispatch): VirtualList calls our slot builder
-// ONCE per visible slot; we build ONE `rowHeight`-tall Label per slot and drive
-// its `string`/`style`/`skin` from ONE effect that re-reads the slot's CURRENT
-// flat index (`idxThunk()` — reads the window signal) and DISPATCHES on the record
-// type: a 'header' record wears the BOLD header Style and shows
-// `renderHeader(headerData)`; a 'row' record wears the normal Style (or the active
-// Style + fill Skin when it is the selected row) and shows `renderRow(rowData)`; a
-// past-the-end slot blanks. Only `string`/`style`/`skin` are written reactively —
-// all on the jsx-runtime REACTIVE_PROPS whitelist (coordinate props are
-// construction-time on this port and a reactive write THROWS); the Label's width +
-// rowHeight are construction-time statics (gotcha 16 — a size-less Label and the
-// active fill Skin need an explicit box). This is menu.ts's `cell.style`/`.skin`
-// highlight idiom + VirtualList's reactive-string recycling. (NB: the earlier
-// claim that this "inherits their on-device proof — no moveBy at all" was WRONG
-// on both counts — VirtualList DOES moveBy internally, and rich `rows>1` HANGS on
-// gabbro; see the device-gated banner at the top of this file.)
+// RECYCLED HETEROGENEOUS SLOTS: one Column host with an explicit box, one
+// `rowHeight`-tall Label per visible slot, ONE effect per slot that re-reads
+// the window signal + `selected` and dispatches: header records wear the
+// BOLD Style; row records the normal Style (or active Style + fill Skin when
+// selected); past-the-end slots blank. Only `string`/`style`/`skin` are
+// written reactively — all on the jsx-runtime REACTIVE_PROPS whitelist;
+// width/rowHeight are construction-time statics (gotcha 16). This is
+// menu.ts's device-proven cell shape.
 //
 // KEEP-IN-VIEW (menu.ts's idiom, in ROW-INDEX units): the visible window start is
 // a signal VirtualList reads; ONE effect watches the selected flat index and, when
@@ -71,13 +53,12 @@
 // top level — only plain style/color constants.
 import { effect, signal } from "runtime/signals";
 import { screen } from "runtime/jsx-runtime";
-import { VirtualList, type DataSource } from "runtime/flow";
-import type { Color, Content, Label as PiuLabel } from "../../../types/moddable/piu/MC-types";
-
-// One flattened record: a section HEADER (non-selectable) or an item ROW. The
-// sections tree collapses to a `FlatRec[]` in section order so VirtualList can
-// window it as a single index space; the `type` tag drives the per-slot dispatch.
-type FlatRec<H, R> = { type: "header"; data: H } | { type: "row"; data: R };
+import type {
+	Color,
+	Container as PiuContainer,
+	Content,
+	Label as PiuLabel,
+} from "../../../types/moddable/piu/MC-types";
 
 // Valid Pebble system font keys (Rule 7 / tools/fontcheck): headers BOLD, rows
 // normal. Muted gray inactive text, white active text, dark-teal active fill —
@@ -131,8 +112,8 @@ export type SectionListProps<H = unknown, R = unknown> = {
 };
 
 /**
- * SectionList — a grouped list of section HEADERS + item ROWS over the windowed
- * VirtualList: React Native's <SectionList> on a watch.
+ * SectionList — a grouped list of section HEADERS + item ROWS over a recycled
+ * window: React Native's <SectionList> on a watch.
  *
  *   const [sel, setSel] = useState(0);
  *   <SectionList
@@ -142,13 +123,13 @@ export type SectionListProps<H = unknown, R = unknown> = {
  *
  * DISPLAY-ONLY (Rule 8) — the app owns the selected ITEM index and drives it
  * (buttons / a rotary); SectionList highlights that row and keeps it in view. The
- * sections+headers are FLATTENED into one index space and handed to VirtualList,
- * which recycles a fixed `rows` slot Labels as the window moves (RAM O(rows)).
+ * sections+headers share one DERIVED flat index space over a standalone window
+ * that recycles a fixed `rows` slot Labels as the window moves (RAM O(rows)).
  * Each slot's `string`/`style`/`skin` (all REACTIVE_PROPS-whitelisted) are driven
  * by ONE effect that dispatches on the current record's type — a bold header, a
  * normal row, or an active row (fill Skin) when selected. `selected` is an ITEM
  * index over ROWS only, so it can never land on a header. See the module header
- * for the flatten + keep-in-view contract.
+ * for the derive + keep-in-view contract.
  */
 export function SectionList<H = unknown, R = unknown>(props: SectionListProps<H, R>): Content {
 	const renderHeader = props.renderHeader;
@@ -168,41 +149,44 @@ export function SectionList<H = unknown, R = unknown>(props: SectionListProps<H,
 	const activeStyle = new Style({ font: ROW_FONT, color: ACTIVE_COLOR });
 	const activeSkin = new Skin({ fill: ACTIVE_FILL });
 
-	// FLATTEN the sections into one index space (read `sections` ONCE, like
-	// grid.ts). `rowFlat[i]` is the flat index of the i-th ROW — headers are pushed
-	// but never recorded here, so a selected ITEM index maps straight past them.
-	const flat: FlatRec<H, R>[] = [];
-	const rowFlat: number[] = [];
-	for (const sec of props.sections()) {
-		flat.push({ type: "header", data: sec.header });
-		for (const item of sec.rows) {
-			rowFlat.push(flat.length);
-			flat.push({ type: "row", data: item });
-		}
+	// DERIVE, don't flatten (D4 slot-diet). The old implementation materialized
+	// every record as a `{type,data}` object plus a parallel rowFlat[] — ~45
+	// boot slots for the demo's 10 records, on the exact budget SectionList
+	// keeps dying on. `sections` is still read ONCE (static-layout rule); the
+	// only stored index is `start[s]` = the flat index of section s's header
+	// (ints, one per section). Everything else — record type, record datum, the
+	// selected row's flat index — is DERIVED by a short walk over `secs` at
+	// read time. CPU for RAM, the house rule: the walk is O(sections) with
+	// single-digit section counts.
+	const secs = props.sections();
+	const start: number[] = [];
+	let flatLen = 0;
+	let rowCount = 0;
+	for (let i = 0; i < secs.length; i++) {
+		start[i] = flatLen;
+		flatLen += 1 + secs[i].rows.length;
+		rowCount += secs[i].rows.length;
 	}
-	const rowCount = rowFlat.length;
-
-	// The DataSource VirtualList windows: get(i) returns undefined past the end (a
-	// blank slot). count() is the FLATTENED length — headers + rows.
-	const flatData: DataSource<FlatRec<H, R> | undefined> = {
-		count: () => flat.length,
-		get: (i) => flat[i],
-	};
-	const flatLen = flatData.count();
 	const maxAt = Math.max(0, flatLen - rows);
 
-	// selected ITEM index -> its flat index (via rowFlat, so headers are skipped);
+	// selected ITEM index -> its flat index (headers skipped by construction);
 	// -1 when there is no selection or no selectable rows (nothing highlights).
 	const selectedFlat = (): number => {
-		if (selected === undefined) return -1;
-		if (rowCount === 0) return -1;
+		if (selected === undefined || rowCount === 0) return -1;
 		const raw = typeof selected === "function" ? selected() : selected;
-		return rowFlat[Math.max(0, Math.min(raw, rowCount - 1))];
+		let r = Math.max(0, Math.min(raw, rowCount - 1));
+		let i = 0;
+		while (r >= secs[i].rows.length) {
+			r -= secs[i].rows.length;
+			i++;
+		}
+		return start[i] + 1 + r;
 	};
 
-	// Window start (flat index) — a signal VirtualList reads; keep-in-view writes
-	// it. `winStart` is the last-applied start (mirrors menu.ts's `scroll`) so each
-	// change scrolls INCREMENTALLY and a self-loop is impossible (never read here).
+	// Window start (flat index) — a signal the slot effects read; keep-in-view
+	// writes it. `winStart` is the last-applied start (mirrors menu.ts's
+	// `scroll`) so each change scrolls INCREMENTALLY and a self-loop is
+	// impossible (never read here).
 	const atSig = signal(0);
 	let winStart = 0;
 	const keepInView = (selFlat: number): void => {
@@ -227,40 +211,45 @@ export function SectionList<H = unknown, R = unknown>(props: SectionListProps<H,
 		else keepInView(selectedFlat());
 	}
 
-	return VirtualList<FlatRec<H, R> | undefined>({
-		data: flatData,
-		rows,
-		width,
-		height,
-		at: () => atSig.value,
-		// params annotated (not left to union contextual typing) so this compiles
-		// clean under strict/noImplicitAny — the `data` here IS `flatData`.
-		renderRow: (idxThunk: () => number, data: DataSource<FlatRec<H, R> | undefined>) => {
-			// ONE recycled Label per slot; width + rowHeight are construction-time
-			// statics (gotcha 16 — the active fill Skin needs a real box).
-			const cell = new Label(null, { width, height: rowHeight }) as PiuLabel;
-			// ONE effect drives string/style/skin (all REACTIVE_PROPS-whitelisted):
-			// re-read the slot's CURRENT flat index (scroll) + `selected` (highlight)
-			// and DISPATCH on the record type.
-			effect(() => {
-				const fi = idxThunk();
-				const rec = data.get(fi);
-				if (rec === undefined) {
-					cell.string = ""; // past the end of the flat list -> blank slot
-					cell.style = rowStyle;
-					cell.skin = null;
-				} else if (rec.type === "header") {
-					cell.string = renderHeader(rec.data);
-					cell.style = headerStyle; // bold, non-selectable
-					cell.skin = null;
-				} else {
-					cell.string = renderRow(rec.data);
-					const active = fi === selectedFlat();
-					cell.style = active ? activeStyle : rowStyle;
-					cell.skin = active ? activeSkin : null;
-				}
-			});
-			return cell;
-		},
-	});
+	// STANDALONE window (D4 slot-diet): SectionList used to hand the flat model
+	// to VirtualList's RICH mode, which costs a builder arrow + an index-thunk
+	// arrow per slot on top of the slot's own effect (~8 slots each) — and made
+	// this module import runtime/flow, shipping a whole extra module in apps
+	// that use nothing else from it. The recycling contract is tiny and menu.ts
+	// already proves the shape on-device (explicit host box + fixed-height
+	// cells + reactive string/style/skin): ONE Column host, `rows` recycled
+	// Labels, ONE effect per slot reading the window signal directly.
+	const host = new Column(null, { width, height }) as PiuContainer;
+	for (let slot = 0; slot < rows; slot++) {
+		// width + rowHeight are construction-time statics (gotcha 16 — a
+		// size-less Label and the active fill Skin need an explicit box).
+		const cell = new Label(null, { width, height: rowHeight }) as PiuLabel;
+		// ONE effect drives string/style/skin (all REACTIVE_PROPS-whitelisted):
+		// re-read the slot's CURRENT flat index (scroll) + `selected`
+		// (highlight), DERIVE the record, and dispatch on its kind.
+		effect(() => {
+			const fi = atSig.value + slot;
+			if (fi < 0 || fi >= flatLen) {
+				cell.string = ""; // past the end of the flat space -> blank slot
+				cell.style = rowStyle;
+				cell.skin = null;
+				return;
+			}
+			// find the section owning flat index fi (last i with start[i] <= fi)
+			let i = 0;
+			while (i + 1 < secs.length && start[i + 1] <= fi) i++;
+			if (fi === start[i]) {
+				cell.string = renderHeader(secs[i].header);
+				cell.style = headerStyle; // bold, non-selectable
+				cell.skin = null;
+			} else {
+				cell.string = renderRow(secs[i].rows[fi - start[i] - 1]);
+				const active = fi === selectedFlat();
+				cell.style = active ? activeStyle : rowStyle;
+				cell.skin = active ? activeSkin : null;
+			}
+		});
+		host.add(cell);
+	}
+	return host;
 }

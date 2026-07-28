@@ -1,5 +1,5 @@
 // Example: SectionList — a grouped list (RN <SectionList>) of section HEADERS
-// (bold) interleaved with item ROWS (normal) over the windowed VirtualList. The
+// (bold) interleaved with item ROWS (normal) in one recycled window. The
 // app owns the selected ITEM index (a signal); up/down step it (wrapping) and
 // SectionList highlights that row + scrolls to keep it in view. Headers are never
 // selectable, so stepping walks row-to-row ACROSS sections, skipping the headers.

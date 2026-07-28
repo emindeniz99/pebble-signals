@@ -8,10 +8,10 @@
 
 > **SectionList**\<`H`, `R`\>(`props`): `Content`
 
-Defined in: sectionlist.ts:153
+Defined in: sectionlist.ts:134
 
-SectionList — a grouped list of section HEADERS + item ROWS over the windowed
-VirtualList: React Native's <SectionList> on a watch.
+SectionList — a grouped list of section HEADERS + item ROWS over a recycled
+window: React Native's <SectionList> on a watch.
 
   const [sel, setSel] = useState(0);
   <SectionList
@@ -21,13 +21,13 @@ VirtualList: React Native's <SectionList> on a watch.
 
 DISPLAY-ONLY (Rule 8) — the app owns the selected ITEM index and drives it
 (buttons / a rotary); SectionList highlights that row and keeps it in view. The
-sections+headers are FLATTENED into one index space and handed to VirtualList,
-which recycles a fixed `rows` slot Labels as the window moves (RAM O(rows)).
+sections+headers share one DERIVED flat index space over a standalone window
+that recycles a fixed `rows` slot Labels as the window moves (RAM O(rows)).
 Each slot's `string`/`style`/`skin` (all REACTIVE_PROPS-whitelisted) are driven
 by ONE effect that dispatches on the current record's type — a bold header, a
 normal row, or an active row (fill Skin) when selected. `selected` is an ITEM
 index over ROWS only, so it can never land on a header. See the module header
-for the flatten + keep-in-view contract.
+for the derive + keep-in-view contract.
 
 ## Type Parameters
 

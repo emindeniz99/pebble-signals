@@ -20,8 +20,9 @@ node tools/device-smoke.mts --platform emery              # rect watch
 ```
 
 **Both-platform status (2026-07): the full catalog was green on gabbro AND
-emery** at the matrix runs (13/13 each; `pulse` joined after → the 14 apps
-tabulated below — see its receipts). Emery receipts for the newer examples are
+emery** at the matrix runs (13/13 each; `pulse` joined after, then
+`sectionlist` on 2026-07-28 → the 15 apps tabulated below — see their
+receipts; `sectionlist` is gabbro-verified only so far). Emery receipts for the newer examples are
 committed (`screenshots/*-emery.png`); the emery run found ZERO
 platform-specific failures — `screen.width/round` adaptation carried every app
 unchanged.
@@ -97,7 +98,7 @@ transport (0 heartbeats) triggers one `tools/reset-emulator.sh` + retry
 
 | app | buttons | a human should see | why it's here |
 |---|---|---|---|
-| `navmany` | none | "Screen #1" + live tick | **depth-audit canary** — 100-screen Navigator, boots ~1 slot from the 384 value-stack wall. ⚠️ button pushes: ONE push verified; the SECOND dies on the arena ceiling — see review-findings **D4** |
+| `navmany` | none | "Screen #1" + live tick | **depth-audit canary** — 100-screen Navigator, boots ~1 slot from the 384 value-stack wall. Button pushes verified through Screen #4 + pop×2 + push×2 after the D4 slot diet (see review-findings **D4**; pre-diet the SECOND push died on the arena ceiling) |
 | `navreactive` | none | "depth 1" + live ping | **depth-audit canary** — Navigator over a reactive screen, the OTHER near-wall shape |
 | `counter` | UP ×2 | count = 2 | the smallest useState + handler loop |
 | `autothunk` | UP ×2 | "Count: 2" | the LOWERED bare `string={"…"+count()}` binding updates live |
@@ -111,6 +112,7 @@ transport (0 heartbeats) triggers one `tools/reset-emulator.sh` + retry
 | `devlog` | SELECT | "sent 1" | `report()` → AppMessage bridge (the `pkjs>` line needs the log capture — kept manual) |
 | `dictate` | none | "SELECT starts dictation" | dictation probe — boot-only ON PURPOSE (SELECT opens the system UI, BACK exits to the launcher) |
 | `pulse` | UP | serif clock + date/secs + accent dot turns green | the flagship showcase watchface (TTF + persisted theme + config greeting + lazy boot) |
+| `sectionlist` | DOWN ×3 | boot: "Fruit" header + "Apple" highlighted; after: window scrolled, "Carrot" highlighted (Veg header skipped) | grouped recycled window — keep-in-view scroll + header-skipping selection (first device render 2026-07-28, post standalone rewrite; see review-findings D3) |
 
 Adding an entry: one line in `SMOKES` in `tools/device-smoke.mts` (app name,
 drive.py actions, the human-readable expectation). Keep boot-only canaries
