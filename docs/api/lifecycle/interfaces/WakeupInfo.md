@@ -6,7 +6,7 @@
 
 # Interface: WakeupInfo
 
-Defined in: lifecycle.ts:106
+Defined in: lifecycle.ts:115
 
 A fired wakeup — [useWakeup](../functions/useWakeup.md)'s `last` value and the "wakeup" event payload.
 
@@ -16,7 +16,7 @@ A fired wakeup — [useWakeup](../functions/useWakeup.md)'s `last` value and the
 
 > **cookie**: `number`
 
-Defined in: lifecycle.ts:110
+Defined in: lifecycle.ts:119
 
 The int32 cookie that was scheduled with it.
 
@@ -26,6 +26,6 @@ The int32 cookie that was scheduled with it.
 
 > **id**: `number`
 
-Defined in: lifecycle.ts:108
+Defined in: lifecycle.ts:117
 
 The WakeupId of the wakeup that fired (matches a [Wakeup.schedule](Wakeup.md#schedule) return).

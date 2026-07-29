@@ -8,7 +8,7 @@
 
 > **useLaunchReason**(): [`LaunchInfo`](../interfaces/LaunchInfo.md)
 
-Defined in: lifecycle.ts:160
+Defined in: lifecycle.ts:169
 
 useLaunchReason() — a ONE-SHOT read of why the app launched (`watch.launch`).
 

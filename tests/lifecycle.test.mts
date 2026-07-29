@@ -6,15 +6,18 @@
 //  - useAppFocus SEEDS true, registers exactly one "didFocus" listener, updates
 //    the getter (and re-runs a SUBSCRIBING effect, proving reactivity not just a
 //    re-read) when the stored callback fires false, and removes the SAME listener
-//    on root dispose (no leak);
+//    on root dispose (no leak) — and, with the "will" phase, does all of that on
+//    "willFocus" INSTEAD (the phase picks the host event; the OTHER phase is
+//    never subscribed, which is what keeps the two independent on the host's one
+//    shared app_focus_service);
 //  - useWakeup delegates schedule/query/cancel to the pebble/wakeup default —
 //    cancel(id) cancels ONE, cancel() with NO arg cancels ALL (the argc branch,
 //    both sides) — SEEDS `last` from watch.wake, updates `last` (reactively) when
 //    the stored "wakeup" callback fires, and removes its listener on dispose.
-// Every branch (watch present vs absent; cancel arg vs none) and every function
-// (both getters, the focus / wakeup callbacks, the two cleanup closures, the
-// three delegators) is exercised for 100% line/branch/function coverage of the
-// compiled lifecycle.js.
+// Every branch (watch present vs absent; focus phase defaulted vs passed; cancel
+// arg vs none) and every function (both getters, the focus / wakeup callbacks,
+// the two cleanup closures, the three delegators) is exercised for 100%
+// line/branch/function coverage of the compiled lifecycle.js.
 //
 // The vm sandbox has NEITHER `watch` NOR the host `pebble/wakeup`, so — exactly
 // as connection.test injects sandbox.watch and message.test injects
@@ -102,7 +105,7 @@ sandbox.watch = makeWatch({ reason: 2, arguments: 5 }, undefined);
 
 const { useLaunchReason, useAppFocus, useWakeup } = (await loadModule("runtime/lifecycle")) as {
 	useLaunchReason(): LaunchInfo;
-	useAppFocus(): () => boolean;
+	useAppFocus(phase?: "did" | "will"): () => boolean;
 	useWakeup(): {
 		schedule: (time: number, cookie?: number, notifyIfMissed?: boolean) => number;
 		query: (id: number) => unknown;
@@ -136,7 +139,8 @@ const { useLaunchReason, useAppFocus, useWakeup } = (await loadModule("runtime/l
 	);
 }
 
-// --- useAppFocus: seed true, one listener, reactive on fire, cleanup on dispose ---
+// --- useAppFocus(): default "did" phase — seed true, one listener, reactive on
+// fire, cleanup on dispose ---
 {
 	const stub = makeWatch({ reason: 0, arguments: 0 }, undefined);
 	sandbox.watch = stub;
@@ -162,6 +166,52 @@ const { useLaunchReason, useAppFocus, useWakeup } = (await loadModule("runtime/l
 	check(
 		"disposing the root removed the 'didFocus' listener",
 		stub._listeners.didFocus.length === 0,
+	);
+	check("disposing called watch.removeEventListener exactly once", stub.removeCount === 1);
+}
+
+// --- useAppFocus("will"): the phase picks the EARLIER host event, and only it ---
+// Same contract as the default block (seed / one listener / reactive / cleanup)
+// but on "willFocus" — plus the isolation the host's shared app_focus_service
+// makes load-bearing: a "will" hook must not ALSO subscribe "didFocus" (that
+// would double-write the signal and leave a handler installed after teardown),
+// and a "didFocus" fire must not reach it. Exercises the non-default side of the
+// `phase` parameter, so both branches of its default are covered.
+{
+	const stub = makeWatch({ reason: 0, arguments: 0 }, undefined);
+	sandbox.watch = stub;
+	let runs = 0;
+	let seen = false;
+	const [willFocused, dispose] = createRoot(() => {
+		const f = useAppFocus("will");
+		effect(() => {
+			runs++;
+			seen = f(); // subscribe, so this proves reactivity — not just a re-read
+		});
+		return f;
+	});
+	check("useAppFocus('will') seeds true", willFocused() === true);
+	check("the subscribing effect saw the true seed", runs === 1 && seen === true);
+	check("registers exactly one 'willFocus' listener", stub._listeners.willFocus.length === 1);
+	check(
+		"the 'will' phase subscribes NO 'didFocus' listener",
+		stub._listeners.didFocus === undefined,
+	);
+	// willFocus carries the SAME boolean payload as didFocus (pebble-global.c:99).
+	stub.fire("willFocus", false);
+	check("firing 'willFocus' false updates the getter", willFocused() === false);
+	check("the subscribing effect re-ran on the 'willFocus' change", runs === 2 && seen === false);
+	// wrong-event isolation: the other phase's fire reaches no listener here.
+	stub.fire("didFocus", true);
+	check(
+		"a 'didFocus' fire does not touch a 'will'-phase getter",
+		willFocused() === false && runs === 2,
+	);
+	// teardown: the SAME callback is removed from the 'willFocus' list (no leak).
+	dispose();
+	check(
+		"disposing the root removed the 'willFocus' listener",
+		stub._listeners.willFocus.length === 0,
 	);
 	check("disposing called watch.removeEventListener exactly once", stub.removeCount === 1);
 }

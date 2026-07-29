@@ -6,7 +6,7 @@
 
 # Interface: LaunchInfo
 
-Defined in: lifecycle.ts:98
+Defined in: lifecycle.ts:107
 
 Why the app launched — a one-shot read of `watch.launch`, from [useLaunchReason](../functions/useLaunchReason.md).
 
@@ -16,7 +16,7 @@ Why the app launched — a one-shot read of `watch.launch`, from [useLaunchReaso
 
 > **arguments**: `number`
 
-Defined in: lifecycle.ts:102
+Defined in: lifecycle.ts:111
 
 app_launch_get_args() — the unsigned launch argument (0 when none).
 
@@ -26,6 +26,6 @@ app_launch_get_args() — the unsigned launch argument (0 when none).
 
 > **reason**: `number`
 
-Defined in: lifecycle.ts:100
+Defined in: lifecycle.ts:109
 
 app_launch_reason() — the AppLaunchReason enum for why this run started.

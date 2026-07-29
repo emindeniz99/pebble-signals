@@ -8,7 +8,7 @@
 
 > **useWakeup**(): [`Wakeup`](../interfaces/Wakeup.md)
 
-Defined in: lifecycle.ts:224
+Defined in: lifecycle.ts:253
 
 useWakeup() — the wakeup scheduler plus a reactive `last`-fired event.
 

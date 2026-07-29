@@ -6,7 +6,7 @@
 
 # Interface: Wakeup
 
-Defined in: lifecycle.ts:125
+Defined in: lifecycle.ts:134
 
 What [useWakeup](../functions/useWakeup.md) returns: the wakeup scheduler plus a reactive `last`.
 
@@ -16,7 +16,7 @@ What [useWakeup](../functions/useWakeup.md) returns: the wakeup scheduler plus a
 
 > **cancel**: (`id?`) => `void`
 
-Defined in: lifecycle.ts:137
+Defined in: lifecycle.ts:146
 
 Cancel ONE wakeup by id, or — called with NO argument — cancel ALL of them.
 
@@ -36,7 +36,7 @@ Cancel ONE wakeup by id, or — called with NO argument — cancel ALL of them.
 
 > **last**: () => [`WakeupInfo`](WakeupInfo.md) \| `undefined`
 
-Defined in: lifecycle.ts:143
+Defined in: lifecycle.ts:152
 
 The most recently FIRED wakeup as `{ id, cookie }`, or `undefined`. Seeded
 from `watch.wake` (the wakeup that launched the app, if any) and updated on
@@ -52,7 +52,7 @@ every "wakeup" event. REACTIVE — read inside a thunk / effect to repaint.
 
 > **query**: (`id`) => `unknown`
 
-Defined in: lifecycle.ts:135
+Defined in: lifecycle.ts:144
 
 Query a scheduled wakeup by id — the host `{ time, scheduled }` shape.
 
@@ -72,7 +72,7 @@ Query a scheduled wakeup by id — the host `{ time, scheduled }` shape.
 
 > **schedule**: (`time`, `cookie?`, `notifyIfMissed?`) => `number`
 
-Defined in: lifecycle.ts:133
+Defined in: lifecycle.ts:142
 
 Schedule a wakeup at `time` (JS epoch MS; the host converts to unix
 seconds). `cookie` (int32, default 0) is echoed back on the event;

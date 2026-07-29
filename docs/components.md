@@ -908,12 +908,31 @@ bind-coverage audit's uncatalogued host surface:
   `watchInfo()` fields (serial is `undefined` on QEMU — coerced to `""`),
   `"hour"`/`"day"` tick granularities → `useClock` (host `hourchange`/
   `daychange`, subscribe-proven).
-- **Present, catalogued, unbound (backlog):** `device.files`
-  (embedded:storage/files — a real file API beyond key-value; `object` on
-  device), `piu/Timeline` (firmware-preloaded tween engine — could replace
-  runtime/anim's JS tweening for zero archive bytes), the `willFocus` watch
-  event (lifecycle binds `didFocus` only), `time`/`timer` host modules
-  (monotonic ticks, re-schedulable timers).
+- **Follow-through (2026-07-29, same day — all device-receipted):**
+  - `device.files` → **BOUND** as `runtime/files` (`readFile`/`writeFile`/
+    `deleteFile`/`listFiles` over the app-private PFS dir; writeFile
+    deletes-then-recreates because NOR writes may only CLEAR bits — verified:
+    `fileprobe` shows `roundtrip-ok / rewrite: ok / list: 1`,
+    `screenshots/fileprobe-gabbro.png`).
+  - `QRCode` → **RENDERS on device** (`qrprobe`: a real code with quiet zone
+    from `new QRCode(null, {string})` — the Piu content IS in the mod
+    compartment; `screenshots/qrprobe-gabbro.png`). A JSX component wrapper is
+    now a plain follow-up, not a gate.
+  - `piu/Timeline` → **tweens on device** (`tlprobe`: label x 16→197 across
+    distinct frames via `Timeline.to` + a setInterval `seekTo` driver;
+    `screenshots/tlprobe-gabbro.png`; verdict on replacing runtime/anim is in
+    the example header — build with `TREESHAKE_FORCE=1`, the dynamic host
+    import disables the static scan).
+  - `willFocus` → **BOUND** as `useAppFocus("will")` (phase param mirrors
+    useClock's granularity idiom; subscribe device-proven, DELIVERY remains
+    emulator-uncertain like didFocus — the module says so).
+  - Still backlog (minor): `time`/`timer` host modules (monotonic ticks,
+    re-schedulable timers).
+  - The market unlock demonstrated: `weather` — a weather FACE fed over the
+    device-proven config channel (`--` fallback until data, then a driven
+    payload renders city/temp/condition + live clock;
+    `screenshots/weather-fallback-gabbro.png`, `weather-gabbro.png`; the
+    phone-side FETCH stays a documented pkjs edit).
 
 ---
 

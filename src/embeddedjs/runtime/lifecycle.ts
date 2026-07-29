@@ -19,11 +19,19 @@
 //     { id, cookie } of the wakeup that LAUNCHED the app, or undefined when the
 //     app was not launched by a wakeup (the C returns early, leaving the result
 //     undefined). A ONE-SHOT — used to SEED useWakeup's `last`.
-//   * watch.addEventListener("didFocus", cb) (global.js events[7]) subscribes the
-//     native app_focus_service; the host dispatches didFocus(bool in_focus) ->
-//     watch.do("didFocus", in_focus) (pebble-global.c:112-123 — xsCall2 with the
-//     boolean), so the callback is a FocusCallback: it takes ONE boolean.
-//     removeEventListener unsubscribes the service when the last listener leaves.
+//   * watch.addEventListener("didFocus"|"willFocus", cb) (global.js events[7] and
+//     events[6]) subscribe the native app_focus_service; the host dispatches
+//     didFocus(bool in_focus) -> watch.do("didFocus", in_focus) and
+//     willFocus(bool in_focus) -> watch.do("willFocus", in_focus)
+//     (pebble-global.c:99-123 — the SAME xsCall2-with-a-boolean shape), so BOTH
+//     callbacks are FocusCallbacks: each takes ONE boolean. They differ only in
+//     WHEN — will_focus fires as the focus change BEGINS, did_focus once it has
+//     completed. ONE native subscription serves BOTH phases: xs_global_focus
+//     (:125) keeps a per-phase handler flag (add -> focus(1) / focus(2); the LAST
+//     remove of a phase -> focus(-1) / focus(-2)) and calls
+//     app_focus_service_unsubscribe() only when NEITHER flag is left (:137) —
+//     re-subscribing with the surviving handler otherwise. So each phase's
+//     add/removeEventListener never disturbs the other's.
 //   * watch.addEventListener("wakeup", cb) (events[8]) subscribes
 //     app_wakeup_service; a fired wakeup dispatches wakeup(id, cookie) ->
 //     watch.do("wakeup", { id, cookie }) (pebble-global.c:149-167 — xsCall2), so
@@ -48,10 +56,10 @@
 //         BRANCHES on `id === undefined` (a correctness requirement, not style).
 //
 // REACTIVITY (Rule 4): useAppFocus SEEDS a useState signal with `true` (an app is
-// in focus at launch; the host's first didFocus fire is deferred, not
-// synchronous) and the "didFocus" callback WRITES it via the setter. useWakeup
-// SEEDS a `last` signal from watch.wake (undefined unless launched by a wakeup)
-// and the "wakeup" callback WRITES it. Both callbacks fire OUTSIDE any effect, so
+// in focus at launch; the host's first focus fire is deferred, not
+// synchronous) and the focus callback — EITHER phase — WRITES it via the setter.
+// useWakeup SEEDS a `last` signal from watch.wake (undefined unless launched by
+// a wakeup) and the "wakeup" callback WRITES it. Both fire OUTSIDE any effect, so
 // a plain setter write is correct (no self-subscribe); consumers read the getter
 // -> reactive. A fresh { id, cookie } per fire always differs (===), so each
 // wakeup notifies.
@@ -67,11 +75,12 @@
 //
 // DEVICE-GATED (document loudly — these are NOT reproducible in the Node/vm test
 // sandbox, and are emulator-uncertain; verify on hardware, Rule 2):
-//   * useAppFocus: the "didFocus" event is EMULATOR-UNCERTAIN. The native
-//     app_focus_service subscription is real and the hook is correct, but QEMU
-//     may not deliver didFocus — so the seed (`true`) can stay put under the
-//     emulator. On a real watch, focus flips when a notification / quick-launch
-//     overlay covers the app and back.
+//   * useAppFocus: the focus EVENTS ("didFocus" / "willFocus") are
+//     EMULATOR-UNCERTAIN. The native app_focus_service subscription is real, the
+//     hook is correct and SUBSCRIBING to either phase is no-throw device-proven
+//     (hostprobe receipt 2026-07-29), but QEMU may not DELIVER them — so the seed
+//     (`true`) can stay put under the emulator. On a real watch, focus flips when
+//     a notification / quick-launch overlay covers the app and back.
 //   * useWakeup: DEVICE-FIRST. `last` only updates when a SCHEDULED wakeup
 //     actually FIRES, which needs a real app_wakeup_schedule AND the watch to
 //     reach that wall-clock time — usually AFTER the app has exited and been
@@ -167,34 +176,54 @@ export function useLaunchReason(): LaunchInfo {
 }
 
 /**
+ * Which focus PHASE {@link useAppFocus} tracks. Both host events carry the SAME
+ * boolean and share ONE app_focus_service subscription (global.js events[6]/[7]
+ * — see the module header); they differ only in WHEN they fire: `"did"` once the
+ * focus change has COMPLETED, `"will"` as it BEGINS — the EARLIER signal, for
+ * stopping work before an overlay finishes covering the app.
+ */
+export type FocusPhase = "did" | "will";
+
+/**
  * useAppFocus() — reactive app-focus state (true while the app owns the screen).
  *
  *   const focused = useAppFocus();
  *   <Label string={() => (focused() ? "focused" : "covered")} />
+ *   const soon = useAppFocus("will");   // same boolean, fired EARLIER
  *
- * SEEDS `true` (an app is in focus at launch; the host's first didFocus fire is
- * deferred, not synchronous), then the host "didFocus" event (a boolean) writes
- * it. Uses the bare `watch` global directly; the listener is removed via
- * onCleanup when the owner is disposed, so CALL THIS INSIDE a render root /
- * component body (Rule 5).
+ * SEEDS `true` (an app is in focus at launch; the host's first focus fire is
+ * deferred, not synchronous), then the host focus event (a boolean) writes it.
+ * Uses the bare `watch` global directly; the listener is removed via onCleanup
+ * when the owner is disposed, so CALL THIS INSIDE a render root / component body
+ * (Rule 5). Want BOTH edges? Call it twice — the phases are independent
+ * subscriptions on the host's one native service.
  *
- * DEVICE-GATED: the "didFocus" event is EMULATOR-UNCERTAIN — the native
- * app_focus_service subscription is real and the hook is correct, but QEMU may
- * not deliver didFocus, so the seed can stay put under the emulator. Verify on
- * hardware.
+ * DEVICE-GATED: the focus events are EMULATOR-UNCERTAIN — the native
+ * app_focus_service subscription is real, the hook is correct and subscribing is
+ * device-proven no-throw for both phases, but QEMU may not DELIVER them, so the
+ * seed can stay put under the emulator. Verify on hardware.
  *
+ * @param phase `"did"` (default) subscribes to "didFocus" — the change is done;
+ *   `"will"` subscribes to "willFocus" — the change is starting.
  * @returns a getter `() => boolean` — reactive; call inside a thunk to subscribe
  */
-export function useAppFocus(): () => boolean {
+export function useAppFocus(phase: FocusPhase = "did"): () => boolean {
 	// Seed true: an app is focused at launch (the host's fire is deferred).
 	const [focused, setFocused] = useState(true);
+	// Both host events are `<phase>Focus`, so the string arithmetic is exact
+	// (clock.ts's `granularity + "change"` idiom). The typings declare willFocus /
+	// didFocus as SEPARATE addEventListener overloads, so a UNION-typed name
+	// matches NEITHER — cast to one; both overloads take the identical
+	// FocusCallback, so the cast narrows the name, not the contract.
+	const event = (phase + "Focus") as "didFocus";
 	// The host callback fires OUTSIDE any effect with ONE boolean — a plain setter
 	// write is correct (Rule 4). Named so removeEventListener matches by reference.
 	const onFocus = (inFocus: boolean): void => setFocused(inFocus);
-	watch.addEventListener("didFocus", onFocus);
+	watch.addEventListener(event, onFocus);
 	// Rule 5: remove the SAME reference on owner dispose (indexOf match); the host
-	// unsubscribes the native service once its last "didFocus" listener leaves.
-	onCleanup(() => watch.removeEventListener("didFocus", onFocus));
+	// drops this phase's handler once its last listener leaves, and unsubscribes
+	// the native service only when the OTHER phase has no listener either.
+	onCleanup(() => watch.removeEventListener(event, onFocus));
 	return focused;
 }
 

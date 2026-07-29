@@ -54,7 +54,8 @@
   "runtime/press": "./runtime-min/press",
   "runtime/backhandler": "./runtime-min/backhandler",
   "runtime/sectionlist": "./runtime-min/sectionlist",
-  "runtime/grid": "./runtime-min/grid"
+  "runtime/grid": "./runtime-min/grid",
+  "runtime/files": "./runtime-min/files"
  },
  "preload": [
   "runtime/signals",
@@ -107,6 +108,7 @@
   "runtime/press",
   "runtime/backhandler",
   "runtime/sectionlist",
-  "runtime/grid"
+  "runtime/grid",
+  "runtime/files"
  ]
 }

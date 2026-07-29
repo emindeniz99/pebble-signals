@@ -51,6 +51,10 @@ device doc — treat numbers as directional.
 The most-hearted categories that are FULLY in reach today: config-driven
 minimalist/data faces, timers, battery utilities, menu-driven list apps.
 The single highest-leverage unlock for the #1 category (weather faces) is
-device-proving the phone data channel (useFetch / useMessage round-trip on
-hardware). Health/timeline/music need firmware-side JS surface — tracked as
-upstream asks, not library gaps.
+device-proving the phone data channel — **demonstrated same day
+(2026-07-29): the `weather` example renders a driven city/temp/condition
+payload over the proven config channel on gabbro
+(`screenshots/weather-gabbro.png`); the remaining production step is
+phone-side only (swap the driver for a real pkjs fetch)**. Health/timeline/
+music need firmware-side JS surface — tracked as upstream asks, not library
+gaps.

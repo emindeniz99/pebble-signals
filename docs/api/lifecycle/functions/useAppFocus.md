@@ -6,25 +6,36 @@
 
 # Function: useAppFocus()
 
-> **useAppFocus**(): () => `boolean`
+> **useAppFocus**(`phase?`): () => `boolean`
 
-Defined in: lifecycle.ts:188
+Defined in: lifecycle.ts:210
 
 useAppFocus() — reactive app-focus state (true while the app owns the screen).
 
   const focused = useAppFocus();
   <Label string={() => (focused() ? "focused" : "covered")} />
+  const soon = useAppFocus("will");   // same boolean, fired EARLIER
 
-SEEDS `true` (an app is in focus at launch; the host's first didFocus fire is
-deferred, not synchronous), then the host "didFocus" event (a boolean) writes
-it. Uses the bare `watch` global directly; the listener is removed via
-onCleanup when the owner is disposed, so CALL THIS INSIDE a render root /
-component body (Rule 5).
+SEEDS `true` (an app is in focus at launch; the host's first focus fire is
+deferred, not synchronous), then the host focus event (a boolean) writes it.
+Uses the bare `watch` global directly; the listener is removed via onCleanup
+when the owner is disposed, so CALL THIS INSIDE a render root / component body
+(Rule 5). Want BOTH edges? Call it twice — the phases are independent
+subscriptions on the host's one native service.
 
-DEVICE-GATED: the "didFocus" event is EMULATOR-UNCERTAIN — the native
-app_focus_service subscription is real and the hook is correct, but QEMU may
-not deliver didFocus, so the seed can stay put under the emulator. Verify on
-hardware.
+DEVICE-GATED: the focus events are EMULATOR-UNCERTAIN — the native
+app_focus_service subscription is real, the hook is correct and subscribing is
+device-proven no-throw for both phases, but QEMU may not DELIVER them, so the
+seed can stay put under the emulator. Verify on hardware.
+
+## Parameters
+
+### phase?
+
+[`FocusPhase`](../type-aliases/FocusPhase.md) = `"did"`
+
+`"did"` (default) subscribes to "didFocus" — the change is done;
+  `"will"` subscribes to "willFocus" — the change is starting.
 
 ## Returns
 

@@ -12,6 +12,10 @@
 - [Wakeup](interfaces/Wakeup.md)
 - [WakeupInfo](interfaces/WakeupInfo.md)
 
+## Type Aliases
+
+- [FocusPhase](type-aliases/FocusPhase.md)
+
 ## Functions
 
 - [useAppFocus](functions/useAppFocus.md)

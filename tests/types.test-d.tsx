@@ -174,6 +174,7 @@ void _fr2.data();
 const _lr = useLaunchReason();
 const _lrr: number = _lr.reason;
 const _af: boolean = useAppFocus()();
+const _afw: boolean = useAppFocus("will")(); // the focus PHASE is optional + typed
 const _wk = useWakeup();
 const _wid: number = _wk.schedule(1000, 42);
 _wk.cancel();
@@ -182,6 +183,7 @@ void _wk.last();
 void _frd;
 void _lrr;
 void _af;
+void _afw;
 void _wid;
 
 // batch 7: media components take src/size; input hooks return handler bags; layout
@@ -242,6 +244,8 @@ Show({ children: () => 1 });
 For({ each: () => [1], children: 5 });
 // @ts-expect-error — Navigator requires `root`
 Navigator({ width: 100 });
+// @ts-expect-error — the focus phase is "did" | "will", not the host event name
+useAppFocus("willFocus");
 
 // signals surface stays typed too
 const [count, setCount] = useState(0);

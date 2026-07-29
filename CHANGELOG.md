@@ -10,6 +10,20 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **Remaining-bindings sprint (2026-07-29, all gabbro-receipted).**
+  `runtime/files` — the `device.files` (app-private PFS) binding:
+  `readFile`/`writeFile`/`deleteFile`/`listFiles`; NOR flash only CLEARS
+  bits on write, so `writeFile` deletes-then-recreates at the exact UTF-8
+  size (receipt `fileprobe`: roundtrip-ok + rewrite ok + list 1). `QRCode`
+  RENDERS on device (`qrprobe` — the Piu content is reachable directly; the
+  old infeasibility verdict is fully retired). `piu/Timeline` tweens Piu
+  content on device (`tlprobe`, label x 16→197; verdict on adopting it for
+  runtime/anim in the header). `useAppFocus("will")` binds the willFocus
+  phase (subscribe device-proven; delivery emulator-uncertain, stated).
+  `weather` example — the market-notes unlock demonstrated: a weather face
+  fed over the proven config channel ("--" fallback → driven Berlin/18°C
+  frame; phone-side fetch stays a documented pkjs edit). 1941 tests / 100 %
+  coverage; typedoc regenerated.
 - **Hostprobe round — the bind-coverage audit's gaps probed on-device and the
   cheap ones bound (gabbro receipts, 2026-07-29).** New probe app
   `hostprobe` (`screenshots/hostprobe-gabbro.png`) settled 10 uncatalogued
