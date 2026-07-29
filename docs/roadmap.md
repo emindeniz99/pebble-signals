@@ -81,8 +81,44 @@ no work inside this repo can advance). New work starts a new list.
   Unblocks: hardware in the loop.
 
 **Larger future bet — hybrid static/dynamic auto-split (runtime-cost reduction):**
-- [ ] **Compile the static subtrees, keep the signal core only where structure
-      is actually runtime-dynamic.** react-pebble (compile-time snapshot → static
+- [x] **ANALYZER landed, compiler DELIBERATELY not built ✅ (2026-07,
+      `tools/lower/static-scan.mts`, opt-in `--hybrid-static` / HYBRID_STATIC=1,
+      default OFF, report-only — build output byte-identical with it on).**
+      Step (1) of the sketch below shipped; steps (2)-(3) are *withdrawn as
+      specified*, because measuring (1) first broke the premise. Two findings,
+      both from reading `createHost` and then counting the catalog:
+      **(a) a fully-static subtree already runs ZERO signals and ZERO effects.**
+      `createHost` creates an `effect()` only for a FUNCTION-valued prop, so
+      the reactive runtime is not on a static subtree's path at all. What a
+      compiler would actually remove is per-node DISPATCH and TRANSIENT
+      garbage — `PIU.indexOf`, the `for k in props` loop with a `has()` string
+      scan per prop, the second `dict` object copied out of the props literal,
+      2-3 frames — all of it dead the moment `new type(null, dict)` returns.
+      The RETAINED arena, the scarce resource (rule 4) and the thing the
+      react-pebble bench compares, is unchanged byte-for-byte. So "approach
+      react-pebble's floor for the static parts" does not survive: their floor
+      is the ABSENT runtime module, and any app with one dynamic island still
+      ships ours. The real prize is peak/GC pressure and boot CPU.
+      **(b) the qualifying share is small, and the reason is healthy.**
+      Measured over the compiled catalog (110 apps, 423 host nodes + 68
+      component calls): 95 nodes (22%) are static by the definition in (1);
+      only 31 (7%), in 15 subtrees, are provably compilable (literal props —
+      an identifier could name a Style *or* a thunk, and nothing at build time
+      can tell). Blockers: thunk 134, child 116, handler 75, component 68,
+      prop:style 48, prop:skin 6. The top blocker is *a live binding* — the
+      runtime is earning its keep on a third of all nodes. Admitting
+      `style=`/`skin=` is the obvious next tier and still caps near 20%.
+      **What would unblock a compiler:** a device receipt for the `contents:`
+      construction dict (canonical Piu — `Container._recurse` in the shared
+      piu/All, the SDK's own mod-balls mod — but used NOWHERE in this repo, so
+      unmeasured on the Pebble port, and rule 2 is rule 2), plus a way to
+      answer container-vs-leaf that does NOT add a compile-time table the
+      runtime can disagree with (it decides by `typeof node.add === "function"`;
+      `contents:` on a Label is silently ignored and would drop children with
+      no error — the A1 bug class). Selftest- and test-pinned; the full
+      argument is the header of `tools/lower/static-scan.mts`.
+      Original sketch, kept for the record:
+      react-pebble (compile-time snapshot → static
       piu) has a lower arena floor (bench: 41–46% vs our 83%) precisely because
       it ships NO runtime — but it CANNOT do runtime-dynamic structure (the bench
       multiview silently drops screens + reboots the firmware). We do the reverse:

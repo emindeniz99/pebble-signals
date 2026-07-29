@@ -10,6 +10,77 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **`QR` — `runtime/qrcode` (device-receipted both ways on gabbro,
+  2026-07-29).** JSX wrapper over the firmware QRCode content: `string`
+  (static or thunk — a thunk drives one effect writing `node.string`, the
+  host re-encodes in place), `size` (default 124), `fullscreen`. The
+  round-screen rule is the point: a naive screen-sized square loses all
+  four corners (three finder patterns) to the round bezel and stops
+  scanning (`screenshots/qrclip-gabbro.png`, the deliberate
+  counter-receipt), so `fullscreen` on a round panel means the largest
+  INSCRIBED square — `floor(min(w,h)/√2)` = 183 px on gabbro, fully
+  visible (`screenshots/qrfull-gabbro.png`). JSDoc carries the quiet-zone
+  arithmetic (183 px leaves ~0.6 module of white; `size={124}` leaves 3).
+- **`HYBRID_STATIC=1` static-subtree ANALYZER (deliberately not a
+  compiler).** Reading `createHost` first refuted the roadmap sketch's
+  premise: a fully-static subtree already creates ZERO effects — the
+  reactive runtime is not on its path; a compiler could only shave
+  TRANSIENT dict copies/frames at mount, never retained arena. Corpus
+  measurement (110 example apps, 423 host nodes): 22 % static by the
+  sketch's definition, only 7 % provably compilable (literal-prop). The
+  flag prints the per-app report and changes NOTHING (verified: mc.xsa
+  byte-identical with the flag on); the roadmap item now records the
+  refutation + numbers instead of the sketch.
+- **Hybrid static/dynamic auto-split — the ANALYZER
+  (`tools/lower/static-scan.mts`, `--hybrid-static` / `HYBRID_STATIC=1`,
+  default OFF).** The roadmap's last open bet was "compile fully-static JSX
+  subtrees to direct Piu construction and keep the signal core only for the
+  reactive islands". Step 1 (detect them) shipped; steps 2-3 (emit them,
+  measure the arena delta) are withdrawn as specified, because measuring step 1
+  first broke the premise. (a) `createHost` creates an `effect()` **only** for a
+  FUNCTION-valued prop — so a fully-static subtree already runs zero signals and
+  zero effects, and what a compiler would remove is per-node dispatch and
+  TRANSIENT garbage (`PIU.indexOf`, the per-prop `has()` scan, the second `dict`
+  copied out of the props literal, 2-3 frames), all dead the moment
+  `new type(null, dict)` returns. The RETAINED arena — the scarce resource, and
+  what the react-pebble bench compares — is unchanged byte-for-byte, so
+  "approach react-pebble's floor" was never on the table: their floor is the
+  ABSENT runtime module. (b) Measured over the compiled catalog (110 apps, 423
+  host nodes + 68 component calls): 95 nodes (22%) are static by the roadmap's
+  own definition, 31 (7%, in 15 subtrees) are provably compilable today, and the
+  top blocker is a live binding (thunk 134, child 116, handler 75, component 68,
+  prop:style 48) — the runtime is earning its keep on a third of all nodes. The
+  pass reports both tiers plus the blocker histogram, and its report line states
+  the limit ("TRANSIENT only, retained arena unchanged") so the number can never
+  be quoted as an arena win. It writes NO code: a build with the flag on emits
+  the same bytes as one with it off. A compiler stays blocked on a device
+  receipt for the `contents:` construction dict (canonical Piu, but used nowhere
+  in this repo, so unmeasured on the Pebble port) and on answering
+  container-vs-leaf without a compile-time table the runtime can disagree with
+  (it decides by `typeof node.add === "function"`). Bonus de-duplication: the
+  "is this jsx type a Piu host?" predicate moved into `runtime-meta.mts` beside
+  the host set it consults, so auto-thunk and static-scan cannot drift apart,
+  and `BUTTON_EVENTS` is now DERIVED from jsx-runtime like `REACTIVE_PROPS`
+  (pinned in `tests/sync.test.mts`).
+- **`runtime/hosttime` — the host `time`/`timer` binding, the last
+  catalogued-unbound minor surface.** Sourced verdict first: both modules ARE
+  device-shipped (`build/devices/pebble/manifest.json` maps `base/time/*`,
+  `base/time/pebble/*`, `base/timer/*`, `base/timer/pebble/*` and PRELOADS
+  `time` + `timer`), so the binding costs the mod manifest nothing. Exports
+  `ticks()` — monotonic ms since boot (`rtc_get_ticks()`), which `Date.now()`
+  is not — `elapsed(start, end?)`, which must be used instead of a hand
+  subtraction because the host returns ticks through an INT32 and a raw
+  difference breaks past ~24.9 days of uptime, and `useHostTimer(cb, delay)` →
+  `{ reschedule, pause, cancel }`. The globals ARE this Timer (main.js:
+  `setInterval = Timer.repeat`, `setTimeout = Timer.set`,
+  `clearInterval = Timer.clear`), so only the two operations they omit are
+  bound: `Timer.schedule` re-aims a LIVE record (no c_free + c_malloc + new
+  host object per delay change) and `schedule(id)` pauses without destroying
+  it. Deliberately unbound: `Time.set`/`timezone`/`dst`, all
+  `xsUnknownError("unimplemented")` on Pebble. `runtime/timers` is unchanged
+  and stays the default. Device-receipted (`timeprobe`, gabbro): reschedule
+  flipped a live timer 1000ms->250ms (fires 246 gap 250) and pause froze
+  fires at 328 while elapsed kept counting — screenshots/timeprobe-gabbro.png.
 - **Remaining-bindings sprint (2026-07-29, all gabbro-receipted).**
   `runtime/files` — the `device.files` (app-private PFS) binding:
   `readFile`/`writeFile`/`deleteFile`/`listFiles`; NOR flash only CLEARS

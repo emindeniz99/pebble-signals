@@ -10,6 +10,7 @@ import { classify } from "../tools/classify-module.mts";
 import { squash } from "../tools/squash.mts";
 import { pruneDeadImports } from "../tools/import-prune-min.mts";
 import { renameRuntimeExports } from "../tools/symbol-rename.mts";
+import { formatReport, scanStatic } from "../tools/lower/static-scan.mts";
 
 const BASE = {
 	modules: {
@@ -1194,4 +1195,145 @@ test("symbol-rename: a $-aliased namespace import protects the module", () => {
 	};
 	const { map } = renameRuntimeExports(files, new Set(["sig.js"]), TARGETS);
 	assert.equal(map.sig, undefined);
+});
+
+// ---- hybrid static/dynamic auto-split: the ANALYSIS pass --------------------
+// The roadmap's bet was "compile fully-static subtrees to direct Piu
+// construction". What SHIPPED is the analyzer, because the measurement kills
+// the premise: createHost only creates an effect for a FUNCTION prop, so a
+// static subtree already runs zero signals and zero effects — a compiler would
+// win transient garbage and mount CPU, never retained arena. These tests pin
+// the verdict (what qualifies, and why the rest doesn't), since the verdict is
+// the whole deliverable — the pass writes no code.
+
+const SCAN = 'import { jsx, jsxs } from "runtime/jsx-runtime";\n';
+
+test("static-scan: a literal-only subtree is claimed once, at its maximal root", () => {
+	const r = scanStatic(
+		`${SCAN}jsxs(Column, { top: 0, children: [jsx(Label, { string: "a" }), jsx(Label, { string: "b", top: -4 })] });\n`,
+	);
+	assert.equal(r.hostNodes, 3);
+	assert.equal(r.componentNodes, 0);
+	// ONE site (the Column), not three — the inner Labels are inside it
+	assert.deepEqual(
+		r.compilableSites.map((s) => [s.type, s.nodes, s.props]),
+		[["Column", 3, 4]],
+	);
+	assert.equal(r.compilableNodes, 3);
+	assert.equal(r.staticNodes, 3);
+	assert.deepEqual(r.blockers, []);
+});
+
+test("static-scan: a thunk anywhere BELOW poisons the whole subtree", () => {
+	// the defining property of the bet — "no thunks anywhere below" — so a
+	// Column over one live Label claims nothing at all, not the Column
+	const r = scanStatic(
+		`${SCAN}jsxs(Column, { children: [jsx(Label, { string: "a" }), jsx(Label, { string: () => n() })] });\n`,
+	);
+	// the Column is NOT claimed — one live descendant is enough to lose it
+	assert.equal(
+		r.staticSites.some((s) => s.type === "Column"),
+		false,
+	);
+	// blamed on the node that OWNS the thunk, plus the parent it poisoned
+	assert.deepEqual(r.blockers, [
+		["thunk", 1],
+		["child", 1],
+	]);
+	// the static SIBLING is still claimable on its own — the auto-SPLIT: what
+	// survives is an island one node wide, which is exactly why the corpus
+	// number is small (3 nodes here become 1)
+	assert.deepEqual(
+		r.compilableSites.map((s) => [s.type, s.nodes]),
+		[["Label", 1]],
+	);
+	assert.equal(r.compilableNodes, 1);
+	assert.equal(r.staticNodes, 1);
+});
+
+test("static-scan: handler props are dynamic — every button event, onTap, focus", () => {
+	// derived from jsx-runtime's BUTTON_EVENTS, so the scan can never disagree
+	// with createHost about which prop lifts a node into a behavior
+	for (const k of ["onTap", "onPressSelect", "onReleaseBack", "focus"]) {
+		const r = scanStatic(`${SCAN}jsx(Container, { string: "x", ${k}: h });\n`);
+		assert.deepEqual(r.staticSites, [], `${k} must end the subtree`);
+		assert.deepEqual(r.blockers, [["handler", 1]], `${k} blocker`);
+	}
+});
+
+test("static-scan: components are never static (they ARE the dynamism)", () => {
+	const r = scanStatic(
+		`${SCAN}import { Show } from "runtime/flow";\njsx(Column, { children: jsx(Show, { when: f }) });\n`,
+	);
+	assert.equal(r.componentNodes, 1);
+	assert.equal(r.hostNodes, 1);
+	assert.deepEqual(r.staticSites, []);
+	assert.deepEqual(r.blockers, [
+		["component", 1],
+		["child", 1],
+	]);
+});
+
+test("static-scan: the two tiers differ exactly where a value cannot be proven", () => {
+	// `style` names a module-scope Style — static in FACT, but an identifier
+	// could equally name a thunk, and nothing here can tell them apart. So it
+	// counts as static (the roadmap's definition, an upper bound) and NOT as
+	// compilable (what a conservative emitter could take today).
+	const r = scanStatic(
+		`${SCAN}const st = new Style({});\njsx(Label, { string: "x", style: st });\n`,
+	);
+	assert.equal(r.staticNodes, 1);
+	assert.equal(r.compilableNodes, 0);
+	assert.deepEqual(r.blockers, [["prop:style", 1]]);
+});
+
+test("static-scan: render-nothing children cost no node; a text child costs a Label", () => {
+	// null/true/false are what a dead `{debug && <X/>}` leaves behind and
+	// appendChild skips them, so they must not inflate the node count
+	const dead = scanStatic(`${SCAN}jsxs(Column, { children: [null, false, true] });\n`);
+	assert.equal(dead.compilableNodes, 1);
+	// a string child is a Label appendChild synthesizes — static, and counted,
+	// but not v1-compilable (an emitter would have to synthesize it too)
+	const text = scanStatic(`${SCAN}jsx(Column, { children: "hello" });\n`);
+	assert.equal(text.staticNodes, 2);
+	assert.equal(text.compilableNodes, 0);
+	// blamed on the implied Label, not on the Column: a parent only ever owns
+	// reasons LOCAL to it, so the histogram stays readable on a deep tree
+	assert.deepEqual(text.blockers, [["child-text", 1]]);
+});
+
+test("static-scan: unprovable shapes bail — spread, computed key, key argument", () => {
+	assert.deepEqual(scanStatic(`${SCAN}jsx(Label, { ...p });\n`).blockers, [["spread", 1]]);
+	assert.deepEqual(scanStatic(`${SCAN}jsx(Label, { [k]: 1 });\n`).blockers, [["computed-key", 1]]);
+	// react-jsx hoists `key` into arg 3 — hosts ignore it, but an emitter that
+	// silently dropped an argument is not a bet worth taking
+	assert.deepEqual(scanStatic(`${SCAN}jsx(Label, { string: "a" }, "k1");\n`).blockers, [
+		["key", 1],
+	]);
+	// a non-literal children value (an identifier, a call) is a dynamic child
+	assert.deepEqual(scanStatic(`${SCAN}jsx(Column, { children: kids });\n`).blockers, [
+		["child", 1],
+	]);
+});
+
+test("static-scan: an ALIASED host is still a host; a foreign jsx is not ours", () => {
+	// createHost dispatches on IDENTITY, so `const L = Label` is a host — the
+	// same alias rule auto-thunk needs (both now ask runtime-meta)
+	const a = scanStatic(`${SCAN}const L = Label;\njsx(L, { string: "x" });\n`);
+	assert.equal(a.hostNodes, 1);
+	assert.equal(a.compilableNodes, 1);
+	// a jsx from anywhere else is not our factory — nothing is scanned
+	const f = scanStatic('import { jsx } from "react/jsx-runtime";\njsx(Label, { string: "x" });\n');
+	assert.equal(f.hostNodes, 0);
+	assert.deepEqual(f.compilableSites, []);
+});
+
+test("static-scan: the report line states the saving AND its limit", () => {
+	const r = scanStatic(`${SCAN}jsx(Label, { string: "hi", top: 4 });\n`);
+	const out = formatReport(r, "main.js").join("\n");
+	assert.match(out, /compilable today 1 \(1 nodes/);
+	// the honesty clause is load-bearing: the win is transient, and claiming an
+	// arena win would be an unmeasured device claim (project rule 2)
+	assert.match(out, /TRANSIENT only, retained arena unchanged/);
+	assert.match(out, /main\.js:2:1 <Label> 1 nodes/);
 });

@@ -1,55 +1,45 @@
-// qrprobe — first render receipt for the host's QRCode Piu content, which the
-// bind-coverage audit catalogued but never exercised (docs/components.md
-// "Hostprobe discoveries"). hostprobe's gabbro frame already showed BOTH
-// `typeof importNow("qrcode") === "object"` (the raw qrcodegen encoder) and
-// `typeof QRCode === "function"` INSIDE the mod compartment; the host source
-// says why the global is reachable at all —
-//   build/devices/pebble/host/main.js:164   `QRCode,` in the compartment globals
-//   modules/piu/Pebble/piuPebble.js:206-217 `globalThis.QRCode = Template(…)`
-// — so this probe takes the DIRECT content path (`new QRCode`) over the encoder
-// path: importNow("qrcode") hands back an ArrayBuffer of modules that we would
-// then have to blit into a Texture ourselves, which is more code and would
-// prove the ENCODER, not the content node the app surface actually offers.
+// qrprobe — the ROUND-AWARE receipt for the opt-in `runtime/qrcode` component.
+// It began as the raw render probe for the host's QRCode Piu content (hostprobe
+// found the global; this app proved it DRAWS — screenshots/qrprobe-gabbro.png,
+// a 124px code with a quiet zone). Now that the wrapper exists it demos the
+// wrapper, and the receipt it captures is a different, sharper claim:
 //
-// What modules/piu/Pebble/piuQRCode.c forces (read BEFORE writing this, Rule 1):
-//  * `string` is the only extra dict key (PiuQRCodeDictionary, :81) — `maxVersion`
-//    is MC-only, so Pebble always encodes at the default VERSION_MAX and eats a
-//    ~7.8KB c_malloc in the app's C heap (NOT the 32KB XS arena). An on-device
-//    "no memory" from there refutes the node, not our layout.
-//  * `string` is REQUIRED: PiuQRCodePlace (:166) dereferences it unconditionally,
-//    so a stringless QRCode is a null-deref at layout, not a catchable throw.
-//  * width/height are REQUIRED: Place passes fit = min(w,h) to the encoder, which
-//    RangeErrors on fit<=0 and fails "can't fit" when fit < the module count
-//    (data/qrcode/qrcode.c:108). "https://repebble.com" is 20 bytes → version 2
-//    → 25 modules, so 124 scales x4 to a 100px symbol inside a 12px (3-module)
-//    white quiet zone — the margin is what makes the frame phone-scannable.
-//  * NO skin, deliberately: with one, PiuQRCodeDraw (:97-100) assigns fillColor
-//    TWICE and never strokeColor (upstream typo), leaving the module tint unset.
-//    Skinless takes the else branch — white fill, black modules — the only sound
-//    path in 4.17.
-// Construction failures land in the caption via try/catch. LAYOUT failures can
-// NOT: Place runs from the firmware redraw callback (piuView.c doUpdate →
-// PiuApplicationAdjust), long after this module returns, so those surface as a
-// crash frame — which is a receipt too. No dynamic import here, so treeshake
-// stays on (hostprobe.tsx needs TREESHAKE_FORCE=1; this does not).
+//   <QR fullscreen /> on gabbro is the largest INSCRIBED square (183px), NOT the
+//   260px screen — because a QR carries its finder patterns in three CORNERS and
+//   a screen-sized square loses exactly those to the round bezel. A frame whose
+//   code is whole, with white on all four corners inside the glass, IS the proof.
+//   src/tsx/examples/qrclip.tsx renders the naive 260px version as the
+//   counter-receipt (chopped corners) for the same question.
+//
+// Kept from the original probe: black ground, the caption strip, and the rule
+// that a host failure must land ON SCREEN rather than vanish. What CHANGED (say
+// it, don't hide it — Rule 12): the code is now built inside the render tree by
+// the component, so a construction/layout failure is caught by render()'s
+// DEFAULT error boundary and painted as a full crash screen instead of being
+// squeezed into an 18-char "ERR …" caption — a strictly better receipt, and the
+// same one the old header already predicted for LAYOUT failures (Place runs from
+// the firmware redraw callback, long after this module returns).
+//
+// Layout, worked out against gabbro's circle so the caption never lands on the
+// code or under the bezel: a full-bleed Container (the examples' root idiom)
+// holds both; the 183px code is UNCONSTRAINED, so Piu centers it (the SDK's own
+// examples/piu/qrcode/main.js relies on the same rule), leaving a 38px band at
+// the bottom (260 − 221.5). The caption takes 18px of it at bottom:14 — rows
+// 228..246, where the circle is still 170..117px wide, against ~97px of 14px
+// Gothic. No dynamic import here, so treeshake stays on.
 // Build: APP=qrprobe node build.mts
 import { render } from "runtime/jsx-runtime";
-import { useState } from "runtime/signals";
+import { QR } from "runtime/qrcode";
 
 const bg = new Skin({ fill: "black" });
-const st = new Style({ font: "18px Gothic", color: "white", horizontal: "center" });
-const [cap, setCap] = useState("qr probe");
+const st = new Style({ font: "14px Gothic", color: "white", horizontal: "center" });
 
-// bottom:40 keeps the caption clear of the 124px tile AND inside gabbro's circle
-// (a full-width label pinned at bottom:0 loses its ends under the round bezel).
-const app = render(() => (
-	<Label left={0} right={0} bottom={40} height={22} style={st} string={() => cap()} />
-), { skin: bg, style: st });
-
-// Unconstrained content centers itself in its container — the SDK's own
-// examples/piu/qrcode/main.js adds the QRCode to `application` exactly like this.
-try {
-	app.add(new QRCode(null, { width: 124, height: 124, string: "https://repebble.com" }));
-} catch (e) {
-	setCap("ERR " + String((e as Error).message).slice(0, 18));
-}
+render(
+	() => (
+		<Container left={0} right={0} top={0} bottom={0}>
+			<QR string="https://repebble.com" fullscreen />
+			<Label left={0} right={0} bottom={14} height={18} style={st} string="qr fullscreen" />
+		</Container>
+	),
+	{ skin: bg, style: st },
+);

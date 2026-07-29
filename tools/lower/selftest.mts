@@ -1,5 +1,6 @@
 // Selftest — the executable contract of the lowering (run on every build).
 import { lower } from "./lower.mts";
+import { scanStatic } from "./static-scan.mts";
 
 export function selftest(): void {
 	const IMP = 'import { useState } from "runtime/signals";\n';
@@ -352,5 +353,44 @@ export function selftest(): void {
 	// idempotent end-to-end
 	const twice = lower(JSXIMP + "const s = signal(0);\njsx(Label, { string: s.value });\n").code;
 	eq(twice, lower(twice).code === twice, "auto-thunk + lowering idempotent");
+
+	// --- hybrid static/dynamic auto-split: the ANALYSIS contract --------------
+	// static-scan never edits code, so its contract is its VERDICT. Pinned here
+	// (not only in the node tests) because a scan that silently started claiming
+	// DYNAMIC subtrees would be a compiler bug waiting to be built on a wrong
+	// number — and this selftest is what the build runs.
+	const SCAN = 'import { jsx, jsxs } from "runtime/jsx-runtime";\n';
+	let s = scanStatic(`${SCAN}jsx(Label, { string: "hi", top: 4 });\n`);
+	eq("", s.compilableNodes === 1 && s.staticNodes === 1, "scan: literal leaf is compilable");
+	eq("", s.compilableProps === 2 && s.hostNodes === 1, "scan: props counted");
+	// a nested literal subtree is claimed ONCE, at its maximal root
+	s = scanStatic(
+		`${SCAN}jsxs(Column, { children: [jsx(Label, { string: "a" }), jsx(Label, {})] });\n`,
+	);
+	eq("", s.compilableSites.length === 1 && s.compilableNodes === 3, "scan: maximal root only");
+	eq("", s.compilableSites[0].type === "Column", "scan: root is the outer node");
+	// the shapes that END a static subtree, each attributed to the node that
+	// owns it — a thunk (the reactive binding the runtime exists for), a handler
+	// prop (createHost lifts it into a behavior), a component call
+	s = scanStatic(`${SCAN}jsx(Label, { string: () => x() });\n`);
+	eq("", s.compilableNodes === 0 && s.staticNodes === 0, "scan: thunk is dynamic");
+	eq("", s.blockers[0][0] === "thunk", "scan: thunk blocker named");
+	s = scanStatic(`${SCAN}jsx(Label, { string: "x", onTap: h });\n`);
+	eq("", s.staticNodes === 0 && s.blockers[0][0] === "handler", "scan: handler is dynamic");
+	s = scanStatic(`${SCAN}jsx(Label, { string: "x", focus: true });\n`);
+	eq("", s.staticNodes === 0 && s.blockers[0][0] === "handler", "scan: focus is dynamic");
+	s = scanStatic(`${SCAN}import { Show } from "runtime/flow";\njsx(Show, { when: f });\n`);
+	eq("", s.componentNodes === 1 && s.staticNodes === 0, "scan: component is dynamic");
+	// a dynamic child poisons its PARENT — the whole point of "no thunks
+	// anywhere BELOW", and why a Column over one live Label claims nothing
+	s = scanStatic(`${SCAN}jsx(Column, { children: jsx(Label, { string: () => x() }) });\n`);
+	eq("", s.staticNodes === 0 && s.staticSites.length === 0, "scan: dynamic child poisons parent");
+	// the two tiers really are different: `style` names a module-scope Style
+	// (static in fact) that no literal check can prove is not a thunk
+	s = scanStatic(`${SCAN}const st = new Style({});\njsx(Label, { string: "x", style: st });\n`);
+	eq("", s.staticNodes === 1 && s.compilableNodes === 0, "scan: static but not compilable");
+	eq("", s.blockers[0][0] === "prop:style", "scan: names the blocking prop");
+	// a file with no jsx import has nothing to say
+	eq("", scanStatic("const a = 1;\n").hostNodes === 0, "scan: non-JSX file is empty");
 	console.log("lower selftest OK");
 }

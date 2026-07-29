@@ -20,3 +20,8 @@ examples/consumer/src/embeddedjs/manifest.json
 # npm debris — this project is pnpm-managed (pnpm-lock.yaml is the lockfile);
 # the consumer smoke shells out to npm and can drop one of these at the root
 package-lock.json
+# Python bytecode from the tools/*.py drivers — never a source file.
+# (This does NOT keep it out of the tarball: a path pulled in by package.json
+# "files" cannot be excluded by .gitignore/.npmignore, so the pack side needs
+# its own "!tools/__pycache__" entry — MEASURED with `npm pack --dry-run`.)
+__pycache__/

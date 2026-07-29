@@ -6,6 +6,15 @@
  "keywords": [
   "pebble-app"
  ],
+ "repository": {
+  "type": "git",
+  "url": "git+https://github.com/emindeniz99/playground.git",
+  "directory": "projects/signal-piu"
+ },
+ "homepage": "https://github.com/emindeniz99/playground/tree/main/projects/signal-piu#readme",
+ "bugs": {
+  "url": "https://github.com/emindeniz99/playground/issues"
+ },
  "exports": {
   "./signals": {
    "types": "./src/embeddedjs/runtime-types/signals.d.ts",
@@ -33,6 +42,7 @@
   "src/embeddedjs/manifest.base.json",
   "src/tsx/globals.d.ts",
   "tools/",
+  "!tools/__pycache__",
   "types/moddable/",
   "build.mts",
   "tsconfig.runtime-build.json",

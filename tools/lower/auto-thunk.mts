@@ -19,7 +19,7 @@
 // Idempotent: a wrapped value is an arrow on the next pass, so it is skipped.
 import ts from "typescript";
 import { type Edit, JSX_MODULE, importSymbol, program } from "./program.mts";
-import { PIU_HOSTS, REACTIVE_PROPS } from "./runtime-meta.mts";
+import { REACTIVE_PROPS, isPiuHostType } from "./runtime-meta.mts";
 
 export function autoThunk(text: string): { code: string; wrapped: number } {
 	const { checker, sf } = program(text);
@@ -149,27 +149,6 @@ export function autoThunk(text: string): { code: string; wrapped: number } {
 		return !!s && (s === jsxSym || s === jsxsSym);
 	};
 
-	// Is the jsx type a Piu HOST element? A host is a FREE global — a bare
-	// identifier in the Piu set with NO resolvable declaration (host-injected at
-	// runtime). A component (imported/local) resolves to a symbol, and a shadowed
-	// `const Label = …` also resolves — so symbol-resolution handles shadowing.
-	// A one-level ALIAS of a host global (`const L = Label; <L …/>`) is still
-	// a host at runtime (createHost dispatches on IDENTITY) — skipping it left
-	// reactive props unthunked, evaluated ONCE and dead to updates (codex P2).
-	const isPiuHostType = (typeNode: ts.Node): boolean => {
-		if (!ts.isIdentifier(typeNode)) return false;
-		if (PIU_HOSTS.has(typeNode.text) && !checker.getSymbolAtLocation(typeNode)) return true;
-		const d = checker.getSymbolAtLocation(typeNode)?.valueDeclaration;
-		return (
-			!!d &&
-			ts.isVariableDeclaration(d) &&
-			!!d.initializer &&
-			ts.isIdentifier(d.initializer) &&
-			PIU_HOSTS.has(d.initializer.text) &&
-			!checker.getSymbolAtLocation(d.initializer)
-		);
-	};
-
 	const edits: Edit[] = [];
 	(function walk(n: ts.Node) {
 		if (
@@ -177,7 +156,7 @@ export function autoThunk(text: string): { code: string; wrapped: number } {
 			isJsxCall(n) &&
 			n.arguments.length >= 2 &&
 			ts.isObjectLiteralExpression(n.arguments[1]) &&
-			isPiuHostType(n.arguments[0]) // ONLY host elements — never components
+			isPiuHostType(checker, n.arguments[0]) // ONLY host elements — never components
 		) {
 			for (const prop of n.arguments[1].properties) {
 				if (!ts.isPropertyAssignment(prop)) continue; // skip spreads/shorthand

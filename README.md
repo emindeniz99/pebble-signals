@@ -41,7 +41,8 @@ Prerequisites (pebble tool v5 + SDK 4.17 with the QEMU emulators, Node ≥ 24,
 pnpm): install steps in [Getting started](docs/getting-started.md).
 
 ```sh
-git clone <this-repo> && cd playground/projects/signal-piu
+git clone https://github.com/emindeniz99/playground
+cd playground/projects/signal-piu
 pnpm install
 pnpm run dev -- --app watchface     # build + install + live logs, one command
 ```
@@ -73,6 +74,20 @@ touch bug, gotcha 2) — 40+ records with a flat arena.
 npx -p signal-piu create-signal-piu my-watch
 cd my-watch && npm install && npm run build
 ```
+
+**Not on the npm registry yet** — a publish is what turns that pair of
+commands on. Today the distribution unit is the tarball; both halves have a
+local equivalent, and `pnpm run test:consumer` gates the install half (pack →
+install into `examples/consumer` → typecheck):
+
+```sh
+node tools/create-app.mts my-watch   # same scaffold, run from this repo
+npm pack                             # → signal-piu-1.0.0.tgz, the install unit
+```
+
+The scaffold's own `"signal-piu": "^1.0.0"` dependency resolves from the
+registry too, so until the publish, install that tarball into the new project
+BY PATH rather than running a bare `npm install` in it.
 
 (`npm run build` is scaffolded as `node node_modules/signal-piu/dist/build.mjs`
 — the compiled build lives under `dist/`; a bare

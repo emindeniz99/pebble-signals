@@ -51,7 +51,9 @@
     "src/embeddedjs/runtime/backhandler.ts",
     "src/embeddedjs/runtime/sectionlist.ts",
     "src/embeddedjs/runtime/grid.ts",
-    "src/embeddedjs/runtime/files.ts"
+    "src/embeddedjs/runtime/files.ts",
+    "src/embeddedjs/runtime/hosttime.ts",
+    "src/embeddedjs/runtime/qrcode.ts"
   ],
   "entryPointStrategy": "expand",
   "tsconfig": "tsconfig.check.json",

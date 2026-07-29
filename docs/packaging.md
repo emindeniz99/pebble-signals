@@ -126,14 +126,23 @@ the QEMU emulator). The flow:
 
 ## Not in v1 (explicit non-goals, so nobody assumes)
 
-- **Registry publish** — `private: true` stays; `npm pack` is the
-  distribution unit. The package is otherwise PUBLISH-READY: `prepack`
+- **Registry publish** — not done; `npm pack` is the distribution unit. The
+  package is otherwise PUBLISH-READY: `prepack`
   already builds the generated types + compiled dist, `files` is a curated
   allowlist, and the consumer smoke gates the exact artifact a registry
   install would deliver. When the owner wants it public, the entire remaining
-  work is: pick/confirm the npm name, `npm login`, delete `"private": true`,
-  `npm publish` — nothing in the artifact itself needs to change. Until then
-  `create-signal-piu` + the tarball behave identically to a registry install.
+  work is: `npm login`, `npm publish` — nothing in the artifact itself needs
+  to change (the name `signal-piu` was still unclaimed on
+  registry.npmjs.org, checked 2026-07-29). Until then
+  `create-signal-piu` + the tarball behave identically to a registry install
+  — with one honest caveat: the README/getting-started `npx -p signal-piu`
+  quickstart and the scaffold template's `"signal-piu": "^1.0.0"` dependency
+  BOTH resolve from the registry, so that documented path only starts working
+  at the first publish.
+  **There is no `private: true` guard** (an earlier draft of this file claimed
+  one — it was never in package.json), so an accidental `npm publish` from
+  this directory would go through. Add one if the door should be bolted until
+  the owner is ready.
 - **Prebuilt runtime in the tarball** — wrong by design (see above): minify +
   manifest mapping are per-app, on-device concerns.
 
@@ -167,7 +176,10 @@ project, not a cage around one.
 ## Maintenance rules
 
 - `files` in package.json is the allowlist — check `npm pack --dry-run` when
-  adding tool/doc files a consumer needs.
+  adding tool/doc files a consumer needs. A path pulled in by `files` can NOT
+  be excluded again by .gitignore/.npmignore (measured: adding `__pycache__/`
+  to .gitignore left `tools/__pycache__/*.pyc` in the tarball); the only lever
+  is a `"!…"` entry in `files` itself.
 - Never hand-edit `src/embeddedjs/runtime-types/` (gitignored, generated).
 - The consumer smoke (install tarball → tsc a typed usage file) is the gate
   for exports-map changes; re-run it when touching `exports`/`files`.

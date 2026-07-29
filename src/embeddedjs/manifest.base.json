@@ -55,7 +55,9 @@
   "runtime/backhandler": "./runtime-min/backhandler",
   "runtime/sectionlist": "./runtime-min/sectionlist",
   "runtime/grid": "./runtime-min/grid",
-  "runtime/files": "./runtime-min/files"
+  "runtime/files": "./runtime-min/files",
+  "runtime/hosttime": "./runtime-min/hosttime",
+  "runtime/qrcode": "./runtime-min/qrcode"
  },
  "preload": [
   "runtime/signals",
@@ -109,6 +111,8 @@
   "runtime/backhandler",
   "runtime/sectionlist",
   "runtime/grid",
-  "runtime/files"
+  "runtime/files",
+  "runtime/hosttime",
+  "runtime/qrcode"
  ]
 }

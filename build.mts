@@ -25,6 +25,13 @@
 //                                         props need hand-written thunks
 //   --no-lint-reads     LINT_READS=0      skip the reactive-read lint (".value
 //                                         footgun" — Signal stringify/call/bare-prop)
+//   --hybrid-static     HYBRID_STATIC=1   REPORT-ONLY (default OFF): which JSX
+//                                         subtrees are fully static, and which
+//                                         of those a compiler could safely emit
+//                                         as direct Piu construction. Emits
+//                                         nothing — the build output is
+//                                         byte-identical with it on or off
+//                                         (tools/lower/static-scan.mts)
 //   --no-crash-ui       CRASH_UI=0        drop render()'s on-watch crash SCREEN;
 //                                         escaped errors still log + contain (the
 //                                         node keeps its last good value). DCEs
@@ -104,6 +111,7 @@ const cli = parseArgs({
 		symdiet: { type: "boolean" },
 		"crash-ui": { type: "boolean" },
 		"lint-reads": { type: "boolean" },
+		"hybrid-static": { type: "boolean" },
 	},
 	allowNegative: true, // --no-minify / --no-treeshake / --no-check-c / --no-lower
 }).values;
@@ -762,6 +770,17 @@ esbuild.buildSync({
 // costs ~2x slots per state and loses the auto-thunk sugar (docs/packaging.md).
 if (flag(cli.lower, "LOWER", "1", true))
 	run(process.execPath, [join(TOOLS, "lower", `cli${EXT}`), "src/embeddedjs/app/main.js"]);
+
+// Hybrid static/dynamic auto-split — the ANALYSIS half of the roadmap bet, and
+// the ONLY half that ships (the header of static-scan.mts argues why: a static
+// subtree already creates no signals and no effects, so a compiler would win
+// transient garbage and boot CPU, not retained arena). Report-only and OFF by
+// default, so a normal build is unchanged. Runs AFTER lower on purpose: the
+// scan wants the FINAL shape, where auto-thunk has already made every live
+// read visibly an arrow. Subprocess, like lint-reads, so the flag-off build
+// never even loads the TS compiler for it.
+if (flag(cli["hybrid-static"], "HYBRID_STATIC", "1", false))
+	run(process.execPath, [join(TOOLS, "lower", `static-scan${EXT}`), "src/embeddedjs/app/main.js"]);
 
 // ---- LAZY app modules (#27): ship importNow("app/<x>") targets ------------
 // Each resolved literal becomes a manifest module WITHOUT preload: its

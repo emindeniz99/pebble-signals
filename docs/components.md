@@ -440,6 +440,25 @@ useInterval(() => setCount((c) => c + 1), () => (paused() ? null : 1000));
 |---|---|
 | ![timers round](../screenshots/timers-gabbro.png) | ![timers rect](../screenshots/timers-emery.png) |
 
+### hosttime — `runtime/hosttime`
+
+`ticks()` / `elapsed(start, end?)` — MONOTONIC ms since boot (`Time.ticks`), for
+timing work that `Date.now()` cannot measure (wall time jumps when the phone
+resyncs it). Always subtract with `elapsed`, never by hand: the host hands ticks
+back through an INT32, so a raw difference breaks once uptime passes ~24.9 days.
+`useHostTimer(cb, delay)` → `{ reschedule, pause, cancel }` — one repeating host
+timer you RE-AIM instead of rebuilding. Reach for it only when the delay changes
+often (backoff, an accelerating countdown); `useInterval` stays the default.
+
+```tsx
+import { elapsed, ticks, useHostTimer } from "runtime/hosttime";
+const t = useHostTimer(poll, 1000);
+t.reschedule(5000);   // same host record — no clear+create, no allocation
+```
+
+_Source-proven: `time` and `timer` are in the Pebble DEVICE manifest's `modules`
+**and** `preload`. No on-watch receipt yet — `APP=timeprobe node build.mts`. Device-receipted 2026-07-29: `screenshots/timeprobe-gabbro.png` (reschedule + pause live on gabbro)._
+
 ### state — `runtime/state`
 
 `useToggle`, `useCounter` (bounded, `inc/dec/reset/set`), and `useDebounce`
@@ -916,8 +935,19 @@ bind-coverage audit's uncatalogued host surface:
     `screenshots/fileprobe-gabbro.png`).
   - `QRCode` → **RENDERS on device** (`qrprobe`: a real code with quiet zone
     from `new QRCode(null, {string})` — the Piu content IS in the mod
-    compartment; `screenshots/qrprobe-gabbro.png`). A JSX component wrapper is
-    now a plain follow-up, not a gate.
+    compartment; `screenshots/qrprobe-gabbro.png`). The JSX wrapper SHIPPED
+    same day: **`QR` — `runtime/qrcode`** (`string` static or thunk — a thunk
+    drives ONE effect writing `node.string`, the host re-encodes in place;
+    `size` default 124; `fullscreen`). **The round-fullscreen answer,
+    device-proven both ways:** a QR is a SQUARE with finder patterns in three
+    corners, so a naive screen-sized square on the round panel loses all four
+    corners to the bezel and stops scanning
+    (`screenshots/qrclip-gabbro.png` — the deliberate counter-receipt);
+    `fullscreen` therefore means the LARGEST INSCRIBED SQUARE
+    (`floor(260/√2)` = 183 px on gabbro, centered — fully visible,
+    `screenshots/qrfull-gabbro.png`). Caveat in the JSDoc: at 183 px the
+    quiet zone is only ~4 px (~0.6 module) — drop to `size={124}` for a
+    spec-wide white border if a strict scanner balks.
   - `piu/Timeline` → **tweens on device** (`tlprobe`: label x 16→197 across
     distinct frames via `Timeline.to` + a setInterval `seekTo` driver;
     `screenshots/tlprobe-gabbro.png`; verdict on replacing runtime/anim is in
@@ -926,8 +956,22 @@ bind-coverage audit's uncatalogued host surface:
   - `willFocus` → **BOUND** as `useAppFocus("will")` (phase param mirrors
     useClock's granularity idiom; subscribe device-proven, DELIVERY remains
     emulator-uncertain like didFocus — the module says so).
-  - Still backlog (minor): `time`/`timer` host modules (monotonic ticks,
-    re-schedulable timers).
+  - `time`/`timer` → **BOUND** as `runtime/hosttime` (`ticks`/`elapsed`/
+    `useHostTimer`). Sourced verdict: both ARE device-shipped —
+    `build/devices/pebble/manifest.json` lists `base/time/*`, `base/time/
+    pebble/*`, `base/timer/*`, `base/timer/pebble/*` under `modules` and names
+    `time` + `timer` in `preload`, so they cost the mod manifest nothing. Only
+    the members PebbleOS implements are bound: `Time.set`/`timezone`/`dst` are
+    all `xsUnknownError("unimplemented")` in `modTime.c`. The value over the
+    globals (which ARE this Timer — main.js sets `setInterval = Timer.repeat`,
+    `setTimeout = Timer.set`, `clearInterval = Timer.clear`) is the two
+    operations they omit: `Timer.schedule` re-aims a LIVE timer with no
+    free/malloc, and `schedule(id)` pauses without destroying it.
+    DEVICE-RECEIPTED (`timeprobe`, gabbro 2026-07-29): ticks 7996 at boot,
+    up strictly growing (63779ms), the self-reschedule flipped fires to
+    gap 250 ("250ms (rescheduled)"), and UP froze fires at 328 across two
+    frames while `up` kept counting ("paused") —
+    `screenshots/timeprobe-gabbro.png`.
   - The market unlock demonstrated: `weather` — a weather FACE fed over the
     device-proven config channel (`--` fallback until data, then a driven
     payload renders city/temp/condition + live clock;
