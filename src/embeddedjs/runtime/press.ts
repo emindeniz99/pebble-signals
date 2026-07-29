@@ -28,7 +28,9 @@
 // false would let it bubble (jsx-runtime HandlerBehavior's `!== false` delegate).
 //
 // TIMERS — the timers.ts one-shot + teardown contract, REUSED as a pattern (not a
-// dependency): there is NO setTimeout on device (Rule 5 — the base manifest ships
+// dependency): built when setTimeout was believed absent on device (since
+// REFUTED by the hostprobe receipt, 2026-07-29 — the 4.17 host DOES provide it;
+// the self-clearing-interval shape stays, it works and is owner-tracked
 // setInterval / clearInterval only), so a "fire after ms" countdown is a
 // setInterval that clearInterval's ITSELF inside its own callback before it fires
 // (useTimeout's exact shape; button.ts's long-press uses the same). The live
@@ -74,7 +76,7 @@ export type PressHandlers = Record<string, () => boolean>;
  *   </Container>
  *
  * onPress arms a ONE-SHOT — a setInterval that clearInterval's itself before firing
- * (no setTimeout on device; the timers.ts useTimeout shape) — so `onFire` runs
+ * (the timers.ts useTimeout shape; see the header's setTimeout note) — so `onFire` runs
  * exactly once, `ms` after the press. onRelease clears the pending one-shot, so a
  * release before `ms` fires nothing. The id lives in a per-call closure; `track`
  * stops a still-armed hold when the owner is disposed (no leak on navigate-away).
@@ -225,7 +227,7 @@ export type MultiClickOptions = {
  *
  * onPress increments the click count (and pauses the idle countdown while the button
  * is held); onRelease (re)arms a ONE-SHOT `window` timer — a setInterval that clears
- * itself before firing (no setTimeout on device; the timers.ts useTimeout shape).
+ * itself before firing (the timers.ts useTimeout shape; header setTimeout note).
  * Each further click within `window` bumps the count and restarts the timer, so a
  * burst collapses to ONE dispatch; once the button has been quiet for `window` the
  * one-shot fires `handlers[count]` (if present) and RESETS the count to 0. The id +

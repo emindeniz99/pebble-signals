@@ -29,7 +29,10 @@
 //                                         escaped errors still log + contain (the
 //                                         node keeps its last good value). DCEs
 //                                         showCrash — reclaims boot symbols/bytes
-//                                         for a saturated app (see docs/field-notes)
+//                                         for a saturated app (see docs/field-notes).
+//                                         CAVEAT (findings P10): the DCE rides the
+//                                         minifier, so with MINIFY=0 this flag is
+//                                         silently a no-op (crash UI ships anyway)
 import { execFileSync } from "node:child_process";
 import {
 	copyFileSync,

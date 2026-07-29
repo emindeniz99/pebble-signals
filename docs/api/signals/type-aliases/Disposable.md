@@ -8,6 +8,6 @@
 
 > **Disposable** = `number` \| [`EffectFn`](EffectFn.md)
 
-Defined in: signals.ts:814
+Defined in: signals.ts:818
 
 What [track](../functions/track.md) accepts: a cleanup function, or an effect id returned by [effect](../functions/effect.md).

@@ -103,6 +103,33 @@ const count = (ev: string): number => (sandbox.watch.listeners[ev] || []).length
 	);
 }
 
+// --- useClock("hour") / useClock("day"): the coarser host boundaries -------------
+// WHY: the host tick service exposes hourchange/daychange too (global.js
+// events; hostprobe receipt 2026-07-29) — a date-only face on "day" wakes 60x
+// less than "minute". The mapping is granularity + "change", pinned here so a
+// rename in either place fails loud.
+{
+	sandbox.watch = new WatchStub();
+	const [getH, disposeH] = createRoot(() => useClock("hour"));
+	check(
+		"useClock('hour') subscribes to hourchange only",
+		count("hourchange") === 1 && count("secondchange") === 0 && count("minutechange") === 0,
+	);
+	const th = new Date(2021, 0, 1, 10, 0, 0);
+	fire("hourchange", th);
+	check("an hourchange fire updates the getter", getH() === th);
+	disposeH();
+	check("disposing removes the hourchange listener", count("hourchange") === 0);
+
+	const [getD, disposeD] = createRoot(() => useClock("day"));
+	check("useClock('day') subscribes to daychange only", count("daychange") === 1);
+	const td = new Date(2021, 0, 2, 0, 0, 0);
+	fire("daychange", td);
+	check("a daychange fire updates the getter", getD() === td);
+	disposeD();
+	check("disposing removes the daychange listener", count("daychange") === 0);
+}
+
 // --- useTimeParts(): default — splits the clock Date into h/m/s correctly --------
 {
 	sandbox.watch = new WatchStub();

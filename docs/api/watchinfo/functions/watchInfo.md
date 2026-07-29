@@ -8,7 +8,7 @@
 
 > **watchInfo**(): [`WatchInfo`](../interfaces/WatchInfo.md)
 
-Defined in: watchinfo.ts:123
+Defined in: watchinfo.ts:131
 
 Read one-shot device + screen facts — the RN `Platform` analog.
 

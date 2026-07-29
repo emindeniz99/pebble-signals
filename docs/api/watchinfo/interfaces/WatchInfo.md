@@ -84,6 +84,16 @@ True when the wearer's system clock is 12-hour style (`!24h`).
 
 ***
 
+### language
+
+> **language**: `string`
+
+Defined in: watchinfo.ts:81
+
+Wearer's system locale from `device.info.language` (e.g. "en_US"; "" when absent).
+
+***
+
 ### model
 
 > **model**: `number`
@@ -105,6 +115,18 @@ True on a CIRCULAR panel (gabbro) — inset content off the clipped corners.
 #### Inherited from
 
 [`DisplayBounds`](DisplayBounds.md).[`round`](DisplayBounds.md#round)
+
+***
+
+### serialNumber
+
+> **serialNumber**: `string`
+
+Defined in: watchinfo.ts:87
+
+Hardware serial from `device.info.serialNumber` — "" when absent.
+QEMU reports it `undefined` (hostprobe receipt 2026-07-29), so expect a
+real value only on hardware.
 
 ***
 

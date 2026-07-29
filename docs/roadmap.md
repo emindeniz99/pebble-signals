@@ -501,14 +501,16 @@ Priority order the owner set; each is expanded in its own section below.
   are host-interned), machine still survives, still overridable via
   `globalThis.__spError`. Now dumps the FULL error (type, message, stack,
   effect id — bcf7359). Unit-tested (291 tests, 100% cov).
-  **MUST DO next session (device-verify the log):** install a deliberately
-  broken app (a computed read as `g()` instead of `g.value`) and screenshot/
-  grep `pebble logs` for `[signal-piu] uncaught in reactive update`. Tried
-  this session but the emulator's `pebble logs` transport was WEDGED (0 lines
-  incl. the always-present instruments key; drive.py + screenshots also dead)
-  through hard resets + qemu/pypkjs kills. Behavior is deterministic + unit-
-  tested, but the owner wants the on-device receipt — do it first thing when
-  the log transport is healthy again.
+  ~~**MUST DO next session (device-verify the log)**~~ ✅ DONE (2026-07-29,
+  gabbro): devlog gained a DOWN-triggered plain-effect throw and the drive
+  captured the exact line through the AppMessage bridge —
+  `spdev: uncaught in reactive update (effect #0): Error: deliberate effect
+  boom` in `pebble logs` (pkjs> side; on release firmware the console.log
+  branch is a trace no-op, so the bridge IS the visible channel). The drive
+  also caught + fixed a real gap: report() never passed `ctx` to
+  `__spError`, so the bridge printed "undefined" where the context belongs —
+  `__spError` now receives `(err, ctx)` (back-compatible; one-arg handlers
+  ignore it).
   STILL WANTED (cheaper-still): a build-time lint that flags *calling* a
   `computed`/`signal` binding so the typo is caught before device.
 - **Read-syntax unification (ergonomics).** Three read syntaxes today:

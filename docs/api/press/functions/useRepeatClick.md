@@ -8,7 +8,7 @@
 
 > **useRepeatClick**(`button`, `onFire`, `opts?`): [`PressHandlers`](../type-aliases/PressHandlers.md)
 
-Defined in: press.ts:155
+Defined in: press.ts:157
 
 useRepeatClick(button, onFire, opts?) — HOLD-TO-SCROLL. Press fires `onFire` once
 immediately, then AUTO-REPEATS while the button is held, the gap SHRINKING each

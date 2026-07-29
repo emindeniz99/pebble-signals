@@ -8,7 +8,7 @@
 
 > **useClock**(`granularity?`): () => `Date`
 
-Defined in: clock.ts:90
+Defined in: clock.ts:96
 
 A reactive current-time getter — the RN `useClock` analog.
 
@@ -32,8 +32,8 @@ at module scope.
 [`ClockGranularity`](../type-aliases/ClockGranularity.md) = `"second"`
 
 `"second"` (default) subscribes to "secondchange";
-  `"minute"` subscribes to "minutechange" (cheaper — use it for a display that
-  only changes each minute, e.g. a date line).
+  `"minute"` / `"hour"` / `"day"` subscribe to the matching coarser host
+  boundary (cheaper — a date-only display should use `"day"`).
 
 ## Returns
 

@@ -8,7 +8,7 @@
 
 > **PressButton** = `"Select"` \| `"Up"` \| `"Down"` \| `"Back"`
 
-Defined in: press.ts:55
+Defined in: press.ts:57
 
 The hardware button a press-gesture hook watches — the suffix appended to
 `onPress` / `onRelease` to form the jsx-runtime button-event keys: `"Select"` →

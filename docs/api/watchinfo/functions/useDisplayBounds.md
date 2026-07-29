@@ -8,7 +8,7 @@
 
 > **useDisplayBounds**(): [`DisplayBounds`](../interfaces/DisplayBounds.md)
 
-Defined in: watchinfo.ts:96
+Defined in: watchinfo.ts:104
 
 Read the display geometry — the RN `useWindowDimensions` analog.
 

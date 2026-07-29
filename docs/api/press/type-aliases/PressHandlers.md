@@ -8,7 +8,7 @@
 
 > **PressHandlers** = `Record`\<`string`, () => `boolean`\>
 
-Defined in: press.ts:64
+Defined in: press.ts:66
 
 The spread-ready bag of button-event handlers every hook returns. Keys are the
 `onPress<Button>` / `onRelease<Button>` names for the chosen button; each handler

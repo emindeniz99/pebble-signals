@@ -19,7 +19,7 @@
 // `pebble logs` instead of a silent blank Label.
 declare global {
 	// eslint-disable-next-line no-var
-	var __spError: ((e: unknown) => void) | undefined;
+	var __spError: ((e: unknown, ctx?: string) => void) | undefined;
 }
 
 // A reaction is a plain thunk; an effect id indexes into the graph below.
@@ -335,7 +335,11 @@ export function report(err: unknown, ctx: string): void {
 	//    loudly for debugging.
 	const h = globalThis.__spError;
 	if (h) {
-		h(err);
+		// ctx rides along as a SECOND argument (a one-arg handler just ignores
+		// it): without it a bridge like devlog's printed "undefined" where the
+		// "uncaught in reactive update (effect #N)" context belongs — caught by
+		// the on-device receipt drive (2026-07-29).
+		h(err, ctx);
 		return;
 	}
 	// 2. log FIRST, unconditionally — boundary-caught errors included (owner

@@ -63,8 +63,14 @@
 // crash screen rather than silently freeze.
 import { onCleanup, useState } from "runtime/signals";
 
-/** Tick granularity for {@link useClock} / {@link useTimeParts}: per-second or per-minute. */
-export type ClockGranularity = "second" | "minute";
+/**
+ * Tick granularity for {@link useClock} / {@link useTimeParts}. The host tick
+ * service exposes all four boundaries (global.js events: "secondchange",
+ * "minutechange", "hourchange", "daychange" — one shared coalesced timer;
+ * subscribe no-throw device-proven by the hostprobe receipt 2026-07-29).
+ * Coarser is cheaper: a date-only line should tick on "day", not "second".
+ */
+export type ClockGranularity = "second" | "minute" | "hour" | "day";
 
 /**
  * A reactive current-time getter — the RN `useClock` analog.
@@ -83,16 +89,22 @@ export type ClockGranularity = "second" | "minute";
  * at module scope.
  *
  * @param granularity `"second"` (default) subscribes to "secondchange";
- *   `"minute"` subscribes to "minutechange" (cheaper — use it for a display that
- *   only changes each minute, e.g. a date line).
+ *   `"minute"` / `"hour"` / `"day"` subscribe to the matching coarser host
+ *   boundary (cheaper — a date-only display should use `"day"`).
  * @returns a getter `() => Date`; call it inside a binding thunk to subscribe.
  */
 export function useClock(granularity: ClockGranularity = "second"): () => Date {
 	const [now, setNow] = useState(new Date());
-	// The finer "secondchange" is the default; "minute" maps to the coarser
-	// "minutechange" (host #schedule coalesces both onto the one shared timer).
-	const event: "secondchange" | "minutechange" =
-		granularity === "minute" ? "minutechange" : "secondchange";
+	// The finer "secondchange" is the default; the coarser granularities map to
+	// the host's matching boundary events (host #schedule coalesces ALL
+	// subscribed granularities onto the one shared timer).
+	// every granularity maps to `<granularity>change` — cast the concatenation
+	// back to the host's TimeEventType union (the string arithmetic is exact).
+	const event = (granularity + "change") as
+		| "secondchange"
+		| "minutechange"
+		| "hourchange"
+		| "daychange";
 	// The host callback fires OUTSIDE any effect — a plain setter write is correct
 	// (Rule 4). e.date is a fresh Date every fire, so the write always notifies.
 	const onTick = (e: { date: Date }): void => setNow(e.date);

@@ -22,7 +22,8 @@
 // LONG PRESS (optional onLongPress, RN Pressable parity): armed ONLY when the
 // caller passes onLongPress. Press-down starts a ONE-SHOT timer (LONG_PRESS_MS);
 // if it fires before release, onLongPress runs and a `longFired` flag SWALLOWS the
-// onPress the following release would otherwise fire. There is NO setTimeout on
+// onPress the following release would otherwise fire. Written when setTimeout
+// was believed absent on
 // device (Rule 5 — the base manifest ships setInterval / clearInterval only, see
 // runtime/timers.ts), so the one-shot is a setInterval that clearInterval's ITSELF
 // inside its own callback. onCleanup cancels a still-armed timer if the screen is
@@ -135,7 +136,8 @@ export function Button(props: ButtonProps): Content {
 	};
 
 	// Press-down: light the pressed skin; if a long-press handler was given, arm
-	// the one-shot (a setInterval that clears ITSELF on fire — no setTimeout on
+	// the one-shot (a setInterval that clears ITSELF on fire — the pre-hostprobe
+	// no-setTimeout shape, kept as-is; see button.ts header note on
 	// device). Return truthy to consume the Select press.
 	const handlePress = (): boolean => {
 		pressed.value = true;

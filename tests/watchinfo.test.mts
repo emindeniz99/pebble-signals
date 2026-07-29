@@ -40,7 +40,12 @@ sandbox.watch = {
 	},
 };
 
-const { watchInfo, useDisplayBounds } = await loadModule("runtime/watchinfo");
+// `device` is reached via globalThis (typed only as a module) — stub it like
+// `watch`. QEMU serves serialNumber as undefined (hostprobe receipt), so the
+// stub mirrors that shape by default; the "" coercion is what's under test.
+sandbox.device = { info: { language: "en_US", serialNumber: undefined } };
+
+const { watchInfo, useDisplayBounds, backlight, exitApp } = await loadModule("runtime/watchinfo");
 const { check, done } = makeChecker("watchinfo");
 
 // --- watchInfo() merges watch getters + screen subset; fw read once + flattened ---
@@ -120,6 +125,57 @@ const { check, done } = makeChecker("watchinfo");
 			info.round === jsxM.screen.round &&
 			info.color === jsxM.screen.color,
 	);
+	// device.info still read on the absent-`watch` guard path (separate guards)
+	check("language read from device.info on the degrade path", info.language === "en_US");
+	check("QEMU-undefined serialNumber coerces to empty string", info.serialNumber === "");
+}
+
+// --- device.info: language/serialNumber pass-through + absent-device degrade ---
+{
+	sandbox.watch = { model: 1, hour12: false, firmwareVersion: { major: 1, minor: 0, patch: 0 } };
+	sandbox.device = { info: { language: "tr_TR", serialNumber: "Q123456789" } };
+	const info = watchInfo();
+	check(
+		"language and a real hardware serial pass through",
+		info.language === "tr_TR" && info.serialNumber === "Q123456789",
+	);
+	sandbox.device = undefined; // absent device global -> both degrade to ""
+	const bare = watchInfo();
+	check(
+		"absent device degrades language/serialNumber to empty strings",
+		bare.language === "" && bare.serialNumber === "",
+	);
+}
+
+// --- backlight(): watch.light pass-through (pulse vs force) + absent no-op ---
+{
+	const calls: unknown[][] = [];
+	sandbox.watch = { light: (...a: unknown[]) => calls.push(a) };
+	backlight(); // interaction pulse — must call with NO argument (host arity-checks)
+	backlight(true);
+	backlight(false);
+	check(
+		"backlight maps pulse/force onto watch.light's arity",
+		calls.length === 3 && calls[0].length === 0 && calls[1][0] === true && calls[2][0] === false,
+	);
+	sandbox.watch = undefined;
+	backlight(); // absent watch -> silent no-op, never a ReferenceError
+	check("backlight is a no-op without the watch global", calls.length === 3);
+}
+
+// --- exitApp(): watch.exit pass-through (reason vs none) + absent no-op ---
+{
+	const calls: unknown[][] = [];
+	sandbox.watch = { exit: (...a: unknown[]) => calls.push(a) };
+	exitApp(); // no reason — must call with NO argument
+	exitApp(2); // APP_EXIT reason code passes through
+	check(
+		"exitApp maps reason/none onto watch.exit's arity",
+		calls.length === 2 && calls[0].length === 0 && calls[1][0] === 2,
+	);
+	sandbox.watch = undefined;
+	exitApp();
+	check("exitApp is a no-op without the watch global", calls.length === 2);
 }
 
 done();

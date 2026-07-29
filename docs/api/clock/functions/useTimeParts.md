@@ -8,7 +8,7 @@
 
 > **useTimeParts**(`granularity?`): [`TimeParts`](../interfaces/TimeParts.md)
 
-Defined in: clock.ts:139
+Defined in: clock.ts:151
 
 Split the current time into per-field reactive getters, derived from one
 [useClock](useClock.md) Date.

@@ -8,7 +8,7 @@
 
 > **TimerDelay** = `number` \| (() => `number` \| `null`) \| `null`
 
-Defined in: timers.ts:45
+Defined in: timers.ts:50
 
 A timer delay handed to [useInterval](../functions/useInterval.md) / [useTimeout](../functions/useTimeout.md):
  - a bare `number` — static ms, applied once at construction;

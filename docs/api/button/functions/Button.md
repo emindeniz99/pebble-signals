@@ -8,7 +8,7 @@
 
 > **Button**(`props`): `Content`
 
-Defined in: button.ts:102
+Defined in: button.ts:103
 
 Button — a focusable, pressable Container with a centered label and a skin that
 swaps on press.

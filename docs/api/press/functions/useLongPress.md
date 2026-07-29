@@ -8,7 +8,7 @@
 
 > **useLongPress**(`button`, `ms`, `onFire`): [`PressHandlers`](../type-aliases/PressHandlers.md)
 
-Defined in: press.ts:90
+Defined in: press.ts:92
 
 useLongPress(button, ms, onFire) — HOLD-TO-CONFIRM. Press and hold `button` for
 `ms`; `onFire` runs only if the button is STILL held when `ms` elapses. Releasing
@@ -20,7 +20,7 @@ early cancels it (nothing fires) — the classic "hold to confirm / hold to dele
   </Container>
 
 onPress arms a ONE-SHOT — a setInterval that clearInterval's itself before firing
-(no setTimeout on device; the timers.ts useTimeout shape) — so `onFire` runs
+(the timers.ts useTimeout shape; see the header's setTimeout note) — so `onFire` runs
 exactly once, `ms` after the press. onRelease clears the pending one-shot, so a
 release before `ms` fires nothing. The id lives in a per-call closure; `track`
 stops a still-armed hold when the owner is disposed (no leak on navigate-away).

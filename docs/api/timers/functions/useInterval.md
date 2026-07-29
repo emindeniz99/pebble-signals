@@ -8,7 +8,7 @@
 
 > **useInterval**(`callback`, `delay`): () => `void`
 
-Defined in: timers.ts:63
+Defined in: timers.ts:68
 
 useInterval(callback, delay) — run `callback` every `delay` ms on the
 device's single interval timer. Returns a manual `cancel()`.

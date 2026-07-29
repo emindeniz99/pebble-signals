@@ -853,13 +853,14 @@ shipped** — no watch-side JS surface reaches them from a mod:
   even in C (only a per-minute historical `AmbientLightLevel` buried in the Health
   API); no `emu-light` command. Treat ambient light as unavailable. (`watch.light()`
   controls the **backlight**, an output — not an ambient sensor.)
-- **`QRCode`** — the `data/qrcode` encoder is a **native** function (`@ "xs_qrcode"`,
-  backed by `qrcodegen.c`). It appears in the SDK's Pebble host manifest, but
-  `xs_qrcode` is **not present in the built Pebble device tree**, and a mod is JS-only
-  (cannot compile C), so `import qrCode from "qrcode"` would not resolve on the actual
-  firmware. Reclassified from the survey's "build-now": needs an on-device probe of
-  `importNow("qrcode")` on healthy firmware (and a build-tripwire whitelist), or a
-  pure-JS encoder too heavy for the 32 KB arena. A device-gated *probe*, not shipped.
+- **`QRCode`** — the "not present in the built device tree" claim above was
+  **REFUTED on-device (hostprobe, gabbro 2026-07-29)**: `xs_qrcode` strings exist
+  in the firmware image, `importNow("qrcode")` resolves to an object AND the
+  `QRCode` Piu content global is a function (`screenshots/hostprobe-gabbro.png`).
+  So the encoder + content node ARE reachable from a JS mod. Still unshipped as a
+  component: the remaining gate is a RENDER probe (props/arena cost of an actual
+  on-screen code) — moved from "infeasible without a probe" to "present,
+  render-binding pending".
 - **Sound / audio** — no watch-side JS audio surface and no speaker (only the
   vibration motor); `piu/Sound` has no Pebble implementation. Route tones to
   `useHaptics`.
@@ -887,9 +888,32 @@ rough priority: **`useUnobstructedArea`** (Quick-View resize; watchface-only),
 **`useLocation`** (GPS via pkjs; no QEMU fix), **`useDictation`** (probe-proven UI, no
 transcript without mic+phone), **`usePhysicalButtons`** (focus-free buttons +
 guaranteed Back-override via `pebble/button`), **`useWebSocket`** (phone-tunnelled,
-arena pressure), the **Pebble-only native content nodes** (`RoundRect`, `Inverter`,
-`RichText`, `NinePatch` — globalThis'd but never exercised), a **native content-clock
-animator**, and **`ScreenBuffer`**.
+arena pressure), the **Pebble-only native content nodes** (`RoundRect`, `Inverter` —
+globalThis'd but never exercised; erratum 2026-07-29: `RichText`/`NinePatch`,
+previously listed here, do NOT exist anywhere in this SDK tree — removed), a
+**native content-clock animator**, and **`ScreenBuffer`**.
+
+## Hostprobe discoveries (gabbro receipt, 2026-07-29)
+
+A one-screen probe app (`src/tsx/examples/hostprobe.tsx`,
+`screenshots/hostprobe-gabbro.png` — build with `TREESHAKE_FORCE=1`, its dynamic
+`importNow` strings are host modules the static scan can't follow) settled the
+bind-coverage audit's uncatalogued host surface:
+
+- **`setTimeout`/`clearTimeout` EXIST and WORK** (`typeof function`, callback
+  FIRED) — the old "no setTimeout on device" claim is corrected across
+  timers/press/button; implementations stay on the proven setInterval shape.
+- **Bound this round:** `watch.light` → `backlight()` and `watch.exit` →
+  `exitApp()` (runtime/watchinfo), `device.info.language`/`serialNumber` →
+  `watchInfo()` fields (serial is `undefined` on QEMU — coerced to `""`),
+  `"hour"`/`"day"` tick granularities → `useClock` (host `hourchange`/
+  `daychange`, subscribe-proven).
+- **Present, catalogued, unbound (backlog):** `device.files`
+  (embedded:storage/files — a real file API beyond key-value; `object` on
+  device), `piu/Timeline` (firmware-preloaded tween engine — could replace
+  runtime/anim's JS tweening for zero archive bytes), the `willFocus` watch
+  event (lifecycle binds `didFocus` only), `time`/`timer` host modules
+  (monotonic ticks, re-schedulable timers).
 
 ---
 

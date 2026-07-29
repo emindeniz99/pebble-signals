@@ -77,6 +77,14 @@ export interface WatchInfo extends DisplayBounds {
 	};
 	/** True when the wearer's system clock is 12-hour style (`!24h`). */
 	hour12: boolean;
+	/** Wearer's system locale from `device.info.language` (e.g. "en_US"; "" when absent). */
+	language: string;
+	/**
+	 * Hardware serial from `device.info.serialNumber` — "" when absent.
+	 * QEMU reports it `undefined` (hostprobe receipt 2026-07-29), so expect a
+	 * real value only on hardware.
+	 */
+	serialNumber: string;
 }
 
 /**
@@ -122,11 +130,26 @@ export function useDisplayBounds(): DisplayBounds {
  */
 export function watchInfo(): WatchInfo {
 	const bounds = useDisplayBounds();
+	// device.info getters (language/serialNumber) — separately guarded from
+	// `watch`: `device` is its own compartment global (typed only as the
+	// "embedded:provider/builtin" module, so reach it via globalThis), and QEMU
+	// serves serialNumber as undefined (hostprobe receipt) — coerce both to "".
+	const di = (globalThis as { device?: { info?: { language?: string; serialNumber?: string } } })
+		.device?.info;
+	const language = (di && di.language) || "";
+	const serialNumber = (di && di.serialNumber) || "";
 	// typeof-probe the bare compartment global (mirrors localstorage's guard):
 	// the device always provides `watch`, but an absent global must DEGRADE, not
 	// ReferenceError. Single guard — when present, all three getters are present.
 	if (typeof watch === "undefined")
-		return { model: 0, firmware: { major: 0, minor: 0, patch: 0 }, hour12: false, ...bounds };
+		return {
+			model: 0,
+			firmware: { major: 0, minor: 0, patch: 0 },
+			hour12: false,
+			language,
+			serialNumber,
+			...bounds,
+		};
 	// firmwareVersion builds a FRESH object on every read (pebble-global.c) —
 	// read it ONCE and flatten to a stable, self-owned { major, minor, patch }.
 	const fw = watch.firmwareVersion;
@@ -134,6 +157,38 @@ export function watchInfo(): WatchInfo {
 		model: watch.model,
 		firmware: { major: fw.major, minor: fw.minor, patch: fw.patch },
 		hour12: watch.hour12,
+		language,
+		serialNumber,
 		...bounds,
 	};
+}
+
+/**
+ * Pulse or force the backlight — `watch.light` (`xs_global_light`,
+ * device-present per the hostprobe receipt 2026-07-29).
+ *
+ *   backlight();       // interaction pulse — lights up and times out on its
+ *                      // own, exactly like a button press (app_light_enable_interaction)
+ *   backlight(true);   // force ON until backlight(false) — drains the battery,
+ *                      // use for short moments only
+ *
+ * No-op (never throws) when the `watch` global is absent.
+ */
+export function backlight(on?: boolean): void {
+	if (typeof watch === "undefined") return;
+	if (on === undefined) watch.light();
+	else watch.light(on);
+}
+
+/**
+ * Exit the app programmatically — `watch.exit` (`xs_global_exit`: optional
+ * exit-reason int, then pops the whole window stack back to the launcher /
+ * watchface). The "Quit" menu-item primitive. Device-present per the
+ * hostprobe receipt (2026-07-29; presence-probed — calling it ends the app,
+ * which is the point). No-op when the `watch` global is absent.
+ */
+export function exitApp(reason?: number): void {
+	if (typeof watch === "undefined") return;
+	if (reason === undefined) watch.exit();
+	else watch.exit(reason);
 }

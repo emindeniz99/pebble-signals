@@ -58,7 +58,7 @@ setTimeout(() => {
 		// WRAPPED on purpose: useState setters are LOWERED AWAY (packed S.set)
 		// — passing one as a bare VALUE emits a dangling identifier (found by
 		// this app dying at the 400ms timer). An arrow keeps it a CALL, which
-		// the lowering rewrites. Follow-up: lint-reads rule 5 to catch this.
+		// the lowering rewrites. (lint-reads rule 5 now catches the escape.)
 		setName: (v: string) => setName(v),
 	});
 }, 400);

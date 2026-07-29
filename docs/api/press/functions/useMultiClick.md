@@ -8,7 +8,7 @@
 
 > **useMultiClick**(`button`, `handlers`, `opts?`): [`PressHandlers`](../type-aliases/PressHandlers.md)
 
-Defined in: press.ts:242
+Defined in: press.ts:244
 
 useMultiClick(button, handlers, opts?) — DOUBLE / TRIPLE CLICK. Counts how many
 times `button` is clicked within a rolling `window` ms of quiet, then dispatches
@@ -21,7 +21,7 @@ and so on. A count with no entry in `handlers` is a no-op.
 
 onPress increments the click count (and pauses the idle countdown while the button
 is held); onRelease (re)arms a ONE-SHOT `window` timer — a setInterval that clears
-itself before firing (no setTimeout on device; the timers.ts useTimeout shape).
+itself before firing (the timers.ts useTimeout shape; header setTimeout note).
 Each further click within `window` bumps the count and restarts the timer, so a
 burst collapses to ONE dispatch; once the button has been quiet for `window` the
 one-shot fires `handlers[count]` (if present) and RESETS the count to 0. The id +

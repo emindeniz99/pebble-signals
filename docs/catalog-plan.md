@@ -200,6 +200,13 @@ slots into P2/P3 after the P1 primitives + UI-kit they build on.
 
 ## Showcase app (`gallery`) — every feature behind a menu
 
+> **SUPERSEDED (2026-07, measured):** a single all-in-one gallery mod is NOT
+> shippable on this firmware — ~19 component modules' symbols overflow the
+> boot-symbol floor even with lazy screens (symbol interning is not deferred
+> by laziness). See components.md "Note on a single all-in-one gallery"; the
+> per-component example apps are the demos/screenshot sources instead. Kept
+> below as the design record.
+
 Our lazy multi-screen feature (Navigator + `screens/` lazy modules, O(1) arena)
 is exactly the shape of a component gallery:
 

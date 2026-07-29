@@ -10,6 +10,33 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **Hostprobe round — the bind-coverage audit's gaps probed on-device and the
+  cheap ones bound (gabbro receipts, 2026-07-29).** New probe app
+  `hostprobe` (`screenshots/hostprobe-gabbro.png`) settled 10 uncatalogued
+  host APIs in one frame: `setTimeout` EXISTS AND FIRES (the long-standing
+  "no setTimeout on device" claim corrected in timers/press/button —
+  implementations stay on the proven setInterval shape), `watch.light` /
+  `watch.exit` / `device.files` / `importNow("qrcode")` + the `QRCode`
+  global / `piu/Timeline` all present, `device.info.language` = "en_US"
+  (serialNumber undefined on QEMU), and hourchange/daychange/willFocus
+  subscribe clean. Bound now: `backlight()` + `exitApp()` + `language`/
+  `serialNumber` (runtime/watchinfo), `"hour"`/`"day"` granularities
+  (useClock). Catalogued for later: device.files, piu/Timeline, willFocus.
+  QRCode reclassified from "unresolvable" to present/render-pending;
+  RichText/NinePatch erratum removed (they don't exist in this SDK).
+  1907 tests / 100 % coverage.
+- **docs/market-notes.md** — sourced 2026 market research (relaunched-store
+  heart-counts, dev-ecosystem wants) mapped to library status; strategic
+  takeaway: weather-face data channel is the highest-leverage next unlock.
+
+### Fixed
+- **`__spError` now receives the report context as a second argument** —
+  `report(err, ctx)` used to drop `ctx` for custom handlers, so the devlog
+  bridge printed "undefined" where "uncaught in reactive update (effect #N)"
+  belongs (caught by the roadmap's queued on-device log receipt, now landed:
+  the drive captured the exact line through the AppMessage bridge on gabbro).
+  Back-compatible — one-arg handlers ignore the extra argument. devlog now
+  demos the plain-effect throw on DOWN alongside the binding throw on UP.
 - **`Navigator` route params — `nav.push(build, data?)` (measured per-push
   slot cost: ZERO).** A pushed builder is retained per stack level (pop
   rebuilds from it), so the idiomatic per-push arrow costs a closure

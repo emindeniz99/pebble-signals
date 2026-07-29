@@ -6,7 +6,7 @@
 
 # Interface: TimeParts
 
-Defined in: clock.ts:107
+Defined in: clock.ts:119
 
 Per-field reactive time getters returned by [useTimeParts](../functions/useTimeParts.md).
 
@@ -16,7 +16,7 @@ Per-field reactive time getters returned by [useTimeParts](../functions/useTimeP
 
 > **hours**: () => `number`
 
-Defined in: clock.ts:109
+Defined in: clock.ts:121
 
 Reactive getter for the hour (0–23).
 
@@ -30,7 +30,7 @@ Reactive getter for the hour (0–23).
 
 > **minutes**: () => `number`
 
-Defined in: clock.ts:111
+Defined in: clock.ts:123
 
 Reactive getter for the minute (0–59).
 
@@ -44,7 +44,7 @@ Reactive getter for the minute (0–59).
 
 > **seconds**: () => `number`
 
-Defined in: clock.ts:113
+Defined in: clock.ts:125
 
 Reactive getter for the second (0–59).
 

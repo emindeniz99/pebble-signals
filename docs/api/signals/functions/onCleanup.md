@@ -8,7 +8,7 @@
 
 > **onCleanup**(`fn`): `void`
 
-Defined in: signals.ts:854
+Defined in: signals.ts:858
 
 Register a cleanup to run when the current owner is disposed.
 

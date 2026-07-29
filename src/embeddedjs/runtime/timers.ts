@@ -13,10 +13,15 @@
 // are BEHAVIORAL, not display: the app owns its state and hands in a `callback`;
 // the hook owns only the interval id it must clear (Rule 8 — no app state here).
 //
-// setTimeout IS NOT ASSUMED ON DEVICE (Rule 5): the base mod manifest provides
-// setInterval / clearInterval only, so useTimeout is a setInterval that
-// clearInterval's ITSELF from inside its own callback after the first fire —
-// never setTimeout. (flow.ts's animate() leans on the same single guarantee.)
+// setTimeout EXISTS on device after all — the old "the base mod manifest
+// provides setInterval/clearInterval only" claim was REFUTED by the hostprobe
+// receipt (gabbro 2026-07-29: `typeof setTimeout === "function"` AND a
+// scheduled callback FIRED — screenshots/hostprobe-gabbro.png; the 4.17 host
+// main.js provides setTimeout/clearTimeout/setImmediate/clearImmediate).
+// useTimeout still rides setInterval (a self-clearing one) — not worth a
+// churn to swap a working, owner-tracked implementation — but new code MAY
+// use the host setTimeout directly. (flow.ts's animate() also only needs
+// setInterval.)
 //
 // TEARDOWN DISCIPLINE (mirrors flow.ts's animate() / Move exactly): the live
 // interval id is held in a per-call closure. On a reactive delay the driving
@@ -95,7 +100,8 @@ export function useInterval(callback: () => void, delay: TimerDelay): () => void
  *   useTimeout(() => setDone(true), 3000);                  // fire once after 3s
  *   const cancel = useTimeout(hide, 2000); cancel();        // cancel before it fires
  *
- * There is NO setTimeout on device (Rule 5), so this is a setInterval whose
+ * Implemented as a setInterval (written when setTimeout was believed absent
+ * on device — REFUTED, see the module header; kept as-is, it works) whose
  * callback clearInterval's its OWN timer before invoking `callback` — clearing
  * first means it fires exactly once even if `callback` throws. A bare-number
  * `delay` arms once; `null` arms nothing. A THUNK `delay` is reactive with the

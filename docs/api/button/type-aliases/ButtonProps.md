@@ -8,7 +8,7 @@
 
 > **ButtonProps** = `object`
 
-Defined in: button.ts:64
+Defined in: button.ts:65
 
 Props for [Button](../functions/Button.md).
 
@@ -18,7 +18,7 @@ Props for [Button](../functions/Button.md).
 
 > `optional` **focus?**: `boolean`
 
-Defined in: button.ts:78
+Defined in: button.ts:79
 
 Whether this button takes input focus after mount (default true) so its
 behavior receives Select presses. Only ONE node can hold focus — pass
@@ -30,7 +30,7 @@ behavior receives Select presses. Only ONE node can hold focus — pass
 
 > `optional` **height?**: `number`
 
-Defined in: button.ts:72
+Defined in: button.ts:73
 
 Button height in px. Defaults to 40.
 
@@ -40,7 +40,7 @@ Button height in px. Defaults to 40.
 
 > **label**: `string` \| (() => `string`)
 
-Defined in: button.ts:66
+Defined in: button.ts:67
 
 The centered caption. A thunk (`() => s`) makes it reactive (the `string` whitelist); a bare string is static.
 
@@ -50,7 +50,7 @@ The centered caption. A thunk (`() => s`) makes it reactive (the `string` whitel
 
 > `optional` **onLongPress?**: () => `void`
 
-Defined in: button.ts:84
+Defined in: button.ts:85
 
 Optional long-press handler (RN Pressable parity). When given, holding
 Select ~500ms fires this INSTEAD of `onPress` (the release that follows is
@@ -66,7 +66,7 @@ swallowed). Omit for a plain button (no timer is ever armed).
 
 > **onPress**: () => `void`
 
-Defined in: button.ts:68
+Defined in: button.ts:69
 
 Fired once per completed press — on RELEASE (RN Pressable semantics), not on press-down.
 
@@ -80,6 +80,6 @@ Fired once per completed press — on RELEASE (RN Pressable semantics), not on p
 
 > `optional` **width?**: `number`
 
-Defined in: button.ts:70
+Defined in: button.ts:71
 
 Button width in px. Defaults to the screen width (a width-less container measures 0 — gotcha 16).

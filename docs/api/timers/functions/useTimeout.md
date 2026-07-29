@@ -8,7 +8,7 @@
 
 > **useTimeout**(`callback`, `delay`): () => `void`
 
-Defined in: timers.ts:108
+Defined in: timers.ts:114
 
 useTimeout(callback, delay) — run `callback` ONCE, `delay` ms from now, then
 self-clear. Returns a manual `cancel()`.
@@ -16,7 +16,8 @@ self-clear. Returns a manual `cancel()`.
   useTimeout(() => setDone(true), 3000);                  // fire once after 3s
   const cancel = useTimeout(hide, 2000); cancel();        // cancel before it fires
 
-There is NO setTimeout on device (Rule 5), so this is a setInterval whose
+Implemented as a setInterval (written when setTimeout was believed absent
+on device — REFUTED, see the module header; kept as-is, it works) whose
 callback clearInterval's its OWN timer before invoking `callback` — clearing
 first means it fires exactly once even if `callback` throws. A bare-number
 `delay` arms once; `null` arms nothing. A THUNK `delay` is reactive with the

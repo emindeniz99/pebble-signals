@@ -13,5 +13,7 @@
 
 ## Functions
 
+- [backlight](functions/backlight.md)
+- [exitApp](functions/exitApp.md)
 - [useDisplayBounds](functions/useDisplayBounds.md)
 - [watchInfo](functions/watchInfo.md)
