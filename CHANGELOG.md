@@ -10,6 +10,20 @@ No registry releases yet; entries accumulate under Unreleased until the first
 ## [Unreleased]
 
 ### Added
+- **`Navigator` route params — `nav.push(build, data?)` (measured per-push
+  slot cost: ZERO).** A pushed builder is retained per stack level (pop
+  rebuilds from it), so the idiomatic per-push arrow costs a closure
+  (~60–100 B of SLOTS, the scarce pool — the D4 mechanism) at every depth.
+  `push` now takes an optional `data` value, retained in a parallel array and
+  handed to the builder on push AND on pop-rebuild — so a SHARED module-scope
+  builder plus a plain value replaces the closure (RN Navigation route-param
+  style). Measured on gabbro (instruments, 6-push drive): slot GC floor
+  18288 → 18288 — **0 B/push retained in slots**, vs the closure pattern's
+  ~60–100 B/push; the retention moved to ~35 B/push of chunk (the cheap
+  direction; array element storage). navmany now demonstrates the pattern
+  (`NAV.push(screen, depth+1)`, Screen #7 at tick 88 —
+  `screenshots/navmany-push6-gabbro.png`). Backward compatible: builders
+  that ignore the second argument and data-less pushes are unchanged.
 - **`TextFlow` `shape="circle"` — text that FILLS a round screen (opt-in;
   100%-covered; device-verified on gabbro).** With `shape="circle"` each line is
   wrapped to the circle's chord at its own height (`wrapCircle`), so the top and

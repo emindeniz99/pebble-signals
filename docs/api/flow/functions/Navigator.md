@@ -8,7 +8,7 @@
 
 > **Navigator**(`props`): `Container`
 
-Defined in: flow.ts:559
+Defined in: flow.ts:571
 
 Navigator({ root }) — a screen STACK for infinitely-deep navigation on the
 32KB heap. Only the TOP screen is ever BUILT: pushing a child disposes the
@@ -20,7 +20,11 @@ closures). This is #13's lazy-swap generalized into a back-stack.
 
 `root` is a builder (nav) => node|thunk. Every screen builder receives the
 same `nav` handle:
-  nav.push(build)  push a child screen (build is (nav) => node)
+  nav.push(build, data?)  push a child screen (build is (nav, data?) => node;
+                          `data` is retained per level and handed back on
+                          pop-rebuild — push a SHARED builder + data instead
+                          of a fresh closure to cut the per-push retention,
+                          see NavHandle)
   nav.pop()        pop to the parent (no-op at the root)
   nav.depth()      reactive current depth (1 = root)
   nav.canPop()     reactive: is there a parent to pop to

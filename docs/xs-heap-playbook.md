@@ -200,6 +200,16 @@ Mechanism (source receipts: `fxMapArchive` in the SDK toolchain's
   20464 B, stack peaks 4768/6144, and the post-push floor settles at
   ~18.8–19.0 K — ~1.5 K of margin where the second push used to be fatal
   (Screen #4 alive at tick 58 during the same capture).
+- **Navigator route params kill the per-push slot cost (2026-07-28):** a
+  pushed builder is retained per stack level, so the idiomatic per-push
+  arrow costs a CLOSURE in slots (~60–100 B — the D4 mechanism) at every
+  depth. `nav.push(build, data)` retains a parallel-array value instead:
+  push a SHARED module-scope builder + a plain value and the level costs
+  array elements (CHUNK, the cheap pool), not slot records. MEASURED
+  (gabbro instruments, 6-push navmany drive): slot GC floor 18288 → 18288
+  = 0 B/push in slots; ~35 B/push chunk. General rule: when a component
+  must RETAIN per-entry state, retain plain values in dense arrays and
+  share the code — never retain closures.
 - **The export-RENAME diet (2026-07, `tools/symbol-rename.mts`, default
   ON):** an export that survives pruning still costs a slot IF its wire
   name is new-to-host — and the runtime's public names (`jsx`, `useState`,

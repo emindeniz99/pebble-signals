@@ -580,6 +580,27 @@ check("rebuilt root reflects current signal", inner(navHost).string === "root 2"
 navRef.pop(); // pop at root is a no-op
 check("pop at root is a no-op", navRef.depth() === 1 && nbuilt.length === 3);
 
+// --- push(build, data): route-param retention — a SHARED builder + per-level
+// data instead of a fresh closure per push (the D4 per-push slot-diet). The
+// data must reach the builder on the push AND again on pop-rebuild (that
+// re-delivery is the point: the stack retains it per level).
+const seen = [];
+const sharedScreen = (nav, data) => {
+	seen.push(data);
+	return jsx(StubContent, { string: "d:" + data });
+};
+navRef.push(sharedScreen, "A");
+check("push(build, data) hands data to the builder", inner(navHost).string === "d:A");
+navRef.push(sharedScreen, "B"); // SAME builder function, different data
+check("second push of the SAME builder gets ITS data", inner(navHost).string === "d:B");
+navRef.pop(); // rebuild must re-deliver level-A's data, not B's
+check("pop-rebuild re-delivers the level's own data", inner(navHost).string === "d:A");
+check("data sequence push,push,pop", seen.join(",") === "A,B,A");
+navRef.push((nav, data) => jsx(StubContent, { string: "u:" + typeof data }));
+check("push without data passes undefined (back-compat)", inner(navHost).string === "u:undefined");
+navRef.pop();
+navRef.pop(); // back to root for anything below
+
 // --- coverage: default-arg branches + keepAlive same-side early return ---
 // For WITHOUT key (default identity keyOf) and children returning a THUNK
 // (asNode's function branch)

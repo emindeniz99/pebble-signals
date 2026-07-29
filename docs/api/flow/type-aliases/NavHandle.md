@@ -18,7 +18,7 @@ The handle every [Navigator](../functions/Navigator.md) screen builder receives.
 
 > **canPop**(): `boolean`
 
-Defined in: flow.ts:180
+Defined in: flow.ts:188
 
 Reactive: is there a parent to pop to.
 
@@ -32,7 +32,7 @@ Reactive: is there a parent to pop to.
 
 > **depth**(): `number`
 
-Defined in: flow.ts:178
+Defined in: flow.ts:186
 
 Reactive current depth (1 = root).
 
@@ -46,7 +46,7 @@ Reactive current depth (1 = root).
 
 > **pop**(): `void`
 
-Defined in: flow.ts:176
+Defined in: flow.ts:184
 
 Pop to the parent (no-op at the root) — the parent REBUILDS from its builder.
 
@@ -58,17 +58,27 @@ Pop to the parent (no-op at the root) — the parent REBUILDS from its builder.
 
 ### push()
 
-> **push**(`build`): `void`
+> **push**(`build`, `data?`): `void`
 
-Defined in: flow.ts:174
+Defined in: flow.ts:182
 
-Push a child screen — the CURRENT screen is disposed (one screen lives at a time).
+Push a child screen — the CURRENT screen is disposed (one screen lives at
+a time). `data` is the route-param slot-diet: a builder is RETAINED on the
+stack for every level (pop rebuilds from it), so a per-push arrow that
+closes over its parameters costs a closure (~60–100 B measured, D4) per
+level. Pushing a SHARED module-scope builder plus a plain `data` value
+retains two array elements instead (`push(screen, i)` — the builder
+receives it as its second argument, also on pop-rebuild).
 
 #### Parameters
 
 ##### build
 
-(`nav`) => [`JSXNode`](../../jsx-runtime/type-aliases/JSXNode.md)
+(`nav`, `data?`) => [`JSXNode`](../../jsx-runtime/type-aliases/JSXNode.md)
+
+##### data?
+
+`unknown`
 
 #### Returns
 

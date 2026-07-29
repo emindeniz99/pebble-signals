@@ -221,11 +221,19 @@ Boot-verify navmany AND navreactive after every runtime-touching change.
 > the app) closed the rest the same day: it now renders on gabbro (see the
 > D3 note above for receipts).
 >
-> **Remaining levers (optional, banked):** further slot-diet rounds measured
+> **Per-push cost lever — ✅ EXECUTED (2026-07-28): `nav.push(build, data?)`
+> route params.** The ~60–100 B/push was the app-side builder CLOSURE (the
+> runtime's own retention was already one array element); the new optional
+> `data` param retains a parallel-array value instead, so a SHARED builder +
+> plain value replaces the closure. Measured (gabbro instruments, 6-push
+> drive on the converted navmany): slot GC floor 18288 → 18288 = **0 B/push
+> in slots**; retention moved to ~35 B/push of chunk (5928 B avail). Boot
+> floor +96 B vs the closure-era build (the datas array + module growth) —
+> the trade is fixed-tiny for per-push-zero. Receipt:
+> `screenshots/navmany-push6-gabbro.png` (Screen #7, tick 88).
+> Remaining lever (optional, banked): further slot-diet rounds measured
 > against `tools/memtest.py`'s post-GC floor (its `--ramp` was built for
-> exactly this), and/or trimming the per-push permanent cost (~60–100 B — the
-> pushed-builder retention in `stack` is the only by-design permanent
-> per-push allocation). The catalog's navmany row now reads: **boot + tick +
+> exactly this). The catalog's navmany row now reads: **boot + tick +
 > four pushes + pops verified on HEAD post-diet** (receipts:
 > `screenshots/navmany-gabbro.png` tick 103, `navmany-push1-gabbro.png`
 > "Screen #2"; the historical `navmany-push2-launcher-gabbro.png` exit frame

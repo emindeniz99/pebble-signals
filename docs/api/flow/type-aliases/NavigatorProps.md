@@ -8,7 +8,7 @@
 
 > **NavigatorProps** = [`BoxProps`](BoxProps.md) & `object`
 
-Defined in: flow.ts:183
+Defined in: flow.ts:191
 
 Props for [Navigator](../functions/Navigator.md).
 

@@ -170,8 +170,16 @@ export type MoveProps = BoxProps & {
 
 /** The handle every {@link Navigator} screen builder receives. */
 export type NavHandle = {
-	/** Push a child screen — the CURRENT screen is disposed (one screen lives at a time). */
-	push(build: (nav: NavHandle) => JSXNode): void;
+	/**
+	 * Push a child screen — the CURRENT screen is disposed (one screen lives at
+	 * a time). `data` is the route-param slot-diet: a builder is RETAINED on the
+	 * stack for every level (pop rebuilds from it), so a per-push arrow that
+	 * closes over its parameters costs a closure (~60–100 B measured, D4) per
+	 * level. Pushing a SHARED module-scope builder plus a plain `data` value
+	 * retains two array elements instead (`push(screen, i)` — the builder
+	 * receives it as its second argument, also on pop-rebuild).
+	 */
+	push(build: (nav: NavHandle, data?: unknown) => JSXNode, data?: unknown): void;
 	/** Pop to the parent (no-op at the root) — the parent REBUILDS from its builder. */
 	pop(): void;
 	/** Reactive current depth (1 = root). */
@@ -530,7 +538,11 @@ export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): PiuContainer => 
  *
  * `root` is a builder (nav) => node|thunk. Every screen builder receives the
  * same `nav` handle:
- *   nav.push(build)  push a child screen (build is (nav) => node)
+ *   nav.push(build, data?)  push a child screen (build is (nav, data?) => node;
+ *                           `data` is retained per level and handed back on
+ *                           pop-rebuild — push a SHARED builder + data instead
+ *                           of a fresh closure to cut the per-push retention,
+ *                           see NavHandle)
  *   nav.pop()        pop to the parent (no-op at the root)
  *   nav.depth()      reactive current depth (1 = root)
  *   nav.canPop()     reactive: is there a parent to pop to
@@ -558,7 +570,13 @@ export const VirtualList = <T>(props: VLSimple<T> | VLRich<T>): PiuContainer => 
  */
 export const Navigator = (props: NavigatorProps): PiuContainer => {
 	const host = makeHost(props, Column);
-	const stack: ((nav: NavHandle) => JSXNode)[] = [props.root];
+	const stack: ((nav: NavHandle, data?: unknown) => JSXNode)[] = [props.root];
+	// Route-param twin of `stack` (same length always): the per-level value a
+	// shared builder rebuilds from. Kept as a parallel ARRAY, not [build, data]
+	// pair objects — two dense array elements per level are the cheapest
+	// per-push retention shape on the 16 B/slot arena (the pair object would
+	// cost a record + 2 properties per level).
+	const datas: unknown[] = [undefined];
 	const depth = signal(1); // reactive; drives depth()/canPop()
 	// the ErrorBoundary in scope when the Navigator is CONSTRUCTED. Button-driven
 	// push()/pop() build screens OUTSIDE render (g.c is null in a tap handler),
@@ -632,7 +650,7 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 						// INITIAL build stays frame-free (render()'s own root boundary
 						// catches it) — no try there (Round 7 value-stack wall).
 						try {
-							let s: unknown = build(nav);
+							let s: unknown = build(nav, datas[stack.length - 1]);
 							if (typeof s === "function") s = (s as () => unknown)();
 							appendChild(wrapper, s as JSXNode);
 						} catch (err) {
@@ -650,7 +668,7 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 				// cost that once kept this body bare no longer applies: every swap
 				// now runs on the shallow run-loop stack (see the note above).
 				try {
-					let s: unknown = build(nav);
+					let s: unknown = build(nav, datas[stack.length - 1]);
 					if (typeof s === "function") s = (s as () => unknown)();
 					appendChild(wrapper, s as JSXNode);
 				} catch (err) {
@@ -688,15 +706,17 @@ export const Navigator = (props: NavigatorProps): PiuContainer => {
 	// throw would crash a benign late timer through the crash screen) (codex P2).
 	let dead = false;
 	const nav: NavHandle = {
-		push(build: (nav: NavHandle) => JSXNode) {
+		push(build: (nav: NavHandle, data?: unknown) => JSXNode, data?: unknown) {
 			if (dead) return;
 			stack.push(build);
+			datas.push(data);
 			depth.value = stack.length;
 			swap();
 		},
 		pop() {
 			if (dead || stack.length <= 1) return;
 			stack.pop();
+			datas.pop();
 			depth.value = stack.length;
 			swap();
 		},

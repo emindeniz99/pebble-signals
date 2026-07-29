@@ -6,7 +6,9 @@
 //   * pushing DISPOSES the current screen's Piu nodes + effects, then builds
 //     the child — RAM is O(1 screen), not O(depth);
 //   * popping disposes the child and REBUILDS the parent from its builder —
-//     builders are tiny closures on a stack (O(depth) closures ≈ bytes);
+//     every level pushes the SAME shared builder with its index as push()'s
+//     `data` param (route-param style), so a level retains two array
+//     elements, not a fresh closure (the D4 per-push slot-diet);
 //   * screen CODE lives in the mod archive in flash (ROM) — what costs arena
 //     is only the LIVE nodes of the top screen;
 //   * screen DATA here derives from the index (zero table RAM). A real app
@@ -30,8 +32,9 @@ let NAV: any = null;
 const [pings, setPings] = useState(0);
 setInterval(() => setPings((p: number) => p + 1), 1000);
 
-// A distinct screen for every index — content derived, not stored.
-const screen = (i: number) => () => (
+// ONE shared builder for every index — the level's index arrives as push()'s
+// `data` (also re-delivered on pop-rebuild), so no per-level closure exists.
+const screen = (_nav: any, i: any) => (
 	<Column>
 		<Label style={big} string={"Screen #" + i} />
 		<Label style={small} string={() => "tick " + pings()} />
@@ -40,10 +43,10 @@ const screen = (i: number) => () => (
 
 render(() => (
 	<Container left={0} right={0} top={0} bottom={0} focus={true}
-		onPressSelect={() => { if (NAV) NAV.push(screen(NAV.depth() + 1)); }}
+		onPressSelect={() => { if (NAV) NAV.push(screen, NAV.depth() + 1); }}
 		onPressBack={() => { if (NAV && NAV.canPop()) { NAV.pop(); return true; } return false; }}>
 		<Column>
-			<Navigator root={(nav: any) => { NAV = nav; return screen(1)(); }} />
+			<Navigator root={(nav: any) => { NAV = nav; return screen(nav, 1); }} />
 		</Column>
 	</Container>
 ), { skin: bg, style: small });
