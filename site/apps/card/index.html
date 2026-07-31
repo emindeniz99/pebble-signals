@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>signal-piu preview — card</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center;
+         background: #1a1a2e; font-family: system-ui, sans-serif; }
+  #watch { box-shadow: 0 0 0 10px #333, 0 12px 40px rgba(0,0,0,.6); }
+  #hint { position: fixed; bottom: 10px; width: 100%; text-align: center;
+          color: #667; font-size: 12px; }
+</style>
+<div id="hint">card — keys: &uarr; up &middot; &darr; down &middot; Enter select &middot;
+Backspace back &middot; ?shape=round|emery &middot; layout approximate (QEMU is truth)</div>
+<script type="importmap">
+{ "imports": {
+    "runtime/card": "./runtime/card.js",
+    "runtime/jsx-runtime": "./runtime/jsx-runtime.js",
+    "runtime/signals": "./runtime/signals.js"
+} }
+</script>
+<script src="./piu-dom.js"></script>
+<script type="module" src="./app.js"></script>

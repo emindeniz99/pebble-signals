@@ -15,7 +15,16 @@
 //   --app <name>        APP=<name>        example to build (default: list)
 //   --no-minify         MINIFY=0          ship readable modules
 //   --no-treeshake      TREESHAKE=0       keep the full runtime preloaded
-//   --treeshake-force   TREESHAKE_FORCE=1 prune despite a dynamic import
+//   --treeshake-force   TREESHAKE_FORCE=1 prune despite a dynamic import (BLUNT —
+//                                         disables the whole safety scan)
+//   --treeshake-allow   TREESHAKE_ALLOW=<a,b>
+//                                         KEYED form of the above, PREFERRED:
+//                                         a comma list of dynamic-import
+//                                         specifiers that are HOST modules
+//                                         (`TREESHAKE_ALLOW="piu/Timeline,qrcode"`).
+//                                         Those stop defeating the scan, so
+//                                         pruning stays ON and every OTHER
+//                                         unresolvable import still self-disables
 //   --skip-fontcheck    SKIP_FONTCHECK=1  skip the Pebble-font validation
 //   --bundle <mode>     BUNDLE=<mode>     "preload" points at multilazy
 //   --no-check-c        CHECK_C=0         skip the clang-format gate
@@ -38,8 +47,12 @@
 //                                         showCrash — reclaims boot symbols/bytes
 //                                         for a saturated app (see docs/field-notes).
 //                                         CAVEAT (findings P10): the DCE rides the
-//                                         minifier, so with MINIFY=0 this flag is
-//                                         silently a no-op (crash UI ships anyway)
+//                                         minifier, so with MINIFY=0 the flag can
+//                                         only stop the screen from INSTALLING —
+//                                         showCrash's bytes/symbols ship anyway.
+//                                         That half-result is now a HARD BUILD
+//                                         ERROR, not a silent no-op (see the
+//                                         flag-combination gate below)
 import { execFileSync } from "node:child_process";
 import {
 	copyFileSync,
@@ -56,7 +69,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import * as esbuild from "esbuild";
 import { classify } from "./tools/classify-module.mts";
-import { relativeClosure } from "./tools/treeshake.mts";
+import { isHostSpecifier, relativeClosure } from "./tools/treeshake.mts";
 import { packageRoot } from "./tools/pkg-root.mts";
 import { renameRuntimeExports } from "./tools/symbol-rename.mts";
 import { maskStrings, stripComments } from "./tools/gen-manifest.mts";
@@ -101,6 +114,7 @@ const cli = parseArgs({
 		minify: { type: "boolean" }, // parseArgs auto-provides --no-minify negation
 		treeshake: { type: "boolean" },
 		"treeshake-force": { type: "boolean" },
+		"treeshake-allow": { type: "string" },
 		"skip-fontcheck": { type: "boolean" },
 		bundle: { type: "string" },
 		"check-c": { type: "boolean" },
@@ -142,6 +156,29 @@ const tryEsbuild = (opts: esbuild.BuildOptions): boolean => {
 };
 const err = (msg: string) => process.stderr.write(`${msg}\n`);
 
+// ---- flag-combination gate (rule 12 applied to the build itself) -----------
+// CRASH_UI=0 asks for the SPACE showCrash occupies, and that reclaim rides the
+// MINIFIER: only esbuild's `define` + DCE folds the `__SP_CRASH_UI__` guard and
+// drops showCrash's body. With MINIFY=0 the runtime emit can merely substitute
+// the flag textually (see the emitRuntime else-branch), so the crash screen
+// stops INSTALLING while its bytecode and boot symbols still ship — the flag's
+// whole purpose, silently unmet (findings P10, previously "documented"). A build
+// that half-does what was asked and says nothing is the bug; refuse instead.
+// Deliberately FIRST — before any scan, tsc, esbuild or `pebble build` — so an
+// impossible combination costs a second, not a full build. The two flags are
+// re-read from the same `flag()` helper that binds `minify`/`crashUI` further
+// down (where they are USED); keep the defaults here in sync with those.
+if (!flag(cli["crash-ui"], "CRASH_UI", "1", true) && !flag(cli.minify, "MINIFY", "1", true)) {
+	err("build: CRASH_UI=0 (--no-crash-ui) with MINIFY=0 (--no-minify) is REFUSED — the");
+	err("       crash-screen removal is DEAD-CODE ELIMINATION and the DCE rides the minifier.");
+	err("       Unminified, the flag only stops the screen from installing: showCrash's bytes");
+	err("       and boot symbols — the room you asked for — ship anyway (findings P10).");
+	err("       Two ways out: keep the minifier (drop --no-minify / MINIFY=1) so --no-crash-ui");
+	err("       actually reclaims the space, or drop --no-crash-ui / CRASH_UI=1 to keep the");
+	err("       readable build. Failing loud rather than half-doing what was asked.");
+	process.exit(1);
+}
+
 // APP=<name> builds src/tsx/examples/<name>.tsx as the app (default: list, the
 // shipping demo). One example = one standalone app — several prebuilt reactive
 // screens in ONE mod exceed the 32KB arena at boot (handbook, M11). tsc compiles
@@ -181,6 +218,28 @@ const appClosure = existsSync(appSrc) ? relativeClosure(appSrc, readSrc) : [appS
 // flash on the first call). Resolved literals don't defeat the scans, so
 // treeshake/prune stay ON; any OTHER dynamic import still self-disables.
 const lazySet = new Set<string>();
+// HOST modules don't defeat the scan either: `pebble/…`, `embedded:…` and
+// `piu/…` are firmware namespaces the mod's loadNowHook maps straight through to
+// the host archive, while OUR manifest ids are only `main`, `runtime/*` and
+// `app/*` — pruning cannot reach them (see isHostSpecifier). A host specifier no
+// PREFIX can prove (`qrcode` — a bare name a hand-written manifest.base.json
+// could legitimately map) is declared per-key instead:
+// TREESHAKE_ALLOW="piu/Timeline,qrcode", the KEYED escape from the self-disable.
+// TREESHAKE_FORCE=1 still works and is unchanged, but it is blunt — it switches
+// the whole safety scan off, so a genuinely unresolvable app/ import in the same
+// build is pruned away silently too. The allowlist names exactly the specifiers
+// the human vouches for as host modules and leaves the guard armed for the rest.
+const treeshakeAllow = new Set(
+	(cli["treeshake-allow"] ?? env("TREESHAKE_ALLOW", ""))
+		.split(",")
+		.map((s) => s.trim())
+		.filter(Boolean),
+);
+// which allowlist entries the scan actually honored, and the specifiers it could
+// NOT follow — both reported below so neither the escape hatch nor the reason
+// for a SKIP is silent
+const honoredAllow = new Set<string>();
+const unresolvedSpecs = new Set<string>();
 // sources of honored manifest.base.json `app/*` modules — pulled into the scan
 // sets below so their OWN runtime imports survive treeshake and their
 // Texture/pdc resources ship, instead of a silent prune (codex P2)
@@ -234,11 +293,19 @@ for (const closureFile of appClosure.filter(existsSync)) {
 			existsSync(join("src/tsx/examples", APP, "screens"))
 		) {
 			/* covered by the folder convention */
-		} else if (/^[`'"](?:pebble\/|embedded:)[\w/:-]+[`'"]\s*$/.test(m[1])) {
-			/* HOST-preloaded module (pebble/message, embedded:storage/files, …):
+		} else if (isHostSpecifier(m[1], treeshakeAllow)) {
+			/* HOST-preloaded module (pebble/message, embedded:storage/files,
+			   piu/Timeline, …) or a specifier DECLARED host by TREESHAKE_ALLOW:
 			   the mod compartment's loadNowHook maps these through to the host
 			   archive, so nothing in OUR manifest can be pruned out from under
-			   them — they don't defeat the scans */
+			   them — they don't defeat the scans. `piu/` joined the built-in
+			   prefixes on the tlprobe receipt: its header recorded the missing
+			   prefix as the reason that probe had to ship the FULL runtime. */
+			// credit only the keys that are LOAD-BEARING — a key for something the
+			// built-in prefixes already prove changes nothing, and reporting it
+			// would claim work the allowlist did not do
+			const spec = m[1].trim().slice(1, -1);
+			if (treeshakeAllow.has(spec) && !isHostSpecifier(m[1])) honoredAllow.add(spec);
 		} else if (!m[0].startsWith("importNow") && /^["'`]\.\.?\/[^"'`$]+["'`]\s*$/.test(m[1])) {
 			/* literal RELATIVE dynamic import (`import("./art")`, backtick
 			   included): esbuild inlines it into main.js (no splitting) and
@@ -286,9 +353,22 @@ for (const closureFile of appClosure.filter(existsSync)) {
 					err("      resources are NOT auto-derived; add them to manifest.base.json yourself.");
 				}
 			}
-		} else unresolvedDynamicImport = true;
+		} else {
+			// record WHAT could not be followed — the SKIP message below names the
+			// specifiers and spells the TREESHAKE_ALLOW line that would keep pruning
+			// on, so the fix does not require reading this scan.
+			unresolvedSpecs.add(m[1].trim());
+			unresolvedDynamicImport = true;
+		}
 	}
 }
+// the keyed escape is never silent: say which specifiers were taken on the
+// human's word, the same way a SKIP says why it gave up
+if (honoredAllow.size)
+	console.log(
+		`treeshake: TREESHAKE_ALLOW honored for ${[...honoredAllow].join(", ")} — ` +
+			"taken as HOST modules on your word; pruning stays ON",
+	);
 // Folder convention: every src/tsx/examples/<APP>/screens/*.tsx|ts ships as
 // a lazy module `app/screens/<name>` — no per-screen importNow literal
 // needed, and the imported name may be computed at runtime (see above).
@@ -305,6 +385,21 @@ if (treeshake && !flag(cli["treeshake-force"], "TREESHAKE_FORCE", "1", false)) {
 	if (unresolvedDynamicImport) {
 		err(`treeshake: SKIPPED — ${APP}.tsx uses a dynamic import() the static scan can't follow;`);
 		err("           pruning could drop a runtime module reached at runtime. TREESHAKE_FORCE=1 to override.");
+		// Name the specifiers and hand back the exact keyed escape. FORCE is still
+		// offered above (unchanged), but it silences the whole scan — including an
+		// app/ target in the same build that genuinely would die on device — so the
+		// allowlist is what this message recommends.
+		err(`           unresolved: ${[...unresolvedSpecs].join(", ")}`);
+		// …and only suggest keys the allowlist would actually HONOR: it refuses our
+		// own ids (runtime/*, app/*), relative specs and non-literals, so printing
+		// one of those would be advice that changes nothing when followed.
+		const keyable = [...unresolvedSpecs]
+			.map((s) => s.replace(/^[`'"]|[`'"]$/g, ""))
+			.filter((s) => isHostSpecifier(`"${s}"`, [s]));
+		if (keyable.length) {
+			err("           If those are HOST modules, prefer the KEYED form and keep pruning ON:");
+			err(`             TREESHAKE_ALLOW="${keyable.join(",")}" APP=${APP} node build.mts`);
+		}
 		treeshake = false;
 	}
 }
@@ -600,6 +695,8 @@ const minify = flag(cli.minify, "MINIFY", "1", true);
 // jsx-runtime's showCrash body (Text/Skin/Style build + retry) and render()
 // installs the lean log+contain sink instead. Boot symbols/bytes back for a
 // saturated app that would rather keep the room than the on-watch error UI.
+// Pairing it with MINIFY=0 already exited at the flag-combination gate up top —
+// the reclaim is DCE, and there is no DCE without the minifier.
 const crashUI = flag(cli["crash-ui"], "CRASH_UI", "1", true);
 // esbuild `define` for the runtime minify: substitutes the compile-time flag so
 // `typeof __SP_CRASH_UI__ === "undefined" || __SP_CRASH_UI__` folds to a const.

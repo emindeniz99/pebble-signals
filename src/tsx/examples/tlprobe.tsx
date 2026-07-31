@@ -45,10 +45,15 @@
 // driven by flow's existing ticker with a track()ed stop. Additive. runtime/anim
 // stays as-is.
 //
-// Build: APP=tlprobe node build.mts — treeshake SELF-DISABLES here: build.mts's
-// host-preload allowlist (:229) covers `pebble/` and `embedded:` but not `piu/`,
-// so this literal reads as an unresolvable dynamic import and the full runtime
-// ships. Harmless for a probe; a one-token widening if the pattern spreads.
+// Build: APP=tlprobe node build.mts — treeshake now stays ON with NO flag:
+// `piu/` joined `pebble/` and `embedded:` in build.mts's host-preload allowlist
+// (the one-token widening this header used to ask for — the loadNowHook maps all
+// three straight through to the host archive, so pruning our manifest cannot
+// reach them). For a host specifier no prefix can prove — a bare name like
+// `qrcode`, which a hand-written manifest.base.json could equally map — declare
+// it by KEY rather than reaching for the blunt TREESHAKE_FORCE=1:
+//   TREESHAKE_ALLOW="piu/Timeline,qrcode" APP=tlprobe node build.mts
+// (the key form keeps the safety scan armed for every OTHER dynamic import).
 import { render, screen } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";
 

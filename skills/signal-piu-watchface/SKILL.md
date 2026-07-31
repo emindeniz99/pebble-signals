@@ -40,8 +40,16 @@ The build has loud gates: `fontcheck` (an invalid font renders BLANK on
 device — the gate saves you), `lint-reads` (read-syntax mistakes below are
 build errors, not runtime surprises), tree-shaking (an app ships only what
 it imports). If the build prints `treeshake: SKIPPED` because of a dynamic
-`importNow` of a HOST module (e.g. `"piu/Timeline"`), rebuild with
-`TREESHAKE_FORCE=1` — pruning runtime modules cannot break host imports.
+`importNow` of a HOST module, rebuild with that specifier declared —
+`TREESHAKE_ALLOW="qrcode"` — which keeps pruning ON for everything else
+(pruning runtime modules cannot break host imports). The message names the
+specifiers and prints the exact line to copy. The `pebble/`, `embedded:` and
+`piu/` prefixes are built in, so e.g. `"piu/Timeline"` needs no flag at all;
+`TREESHAKE_FORCE=1` still works but switches the whole safety scan off.
+
+`CRASH_UI=0` (drop the on-watch crash screen) requires the minifier — its
+saving is dead-code elimination — so `CRASH_UI=0 MINIFY=0` fails the build
+loudly instead of silently shipping the crash screen you asked to remove.
 
 ## Valid fonts (ONLY these — anything else renders blank)
 
@@ -112,11 +120,17 @@ render(() => {
 
 ## Lists — the ceilings are real
 
-Use `VirtualList`/`SectionList` (recycled cells, RAM = O(visible rows))
-for anything list-shaped. `For` is for SMALL, bounded collections only
-(~10 bare Labels; ~3 reactive rows is near the wall). A height-less
-container with 3+ fixed-height children can crash layout — give lists a
-box.
+`VirtualList` is the DEFAULT list. Use it (or `SectionList`) — recycled
+cells, RAM = O(visible rows) — for anything list-shaped. `For` is for
+SMALL, bounded collections only (~10-12 bare Labels; ~6-8 skinned rows;
+~3 reactive rows is near the wall — 5 crash). A height-less container
+with 3+ fixed-height children can crash layout — give lists a box.
+
+The build enforces the split as ADVICE: `lint-reads` warns
+`[for-ceiling]` on a `<For>` whose `each` is not a small literal, naming
+the measured numbers and pointing at `VirtualList`. It is a WARNING —
+the build still passes. Retune the literal bound with `LINT_FOR_MAX=<n>`
+(default 8); `LINT_READS=0` bypasses the whole gate.
 
 ## Round screen rules
 

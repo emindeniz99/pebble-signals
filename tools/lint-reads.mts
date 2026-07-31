@@ -30,11 +30,22 @@
 // Symbol-resolved exactly like the lowering (shadows don't trip it; a
 // foreign `useState` import is ignored).
 //
+// Rule 6 (`for-ceiling`) is the ONE rule that WARNS instead of failing: a
+// `<For>` whose `each` is not a provably small literal. `For` mounts a real
+// piu node per item, so the list ceiling IS the 32KB arena — MEASURED
+// "fxAbort memory full" at ~10-12 bare-Label rows, and reactive rows ride far
+// higher (handbook gotcha 16). It is only ADVICE because a runtime array can
+// be bounded by construction in ways no checker can see, so a false positive
+// must never block a build — but the default for a list is `VirtualList`
+// (recycled window, RAM O(rows) not O(items)) and the lint says so at the
+// call site. `LINT_FOR_MAX=<n>` retunes the literal bound (default 8).
+//
 // Deliberately NOT a full type-check: examples stay loose by design (see
 // tsconfig.check.json's note); we flag only provable read-syntax misuse.
 //
 // Usage (CLI): node tools/lint-reads.mts <appSrc> [more .tsx/.ts files]
-// (exit 1 if any finding). Build flag: --no-lint-reads / LINT_READS=0.
+// (exit 1 if any ERROR finding; warnings print and exit 0). Build flag:
+// --no-lint-reads / LINT_READS=0.
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -55,8 +66,15 @@ export interface Finding {
 		| "stringify-fn"
 		| "setter-as-value"
 		| "getter-as-value"
-		| "getter-on-static-prop";
+		| "getter-on-static-prop"
+		| "for-ceiling";
 	msg: string;
+	/**
+	 * Absent = a build-failing error (every read-syntax rule: those shapes are
+	 * provably broken on device). "warn" = advice the CLI prints without
+	 * exiting 1 — see `for-ceiling`, which cannot prove the list is too long.
+	 */
+	severity?: "warn";
 }
 
 // Does this type (or a union member of it) name a runtime Signal/ReadonlySignal?
@@ -87,6 +105,43 @@ const short = (n: ts.Node): string => {
 	const s = n.getText();
 	return s.length > 24 ? `${s.slice(0, 24)}…` : s;
 };
+
+// The `for-ceiling` literal bound: a `<For>` over MORE than this many literal
+// rows warns. Env-overridable like every other lint/build knob (LINT_READS=0,
+// SKIP_FONTCHECK=1) and read PER CALL, not once at module load, so a consumer
+// retunes per build rather than per process. Anything that is not a positive
+// integer (unset, empty, garbage, 0, negative) falls back to the default —
+// the knob retunes the rule, it never silently disables it (LINT_READS=0 does
+// that, loudly and for the whole gate).
+const FOR_MAX_DEFAULT = 8;
+const forMax = (): number => {
+	const n = Number(process.env.LINT_FOR_MAX);
+	return Number.isInteger(n) && n > 0 ? n : FOR_MAX_DEFAULT;
+};
+
+// Row count of a `For`'s `each` source WHEN it is a provably bounded literal:
+// `each={() => [a, b, c]}` (the documented thunk shape), a bare `[a, b, c]`,
+// or either wrapped in parens. `undefined` = unbounded — a call, a signal
+// read, a bare identifier thunk, a block-bodied arrow (not statically
+// readable), or an array literal carrying a SPREAD (`[...xs]` is a literal of
+// UNKNOWN length, which is exactly the shape a naive length check would wave
+// through).
+const literalRows = (e: ts.Expression): number | undefined => {
+	let x = e;
+	while (ts.isParenthesizedExpression(x)) x = x.expression;
+	if (ts.isArrowFunction(x) && !ts.isBlock(x.body)) return literalRows(x.body);
+	if (!ts.isArrayLiteralExpression(x)) return undefined;
+	return x.elements.some(ts.isSpreadElement) ? undefined : x.elements.length;
+};
+
+// The MEASURED numbers behind the warning, quoted in both message shapes so a
+// reader never has to go find them: handbook "For stress" (~450B slots/row)
+// and gotcha 16 (reactive rows). Kept in one const so the two messages can
+// never drift apart.
+const FOR_CEILING =
+	"measured ceiling: ~10-12 bare-Label rows (~450B slots each), ~6-8 skinned Container+Label rows, and only ~3 REACTIVE rows (94% of the heap budget at boot — 5 crash the firmware)";
+const USE_VL =
+	"use VirtualList, the default for lists: a fixed recycled window, so RAM is O(rows), not O(items)";
 
 /** Lint app sources for reactive-read misuse. Returns findings (empty = clean). */
 export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
@@ -151,7 +206,12 @@ export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
 		if (seen.has(key)) return;
 		seen.add(key);
 		seenPos.add(`${sf.fileName}:${line}:${character}`);
-		findings.push({ file: sf.fileName, line: line + 1, col: character + 1, rule, msg });
+		// severity rides the RULE ID, not the call site: a rule is advice or it
+		// is a bug, never both, and deriving it here keeps every existing
+		// report() call unchanged (and un-droppable from the union).
+		const f: Finding = { file: sf.fileName, line: line + 1, col: character + 1, rule, msg };
+		if (rule === "for-ceiling") f.severity = "warn";
+		findings.push(f);
 	};
 
 	// A Signal (or bare function) used where it will STRINGIFY.
@@ -233,6 +293,48 @@ export function lintReads(entryFiles: string[], pkgRoot?: string): Finding[] {
 			ts.forEachChild(node, visit);
 		};
 		visit(sf);
+
+		// Rule 6 (`for-ceiling`, WARN): a `<For>` whose `each` is not a small
+		// bounded literal. `For` materializes ONE live piu node per item (plus a
+		// root + effect per reactive row), so on the firmware-fixed 32KB arena
+		// the list length IS the ceiling — see FOR_CEILING for the measured
+		// numbers. `VirtualList` recycles a fixed window instead, which is why
+		// the `forbind5vl` example runs the very 5 live reactive rows that make
+		// a raw `For` fxAbort. Resolved through the `runtime/flow` import
+		// exactly like rule 5 resolves `useState`, so an app's own `For` (or a
+		// `For` from anywhere else) is never touched. Runs BEFORE rule 5's
+		// `if (!useSym) continue` — a list app need not use useState at all.
+		const forSym = importSymbol(checker, sf, "For", "runtime/flow");
+		if (forSym) {
+			const max = forMax();
+			(function walkFor(n: ts.Node): void {
+				if (ts.isJsxSelfClosingElement(n) || ts.isJsxOpeningElement(n)) {
+					if (checker.getSymbolAtLocation(n.tagName) === forSym) {
+						const each = n.attributes.properties.find(
+							(a): a is ts.JsxAttribute => ts.isJsxAttribute(a) && a.name.getText() === "each",
+						);
+						const init = each?.initializer;
+						// a missing/`{...spread}`/string `each` is unbounded too: nothing
+						// static to bound it with, so it takes the unbounded message
+						const src = init && ts.isJsxExpression(init) ? init.expression : undefined;
+						const rows = src ? literalRows(src) : undefined;
+						if (rows === undefined)
+							report(
+								n.tagName,
+								"for-ceiling",
+								`\`each\` is not a bounded literal and For mounts one live piu node per item (${FOR_CEILING}) — ${USE_VL}`,
+							);
+						else if (rows > max)
+							report(
+								n.tagName,
+								"for-ceiling",
+								`For over a ${rows}-element literal is past the ${max}-row bound (${FOR_CEILING}) — ${USE_VL}. LINT_FOR_MAX=<n> retunes the bound`,
+							);
+					}
+				}
+				ts.forEachChild(n, walkFor);
+			})(sf);
+		}
 
 		// Rule 5: useState pair bindings escaping as VALUES. Candidacy mirrors
 		// the lowering exactly (const [g, s] = useState(init) of OUR useState,
@@ -400,13 +502,24 @@ if (import.meta.main) {
 		process.exit(2);
 	}
 	const findings = lintReads(files);
+	// warnings print with a WARN marker (error lines stay byte-identical — the
+	// build's stderr is a receipt people grep) and are counted separately: only
+	// ERRORS gate the build.
 	for (const f of findings)
-		process.stderr.write(`lint-reads: ${f.file}:${f.line}:${f.col} [${f.rule}] ${f.msg}\n`);
-	if (findings.length) {
 		process.stderr.write(
-			`lint-reads: ${findings.length} reactive-read bug(s) — these render garbage or crash on device. LINT_READS=0 to bypass.\n`,
+			`lint-reads: ${f.severity === "warn" ? "WARN " : ""}${f.file}:${f.line}:${f.col} [${f.rule}] ${f.msg}\n`,
+		);
+	const errors = findings.filter((f) => f.severity !== "warn");
+	if (errors.length) {
+		process.stderr.write(
+			`lint-reads: ${errors.length} reactive-read bug(s) — these render garbage or crash on device. LINT_READS=0 to bypass.\n`,
 		);
 		process.exit(1);
 	}
-	console.log(`lint-reads: clean (${files.length} file(s))`);
+	const warned = findings.length - errors.length;
+	console.log(
+		warned
+			? `lint-reads: clean (${files.length} file(s)) — ${warned} warning(s), build not blocked`
+			: `lint-reads: clean (${files.length} file(s))`,
+	);
 }

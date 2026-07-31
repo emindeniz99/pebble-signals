@@ -810,6 +810,79 @@ _Node-100%-covered; builds; the `onPressBack` substrate is device-proven (see Bu
 
 ## Layout & lists
 
+> **Reach for `VirtualList` first.** It is the DEFAULT for anything
+> list-shaped; `For` is for small, bounded collections. `For` mounts one live
+> Piu node per item, so on the firmware-fixed 32KB arena the list LENGTH is the
+> ceiling — measured `fxAbort memory full` at **~10–12 bare-Label rows**
+> (~450B slots each), **~6–8** skinned Container+Label rows, and only **~3
+> reactive rows** (94% of the heap budget at boot; 5 crash the firmware —
+> handbook gotcha 16). `VirtualList` recycles a fixed window instead, so RAM is
+> O(rows), not O(items). The build says so too: `lint-reads` warns
+> (`[for-ceiling]`, warning only — it never fails the build) on a `<For>` whose
+> `each` is not a small literal. `LINT_FOR_MAX=<n>` retunes the literal bound
+> (default 8); `LINT_READS=0` bypasses the whole gate.
+
+### VirtualList — `runtime/flow`
+
+**The default list.** A virtualized ("windowed") list — our `FlatList`. Creates a
+FIXED set of `rows` Labels ONCE and rewrites their `.string` as the window moves
+(**cell recycling**, the FlashList/RecyclerListView trick): nodes are never created
+or destroyed on scroll, so RAM is **O(rows), not O(items)**. Any `{ count(), get(i) }`
+source works — pair it with the byte-record store and the item DATA lives outside
+the arena while only `rows` Piu nodes exist. `at` is a thunk -> window start index
+(read a signal inside it to scroll); `get(i)` is called ONLY for the visible window,
+so the source can lazy-fetch. Overscan is deliberately omitted (this port redraws
+text instantly — there is no lazy mount to warm).
+
+```tsx
+import { VirtualList } from "runtime/flow";
+<VirtualList data={{ count: () => n(), get: (i) => rows[i] }} rows={3} at={() => top()} />
+```
+
+For RICHER rows than a plain string, pass `renderRow(indexThunk, data)` instead of
+`format` — a recycled SUBTREE per slot. Each extra node per row costs arena and the
+measured ceiling is brutal: a 2-column rich row at **3 rows crashes at boot, 2 rows
+boots but crashes on SCROLL** (97% + transients), **1 row boots and scrolls** (the
+`richlist` example). Rich rows must not carry a FIXED HEIGHT — a height-less
+container with 3+ fixed-height children dies on this port. So: rich rows OR many
+rows, not both.
+
+| round (gabbro) | rect (emery) |
+|---|---|
+| ![scroll round](../screenshots/scroll-gabbro-scrolled.png) | ![scroll rect](../screenshots/scroll-emery-scrolled.png) |
+
+_Device-verified on both shapes (`scroll` example: 8+ records, a 3-row window,
+up/down scroll — the window slides while memory stays O(3)). `forbind5vl` runs
+**5 LIVE reactive rows** through recycled cells — the very 5 that make a raw
+`For` fxAbort._
+
+### For — `runtime/flow`
+
+Keyed reconcile over a **small, bounded** collection (see the ceiling note above —
+prefer `VirtualList` for anything that can grow). `each` is a thunk returning an
+array; `key` maps item -> unique key (default: identity); `children` is
+`(item, index) -> node`. Rows whose keys survive are KEPT, new keys mount in their
+own root, removed keys dispose, and a DUPLICATE key keeps its first occurrence.
+Reconcile does MINIMAL Piu ops (remove departed, insert/move only misplaced nodes)
+— a full `empty()` + re-add per update destabilizes the port (measured: app death
+after ~15–25 cycles). `i` is the CREATION-TIME index: a kept row's builder never
+re-runs, so key by identity, not by index.
+
+```tsx
+import { For } from "runtime/flow";
+<For each={() => [0, 1, 2]} width={120}>
+  {(i: number) => <Label string={() => "r" + i + ":" + n()} />}
+</For>
+```
+
+| round (gabbro) | rect (emery) |
+|---|---|
+| ![forbind round](../screenshots/ex-forbind-updated.png) | ![forbind rect](../screenshots/em-forbind.png) |
+
+_Device-verified on both shapes (`forbind` example — three reactive `For` rows that
+boot AND update live, peaking at 94% of the heap budget: this is what "small and
+bounded" costs)._
+
 ### Scrollable — `runtime/scrollable`
 
 Free-form scroll of arbitrary-height content (RN `ScrollView` + Pebble
@@ -956,8 +1029,10 @@ previously listed here, do NOT exist anywhere in this SDK tree — removed), a
 ## Hostprobe discoveries (gabbro receipt, 2026-07-29)
 
 A one-screen probe app (`src/tsx/examples/hostprobe.tsx`,
-`screenshots/hostprobe-gabbro.png` — build with `TREESHAKE_FORCE=1`, its dynamic
-`importNow` strings are host modules the static scan can't follow) settled the
+`screenshots/hostprobe-gabbro.png` — build with `TREESHAKE_ALLOW="qrcode"`: its
+dynamic `importNow` strings are host modules, and the bare `qrcode` is the one no
+prefix can prove, so it is declared by key instead of switching the whole scan
+off with `TREESHAKE_FORCE=1`) settled the
 bind-coverage audit's uncatalogued host surface:
 
 - **`setTimeout`/`clearTimeout` EXIST and WORK** (`typeof function`, callback
@@ -992,8 +1067,9 @@ bind-coverage audit's uncatalogued host surface:
   - `piu/Timeline` → **tweens on device** (`tlprobe`: label x 16→197 across
     distinct frames via `Timeline.to` + a setInterval `seekTo` driver;
     `screenshots/tlprobe-gabbro.png`; verdict on replacing runtime/anim is in
-    the example header — build with `TREESHAKE_FORCE=1`, the dynamic host
-    import disables the static scan).
+    the example header — builds with pruning ON and no flag now that `piu/` is
+    a built-in host prefix; a bare host specifier takes
+    `TREESHAKE_ALLOW="<spec>"`).
   - `willFocus` → **BOUND** as `useAppFocus("will")` (phase param mirrors
     useClock's granularity idiom; subscribe device-proven, DELIVERY remains
     emulator-uncertain like didFocus — the module says so).

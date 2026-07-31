@@ -104,6 +104,56 @@ transport (0 heartbeats) triggers one `tools/reset-emulator.sh` + retry
   fxAbort covers the realistic failure modes — but eyeball the receipts when
   it matters (that is why they are saved).
 
+## Receipt staleness — the dated matrix
+
+A PASS proves boot + paint **on the day it ran**, and nothing above says which
+day that was. That is how the status block at the top of this file drifted from
+"the full catalog was green on gabbro AND emery" into "…at the matrix runs,
+boot+paint only, button drives not re-driven" while still reading green to a
+skimmer. The runner now records every run, dated:
+
+- [`smoke-matrix.json`](smoke-matrix.json) — one
+  `{app, platform, date, result, receiptPath}` row per app per run,
+  **append-only**. Old rows are never dropped or rewritten: the history is the
+  evidence, and a matrix that prunes it cannot be used to argue freshness.
+- [`smoke-matrix.md`](smoke-matrix.md) — the table, regenerated FROM that json:
+  newest run per app/platform, the AGE of each receipt in its own column, and a
+  ⚠️ on anything older than 30 days. It is a generated view — never hand-edit it.
+
+```bash
+node tools/device-smoke.mts --apps counter --platform gabbro  # run → record → re-render
+node tools/device-smoke.mts --matrix                          # re-render the table only
+node tools/device-smoke.mts --dry-run --apps counter          # record/render path, NO device
+```
+
+`--dry-run` writes its json/md to `/tmp/signal-piu-smoke-matrix/` on purpose: a
+row no device produced must never become the newest row of the committed matrix.
+It exists so `tests/smokematrix.test.mts` can prove the merge and the table
+render on a box with no emulator at all.
+
+Two things changed in the runner alongside the record (both CLAUDE.md Rule 3,
+both already measured — this only stops them being applied by hand):
+
+- **Reset-per-app.** Every app now starts from `tools/reset-emulator.sh`, not
+  only the ones that already failed. The screenshot/install transport rots after
+  ~4–8 installs in a session and a rotted capture returns a STALE frame that
+  passes every size check, so only the first app after a reset is trustworthy.
+  **Trade-off (Rule 12, say it out loud):** the reset wipes the PERSIST dir too,
+  so `kvprobe` now paints `kv works boot=1` on every run — the row above still
+  passes (it boots and paints), but its *persists across launches* claim is no
+  longer exercised by the runner. Install it twice with no reset in between to
+  check that by hand.
+- **A 40 s post-install settle** (it was 8 s, which was right mid-session). On a
+  freshly-reset emulator the FIRMWARE cold-boots ~30 s before the app loads, so
+  the old window would now catch a boot frame and zero heartbeats. 40 s = the
+  documented ≥32 s cold-boot floor plus the ~8 s of heartbeats the `≥3
+  instruments:` assert was tuned for. A full-catalog run is that much slower per
+  app; that is the price of a receipt that means something.
+
+Receipts land in `screenshots/smoke/<app>-<plat>.png` — a SUBDIR, so a smoke run
+can never overwrite the committed catalog receipts in `screenshots/` that the
+docs point at (the runner refuses a `--receipts` aimed at that directory).
+
 ## The catalog
 
 | app | buttons | a human should see | why it's here |

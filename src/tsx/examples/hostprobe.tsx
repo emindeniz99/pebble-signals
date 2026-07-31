@@ -12,7 +12,13 @@
 //   ev    watch.on("hourchange") + watch.on("willFocus") subscribe no-throw
 // Rows render even when a probe throws (try/catch per probe, error message
 // as the row) — a crash screen here would itself be a receipt.
-// Build: APP=hostprobe ./build.sh
+// Build: TREESHAKE_ALLOW="qrcode" APP=hostprobe node build.mts — every
+// `importNow` below names a HOST module. `piu/Timeline` is covered by build.mts's
+// built-in host prefixes (pebble/, embedded:, piu/); the bare `qrcode` is not
+// provable by prefix — an unprefixed id could be a manifest.base.json mapping —
+// so it takes the KEYED allowlist. Without the key treeshake self-disables and
+// the probe ships the full runtime (TREESHAKE_FORCE=1 also builds, but it
+// switches the whole safety scan off instead of naming one specifier).
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";
 

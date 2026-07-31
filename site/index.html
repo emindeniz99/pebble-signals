@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>signal-piu — zero-install preview gallery</title>
+<style>
+ :root { color-scheme: dark; }
+ body { margin: 0; background: #14141f; color: #e7e7f0; line-height: 1.5;
+        font-family: system-ui, sans-serif; }
+ header, main, footer { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+ header { padding-top: 40px; }
+ h1 { margin: 0; font-size: 32px; letter-spacing: -.5px; }
+ .tag { color: #a9a9c0; max-width: 68ch; }
+ .shape { display: flex; gap: 8px; flex-wrap: wrap; margin: 20px 0 8px; }
+ .shape button { font: inherit; font-size: 14px; padding: 7px 14px; cursor: pointer;
+                 color: #cfcfe4; background: #23233a; border: 1px solid #35355a;
+                 border-radius: 999px; }
+ .shape button.on { background: #55ffaa; border-color: #55ffaa; color: #11221a; }
+ .keys { color: #7a7a95; font-size: 14px; margin-top: 0; }
+ main { display: grid; gap: 24px; padding-top: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+ .card { background: #1c1c2c; border: 1px solid #2c2c46; border-radius: 12px;
+         padding: 16px; }
+ .card h2 { margin: 0 0 6px; font-size: 17px; }
+ .card p { margin: 0 0 12px; color: #a9a9c0; font-size: 14px; }
+ iframe { display: block; width: 100%; height: 330px; border: 0; border-radius: 8px;
+          background: #1a1a2e; }
+ footer { color: #8a8aa5; font-size: 14px; padding: 32px 20px 56px; }
+ footer h2 { font-size: 16px; color: #cfcfe4; }
+ footer code { color: #cfcfe4; }
+</style>
+<header>
+ <h1>signal-piu</h1>
+ <p class="tag">Fine-grained reactive UI — Solid-style signals + JSX, no VDOM — for Pebble
+ watches on Moddable XS/Piu. Every watch below is a REAL example running the SHIPPED runtime
+ in your browser: no SDK, no emulator, no install.</p>
+ <div class="shape" role="group" aria-label="watch shape">
+  <button type="button" data-shape="round" class="on">gabbro &middot; round 260&times;260</button>
+  <button type="button" data-shape="emery">emery &middot; rect 200&times;228</button>
+ </div>
+ <p class="keys">Click a watch to focus it, then drive it: &uarr; up &middot; &darr; down
+ &middot; Enter select &middot; Backspace back.</p>
+</header>
+<main>
+  <section class="card">
+   <h2>pulse — the flagship face</h2>
+   <p>A live clock, a per-second pulse dot, and three accent themes on up/down (persisted to flash). The one composition that runs every proven mechanism at real arena pressure.</p>
+   <iframe data-app="pulse" src="apps/pulse/index.html?shape=round"
+    title="pulse preview" loading="lazy"></iframe>
+  </section>
+  <section class="card">
+   <h2>counter — the classic</h2>
+   <p>up = +1, down = -1. One useState, one bound Label, and no VDOM diff anywhere: the signal writes the Label's string directly.</p>
+   <iframe data-app="counter" src="apps/counter/index.html?shape=round"
+    title="counter preview" loading="lazy"></iframe>
+  </section>
+  <section class="card">
+   <h2>menu — a driven list</h2>
+   <p>The app owns the selected index; Menu highlights that row and scrolls to keep it inside the viewport. up/down wrap.</p>
+   <iframe data-app="menu" src="apps/menu/index.html?shape=round"
+    title="menu preview" loading="lazy"></iframe>
+  </section>
+  <section class="card">
+   <h2>sectionlist — grouped rows</h2>
+   <p>Three sections in one recycled five-slot window. Headers are never selectable, so stepping walks row-to-row ACROSS sections and the list scrolls past each boundary.</p>
+   <iframe data-app="sectionlist" src="apps/sectionlist/index.html?shape=round"
+    title="sectionlist preview" loading="lazy"></iframe>
+  </section>
+  <section class="card">
+   <h2>card — a reactive title bar</h2>
+   <p>Two titled boxes. The second card's title is a thunk, so up/down repaint the title bar with zero bind wiring at the call site.</p>
+   <iframe data-app="card" src="apps/card/index.html?shape=round"
+    title="card preview" loading="lazy"></iframe>
+  </section>
+</main>
+<footer>
+ <h2>What this is not</h2>
+ <p>Layout here is APPROXIMATE: Piu's layout engine is not reimplemented, only DOM-rendering
+ stubs stand in for it. The preview bundles the raw <code>.tsx</code>, so the auto-thunk
+ lowering pass never runs (bare reactive props stay static — these examples write thunks).
+ Lazy modules (<code>importNow</code>), bitmaps, the Canvas Port and the host clock global are
+ not stubbed, which is why the draw-based <code>ultraface</code> and the phone-data
+ <code>weather</code> face are not in this gallery. QEMU stays the truth:
+ <code>pnpm run dev -- --app pulse</code>.</p>
+ <p>Regenerate this site with <code>node tools/build-site.mts</code> from
+ <code>projects/signal-piu</code>.</p>
+</footer>
+<script>
+ const frames = document.querySelectorAll("iframe[data-app]");
+ const buttons = document.querySelectorAll("button[data-shape]");
+ for (const b of buttons)
+  b.addEventListener("click", () => {
+   const shape = b.dataset.shape;
+   // Re-point each frame at the ?shape= the preview page already reads; a
+   // fresh src RELOADS the app, which is what re-running render() at the new
+   // Application size needs (screen.width is read once, at mount).
+   for (const f of frames) f.src = "apps/" + f.dataset.app + "/index.html?shape=" + shape;
+   for (const other of buttons) other.classList.toggle("on", other === b);
+  });
+</script>

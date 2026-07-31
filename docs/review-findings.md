@@ -272,7 +272,7 @@ Regression tests: signals.test.mts R1–R7 (8 checks, failed pre-fix).
 | U9 | MINOR  ✅(this round) | NaN key (bad data) never matches indexOf → For silently rebuilds every row every pass | normalize NaN in keyOf or document; low priority |
 | U10 | MINOR  ✅(this round) | a user-supplied `behavior` prop is silently clobbered when onTap/button props also present | fail loud (throw) on the conflict per Rule 12 |
 
-## Build pipeline (build.mts / tools) — ALL FIXED except P10 (documented)
+## Build pipeline (build.mts / tools) — ALL FIXED (P10 is now a build error)
 
 | # | sev | finding | fix plan |
 |---|---|---|---|
@@ -285,7 +285,7 @@ Regression tests: signals.test.mts R1–R7 (8 checks, failed pre-fix).
 | P7 | MINOR  ✅(2955dbc) | gen-manifest scans RAW source — a commented-out `new Texture(...)` creates a phantom resource (build failure or silently shipped bytes) | apply the same comment-strip the lazy scan uses |
 | P8 | MINOR  ✅(62e5c64) | deriveResources ASSIGNS `m.resources`/`m.data` wholesale — a consumer base manifest's hand-added entries are clobbered | union with existing "*" lists |
 | P9 | MINOR  ✅(62e5c64) | treeshake's hard-coded DEPS map silently PRUNES a runtime module it doesn't know (fail-open) — a 4th runtime module would boot-die | keep unknown seeds (fail-safe) or derive DEPS from sources |
-| P10 | MINOR | `--no-crash-ui` is silently ignored when MINIFY=0 (define only applied in the minify call) | document, or apply the define in the fallback copy path |
+| P10 | MINOR  ✅(this round) | `--no-crash-ui` is silently ignored when MINIFY=0 (define only applied in the minify call) | the fallback copy path now substitutes the flag TEXTUALLY, so the crash SCREEN does stop installing — but the reclaim is DCE and the DCE rides the minifier, so the flag's actual purpose (boot symbols + bytes back) stayed unmet and silent. ✅ the combination is now a HARD BUILD ERROR raised before any work (build.mts flag-combination gate), naming both ways out: keep the minifier, or drop the flag |
 | P11 | MINOR  ✅(62e5c64) | the "esbuild missing → unminified fallback" comment is unreachable: esbuild is imported statically, so a missing install dies at module load (loud, but the doc lies) | dynamic import with try/catch, or fix the comment |
 | P12 | MINOR  ✅(62e5c64) | lint-reads only VISITS the root files; a footgun inside a bundled ./helper is type-resolved but never reported | also visit program source files under the app's directory |
 

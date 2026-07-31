@@ -185,6 +185,42 @@ export function relativeClosure(entry: string, read: (p: string) => string | nul
 	return out;
 }
 
+// Firmware namespaces the mod compartment's loadNowHook maps STRAIGHT THROUGH to
+// the host archive (SDK build/devices/pebble/host/main.js:105-111 — any specifier
+// the mod archive does not carry becomes `{namespace: specifier}`). `piu/` is
+// here on the tlprobe device receipt (`importNow("piu/Timeline")` returns the
+// firmware tween engine, screenshots/tlprobe-gabbro.png); its example header had
+// recorded the missing prefix as the reason that probe shipped the full runtime.
+// Only PREFIXES we can prove qualify: our manifest ids are `main`, `runtime/*`
+// and `app/*`, so no host-prefixed specifier can ever name a module this prune
+// might drop. A BARE name (`qrcode`) is deliberately NOT provable — a
+// hand-written manifest.base.json may map exactly such an id — which is why the
+// keyed allowlist exists instead of a blanket "unprefixed = host" rule.
+const HOST_PREFIX = /^(?:pebble\/|embedded:|piu\/)/;
+
+/**
+ * Is this dynamic-import ARGUMENT (`m[1]` of the build's `import(Now)(…)` scan —
+ * quotes included) a HOST module the treeshake guard may ignore? Pure.
+ *
+ * `allow` is the TREESHAKE_ALLOW list: specifiers the human declares host, for
+ * the ones no prefix can prove. It can never launder OUR OWN ids — `runtime/*`
+ * is precisely what pruning drops, and an `app/*` target must stay with the loud
+ * "cannot resolve to a shipped module" error (allowlisting it would trade a
+ * build failure for a dead navigation on device). Relative specifiers are not
+ * host either: the caller's own branch follows those into the bundle.
+ * Non-literals (a substitution template, a computed name) are never host.
+ */
+export function isHostSpecifier(arg: string, allow: Iterable<string> = []): boolean {
+	// one quoted literal, whole argument. The character class excludes `$`, so a
+	// substitution template can't be read as a literal specifier.
+	const lit = /^[`'"]([\w./:@-]+)[`'"]$/.exec(arg.trim())?.[1];
+	if (lit === undefined) return false;
+	if (/^(?:runtime\/|app\/|\.\.?\/)/.test(lit)) return false;
+	if (HOST_PREFIX.test(lit)) return true;
+	for (const a of allow) if (a === lit) return true;
+	return false;
+}
+
 /** Prune the manifest to `main` + the needed runtime modules. Pure. */
 export function pruneManifest(
 	manifest: Manifest,

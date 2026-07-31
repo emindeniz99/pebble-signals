@@ -11,6 +11,9 @@ coverage/
 src/embeddedjs/runtime-build/
 src/embeddedjs/runtime-types/
 src/pkjs/index.js
+# same story for the opt-in timeline helper: timeline.ts is the source,
+# timeline.js is what `tsc -p tsconfig.pkjs.json` emits for `pebble build`
+src/pkjs/timeline.js
 examples/consumer/node_modules/
 examples/consumer/package-lock.json
 dist/

@@ -19,5 +19,16 @@
 		"outDir": "dist",
 		"rootDir": "."
 	},
-	"include": ["build.mts", "tools/**/*.mts"]
+	"include": ["build.mts", "tools/**/*.mts"],
+	// timeline-push is a SOURCE-ONLY tool, deliberately. It imports the pin
+	// contract from src/pkjs/timeline.ts — a .ts, because the PKJS half must emit
+	// CommonJS — and this build would compile that dependency to
+	// `dist/src/pkjs/timeline.js`: ESM syntax in a .js file inside a package with
+	// no `"type"` field, which Node then treats as CommonJS. MEASURED: importing
+	// the emitted dist/tools/timeline-push.mjs fails with "Named export
+	// 'TIMELINE_API_ROOT' not found … is a CommonJS module". In-repo it runs
+	// straight from source (`node tools/timeline-push.mts`), which is where a
+	// server-side pusher belongs anyway; shipping it would need `src/pkjs/` in
+	// package.json "files" AND a dual-emit story for the contract.
+	"exclude": ["tools/timeline-push.mts"]
 }

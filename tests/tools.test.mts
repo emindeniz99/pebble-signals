@@ -734,6 +734,125 @@ test("lint-reads rule 5: defers when a sharper rule already flagged the site", (
 	);
 });
 
+// ---- lint-reads rule 6: the For ceiling (WARN, never a build gate) ----------
+// `For` mounts one live piu node per item, so on the firmware-fixed 32KB arena
+// the list LENGTH is the ceiling: measured "fxAbort memory full" at ~10-12
+// bare-Label rows, ~6-8 skinned rows, and only ~3 REACTIVE rows (94% of the
+// heap budget at boot; 5 crash). `VirtualList` recycles a fixed window — RAM
+// O(rows), not O(items) — which is why it is the DEFAULT for lists and `For`
+// is for small bounded collections. The rule cannot PROVE a runtime array is
+// too long (a bounded-by-construction array is legitimate), so it is advice:
+// severity "warn", and the CLI exits 0. These tests pin BOTH halves — that it
+// fires on the unbounded/oversized shapes, and that it never fires on the
+// small bounded ones the docs still bless.
+const forFixture = (code: string) => lintFixture('import { For } from "runtime/flow";\n' + code);
+
+test("lint-reads rule 6: a small literal For stays silent (the shipped forbind shape)", () => {
+	const out = forFixture(
+		"export const list = (\n" +
+			"\t<For each={() => [0, 1, 2]} width={120}>\n" +
+			"\t\t{(i: number) => <Label string={() => String(i)} />}\n" +
+			"\t</For>\n" +
+			");\n",
+	);
+	assert.deepEqual(out, []);
+});
+
+test("lint-reads rule 6: an unbounded `each` WARNS with the measured ceiling + VirtualList", () => {
+	const out = forFixture(
+		"const load = (): number[] => [1, 2];\nexport const list = <For each={() => load()} />;\n",
+	);
+	assert.equal(out.length, 1);
+	assert.equal(out[0].rule, "for-ceiling");
+	assert.equal(out[0].severity, "warn"); // advice — the build must NOT fail on it
+	assert.match(out[0].msg, /not a bounded literal/);
+	assert.match(out[0].msg, /~10-12 bare-Label rows/); // the measured numbers travel with it
+	assert.match(out[0].msg, /~3 REACTIVE rows/);
+	assert.match(out[0].msg, /use VirtualList, the default for lists/);
+});
+
+test("lint-reads rule 6: a literal past the default bound warns with its count and the knob", () => {
+	const out = forFixture("export const list = <For each={() => [1, 2, 3, 4, 5, 6, 7, 8, 9]} />;\n");
+	assert.equal(out.length, 1);
+	assert.equal(out[0].rule, "for-ceiling");
+	assert.equal(out[0].severity, "warn");
+	assert.match(out[0].msg, /9-element literal is past the 8-row bound/);
+	assert.match(out[0].msg, /LINT_FOR_MAX=<n>/);
+});
+
+test("lint-reads rule 6: LINT_FOR_MAX retunes the bound; a non-integer falls back to 8", () => {
+	const nine = "export const list = <For each={() => [1, 2, 3, 4, 5, 6, 7, 8, 9]} />;\n";
+	const three = "export const list = <For each={() => [1, 2, 3]} />;\n";
+	const prev = process.env.LINT_FOR_MAX;
+	try {
+		process.env.LINT_FOR_MAX = "12";
+		assert.deepEqual(forFixture(nine), []); // raised — 9 rows is within the new bound
+		process.env.LINT_FOR_MAX = "2";
+		assert.match(forFixture(three)[0].msg, /3-element literal is past the 2-row bound/);
+		// anything that is not a positive integer retunes NOTHING: the knob must
+		// never become an accidental silent disable (LINT_READS=0 does that, loudly)
+		for (const bad of ["", "0", "-3", "4.5", "lots"]) {
+			process.env.LINT_FOR_MAX = bad;
+			assert.equal(forFixture(nine).length, 1, bad);
+			assert.deepEqual(forFixture(three), [], bad);
+		}
+	} finally {
+		if (prev === undefined) delete process.env.LINT_FOR_MAX;
+		else process.env.LINT_FOR_MAX = prev;
+	}
+});
+
+test("lint-reads rule 6: spread / block-body / missing / string `each` all read as unbounded", () => {
+	const shapes = [
+		"const xs = [1, 2];\nexport const a = <For each={() => [...xs]} />;\n", // literal of UNKNOWN length
+		"export const b = <For each={() => { return [1, 2, 3]; }} />;\n", // not statically readable
+		"export const c = <For width={120} />;\n", // no `each` to bound at all
+		"export const d = <For {...{ width: 120 }} />;\n", // spread attributes
+		'export const e = <For each="nope" />;\n', // not even an expression
+	];
+	for (const code of shapes) {
+		const out = forFixture(code);
+		assert.equal(out.length, 1, code);
+		assert.equal(out[0].rule, "for-ceiling", code);
+		assert.match(out[0].msg, /not a bounded literal/, code);
+	}
+});
+
+test("lint-reads rule 6: parenthesized and bare-array `each` still count their rows", () => {
+	// `each` is a thunk by contract, but the count must survive the wrapper
+	// shapes people write — otherwise the bound is dodged by adding parens
+	const nine = "[1, 2, 3, 4, 5, 6, 7, 8, 9]";
+	assert.match(
+		forFixture(`export const a = <For each={() => (${nine})} />;\n`)[0].msg,
+		/9-element/,
+	);
+	assert.match(forFixture(`export const b = <For each={${nine}} />;\n`)[0].msg, /9-element/);
+	assert.deepEqual(forFixture("export const c = <For each={([1, 2, 3])} />;\n"), []);
+});
+
+test("lint-reads rule 6: resolved through the runtime/flow import — an app's own `For` is not it", () => {
+	const out = lintFixture(
+		'import { For as Rows } from "runtime/flow";\n' +
+			"const For = (p: { each: () => number[] }) => <Label string={() => String(p.each().length)} />;\n" +
+			"export const mine = <For each={() => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]} />;\n" +
+			"export const real = <Rows each={() => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]} />;\n",
+	);
+	assert.equal(out.length, 1); // only the runtime's For (aliased) is flagged
+	assert.equal(out[0].rule, "for-ceiling");
+	assert.match(out[0].msg, /10-element literal/);
+});
+
+test("lint-reads rule 6: warnings never gate the build — errors still do", () => {
+	const out = forFixture(
+		"const c = computed(() => 1);\nexport const bad = c();\n" +
+			"export const list = <For each={() => [1, 2, 3, 4, 5, 6, 7, 8, 9]} />;\n",
+	);
+	assert.deepEqual(
+		out.map((f) => `${f.rule}:${f.severity ?? "error"}`),
+		["call-signal:error", "for-ceiling:warn"],
+	);
+});
+
 test("gen-manifest: commented-out Texture refs do not ship phantom resources", () => {
 	const r = deriveResources(
 		'// new Texture("ghost.png")\n/* new Texture("ghost2") */\nconst x = 1;\n',
@@ -1336,4 +1455,131 @@ test("static-scan: the report line states the saving AND its limit", () => {
 	// arena win would be an unmeasured device claim (project rule 2)
 	assert.match(out, /TRANSIENT only, retained arena unchanged/);
 	assert.match(out, /main\.js:2:1 <Label> 1 nodes/);
+});
+
+// ---- build-flag hardening: the flag gate + the KEYED host allowlist ---------
+// build.mts is scan-driven, so its decisions are testable without a device: the
+// host/allow classification is a pure export, and the flag-combination gate is
+// the first statement the script runs (so a probe build exits before tsc).
+import { spawnSync } from "node:child_process";
+import { join as joinRoot } from "node:path";
+import { readFileSync as readSrcFile } from "node:fs";
+import { isHostSpecifier } from "../tools/treeshake.mts";
+import { stripComments as strip2 } from "../tools/gen-manifest.mts";
+
+const BUILD_ROOT = joinRoot(import.meta.dirname, "..");
+
+// build.mts's own dynamic-import grammar (comments off, strings masked, then the
+// `import(Now)(…)` argument re-sliced from the ORIGINAL). Mirrored here so these
+// tests read the SHIPPED example sources exactly as the build's scan does.
+const dynamicSpecs = (src: string): string[] => {
+	const code = strip2(src);
+	const CALL = /import(?:Now)?\s*\(\s*([^)]*)\)/;
+	const out: string[] = [];
+	for (const hit of maskStrings(code).matchAll(new RegExp(CALL, "g"))) {
+		const m = CALL.exec(code.slice(hit.index, hit.index + hit[0].length));
+		if (m) out.push(m[1]);
+	}
+	return out;
+};
+
+test("treeshake guard: host PREFIXES are provable, bare names need the TREESHAKE_ALLOW key", () => {
+	// pebble/ + embedded: were always host; piu/ joined them on the tlprobe
+	// receipt (the firmware tween engine really does load through the mod's
+	// loadNowHook) — without it, one `importNow("piu/Timeline")` disabled
+	// pruning for the whole app and shipped the FULL runtime.
+	assert.equal(isHostSpecifier('"pebble/message"'), true);
+	assert.equal(isHostSpecifier('"embedded:storage/files"'), true);
+	assert.equal(isHostSpecifier('"piu/Timeline"'), true);
+	// a BARE name is NOT provable — a hand-written manifest.base.json may map an
+	// unprefixed id — so it defeats the scan until a human vouches for it
+	assert.equal(isHostSpecifier('"qrcode"'), false); // -> treeshake: SKIPPED
+	assert.equal(isHostSpecifier('"qrcode"', ["piu/Timeline", "qrcode"]), true);
+	// …and the key is EXACT: a near miss must not silently keep pruning on
+	assert.equal(isHostSpecifier('"qrcode2"', ["qrcode"]), false);
+	// quote forms the scan can meet (single, backtick, trailing space)
+	assert.equal(isHostSpecifier("'piu/Timeline' "), true);
+	assert.equal(isHostSpecifier("`piu/Timeline`"), true);
+});
+
+test("treeshake guard: the allowlist can never launder OUR OWN module ids", () => {
+	// runtime/* is exactly what the prune drops — allowlisting one would turn the
+	// self-disable into the boot death it exists to prevent
+	assert.equal(isHostSpecifier('"runtime/flow"', ["runtime/flow"]), false);
+	// an app/ target must keep falling through to the loud "cannot resolve to a
+	// shipped module" error: allowlisting it would trade a build failure for a
+	// dead navigation on device (the manifest.base.json escape is the legit one)
+	assert.equal(isHostSpecifier('"app/screens/detail"', ["app/screens/detail"]), false);
+	// relative specifiers belong to the bundler branch, not the host branch
+	assert.equal(isHostSpecifier('"./art"', ["./art"]), false);
+	// non-literals stay unresolvable however they are spelled: a substitution
+	// template, a computed name, a namespace expression
+	assert.equal(isHostSpecifier("`piu/${n}`", ["piu/Timeline"]), false);
+	assert.equal(isHostSpecifier('"piu/" + n', ["piu/Timeline"]), false);
+	assert.equal(isHostSpecifier("spec", ["spec"]), false);
+});
+
+test("treeshake guard: tlprobe prunes on the built-in piu/ prefix; hostprobe needs the key", () => {
+	// The two shipped probes ARE the documented cases (their headers now spell
+	// the allowlist build command), so read the real sources: a header that
+	// promises pruning while the scan self-disables is the bug this pins.
+	const tl = dynamicSpecs(
+		readSrcFile(joinRoot(BUILD_ROOT, "src/tsx/examples/tlprobe.tsx"), "utf8"),
+	);
+	assert.ok(
+		tl.some((s) => /piu\/Timeline/.test(s)),
+		"tlprobe must still dynamic-import the firmware Timeline",
+	);
+	// EVERY dynamic import in it is host -> nothing sets unresolvedDynamicImport
+	// -> treeshake stays ON with no flag at all
+	assert.deepEqual(
+		tl.filter((s) => !isHostSpecifier(s)),
+		[],
+	);
+	// hostprobe additionally probes the bare `qrcode` host module: unresolvable
+	// on its own (treeshake: SKIPPED), resolved by the KEYED allowlist — and the
+	// key alone is enough, no TREESHAKE_FORCE
+	const hp = dynamicSpecs(
+		readSrcFile(joinRoot(BUILD_ROOT, "src/tsx/examples/hostprobe.tsx"), "utf8"),
+	);
+	assert.deepEqual(
+		hp.filter((s) => !isHostSpecifier(s)),
+		['"qrcode"'],
+	);
+	assert.deepEqual(
+		hp.filter((s) => !isHostSpecifier(s, ["piu/Timeline", "qrcode"])),
+		[],
+	);
+});
+
+test("build: CRASH_UI=0 with MINIFY=0 is a FATAL flag combination, not a silent no-op", () => {
+	// findings P10: the crash-screen removal is DCE and the DCE rides the
+	// minifier, so unminified the flag only stops the screen from installing
+	// while showCrash's bytes/symbols still ship. The gate runs BEFORE any scan,
+	// tsc or `pebble build`, so this probe costs a process start — and an exit 0
+	// here means a build that half-does what was asked went quiet again.
+	const probe = (args: string[], env: Record<string, string>) =>
+		spawnSync(process.execPath, [joinRoot(BUILD_ROOT, "build.mts"), ...args], {
+			cwd: BUILD_ROOT,
+			encoding: "utf8",
+			timeout: 60_000,
+			env: { ...process.env, ...env },
+		});
+	// both spellings reach a build: CLI flags and the env twins pnpm scripts use
+	for (const [args, env] of [
+		[["--no-crash-ui", "--no-minify"], {}],
+		[[], { CRASH_UI: "0", MINIFY: "0" }],
+	] as [string[], Record<string, string>][]) {
+		const r = probe(args, env);
+		assert.equal(r.status, 1, `expected a fatal exit for ${JSON.stringify([args, env])}`);
+		assert.match(r.stderr, /REFUSED/);
+		// the message must NAME both ways out — a refusal without them just moves
+		// the confusion (rule 12: fail loud, and say what to do)
+		assert.match(r.stderr, /MINIFY=1/);
+		assert.match(r.stderr, /CRASH_UI=1/);
+		assert.match(r.stderr, /P10/);
+	}
+	// NOTE: the negative case (either flag alone still builds) is not probed here
+	// — it would run a full SDK build. `pnpm run smoke:flags-off` builds
+	// `--no-minify` on its own and fails if this gate ever over-fires.
 });

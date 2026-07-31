@@ -17,5 +17,8 @@
 		"skipLibCheck": true,
 		"newLine": "lf"
 	},
-	"include": ["src/pkjs/index.ts", "src/pkjs/pkjs.d.ts"]
+	// timeline.ts is OPT-IN (index.ts does not import it), so it would never be
+	// reached through the entry — listing it here is what type-checks it and what
+	// emits the timeline.js a consumer's pkjs entry can `require("./timeline")`.
+	"include": ["src/pkjs/index.ts", "src/pkjs/pkjs.d.ts", "src/pkjs/timeline.ts"]
 }

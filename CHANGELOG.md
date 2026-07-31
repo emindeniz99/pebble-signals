@@ -9,6 +9,34 @@ No registry releases yet; entries accumulate under Unreleased until the first
 
 ## [Unreleased]
 
+### Added
+- **Polish sprint (7 parallel implementations + review pass, 2026-07-31).**
+  (1) `site/` — zero-install browser gallery of 5 examples on the shipped
+  runtime with a round/rect toggle (`tools/build-site.mts`; 15 structure/
+  self-containment tests; canvas-based examples excluded, the stub gap is
+  documented). (2) Timeline Web API wrapper, firmware-independent:
+  `src/pkjs/timeline.ts` (pkjs pin push over getTimelineToken) +
+  `tools/timeline-push.mts` (server CLI) + `docs/timeline.md`; pin shapes
+  typed from the SDK's own layouts.json. (3) lint-reads rule 6
+  `for-ceiling` — the first WARN-only rule: an unbounded/large `<For>`
+  warns with the measured ceilings and points at VirtualList (now the
+  documented default for lists). (4) CONTRIBUTING.md + issue-template kit
+  (`.github-templates/`, move-in ready) + honest status banner.
+  (5) Build-flag hardening: CRASH_UI=0 with MINIFY=0 is now a HARD ERROR
+  (verified exit 1) instead of a silent no-op (P10 closed); NEW
+  `TREESHAKE_ALLOW="<spec,...>"` keyed allowlist keeps pruning ON for
+  named dynamic host imports (verified: hostprobe 143 symbols pruned vs
+  503 skipped) and `piu/` joined the provable host prefixes;
+  TREESHAKE_FORCE stays (delete nothing). (6) Receipt-staleness
+  automation: `tools/device-smoke.mts` writes a dated, merge-only
+  `docs/smoke-matrix.{json,md}`; `--dry-run` receipted. (7) Three store-
+  candidate faces (`breeze`/`mono`/`fuel`) — ⚠️ shipped DEVICE-GATED:
+  breeze fails to boot on gabbro (two clean cycles → launcher; the
+  Column-box fix did not recover it and the logs transport was too rotted
+  to read the abort), so all three carry loud gate banners until a
+  fresh-session diagnosis; Node gates (typecheck/lint/fontcheck/coverage)
+  are green for all three. Sprint totals: 2172 tests / 100 % coverage.
+
 ### Changed
 - **Version re-baselined to 0.1.0 (owner decision, 2026-07-31).** Nothing has
   ever been published, so pre-registry semver room is free; the historical

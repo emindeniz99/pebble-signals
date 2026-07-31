@@ -183,6 +183,7 @@ Then ask your agent for a Pebble watchface with signal-piu.
 | quick answers | [FAQ](docs/faq.md) |
 | understand the model | [Core concepts](docs/concepts.md) · [API parity](docs/api-parity.md) |
 | know who this is for and what it competes with | [Market notes](docs/market-notes.md) |
+| file an issue or send a patch | [Contributing](CONTRIBUTING.md) — setup, the receipts discipline, the 100 % coverage bar |
 | everything else | [All docs](docs/README.md) · [Changelog](CHANGELOG.md) |
 
 MIT licensed — see [`LICENSE`](LICENSE).
