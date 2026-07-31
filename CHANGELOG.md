@@ -9,6 +9,21 @@ No registry releases yet; entries accumulate under Unreleased until the first
 
 ## [Unreleased]
 
+### Changed
+- **Version re-baselined to 0.1.0 (owner decision, 2026-07-31).** Nothing has
+  ever been published, so pre-registry semver room is free; the historical
+  `[1.0.0] - 2026-07-16` section below stays as the record of that day's
+  state — it was never a published release. Breaking changes remain fair
+  game until the first npm publish.
+- **Read-syntax decision (owner, 2026-07-31): keep BOTH, delete nothing.**
+  `useState` reads as `count()`, `signal`/`computed` read as `.value` — the
+  mix-up footgun is already build-time-fatal via lint-reads (rule 5 +
+  call/stringify detection), which is the guard that makes coexistence
+  safe. "Callable signal everywhere" stays a possible ADDITIVE change,
+  gated on measuring its per-cell arena cost — not a removal of either
+  syntax. useFetch likewise stays: relabeled as a device-gated dead end
+  rather than deleted; fetch-over-message is the recommended path.
+
 ### Added
 - **`QR` — `runtime/qrcode` (device-receipted both ways on gabbro,
   2026-07-29).** JSX wrapper over the firmware QRCode content: `string`

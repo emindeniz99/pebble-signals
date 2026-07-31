@@ -1,7 +1,7 @@
 {
  "name": "signal-piu",
  "author": "MakeAwesomeHappen",
- "version": "1.0.0",
+ "version": "0.1.0",
  "description": "Fine-grained reactive UI (Solid-style signals + JSX, no VDOM) for Pebble watches on Moddable XS/Piu",
  "keywords": [
   "pebble-app"

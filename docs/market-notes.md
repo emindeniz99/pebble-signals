@@ -95,12 +95,12 @@ COMMERCIAL — distribution, not code.**
 
 | # | Gap | Severity/Effort | Call |
 |---|---|---|---|
-| 1 | Not on npm — documented quickstart is a 404 | blocking / S | Publish (as 0.9.0, AFTER the read-syntax decision) |
+| 1 | Not on npm — documented quickstart is a 404 | blocking / S | Publish — owner set the version to **0.1.0** (2026-07-31); read-syntax decision below is made, so nothing blocks it |
 | 2 | No discoverable home (subdir of a scratch monorepo) | blocking / S | Own repo or topics+releases+issues; get listed on rebble community tools |
 | 3 | Zero adoption evidence | blocking / M | Ship 2-3 signal-piu watchfaces to the store |
 | 4 | No agent-skill distribution | important / S | Package the gotchas/lints/font-tables as a skill — our docs ARE the asset |
-| 5 | No live network round-trip receipt (gotcha 18b) | important / M | Make fetch-over-message the named, receipted API; demote useFetch |
-| 6 | Two read syntaxes (`count()` vs `.value`) | important / M | DECIDE before first publish — pre-registry breakage is free |
+| 5 | No live network round-trip receipt (gotcha 18b) | important / M | Make fetch-over-message the named, receipted API; useFetch STAYS (owner: delete nothing) — relabeled device-gated, not removed |
+| 6 | Two read syntaxes (`count()` vs `.value`) | important / M | **DECIDED (owner, 2026-07-31): keep both, delete nothing** — lint-reads makes the mix-up build-time-fatal; callable-everywhere stays a measurable ADDITIVE option |
 | 7 | No declarative Clay page builder | important / M | Typed TSX→Clay page emitter sharing messageKey types with useConfig |
 | 8 | 63 KB README wall | important / S | ~200-line front page; move the ledger to docs/ |
 | 9 | No hardware receipts | important / — | Do NOT hold publish for it; the honest QEMU label is a credibility asset |
