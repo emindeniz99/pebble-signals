@@ -36,6 +36,7 @@
  "files": [
   "LICENSE",
   "dist/",
+  "skills/",
   "templates/",
   "src/embeddedjs/runtime/",
   "src/embeddedjs/runtime-types/",
