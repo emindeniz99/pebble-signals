@@ -264,6 +264,44 @@ Rocky's `postMessage` phone channel maps to our pkjs/AppMessage setup. The
 project shell migration is identical (projectType `"moddable"`, scaffold
 files, npm install).
 
+### From React / React Native
+
+The spellings transfer (`useState`, JSX, `useEffect`-shaped hooks — see
+[API parity](api-parity.md)); the MENTAL MODEL is the one thing to swap:
+your component function runs ONCE, as a setup script, and never again.
+Updates flow through the individual bindings (`string={() => count()}`),
+not through re-running the body — so derived values you'd recompute inline
+each render become `computed`/`useMemo` cells, and code after the JSX
+return never sees "the next render".
+
+Concretely, three React habits change:
+
+1. **Rules of Hooks — the order rule is gone.** React needs it because
+   hooks live in a positional linked list on the fiber and re-renders
+   match calls by position (`ReactFiberHooks.js` on facebook/react main,
+   read 2026-07-30: the `Hook` type `{memoizedState, …, next}` at ~196,
+   `mountWorkInProgressHook` appending via `.next` at ~981, the positional
+   walk + "Rendered more hooks than during the previous render." throw in
+   `updateWorkInProgressHook` at ~1002). With no re-render there is no
+   second pass to mismatch: conditional hooks are legal here. The rule
+   that replaces it is OWNERSHIP — subscribing hooks must run under an
+   owner (component body / render build) so disposal reaches them; module
+   scope is the illegal place, not the else-branch.
+2. **No dependency arrays.** Effects and bindings track what they READ,
+   automatically and dynamically — there is nothing to enumerate and no
+   stale-closure class of bug (see [concepts](concepts.md)).
+3. **State reads are calls or `.value`, not snapshots.** `count` in React
+   is this render's frozen value; here `count()` is a LIVE read — pass the
+   getter (or a thunk) where reactivity should flow, the value where it
+   should not.
+
+Worth knowing on a 32KB heap: React's model allocates per hook (a hook
+node + update queue + bound dispatch per `useState`, and the update path
+CLONES the hook list every re-render), which is exactly the cost profile
+this library exists to avoid — a cell here is an index into packed arrays
+and an update is an in-place write. That difference, not syntax, is why
+signals fit on the watch.
+
 ### From a hand-written Moddable/Piu project (projectType already "moddable")
 
 The EASY one — you're already on the same engine and UI framework. Keep your

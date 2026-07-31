@@ -8,6 +8,21 @@ No — Solid-model fine-grained reactivity with React-flavored comfort
 (`useState`, JSX). Components run ONCE; there is no re-render, no VDOM, no
 diffing. [Core concepts](concepts.md) · [API parity](api-parity.md).
 
+**Do React's Rules of Hooks apply? Can I call `useState` conditionally?**
+The ORDER rule does not apply — it exists to serve machinery we don't have.
+In React every hook is a node in a linked list on the fiber
+(`ReactFiberHooks.js`: the `Hook` type is `{memoizedState, …, next}`;
+`mountWorkInProgressHook` appends via `.next`), and a re-render matches each
+call to its state purely BY POSITION (`updateWorkInProgressHook` — miscount
+and you get "Rendered more hooks than during the previous render"). Here a
+component runs ONCE, `useState` creates a standalone packed-core cell, and
+there is no second pass to mismatch — a conditional `useState` is legal.
+What replaces the order rule is the OWNERSHIP rule: hooks that subscribe
+(`useClock`, `useAccel`, timers…) register cleanup with the CURRENT OWNER,
+so call them inside a component body / the render build — never at module
+scope (nothing would ever clean them up). [Lifecycle](lifecycle.md) ·
+[Migrating from React](migration.md#from-react--react-native).
+
 **Why does my label show nothing?**
 The three classics: an invalid font string renders BLANK (the build's
 fontcheck catches it), a `computed`/`signal` read with `()` instead of
