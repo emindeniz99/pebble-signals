@@ -58,3 +58,52 @@ payload over the proven config channel on gabbro
 phone-side only (swap the driver for a real pkjs fetch)**. Health/timeline/
 music need firmware-side JS surface — tracked as upstream asks, not library
 gaps.
+
+## Competitive landscape (researched 2026-07-31, 19 projects examined)
+
+Full three-agent analysis (competitor sweep → own-surface inventory → hard
+verdict); the distilled result. **Engineering verdict: signal-piu is ahead of
+every project in the field, and the gap is not close. The real deficits are
+COMMERCIAL — distribution, not code.**
+
+- **The only code-level rival is `react-pebble`** (eddiemoore): compile-time
+  Preact — JSX rendered ONCE in Node, reactivity INFERRED by perturbing hook
+  values and diffing draw logs, zero framework on-watch. 3 stars, single
+  author, idle since 2026-05-30, 126 npm downloads/30d. Its load-bearing
+  claim — "Alloy mods get ~3 KB of runtime heap, no VDOM possible" — is
+  corroborated by NO official source (developer.repebble.com leaves the
+  emery/gabbro budget blank), while our instrumented number is 26.6 KB
+  usable of a 32 KB arena, and our 10.9 KB runtime + live signal graph
+  boots and paints on both shapes with PNG receipts. Their animation
+  degrades to 1 fps (Piu Timeline "not yet emitted"); unsupported patterns
+  fail SILENTLY (inference, not semantics). They beat us on exactly one
+  axis: they are on npm and we are not.
+- **The official Alloy SDK is our substrate, not a competitor** — we are the
+  layer the Developer Preview does not ship (no state, no components, no
+  reactive bindings). Keep riding `pebble build`; never fork it.
+- **The channel signal:** the highest-traction third-party tool is Core
+  Devices' own watchface AGENT SKILL (68★) — distribution now flows through
+  agent skills, not npm packages. Adjacent non-rivals: strata (Figma-style
+  editor, cannot yet emit a working clock — be its export target),
+  pebbleface-studio (hosted C builder — proof hosted-and-listed beats
+  capable-and-invisible), rossng/pebble-watchfaces (closest peer on
+  toolchain hygiene; best first-adopter candidate), Clay (interop target —
+  react-pebble shipped a declarative page builder, we have not),
+  Pebble.js's 462 dead stars (the TAM evidence).
+
+**Ordered gaps (from the verdict):**
+
+| # | Gap | Severity/Effort | Call |
+|---|---|---|---|
+| 1 | Not on npm — documented quickstart is a 404 | blocking / S | Publish (as 0.9.0, AFTER the read-syntax decision) |
+| 2 | No discoverable home (subdir of a scratch monorepo) | blocking / S | Own repo or topics+releases+issues; get listed on rebble community tools |
+| 3 | Zero adoption evidence | blocking / M | Ship 2-3 signal-piu watchfaces to the store |
+| 4 | No agent-skill distribution | important / S | Package the gotchas/lints/font-tables as a skill — our docs ARE the asset |
+| 5 | No live network round-trip receipt (gotcha 18b) | important / M | Make fetch-over-message the named, receipted API; demote useFetch |
+| 6 | Two read syntaxes (`count()` vs `.value`) | important / M | DECIDE before first publish — pre-registry breakage is free |
+| 7 | No declarative Clay page builder | important / M | Typed TSX→Clay page emitter sharing messageKey types with useConfig |
+| 8 | 63 KB README wall | important / S | ~200-line front page; move the ledger to docs/ |
+| 9 | No hardware receipts | important / — | Do NOT hold publish for it; the honest QEMU label is a credibility asset |
+| 10 | Conformance parity documented, not executed | important / S | Run solid-js/@preact/signals-core as devDeps in the Node suite |
+| 11 | TTF subsetting (react-pebble has it) | nice / S | Add characterRegex subsetting to gen-manifest |
+| — | Nix pin, Python tooling, `pebble package` channel, static compiler | — | DO NOTHING (measured/reasoned no) |
