@@ -3,7 +3,7 @@
 // repaints for free: `value` is read inside the composed Canvas's paint, so its
 // reads auto-track (level change → Canvas effect → invalidate → repaint) with no
 // bind wiring.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = +0.2 · down = -0.2 (clamped to [0,1]).
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

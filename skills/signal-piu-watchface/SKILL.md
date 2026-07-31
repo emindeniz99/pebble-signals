@@ -158,4 +158,5 @@ receipted pattern.
 - `docs/xs-heap-playbook.md` — the memory trick inventory
 - `docs/debugging.md` — symptom table
 - `docs/migration.md` — from C / Rocky / React
-- `README.md` — the 24 numbered gotchas with measurements
+- `docs/handbook.md` — the 24 numbered gotchas with measurements (moved off the
+  front page 2026-07-31; `README.md` is now the pitch/quickstart page)

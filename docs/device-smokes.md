@@ -117,7 +117,7 @@ transport (0 heartbeats) triggers one `tools/reset-emulator.sh` + retry
 | `deviceinfo` | none | size/round/color + ticking clock | host surface probe; first-boot sanity for new hardware |
 | `rootapp` | UP ×2 | "root 2" | root-component entry mounts via the generated shim |
 | `config` | none | "no config yet" | `pebble/message` channel opens at boot (the full settings round-trip needs pypkjs alive — drive it manually with `tools/config-drive.py`) |
-| `fontface` | none | serif clock + "Serif, from a TTF" | a shipped `.ttf` face loads into a Style and renders |
+| `fontface` | none | serif clock + "serif clock, from a TTF" / "subset to 0-9 and :" (Gothic) | a shipped `.ttf` face, SUBSET to `0123456789:` (370,196 → 8,968 B), loads into a Style and renders — the committed screenshot predates the subset and still shows the old serif caption |
 | `kvprobe` | none | "kv works boot=_n_" | `device.keyValue` persists a counter across launches |
 | `devlog` | SELECT | "sent 1" | `report()` → AppMessage bridge (the `pkjs>` line needs the log capture — kept manual) |
 | `dictate` | none | "SELECT starts dictation" | dictation probe — boot-only ON PURPOSE (SELECT opens the system UI, BACK exits to the launcher) |

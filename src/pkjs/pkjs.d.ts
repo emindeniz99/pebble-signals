@@ -32,6 +32,26 @@ declare const Pebble: {
 	): void;
 };
 
+/**
+ * The PKJS sandbox's browser-ish HTTP client — the PHONE half of
+ * fetch-over-message (runtime/phonefetch). Only the surface index.ts uses is
+ * typed. `status` / `statusText` / `responseText` are declared non-optional for
+ * convenience, but pypkjs (the emulator's PKJS) leaves them UNSET on a failed
+ * request, so index.ts guards them at runtime rather than trusting these types.
+ */
+interface PebbleXHR {
+	open(method: string, url: string, async?: boolean): void;
+	send(body?: string): void;
+	/** Fires for EVERY outcome (load, error, timeout) — the one reliable hook. */
+	onloadend: (() => void) | null;
+	/** Request timeout in ms; set after open(), before send(). */
+	timeout: number;
+	readonly status: number;
+	readonly statusText: string;
+	readonly responseText: string;
+}
+declare const XMLHttpRequest: { new (): PebbleXHR };
+
 /** PKJS console — its lines DO reach `pebble logs` (as `pkjs>`), unlike watch-side trace. */
 declare const console: {
 	log(...args: unknown[]): void;
@@ -39,7 +59,7 @@ declare const console: {
 	error(...args: unknown[]): void;
 };
 
-/** Phone-side HTTP/fetch proxy for the watch (README gotcha 18). */
+/** Phone-side HTTP/fetch proxy for the watch (handbook gotcha 18). */
 declare module "@moddable/pebbleproxy" {
 	/** Set true to log proxy traffic to the PKJS console. */
 	export let log: boolean;

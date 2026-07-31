@@ -11,12 +11,12 @@
 // needed), so an emulator install alone proves the e2e path: packaged runtime
 // + JSX + reactive binding + timer.
 //
-// Also proves a THIRD-PARTY npm package works in app code (README "third-party
+// Also proves a THIRD-PARTY npm package works in app code (handbook "third-party
 // npm packages" section): `just-capitalize` is a tiny, zero-dependency, pure-JS
 // registry package — no DOM/node APIs, so it runs fine on XS. esbuild only
 // externalizes `runtime/*`; a `node_modules` import like this one INLINES into
 // the bundled `main.js` (grep for its error string as proof — see the section
-// in the README).
+// in docs/handbook.md).
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";
 import capitalize from "just-capitalize";

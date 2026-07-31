@@ -10,8 +10,8 @@
 //
 // ============================ DEVICE-GATED — READ ============================
 // watch-side `fetch` is NOT free. It proxies through the phone
-// (@moddable/pebbleproxy — the PKJS bridge; README gotcha 18) and its Response /
-// Headers allocations are HEAVY for the firmware-fixed 32KB arena. README gotcha
+// (@moddable/pebbleproxy — the PKJS bridge; handbook gotcha 18) and its Response /
+// Headers allocations are HEAVY for the firmware-fixed 32KB arena. handbook gotcha
 // 18a is the measured receipt: a `fetch()` from a signal-RUNTIME app OOMs the
 // arena ("fxAbort memory full") because the reactive graph + JSX tree + a live
 // Response together exceed 32KB — which is exactly why examples/fetchtest.tsx is
@@ -20,13 +20,17 @@
 // useFetch is, by construction, the risky combination: pulling it in pulls in
 // signals/createResource. So it works ONLY inside a LEAN app — one resource, a
 // handful of signals, a short JSX tree — where the headroom for one transient
-// Response still exists. For anything non-trivial, prefer FETCH-OVER-MESSAGE:
-// do the XHR PHONE-SIDE in pkjs (src/pkjs), send the decoded result back as a
-// STRING AppMessage, and feed createResource from useMessage (runtime/message) —
-// the string crosses the bridge cheaply and no Response object is ever allocated
-// in the 32KB arena. Treat useFetch as the convenient path for tiny payloads on a
-// minimal screen, and fetch-over-message as the load-bearing one. (Ship the
-// typed API here regardless; the caveat is a usage constraint, not a code bug.)
+// Response still exists. For anything non-trivial, USE `runtime/phonefetch`
+// INSTEAD: usePhoneFetch / usePhoneFetchText are FETCH-OVER-MESSAGE shipped as a
+// first-class API — the XHR runs PHONE-SIDE in pkjs (src/pkjs/index.ts), the
+// decoded result crosses back as ONE string AppMessage, and createResource is
+// fed from that, so no Response object is ever allocated in the 32KB arena.
+// usePhoneFetch takes the same `url` (string or thunk) and returns the same
+// Resource<T> shape as useFetch, so the swap is a one-line import change.
+// Treat useFetch as the convenient path for tiny payloads on a minimal screen,
+// and runtime/phonefetch as the load-bearing one. useFetch STAYS (owner
+// decision, 2026-07-31: relabelled, never deleted) — the caveat is a usage
+// constraint, not a code bug.
 // ============================================================================
 //
 // SUBSTRATE: `fetch` is the bare Pebble/Moddable host global (typed in
@@ -105,10 +109,11 @@ export interface FetchResponse {
  *   // a custom decoder (e.g. plain text instead of JSON):
  *   const res = useFetch("https://example.com/name.txt", { parse: (r) => r.text() });
  *
- * DEVICE-GATED (see the module header, README gotcha 18a): `fetch` proxies
+ * DEVICE-GATED (see the module header, handbook gotcha 18a): `fetch` proxies
  * through the phone and its Response allocations are heavy for the 32KB arena —
- * keep a useFetch app LEAN, or prefer fetch-over-message (XHR phone-side → string
- * AppMessage → createResource via {@link useMessage}) for anything non-trivial.
+ * keep a useFetch app LEAN, or use `runtime/phonefetch`'s usePhoneFetch (the
+ * shipped fetch-over-message API: same `url` contract, same Resource shape, no
+ * Response in the arena) for anything non-trivial.
  *
  * @typeParam T the parsed value type (`res.data()` is `T | undefined`).
  * @param url the request URL, or a `() => string` thunk read on EVERY fetch

@@ -4,7 +4,7 @@
 // resolution-independent scaling, zero pixel memory (vs the raster sloth's
 // 68KB sheet + native-heap decode).
 //
-// HARD-WON rules for SVGImage on this port (see README "Vector images"):
+// HARD-WON rules for SVGImage on this port (see handbook "Vector images"):
 //  - transforms must be applied AFTER render(): PiuSVGImageBind overwrites
 //    cx/cy at mount, clobbering anything set earlier, and the image only
 //    draws at all once a transform has been applied.

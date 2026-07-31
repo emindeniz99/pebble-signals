@@ -12,10 +12,10 @@
 // (FFI was the first choice for the store — the data would live in the
 // 122KB native heap — but enabling fxBuildFFI on this firmware HALVES the
 // JS arena to a fixed 832-slot heap, which cannot hold the runtime: see
-// README gotcha 17. The byte pool delivers the same shape inside the
+// handbook gotcha 17. The byte pool delivers the same shape inside the
 // arena at 1B/byte.)
 //
-// Buttons (QEMU touch crashes the firmware — see README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — see handbook gotcha 2):
 // up = push record (odd ids: string "sN"; even ids: int32 N) ·
 // down = remove the FIRST record.
 import { render } from "runtime/jsx-runtime";

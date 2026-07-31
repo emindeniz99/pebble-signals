@@ -53,7 +53,7 @@ function WatchList() {
 }
 
 // ---- async resource -------------------------------------------------------------
-// createResource proxies fetch() through the phone on-device (README gotcha
+// createResource proxies fetch() through the phone on-device (handbook gotcha
 // 18); here it only proves the generic Resource<T> shape typechecks end to end.
 const releases = createResource(() =>
 	Promise.resolve({ version: "1.0.0", platforms: ["emery", "gabbro"] }),

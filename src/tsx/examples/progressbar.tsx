@@ -4,7 +4,7 @@
 // reads auto-track (value change → Canvas effect → invalidate → repaint) with no
 // bind wiring. `value` is clamped to [0,1] by the widget; here we also clamp the
 // signal so the label reads cleanly.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = +0.1 · down = -0.1.
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

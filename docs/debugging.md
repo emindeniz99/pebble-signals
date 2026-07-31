@@ -12,7 +12,7 @@ interaction → [memory full at runtime](#fxabort-memory-full-at-runtime-app-die
 · boots on Node but not the watch → [stack overflow](#fxabort-javascript-stack-overflow-at-boot-not-memory-full)
 · installs but never appears → [silent boot](#app-installs-but-never-appears--bounces-instantly-with-no-logs)
 · `TypeError: call: not a function` → [an escaped useState accessor](#typeerror-call-not-a-function-an-escaped-usestate-accessor)
-· a binding shows nothing → README gotchas 16/20 (blank font, width-less
+· a binding shows nothing → handbook gotchas 16/20 (blank font, width-less
 container, `.value` misuse — the build's fontcheck + lint-reads catch most) ·
 need a live log line → [the dev-log bridge](#emulator-misbehaving-installs-hang-buttons-drop).
 

@@ -62,7 +62,7 @@ Two things make this a watchface and not a demo:
   `lazyauto` example ships that way and is device-verified.
 
 Prefer no `render()` boilerplate at all? `export default` a `Component` and
-the build generates it (the root-component entry, README "root component
+the build generates it (the root-component entry, handbook "root component
 entry"; the `rootapp` example).
 
 ## Verify like the repo does

@@ -25,7 +25,7 @@
 // XHR in src/pkjs/index.ts and send the same JSON on the same code 10000; the
 // watch side below does not change. Do NOT reach for the watch-side `fetch()`
 // instead: its Response/Headers allocations OOM the 32KB arena from a signal app
-// (README gotcha 18a), so fetch-over-message — this shape — is the way.
+// (handbook gotcha 18a), so fetch-over-message — this shape — is the way.
 //
 // DRIVE IT (headless, no browser; pypkjs must be ALIVE, i.e. right after a
 // `pebble install` — do NOT pkill it, that is drive.py's requirement, not this):

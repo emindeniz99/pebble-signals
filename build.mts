@@ -1,7 +1,7 @@
 // Build orchestrator (ported from build.sh — C14). Transpile JSX
 // (src/tsx -> src/embeddedjs/app), minify the runtime into
 // src/embeddedjs/runtime-min (the manifest ships THAT copy — the mod archive
-// has a hard ~15.9KB startup ceiling, README gotcha 15, and minifying
+// has a hard ~15.9KB startup ceiling, handbook gotcha 15, and minifying
 // module-scope identifiers buys back ~370B of it), then run the Pebble build.
 // No npm RUNTIME dependencies; tsc + esbuild come from devDeps. esbuild is a
 // hard requirement (static import — a missing install fails loud at load);
@@ -144,7 +144,7 @@ const err = (msg: string) => process.stderr.write(`${msg}\n`);
 
 // APP=<name> builds src/tsx/examples/<name>.tsx as the app (default: list, the
 // shipping demo). One example = one standalone app — several prebuilt reactive
-// screens in ONE mod exceed the 32KB arena at boot (README, M11). tsc compiles
+// screens in ONE mod exceed the 32KB arena at boot (handbook, M11). tsc compiles
 // every example in place and esbuild --bundle stitches the chosen entry (with
 // its local ./imports) into app/main.js below, runtime/* left external.
 const APP = cli.app ?? env("APP", "list");
@@ -329,7 +329,7 @@ const shakeSources = [
 
 // Root-component entry (#63), DECIDED here — the file is generated after tsc.
 // An app that `export default`s a COMPONENT and never calls render() gets a
-// generated shim entry mounting it (README "root component entry"). Detection
+// generated shim entry mounting it (handbook "root component entry"). Detection
 // is deliberately NARROW: a function declaration, an arrow, or an identifier
 // bound in-file to a function/arrow. Any other default (an Application
 // instance, an object) is a BARE app and gets NO shim — shimming one handed

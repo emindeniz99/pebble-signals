@@ -5,7 +5,7 @@ Why you care: at boot, fxMapArchive interns EVERY symbol in the archive's
 SYMB atom into the machine — each name the firmware host doesn't already
 know costs a runtime key, and keys allocate slot-side. At a saturated app
 class ONE new symbol is fatal (measured: `"zk0" in skin` dies, `"fill" in
-skin` boots — see README gotcha 15 correction). Budget symbols, not
+skin` boots — see handbook gotcha 15 correction). Budget symbols, not
 archive kilobytes.
 
 Usage:

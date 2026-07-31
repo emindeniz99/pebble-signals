@@ -11,7 +11,7 @@
 // whole round screen instead of a centered square that wastes the corners. The
 // lens is centered on the screen (the full-bleed Container centers the Column).
 // On rect there is no circle to fill, so it falls back to a left-aligned block.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up / down / back = swap between the paragraphs (watch the block re-flow).
 import { render, screen } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weather settings</title>
+<style>
+:root { color-scheme: dark; }
+body { margin: 0; padding: 16px; background: #16161a; color: #e8e8ea;
+       font: 16px/1.4 system-ui, -apple-system, sans-serif; }
+h1 { margin: 0 0 16px; font-size: 20px; font-weight: 600; }
+.row { display: flex; align-items: center; gap: 12px; padding: 12px 0;
+       border-bottom: 1px solid #2a2a30; }
+.row span { flex: 1; }
+input, select { font: inherit; min-height: 40px; color: inherit;
+                background: #22222a; border: 1px solid #3a3a44; border-radius: 6px;
+                padding: 6px 8px; }
+input[type=checkbox] { width: 28px; height: 28px; min-height: 28px; }
+input[type=color] { width: 56px; padding: 2px; }
+input[type=range] { flex: 1; background: none; border: none; padding: 0; }
+output { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+.actions { display: flex; gap: 12px; margin-top: 20px; }
+button { flex: 1; font: inherit; min-height: 48px; border: 0; border-radius: 8px;
+         color: #16161a; background: #ff8800; font-weight: 600; }
+button.alt { background: #3a3a44; color: #e8e8ea; }
+</style>
+</head>
+<body>
+<h1>Weather settings</h1>
+<form id="f" onsubmit="return false">
+<label class="row"><span>City</span><input id="c-city" type="text"></label>
+<label class="row"><span>Units</span><select id="c-units"><option value="metric">metric</option><option value="imperial">imperial</option></select></label>
+<label class="row"><span>Accent colour</span><input id="c-accent" type="color"></label>
+<div class="actions">
+<button type="button" id="cancel" class="alt">Cancel</button>
+<button type="button" id="save">Save</button>
+</div>
+</form>
+<script>
+var FIELDS = [{"key":"city","type":"text","label":"City","default":"Berlin"},{"key":"units","type":"select","label":"Units","default":"metric","options":["metric","imperial"]},{"key":"accent","type":"color","label":"Accent colour","default":"#ffaa55"}];
+
+// the schema's defaults, as TYPED values
+function defaults() {
+	var v = {}, i;
+	for (i = 0; i < FIELDS.length; i++) v[FIELDS[i].key] = FIELDS[i]["default"];
+	return v;
+}
+
+// typed values -> the string form a form control holds (a checkbox reports
+// "true"/"false"); the inverse of serialize()
+function toRaw(values) {
+	var raw = {}, i;
+	for (i = 0; i < FIELDS.length; i++) raw[FIELDS[i].key] = String(values[FIELDS[i].key]);
+	return raw;
+}
+
+// form strings -> the TYPED payload the watch merges. Types matter: useConfig
+// stores what arrives, so "false" would read truthy and "21" would break maths.
+function serialize(raw) {
+	var out = {}, i, f, s, n;
+	for (i = 0; i < FIELDS.length; i++) {
+		f = FIELDS[i];
+		s = String(raw[f.key]);
+		if (f.type === "toggle") out[f.key] = s === "true";
+		else if (f.type === "slider") {
+			n = Math.round(Number(s));
+			// NaN (a hand-edited fragment, a locale decimal) is not a number the
+			// watch can draw — fall back to the default, then clamp to the range
+			if (n !== n) n = f["default"];
+			out[f.key] = n < f.min ? f.min : n > f.max ? f.max : n;
+		} else out[f.key] = s;
+	}
+	return out;
+}
+
+// the CURRENT settings ride in the URL fragment (pkjs appends them to openURL);
+// absent or malformed, the defaults stand — never a throw, never a blank page
+function seedRaw(hash) {
+	var v = defaults(), body = String(hash == null ? "" : hash).replace(/^#/, ""), p, i, k;
+	if (body) {
+		try {
+			p = JSON.parse(decodeURIComponent(body));
+			for (i = 0; i < FIELDS.length; i++) {
+				k = FIELDS[i].key;
+				if (p && Object.prototype.hasOwnProperty.call(p, k)) v[k] = p[k];
+			}
+		} catch (e) {
+			v = defaults();
+		}
+	}
+	return toRaw(v);
+}
+
+// THE protocol line — the Pebble app intercepts this scheme and hands the
+// fragment to pkjs as e.response (which decodeURIComponent()s it)
+function closeURL(raw) {
+	return "pebblejs://close#" + encodeURIComponent(JSON.stringify(serialize(raw)));
+}
+
+// ---- DOM glue (everything above is pure and Node-testable) ----------------
+function ctl(key) { return document.getElementById("c-" + key); }
+
+// controls -> raw strings. A checkbox has no .value worth reading, so its
+// .checked is stringified into the SAME shape serialize() expects.
+function readRaw() {
+	var raw = {}, i, f;
+	for (i = 0; i < FIELDS.length; i++) {
+		f = FIELDS[i];
+		raw[f.key] = f.type === "toggle" ? String(ctl(f.key).checked) : String(ctl(f.key).value);
+	}
+	return raw;
+}
+
+function writeRaw(raw) {
+	var i, f;
+	for (i = 0; i < FIELDS.length; i++) {
+		f = FIELDS[i];
+		if (f.type === "toggle") ctl(f.key).checked = raw[f.key] === "true";
+		else ctl(f.key).value = raw[f.key];
+		if (f.type === "slider") document.getElementById("v-" + f.key).textContent = raw[f.key];
+	}
+}
+
+writeRaw(seedRaw(location.hash));
+for (var i = 0; i < FIELDS.length; i++) (function (f) {
+	if (f.type !== "slider") return;
+	ctl(f.key).addEventListener("input", function () {
+		document.getElementById("v-" + f.key).textContent = ctl(f.key).value;
+	});
+})(FIELDS[i]);
+
+// Save: hand the TYPED payload to the Pebble app. Cancel: a BARE close, so
+// pkjs sees an empty e.response and keeps the current settings.
+document.getElementById("save").addEventListener("click", function () {
+	location.href = closeURL(readRaw());
+});
+document.getElementById("cancel").addEventListener("click", function () {
+	location.href = "pebblejs://close";
+});
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 // when off, proving the Toggle repaints for free: `on` is read inside the
 // composed Canvas's paint, so its reads auto-track (signal flip → Canvas effect
 // → invalidate → repaint) with no bind wiring.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   select = flip on/off.
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

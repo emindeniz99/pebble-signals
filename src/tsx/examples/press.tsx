@@ -4,7 +4,7 @@
 // one node (Select / Up / Down do not collide). The hooks are called INSIDE the
 // render build so their `track(clear)` binds to the render root (Rule 5). Labels
 // reflect the app-owned state the gestures drive — the hooks own only the timing.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   SELECT — hold ~600ms to CONFIRM (release early does nothing).
 //   UP     — press-and-hold to auto-repeat the counter, ACCELERATING.
 //   DOWN   — double-click to reset (counter + confirm).

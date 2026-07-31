@@ -3,7 +3,7 @@
 // state is one { count } OBJECT stored as JSON: it is parsed from localStorage on
 // boot (so a screenshot after a reinstall shows where the previous run left off,
 // not 0), and up-press increments count + persists the new object.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = increment (and persist).
 import { render } from "runtime/jsx-runtime";
 import { useKVStorage } from "runtime/kvstore";

@@ -3,7 +3,7 @@
 // proving the time Label re-renders for free (idiom 5b: the thunk read inside the
 // StatusBar's driving effect auto-tracks, so a signal write updates the label
 // with no bind wiring). A plain-string title stays static.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = advance the clock by one minute.
 import { render, screen } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

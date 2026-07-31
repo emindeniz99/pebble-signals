@@ -7,7 +7,7 @@
 // three string bindings and allocates nothing but label text.
 // tools/memtest.py --ramp proves it: memory stays FLAT to --max.
 //
-// Buttons (QEMU touch crashes the firmware — see README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — see handbook gotcha 2):
 // up = push record (odd ids: string "sN"; even ids: int32 N) ·
 // down = remove the FIRST record.
 import { render } from "runtime/jsx-runtime";

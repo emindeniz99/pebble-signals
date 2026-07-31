@@ -14,7 +14,7 @@ A component: a plain function that runs ONCE at mount (no re-render model)
 and returns its subtree. Type props with the generic — `Component<{ n:
 number }>`. The `P = void` default makes a prop-less ROOT component
 callable with no arguments, which is exactly how the root-entry shim
-mounts it (see README "root component entry"). Types only — zero runtime.
+mounts it (see handbook "root component entry"). Types only — zero runtime.
 
 ## Type Parameters
 

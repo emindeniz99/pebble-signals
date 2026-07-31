@@ -6,7 +6,7 @@
 // UP toggles 12h/24h: a pure display projection over the same tick, proving
 // reactivity layers on top of the clock without re-subscribing.
 // It self-ticks in the emulator; set/verify the base time with `pebble emu-set-time`.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2): UP = 12h/24h.
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2): UP = 12h/24h.
 // Build: APP=clock ./build.sh
 import { render } from "runtime/jsx-runtime";
 import { useClock, useTimeParts } from "runtime/clock";

@@ -60,7 +60,7 @@ Keep your `uuid`, `displayName`, `messageKeys`, `resources` untouched. Add/chang
 ```
 
 `targetPlatforms` shrinks: the Moddable/XS runtime this package targets is
-verified on **gabbro** (and **emery**, see the main README); older platforms
+verified on **gabbro** (and **emery**, see the [handbook](handbook.md)); older platforms
 (aplite/basalt/chalk/diorite) aren't part of the moddable path. If you need
 those, that's a fork point, not a migration step — this package doesn't cover
 them.
@@ -135,7 +135,7 @@ This is the actual migration work — the rest is scaffolding. For each native
 - `window_stack_push`/`window_stack_pop` for a second screen → **`<Navigator>`
   from `runtime/flow`**, not multiple prebuilt trees. This is the one place a
   literal transliteration breaks: building every screen upfront blows the
-  32KB arena at boot (see the main README's `multiscreen` entry — it's kept
+  32KB arena at boot (see the [handbook](handbook.md)'s `multiscreen` entry — it's kept
   specifically as the "doesn't boot" cautionary example). `<Navigator>` holds
   exactly one screen built at a time and disposes the outgoing one on
   push/pop, same asymptotic cost as the original's window stack.

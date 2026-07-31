@@ -4,8 +4,8 @@
 // blue WHILE HELD — proving the onPress + reactive-skin substrate on device.
 // Holding SELECT past ~0.5s fires onLongPress, which resets the count to 0.
 // Button events reach the FOCUSED node, so the Button owns focus (focus defaults
-// on) — one focused Button per screen (README single-focus note).
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// on) — one focused Button per screen (handbook single-focus note).
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   select = press (count + 1) · hold select = long press (reset to 0).
 // Build: APP=button ./build.sh
 import { render } from "runtime/jsx-runtime";

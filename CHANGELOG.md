@@ -23,8 +23,149 @@ No registry releases yet; entries accumulate under Unreleased until the first
   gated on measuring its per-cell arena cost — not a removal of either
   syntax. useFetch likewise stays: relabeled as a device-gated dead end
   rather than deleted; fetch-over-message is the recommended path.
+- **`.mts` under `src/tsx/` is now NODE-side, not device-side.**
+  `tsconfig.json` excludes `src/tsx/**/*.mts` and `tsconfig.tools.json` picks
+  up `src/tsx/**/config-schema.mts`. **Upgrading (scaffold-owned files):** a
+  project that adds a `tools/config-page.mts` settings schema beside its app
+  wants the same two lines. Without the exclude, the schema's `import type
+  { ConfigField } from ".../tools/config-page.mts"` drags the tool into the
+  device program from OUTSIDE `rootDir`, where `noCheck` hides the error and
+  tsc quietly emits a stray `tools/config-page.mjs` on every build; without
+  the tools-side include the schema is never type-checked at all, which is
+  the entire point of a *typed* schema.
 
 ### Added
+- **TTF SUBSETTING — `tools/fontsubset.mts`, opt-in per face (competitive
+  gap #11).** react-pebble has `characterRegex`; we were shipping whole TTFs
+  into a device whose entire mod archive lives in flash. A `fonts.json`
+  beside the face now declares what it must draw —
+  `{"LiberationSerif-Bold": {"characters": "0123456789:"}}`, or
+  `{"characterRegex": "[A-Za-z0-9 .,!?]"}` for the react-pebble form, which is
+  applied to the face's OWN cmap coverage (so `"\\p{Script=Greek}"` selects
+  every Greek glyph the face actually has). **RECEIPT, `fontface`:
+  `LiberationSerif-Bold.ttf` 370,196 B → 8,968 B, −361,228 B (−97.6%)** for
+  the 11 glyphs a clock draws, and FreeType renders `09:47` at 40px from the
+  subset to a BYTE-IDENTICAL bitmap — outlines, advance widths and the
+  `cvt`/`fpgm`/`prep` hinting tables are copied verbatim, so nothing about the
+  rasterized result changes. Only tables a glyph-id remap would invalidate
+  (`GSUB`/`GPOS`/`GDEF`/`kern`) and `post`'s stale glyph-name array are
+  dropped. Where it sits matters: the subsetter runs INSIDE gen-manifest,
+  before the manifest is written, because fontbm rasterizes whatever file
+  `source` names — the trimmed face goes to `src/embeddedjs/fonts/<face>.ttf`
+  (gitignored, cleared each build) and `source`/`characters` are repointed at
+  it; the checked-in TTF is never touched. **Fail loud (Rule 12):** a
+  requested character the face cannot draw — non-BMP included — aborts the
+  build listing every one of them, because the alternative is `.notdef` boxes
+  on the watch with nothing in the log (gotcha 20's class, applied to
+  subsetting); a malformed `fonts.json` entry (typo'd key, both fields, or
+  neither) aborts too rather than silently shipping the 370KB face. **No new
+  dependency, deliberately:** ~200 lines of sfnt table arithmetic instead of a
+  font library, because devDeps of a *dependency* are never installed and
+  `tools/` both ships in the tarball and RUNS in a consumer build — an import
+  would break the feature for exactly the people it is for. Scope is stated,
+  not hidden: glyf-outline TrueType with a format-4 (BMP) cmap; CFF/OTTO is
+  rejected with a message. **Opt-in: a face with no `fonts.json` line still
+  ships whole with the full-ASCII default — `pulse` is byte-for-byte
+  unchanged.** 22 tests in `tests/fontsubset.test.mts` (100% line/branch/
+  function on the new tool), fixtured on the real in-repo face.
+  **Upgrading (scaffold-owned files):** nothing required — the feature is
+  inert until a `fonts.json` exists. Projects that vendor their own
+  `.gitignore` want `src/embeddedjs/fonts/` in it (generated output).
+  **Note:** the `fontface` example's two prose labels moved from the serif
+  Style to system Gothic, since the declared subset legitimately no longer
+  carries letters; `screenshots/fontface-gabbro.png` predates that and is
+  stale until the next device pass.
+- **The conformance suite's reference column is EXECUTED, not cited
+  (competitive gap #10).** `solid-js` and `@preact/signals-core` are now
+  **devDependencies**, and 28 of the 30 laws in `tests/conformance.test.mts`
+  replay the SAME scenario against the real library and assert our observable
+  equals theirs. They are Node-side only — nothing imports them from
+  `src/embeddedjs/runtime/`, the mod manifest or `build.mts`, so they never
+  reach the device and the 32KB arena is untouched (the old "we can't take
+  them as deps" note conflated a *dev* dependency with a *shipped* one; that
+  is why this was cheap). Three helpers keep it honest (Rule 12): `ref()`
+  fails when the two observables drift apart, `refDiverges()` pins an
+  INTENTIONAL difference by asserting the reference really does behave the
+  other way *and* naming the reason — so a silent upstream convergence fails
+  too — and `refNone()` names a law with no analogue in either core instead of
+  skipping it. Counts: 45 reference checks MATCH, 9 pin a divergence, 2 laws
+  are documented-only (law 24's contained JSX binding and law 25's default
+  crash-screen boundary — neither core ships a renderer). React stays
+  documented, not executed: its test-utils need a renderer + a DOM.
+  Two GOTCHAS worth keeping: solid-js's `node` export condition resolves to
+  the SSR build where `createEffect` is a NO-OP, so the suite imports the
+  client build explicitly (`solid-js/dist/solid.js`) — the bare specifier
+  would have made every reference law pass with `runs === 0` and prove
+  nothing; and Solid DEFERS an effect's first run to the end of the enclosing
+  update, so every reference scenario builds inside `createRoot` and observes
+  after it returns. Running it also corrected two prose citations that had
+  been wrong for months: Solid's `createMemo` is EAGER, so a throwing memo
+  surfaces at the WRITER as well as at the read (ours and signals-core's are
+  lazy — read only), and signals-core does NOT dispose a nested effect when
+  its creator re-runs, so the leaked one double-fires (Solid and we both
+  dispose it). No runtime, manifest, preload or typedoc change — the suite is
+  Node-side, so coverage thresholds are untouched (100% lines/branches/
+  functions, 2083 tests).
+- **`usePhoneFetch` / `usePhoneFetchText` — `runtime/phonefetch`, the
+  first-class fetch-over-message API (competitive gap #5).** The phone does
+  the HTTP and the watch receives ONE string, so the thing that made
+  watch-side `fetch()` a dead end for real apps — Response/Headers/URL
+  objects in the firmware-fixed 32KB arena, measured to `fxAbort memory
+  full` from a signal app (gotcha 18a) — never happens. `usePhoneFetchText()`
+  vends an imperative `fetchText(url) => Promise<{ status, body }>`;
+  `usePhoneFetch(url)` is the reactive form, composing the shipped
+  `createResource` (no new signal) with the SAME `url`-string-or-thunk
+  contract and `Resource<T>` shape as `useFetch`, so swapping is one import
+  line. Mechanics: ONE `pebble/message` channel on DEDICATED codes 10100
+  (request) / 10101 (reply) — declared as an explicit name→code `Map`
+  because the host's array form always claims 10000, which config and the
+  dev-log tap already own and the firmware routes to a single channel; a
+  per-channel id counter with exactly ONE pending-map entry per in-flight
+  request, deleted when its reply lands. Failure is data, never silence
+  (Rule 12): HTTP/network failures resolve as `status: 0` plus the reason,
+  a body over 1024 chars is clipped with a visible `...[+<n> chars cut]`
+  marker, an undeliverable reply is answered with a short status-0 line
+  instead of hanging the watch, and a request that could not be SENT
+  (closed outbox / oversized URL) rejects. Phone half in
+  `src/pkjs/index.ts` (+ the scaffold's `templates/app/src/pkjs/index.js`),
+  keyed off `loadend` because pypkjs never fires `error` on a connection
+  failure. Receipts: `src/tsx/examples/fetchdemo.tsx` + `tools/fetch-server.mts`
+  (a loopback `GET /hello` server — a real HTTP round trip with no external
+  egress, because pypkjs runs on the same host and pebble-tool never passes
+  `--block-private-addresses`). Node-100%-covered; device-receipted on gabbro
+  (2026-07-31): SELECT -> "status 200 / hello from http 2", second press ->
+  counter 3 — two REAL phone-side HTTP round trips
+  (screenshots/fetchdemo-gabbro.png).
+  `useFetch` is untouched and stays — relabelled to point here, per the
+  owner's delete-nothing decision.
+- **Typed config-page BUILDER — `tools/config-page.mts` (competitive gap #7).**
+  We could already CONSUME Clay settings (`useConfig`) but not AUTHOR the page,
+  so every app hand-wrote one and kept its key/type map in sync with the watch
+  interface by eye — drift that is silent (rename a key and the merge stores a
+  NEW key while the Label keeps reading the old one; no error, no crash, a face
+  that just never updates). One typed schema — a `const` array of
+  `{ key, type: "toggle" | "select" | "color" | "slider" | "text", label,
+  default, options?/min?/max? }`, a DISCRIMINATED union so a `select` without
+  `options` is a compile error where it is written — now emits BOTH halves:
+  (a) a self-contained OFFLINE settings page (inline CSS/JS, no CDN, no fetch,
+  ES5-shaped for the OS webview) that seeds its controls from the current
+  settings in the URL fragment and on Save navigates to
+  `pebblejs://close#<encodeURIComponent(JSON.stringify(payload))>` — the classic
+  Clay close path our own bridge already decodes (`webviewclosed` →
+  `decodeURIComponent` → AppMessage 10000 → `useConfig`), verified against
+  `src/pkjs/index.ts` and `tools/config-drive.py` rather than against a memory of
+  Clay; and (b) a `config-types.ts` carrying the watch-side `interface` plus the
+  defaults const to pass `useConfig` as `initial`, so page and watch agree key
+  for key. Payload TYPES are the point: a toggle arrives `boolean` and a slider
+  `number` (clamped, NaN-proofed — `JSON.stringify(NaN)` is `null`, which would
+  poison the stored config), because `useConfig` stores whatever arrives and
+  `cfg().invert ? a : b` would read `"false"` as truthy. CLI:
+  `node tools/config-page.mts <schema.mts> [name]` writes both files beside the
+  schema; `buildConfigPage(fields, name)` is the API. Example (generated, not
+  wired into any app): `src/tsx/examples/weather/config-schema.mts` → city /
+  units / accent. 100 % line+branch+function on the tool, and the page's PURE
+  core is eval'd DOM-less in Node from the SHIPPED string, so the tested
+  functions are the shipped ones (`tests/configpage.test.mts`).
 - **`QR` — `runtime/qrcode` (device-receipted both ways on gabbro,
   2026-07-29).** JSX wrapper over the firmware QRCode content: `string`
   (static or thunk — a thunk drives one effect writing `node.string`, the

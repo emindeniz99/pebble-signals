@@ -3,7 +3,7 @@
 // the 3-row window (prev faded above, current bold+centered, next faded below)
 // just reflects it. The window slides for free — `selected` is a thunk read
 // inside Picker's internal effect (idiom 5b), so there is no bind wiring at the
-// call site. Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// call site. Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = previous fruit · down = next fruit · back = jump to the first.
 // `wrap` makes the list circular, so the faded neighbors are never blank.
 import { render } from "runtime/jsx-runtime";

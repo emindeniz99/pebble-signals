@@ -1,5 +1,5 @@
 // Watchface example: a sleepy SLOTH 🦥 that animates via text frames — no
-// image resources (bitmaps are untested + arena-heavy; see README). A
+// image resources (bitmaps are untested + arena-heavy; see the handbook). A
 // `frame` signal cycles on a slow timer (sloths are slow!) driving the
 // sleep bubbles + the blinking/swaying face; a 1s timer drives the clock.
 // All motion is just label-string bindings re-running — the same reactive

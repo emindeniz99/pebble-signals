@@ -2,7 +2,7 @@
 // signal (up-press increments it), proving the Badge repaints for free: `count`
 // is read inside the composed Canvas's paint, so its reads auto-track (count
 // change → Canvas effect → invalidate → repaint) with no bind wiring.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = +1 · down = -1.
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

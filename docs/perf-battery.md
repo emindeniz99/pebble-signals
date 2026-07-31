@@ -63,7 +63,8 @@ change re-runs one string thunk and one `label.string` write.
 
 Historical contrast: the M3-era object-API reactive label measured ~464 B
 slots + ~116 B chunk of transient garbage per update with a GC every ~6
-ticks (README "Measured memory reality"). The packed/lowered core since
+ticks ([handbook](handbook.md#measured-memory-reality-sdk-417) "Measured
+memory reality"). The packed/lowered core since
 removed that churn — the flat line above is the current behavior. (Different
 app shapes; both numbers kept, each labeled with its era.)
 

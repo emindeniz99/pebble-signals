@@ -2,7 +2,7 @@
 // signal. The highlight moves for free: `active` is read inside the composed
 // Canvas's paint, so its reads auto-track (active change → Canvas effect →
 // invalidate → repaint) with no bind wiring.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = previous page (wraps) · down = next page (wraps).
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

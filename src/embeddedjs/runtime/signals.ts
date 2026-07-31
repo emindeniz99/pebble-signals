@@ -6,7 +6,7 @@
 // with "fxAbort memory full" (measured on SDK 4.17 / gabbro).
 // XS-safe: closures, arrays, accessors only. No Proxy/Reflect/WeakMap.
 //
-// WARNING (measured, README gotcha 13): the firmware's alias budget has
+// WARNING (measured, handbook gotcha 13): the firmware's alias budget has
 // almost zero headroom. Adding top-level `function`/`class` declarations
 // to any preloaded module — even never-called ones — kills the app at
 // startup. New module-level helpers must be `const` bindings, and every
@@ -1021,7 +1021,7 @@ export interface Resource<T> {
  * Async data: run `fetcher` now, expose `{loading, error, data, refetch}` as
  * reactive thunks. Out-of-order completions are dropped (only the newest call
  * may settle the resource). On Pebble, `fetch()` proxies through the phone
- * (`@moddable/pebbleproxy`, README gotcha 18) and its Response allocations are
+ * (`@moddable/pebbleproxy`, handbook gotcha 18) and its Response allocations are
  * heavy for the 32KB arena — keep fetch-using apps lean and prefer decoding
  * into a byte {@link createStore} over retaining parsed objects.
  */
@@ -1079,7 +1079,7 @@ export function createResource<T>(fetcher: () => Promise<T>): Resource<T> {
 
 // ---- typed byte-record store ---------------------------------------------
 // Collections kept as plain JS objects cost ~450B of slots per row and kill
-// the arena at 4-5 rows (measured; README). A Store keeps records as BYTES
+// the arena at 4-5 rows (measured; handbook). A Store keeps records as BYTES
 // in one Uint8Array — [tag][len][payload] — so a record costs its payload
 // bytes, not slots. Primitives encode automatically (int32, float64, string
 // of ≤255 Latin-1 bytes, boolean, null); custom types register a codec with

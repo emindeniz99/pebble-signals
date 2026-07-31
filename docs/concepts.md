@@ -41,7 +41,7 @@ every second repaints that label once a minute.
 A function-valued prop becomes a live effect that assigns ONE Piu property on
 change. No diffing, no tree walk — the signal graph knows exactly which label
 reads it. Coordinates (`left/top/width/height`) are construction-time statics
-on this port — reposition post-mount with [`<Move>`](../README.md) instead.
+on this port — reposition post-mount with [`<Move>`](handbook.md#architecture) instead.
 
 ## 4. Ownership: subtrees clean up themselves
 

@@ -12,7 +12,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { stripComments } from "./gen-manifest.mts";
 
 // Pebble system fonts reachable via piu "['bold '][N]px Family" strings, keyed
-// "family|size|bold" — the full firmware table README §"gotchas" item 7
+// "family|size|bold" — the full firmware table handbook §"gotchas" item 7
 // documents (Gothic-Regular 9-36, Gothic-Bold 14-36, Bitham Black/Bold/
 // Light/Medium, Roboto, DroidSerif, Leco), mapped through the shorthand's
 // face rule: `bold` -> the -Bold face, no weight -> the

@@ -11,5 +11,13 @@
 		"types": [],
 		"isolatedModules": true
 	},
-	"include": ["src/tsx/**/*"]
+	"include": ["src/tsx/**/*"],
+	// `.mts` under src/tsx is a NODE-side file (a tools/config-page.mts settings
+	// SCHEMA next to the example that owns it), never a device module — device
+	// sources are .ts/.tsx. Excluding them keeps the schema's `import type
+	// { ConfigField } from "../../../../tools/config-page.mts"` out of THIS
+	// program: that import is outside rootDir, and with `noCheck` tsc does not
+	// report it — it silently emits `tools/config-page.mjs` beside the tool on
+	// every build. The schemas are type-checked by tsconfig.tools.json instead.
+	"exclude": ["src/tsx/**/*.mts"]
 }

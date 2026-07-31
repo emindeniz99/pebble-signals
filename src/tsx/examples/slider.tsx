@@ -3,7 +3,7 @@
 // repaints for free: `value` is read inside the composed Canvas's paint, so its
 // reads auto-track (value change → Canvas effect → invalidate → repaint) with no
 // bind wiring. The app OWNS the value; the Slider is display-only.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = +0.1 (clamped ≤ 1) · down = -0.1 (clamped ≥ 0).
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

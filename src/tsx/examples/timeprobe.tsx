@@ -17,7 +17,7 @@
 // UP pauses / resumes (`Timer.schedule` with no delay, then a reschedule) — the
 // second host-only operation, driven by hand so a screenshot can catch both
 // states.
-// Buttons only (QEMU touch crashes the firmware — README gotcha 2).
+// Buttons only (QEMU touch crashes the firmware — handbook gotcha 2).
 // Build: APP=timeprobe node build.mts — no TREESHAKE_FORCE needed: the importNow
 // literals live inside the runtime module, not this entry, so the closure scan
 // never sees an unresolvable dynamic import.

@@ -2,7 +2,7 @@
 // Tabs is DISPLAY-ONLY: the app owns the active index and swaps the body; the
 // bar just reflects it. The highlight moves for free — `active` is a thunk read
 // inside Tabs's internal effect (idiom 5b), so no bind wiring at the call site.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = previous tab (wraps) · down = next tab (wraps).
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

@@ -2,6 +2,9 @@
 build/
 src/embeddedjs/app/
 src/embeddedjs/runtime-min/
+# subsetted TTFs — generated per app by gen-manifest/fontsubset from the
+# fonts.json beside the SOURCE ttf, which is the checked-in artifact
+src/embeddedjs/fonts/
 src/tsx/main.tsx
 src/embeddedjs/manifest.json
 coverage/

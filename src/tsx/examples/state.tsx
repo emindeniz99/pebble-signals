@@ -5,7 +5,7 @@
 // stop pressing for 500ms. useDebounce composes useTimeout (a self-clearing
 // setInterval — setTimeout is not on device); all three hooks are called INSIDE
 // the component so render's root OWNS them and they auto-clean on teardown.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = count +1 · down = count -1 · select = toggle · back = reset count
 // Build: APP=state ./build.sh
 import { render } from "runtime/jsx-runtime";

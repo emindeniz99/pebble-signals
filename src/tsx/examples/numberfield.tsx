@@ -5,7 +5,7 @@
 // `value` is a thunk read inside NumberField's driving effect (idiom 5b), so a
 // signal write updates the number with no bind wiring. `min`/`max` here also
 // clamp the DISPLAY, a belt-and-braces guard alongside the app's own clamp.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = +5 (clamped ≤ 100) · down = -5 (clamped ≥ 0).
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

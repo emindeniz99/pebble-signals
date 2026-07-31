@@ -40,6 +40,7 @@
     "src/embeddedjs/runtime/battery.ts",
     "src/embeddedjs/runtime/connection.ts",
     "src/embeddedjs/runtime/fetch.ts",
+    "src/embeddedjs/runtime/phonefetch.ts",
     "src/embeddedjs/runtime/lifecycle.ts",
     "src/embeddedjs/runtime/image.ts",
     "src/embeddedjs/runtime/imagebackground.ts",

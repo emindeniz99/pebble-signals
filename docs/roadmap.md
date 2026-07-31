@@ -961,7 +961,7 @@ notifications, device info.
   (12840, main.js as lean as navmany's) died too — so module COUNT/records
   and archive bytes both eat boot budget, with coefficients we have NOT
   isolated yet.
-- **v1.5 matrix RAN (2026-07) — MECHANISM FOUND; see README gotcha 15
+- **v1.5 matrix RAN (2026-07) — MECHANISM FOUND; see handbook gotcha 15
   correction + xs-heap-playbook "The boot floor".** One-variable probes off
   a navmany-class skeleton (`tools/gen-boot-probe.mts`, `--app probe`),
   binary screenshot verdicts, boundaries replicated:

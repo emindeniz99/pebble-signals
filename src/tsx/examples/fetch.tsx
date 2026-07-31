@@ -5,7 +5,7 @@
 //
 // ================= LEAN ON PURPOSE — this is the arena-tight combo =============
 // This app uses the SIGNAL RUNTIME (render + useFetch pull in signals /
-// createResource) TOGETHER WITH `fetch` — the exact pairing README gotcha 18a
+// createResource) TOGETHER WITH `fetch` — the exact pairing handbook gotcha 18a
 // measured OOMing the firmware-fixed 32KB arena ("fxAbort memory full"): watch-side
 // fetch proxies through the phone (@moddable/pebbleproxy) and a live Response is a
 // heavy transient. It fits here ONLY because the app is minimal — ONE resource, a

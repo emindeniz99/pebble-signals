@@ -561,13 +561,53 @@ const cfg = useConfig({ text: "hi", invert: 0 });
 
 ![useConfig on gabbro](../screenshots/config-hook-gabbro.png)
 
+**Authoring the page:** `useConfig` only *consumes* settings — generate the page
+that produces them with `node tools/config-page.mts <schema.mts>`. One typed
+schema (`{ key, type: "toggle" | "select" | "color" | "slider" | "text", label,
+default, … }`) emits a self-contained offline HTML settings page (Save →
+`pebblejs://close#<encoded JSON>`, the path our pkjs bridge already decodes onto
+AppMessage 10000) **and** the matching watch-side `interface` + defaults, so the
+page's keys can never drift from the type you pass `useConfig`. Example:
+`src/tsx/examples/weather/config-schema.mts` → `config-page.html` +
+`config-types.ts`. Replay a page's payload headlessly with
+`tools/config-drive.py <platform> '<json>'`.
+
+### usePhoneFetch / usePhoneFetchText — `runtime/phonefetch`
+
+**The load-bearing HTTP path.** Fetch-over-message: the request line goes to the
+phone on a dedicated AppMessage code, pkjs runs the HTTP (`src/pkjs/index.ts`),
+and the watch gets back `{ status, body }` — one string, so nothing heavy is
+allocated in the 32KB arena and an ordinary reactive app can do HTTP (contrast
+`useFetch` below). `usePhoneFetchText()` returns an imperative `fetchText(url)`
+promise for press-to-fetch screens; `usePhoneFetch(url)` is the reactive form
+(the same `Resource<T>` shape and URL-thunk contract as `useFetch`, fires
+immediately). Failures are never silent: an HTTP/network failure comes back as
+`status: 0` with the reason in `body`, a body over 1024 chars is clipped with a
+visible `...[+<n> chars cut]` marker, and a request that could not even be sent
+rejects rather than hanging.
+
+```tsx
+import { usePhoneFetchText } from "runtime/phonefetch";
+const fetchText = usePhoneFetchText();          // inside the render() build
+// in a button handler:
+fetchText("http://127.0.0.1:8787/hello").then((r) => setBody(`${r.status} ${r.body}`));
+```
+
+_Node-100%-covered; **device-receipted (gabbro 2026-07-31)**: SELECT did a
+REAL phone-side HTTP GET against `tools/fetch-server.mts` — "status 200 /
+hello from http 2", second press advanced the counter to 3 (two live round
+trips, not a cached frame; `screenshots/fetchdemo-gabbro.png`). Drive it with
+`node tools/fetch-server.mts &` (the loopback receipt server, no external
+egress), then `pnpm run dev -- --app fetchdemo` and press SELECT._
+
 ### useFetch — `runtime/fetch`
 
 Reactive HTTP fetch composed over the shipped `createResource` — a `{ data,
-loading, error, refetch }` `Resource<T>`. **Device-gated:** watch-side `fetch`
-proxies through the phone and its `Response` allocations OOM the 32KB arena from a
-signal-runtime app (gotcha 18a) — keep a `useFetch` app lean, or prefer
-fetch-over-message (XHR pkjs-side → string AppMessage → `createResource`).
+loading, error, refetch }` `Resource<T>`. **Device-gated — reach for
+`usePhoneFetch` (above) first:** watch-side `fetch` proxies through the phone
+and its `Response` allocations OOM the 32KB arena from a signal-runtime app
+(gotcha 18a). This one is for tiny payloads on a lean/bare app; `runtime/phonefetch`
+is the same idea done over AppMessage, without the arena cost.
 
 ```tsx
 import { useFetch } from "runtime/fetch";
@@ -575,7 +615,8 @@ const res = useFetch<{ value: string }>("https://api.example.com/thing.json");
 <Label string={() => (res.loading() ? "…" : String(res.data()?.value))} />
 ```
 
-_Node-100%-covered; device-gated (gotcha 18a) — demo: `pnpm run dev -- --app fetch`._
+_Node-100%-covered; device-gated (gotcha 18a), superseded for most apps by
+`runtime/phonefetch` — demo: `pnpm run dev -- --app fetch`._
 
 ---
 

@@ -6,7 +6,7 @@
 // internal effect (idiom 5b), so there is no bind wiring at the call site.
 // 8 rows in a 132px window (28px each = 224px of content) so the list overflows
 // and actually scrolls as the selection walks past the bottom / top edges.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = previous row (wraps) · down = next row (wraps).
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

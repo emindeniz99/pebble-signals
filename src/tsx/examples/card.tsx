@@ -3,7 +3,7 @@
 // down bumps the temperature), proving the title bar repaints for free — a
 // `title` thunk is driven by Card's internal effect (idiom 5b) with no bind
 // wiring at the call site.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = warmer · down = cooler.
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

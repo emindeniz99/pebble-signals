@@ -84,7 +84,7 @@ ran; "firmware" = fixed by the Moddable/Pebble build, not ours to change.
 | XS **slot heap** | ~8176 B initial, grows within the arena | measured | yes | THIS is the scarce one |
 | XS **chunk heap** | 8192 B initial, GC-compacted, grows within the arena | measured | yes | bytes here (typed arrays) |
 | XS machine **total** | **32768 B** (slot+chunk+stack, firmware-cloned) | measured, firmware | yes | the whole budget |
-| Mod archive **boot cost** | no fixed byte ceiling — costs SLOTS (symbols, modules) + CHUNK (bytecode/data), see "The boot floor" below | measured (2026-07 matrix; supersedes the old "~15.9KB ceiling" — README gotcha 15 correction) | ROM | yes, indirectly: every archive symbol interns at boot; every module costs records + 2 ids |
+| Mod archive **boot cost** | no fixed byte ceiling — costs SLOTS (symbols, modules) + CHUNK (bytecode/data), see "The boot floor" below | measured (2026-07 matrix; supersedes the old "~15.9KB ceiling" — handbook gotcha 15 correction) | ROM | yes, indirectly: every archive symbol interns at boot; every module costs records + 2 ids |
 | Native **app heap** | ~122–130 KB; holds the mod ARCHIVE + Poco/framebuffer — NOT per-Piu-node structs (measured flat vs node count, 2026-07) | measured (this project) | yes | no (separate heap) |
 | Flash **resource area** | 256 KB, read-only | firmware (device manifest) | ROM | no — `Resource` views it in place |
 | **localStorage** (PKJS bridge) | per-key/-app cap **UNVERIFIED** — measure before relying on a size | needs a probe | persistent | no (native/phone side) |
@@ -811,6 +811,14 @@ Findings (evidence in the moddable toolchain sources):
   mechanism). Cost model: the glyph atlas lives in FLASH, not the arena
   (fontface's archive grew 13→23KB for a 95-glyph 32px atlas); a `characters`
   subset shrinks it. fontcheck passes any family backed by a TTF.
+  **The TTF itself is subsettable too (2026-07):** a `fonts.json` beside the
+  face — `{"LiberationSerif-Bold": {"characters": "0123456789:"}}`, or
+  `characterRegex` for the react-pebble form — makes gen-manifest trim the
+  face BEFORE fontbm sees it. MEASURED on `fontface`: 370,196 → 8,968 B
+  (−97.6%), rasterizing pixel-identically, and a requested character the face
+  cannot draw is a build error rather than a `.notdef` box on the watch. Opt
+  in per face; an undeclared face still ships whole. See
+  `docs/packaging.md` § "Custom fonts".
 - **The creation numbers, in source:** the device manifest's creation block
   is exactly the measured machine — `static: 32768`, `chunk.initial: 8192`,
   `heap.initial: 512` (slots), **`stack: 384`** (slots — the value-stack

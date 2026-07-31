@@ -104,6 +104,6 @@ COMMERCIAL — distribution, not code.**
 | 7 | No declarative Clay page builder | important / M | Typed TSX→Clay page emitter sharing messageKey types with useConfig |
 | 8 | 63 KB README wall | important / S | ~200-line front page; move the ledger to docs/ |
 | 9 | No hardware receipts | important / — | Do NOT hold publish for it; the honest QEMU label is a credibility asset |
-| 10 | Conformance parity documented, not executed | important / S | Run solid-js/@preact/signals-core as devDeps in the Node suite |
+| 10 | Conformance parity documented, not executed | important / S | ✅ DONE (2026-07-31) — solid-js + @preact/signals-core are devDeps (Node-side only, never on the device); 28 of 30 laws replay a LIVE reference, 2 are documented-only with their reason pinned in the test. React stays documented (no headless core) |
 | 11 | TTF subsetting (react-pebble has it) | nice / S | Add characterRegex subsetting to gen-manifest |
 | — | Nix pin, Python tooling, `pebble package` channel, static compiler | — | DO NOTHING (measured/reasoned no) |

@@ -3,7 +3,7 @@
 // (internal signal + a lazily created setInterval, stopped on screen dispose) —
 // no `value` prop, nothing for the app to tick. `running` is a reactive thunk,
 // so a button freezes and resumes the animation without any bind wiring.
-// Buttons only (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons only (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = pause / resume the spinner.
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

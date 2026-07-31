@@ -27,7 +27,7 @@ the boot budgets twice — [the lessons](xs-heap-playbook.md) are part of it.
 | `slothvec` 🦥 | PDC vectors via SVGImage — scaling + transform animation, zero pixel RAM | ![](../screenshots/slothvec-gabbro.png) |
 | `slothface` | text-frame animation | ![](../screenshots/slothface-awake.png) |
 | `imgwatch` | color bitmaps (png2bmp) + frame-swap animation | ![](../screenshots/imgwatch-red.png) |
-| `fontface` | custom TTF via the fonts/ convention | ![](../screenshots/fontface-gabbro.png) |
+| `fontface` | custom TTF via the fonts/ convention, subset to `0123456789:` | ![](../screenshots/fontface-gabbro.png) |
 | `clock` | Date + setInterval + Bitham/Gothic styles | ![](../screenshots/ex-clock.png) |
 
 ## Reactivity & state
@@ -73,6 +73,7 @@ the boot budgets twice — [the lessons](xs-heap-playbook.md) are part of it.
 | `devlog` | visible release-firmware logging via the pkjs bridge | ![](../screenshots/devlog-emery.png) |
 | `deviceinfo` | everything the host reports (size/round/color/clock) | ![](../screenshots/deviceinfo-gabbro.png) |
 | `dictate` | dictation probe — the system UI opens; transcription needs hardware | ![](../screenshots/dictate-ui-gabbro.png) |
+| `fetchdemo` | fetch-over-message: SELECT does a real HTTP GET phone-side (`runtime/phonefetch` + `tools/fetch-server.mts`) | ![fetchdemo](../screenshots/fetchdemo-gabbro.png) |
 
 ## Probes & measurement apps (no screenshots — their receipts are numbers)
 

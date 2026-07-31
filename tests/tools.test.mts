@@ -920,7 +920,7 @@ test("fontcheck: a known custom family with a MISSING face is flagged", () => {
 });
 
 test("fontcheck: the full documented system table is accepted (Gothic 36, Leco)", () => {
-	// README gotcha 7 lists the firmware table — rejecting "36px Gothic"
+	// handbook gotcha 7 lists the firmware table — rejecting "36px Gothic"
 	// failed builds for a documented built-in (codex P2)
 	assert.deepEqual(badFonts('font: "36px Gothic"; font: "bold 36px Gothic"'), []);
 	assert.deepEqual(badFonts('font: "9px Gothic"'), []);
@@ -1054,7 +1054,7 @@ test("treeshake: NON-runtime base-manifest modules survive the prune", () => {
 
 test("gen-manifest: badTextures flags suffixless new Texture (gotcha 19)", () => {
 	// `new Texture("x")` ships the asset but throws "Texture x not found!" on
-	// device — the .png suffix is required (README gotcha 19, measured)
+	// device — the .png suffix is required (handbook gotcha 19, measured)
 	assert.deepEqual(badTextures('new Texture("ball0")'), ['new Texture("ball0"']);
 	assert.deepEqual(badTextures('new Texture("ball0.png")'), []); // the shipped form
 	assert.deepEqual(badTextures("new Texture('ball0')"), ["new Texture('ball0'"]);

@@ -3,7 +3,7 @@
 // the reactive `variant` prop on a slow timer. ONE texture, decoded once,
 // so the animation costs zero extra memory: `variant` only picks which
 // 140px slice is blitted. Pixels live in FLASH (resources) + the native
-// framebuffer, NOT the 32KB XS heap — see README "Bitmaps".
+// framebuffer, NOT the 32KB XS heap — see handbook "Bitmaps".
 //
 // Layout (design pass): the sloth is the hero; the type is its calm
 // counterpoint. HH:MM:SS sits on one baseline at the SAME 42px size — HH:MM in

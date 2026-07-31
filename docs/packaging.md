@@ -51,7 +51,7 @@ a separate project can install and get the **typed runtime + the build tools**.
 The tarball deliberately ships readable `.ts` source, **never** a minified
 bundle. Minification is a per-app DEVICE-BUILD step, not a library format:
 `build.mts` minifies the runtime into `runtime-min/` for each app because the
-mod archive rides a hard boot slot/symbol floor (README gotcha 15
+mod archive rides a hard boot slot/symbol floor (handbook gotcha 15
 correction; playbook "The boot floor") and per-app
 tree-shaking decides which modules ship at all. A pre-minified library would
 be un-tree-shakeable, un-debuggable, and would still have to be re-processed
@@ -123,6 +123,64 @@ the QEMU emulator). The flow:
    COMPILED orchestrator detects the consumer project by its `pebble` field,
    takes app sources/manifest/scaffold from the PROJECT and the runtime/tools
    from the PACKAGE, and drives `pebble build` to a `.pbw`.
+
+## Custom fonts: the `fonts/` convention, and subsetting them
+
+A face is opted in by FILE LAYOUT, not configuration. Drop a TTF at
+`src/tsx/examples/<app>/fonts/<Family>-<Suffix>.ttf` (Suffix ∈
+`Regular`/`Bold`/`Italic`/`BoldItalic`) and write `font: "bold 32px <Family>"`;
+`tools/gen-manifest.mts` sees the non-system literal, matches the face, and
+emits the `"*-alpha"` manifest entry the toolchain's fontbm rasterizes into
+`<Family>-<Suffix>-<size>.fnt` + `.png`. The atlas lives in FLASH, not the
+32KB arena — but flash is the mod archive, and a stock TTF is enormous
+(Liberation Serif Bold: 370,196 B for 2,602 glyphs, of which a clock draws 11).
+
+**Subsetting is opt-in per face, via a `fonts.json` beside the TTFs:**
+
+```jsonc
+// src/tsx/examples/<app>/fonts/fonts.json
+{
+  "LiberationSerif-Bold": { "characters": "0123456789:" },
+  "Other-Bold":           { "characterRegex": "[A-Za-z0-9 .,!?]" }
+}
+```
+
+Exactly one of the two per face. `characters` is literal; `characterRegex` is a
+regex SOURCE applied to the face's own cmap coverage (react-pebble's semantics),
+so `"\\p{Script=Greek}"` selects every Greek glyph the face actually has.
+
+Mechanics and the rules that matter:
+
+- **Ordering.** `tools/fontsubset.mts` runs INSIDE gen-manifest, before the
+  manifest is written: fontbm rasterizes whatever file `source` names, so the
+  trim has to land upstream of it. The subset is written to
+  `src/embeddedjs/fonts/<face>.ttf` (gitignored, cleared every build) and
+  `source` is repointed at `./fonts/<face>`; the manifest's `characters` field
+  is set to the same declared set. The checked-in TTF is never modified.
+- **Opt-in and reversible.** A face with no `fonts.json` line ships whole with
+  the full-printable-ASCII `characters` default — nothing changes by not using
+  this. Deleting the declaration restores the fat face.
+- **A character the face cannot draw is a BUILD ERROR** listing every one of
+  them (`fontcheck` philosophy — a silent `.notdef` renders boxes on the watch
+  and says nothing). Non-BMP codepoints report the same way.
+- **Deterministic and lossless.** Same bytes in, same bytes out, independent of
+  the order characters were written. Outlines, advance widths and the hinting
+  tables (`cvt`/`fpgm`/`prep`) are copied verbatim, so the subset rasterizes
+  PIXEL-IDENTICALLY to the full face; only glyph-id-indexed tables that a remap
+  would invalidate (`GSUB`/`GPOS`/`GDEF`/`kern`) and `post`'s glyph-name array
+  are dropped.
+- **Zero dependencies, on purpose.** The subsetter is ~200 lines of sfnt table
+  arithmetic in `tools/fontsubset.mts` rather than an npm font library: devDeps
+  of a *dependency* are never installed, and `tools/` ships in the tarball and
+  RUNS in the consumer's build — a library import would fail the build for
+  exactly the people the feature is for. Scope is stated loud: glyf-outline
+  TrueType with a format-4 (BMP) cmap; CFF/OTTO is rejected, never mangled.
+- Consumer projects get this automatically on upgrade (it lives in the compiled
+  `dist/tools/`); the `fonts/` dir and its `fonts.json` are theirs.
+
+Receipt, measured on the `fontface` example: **370,196 B → 8,968 B (−97.6%)**
+for `"0123456789:"`, with FreeType rasterizing `09:47` at 40px to a
+byte-identical bitmap.
 
 ## Not in v1 (explicit non-goals, so nobody assumes)
 

@@ -31,7 +31,7 @@ export type JSXNode = PiuContent | string | number | boolean | null | undefined 
  * and returns its subtree. Type props with the generic — `Component<{ n:
  * number }>`. The `P = void` default makes a prop-less ROOT component
  * callable with no arguments, which is exactly how the root-entry shim
- * mounts it (see README "root component entry"). Types only — zero runtime.
+ * mounts it (see handbook "root component entry"). Types only — zero runtime.
  */
 export type Component<P = void> = (props: P) => JSXNode;
 /**

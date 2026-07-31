@@ -20,7 +20,7 @@
 // override would need pebble/button's window_set_overrides_back_button (device-
 // gated). Do not read this demo as proof of exit-prevention.
 //
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   select = drill deeper (push) · back = pop one level (or exit at the root).
 // Build: APP=backhandler ./build.sh
 import { render } from "runtime/jsx-runtime";

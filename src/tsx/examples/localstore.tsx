@@ -4,7 +4,7 @@
 // name, seeded from storage on boot, and UP cycles to the next name (persisted),
 // so a screenshot after a reinstall shows where the previous run left off — and
 // the "hi <name>" greeting reads visibly DIFFERENT from kvstore's counter.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2): up = next name.
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2): up = next name.
 import { render } from "runtime/jsx-runtime";
 import { useLocalStorage } from "runtime/localstorage";
 

@@ -1,5 +1,5 @@
 // fetch via @moddable/pebbleproxy (PKJS phone proxy — the correct Alloy
-// network mechanism; see src/pkjs/index.js and README gotcha 18). BARE (no
+// network mechanism; see src/pkjs/index.js and handbook gotcha 18). BARE (no
 // signal runtime) so fetch has the whole arena — from a normal app fetch
 // OOMs the 32KB arena. select = fetch. NOTE: a live round-trip could not be
 // completed in this dev sandbox (unstable emulator/pypkjs) — the wiring is

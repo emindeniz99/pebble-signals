@@ -15,6 +15,7 @@ receipt (screenshot or measurement); that discipline is [Rule 2](../CLAUDE.md).
 | see what it can do | [Examples gallery](examples.md) · flagship: `pulse` |
 | fix something that broke | [Debugging & troubleshooting](debugging.md) |
 | quick answers | [FAQ](faq.md) |
+| the 24 numbered gotchas + the full measured ledger | [Handbook](handbook.md) — the old front page, moved here 2026-07-31 |
 
 ## Guides & reference
 

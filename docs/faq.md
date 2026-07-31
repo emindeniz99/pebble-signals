@@ -62,7 +62,7 @@ Keep state module-local when nothing else reads it.
 Yes, through the phone: the pkjs proxy ships with every build. The
 `fetch()` mechanism is in place (arena-sized responses only), but a live
 round-trip hasn't been verified in the emulator sandbox — see
-[README gotcha 18](../README.md).
+[handbook gotcha 18](handbook.md#xs--piu-gotchas-actually-hit).
 
 **How do I make a settings page?**
 The Clay-style config flow is device-proven end to end — phone webview →
@@ -76,8 +76,13 @@ Three proven paths: `localStorage` (small state), the byte store
 
 **Custom fonts?**
 Drop a TTF at `<app>/fonts/<Family>-<Suffix>.ttf`, write
-`font: "bold 32px <Family>"` — the build does the rest.
-[Tutorial part 2](../tutorials/complete-watchface/part2-custom-fonts.md).
+`font: "bold 32px <Family>"` — the build does the rest. To ship only the
+glyphs you draw, add a `fonts.json` beside it
+(`{"<Family>-<Suffix>": {"characters": "0123456789:"}}` or `characterRegex`):
+370KB → 9KB on the `fontface` clock, and a character the face lacks fails the
+build instead of rendering a box.
+[Tutorial part 2](../tutorials/complete-watchface/part2-custom-fonts.md),
+[packaging](packaging.md).
 
 **How big can my app get?**
 Code: effectively unbounded via lazy screen modules (bytecode stays in

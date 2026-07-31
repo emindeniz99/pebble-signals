@@ -4,7 +4,7 @@
 // is not assumed on device); pause/resume is a REACTIVE delay that toggles
 // between 1000 and null (null = no live timer). Both hooks are owned by the
 // render root, so they auto-clean if the tree is ever torn down.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = pause / resume the counter · down = reset the counter to 0.
 // Build: APP=timers ./build.sh
 import { render } from "runtime/jsx-runtime";

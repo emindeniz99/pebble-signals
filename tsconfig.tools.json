@@ -17,5 +17,11 @@
 		// requires it in the specifier); safe here because this config is noEmit.
 		"allowImportingTsExtensions": true
 	},
-	"include": ["tools/**/*.mts", "build.mts"]
+	// The config-page SCHEMAS live beside the example that owns them, but they
+	// are tools-side modules: Node imports them, tools/config-page.mts types
+	// them, and the device build excludes them (tsconfig.json). Checking them
+	// HERE is what makes "typed schema" true — a `select` missing `options` or a
+	// `slider` default outside its range fails `pnpm run typecheck`, not at
+	// generation time.
+	"include": ["tools/**/*.mts", "build.mts", "src/tsx/**/config-schema.mts"]
 }

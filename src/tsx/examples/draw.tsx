@@ -4,7 +4,7 @@
 // invalidate → repaint). The static primitives around it exercise every
 // rasterizer at once (ONE Port paints many): fillRoundRect, strokeRect, line
 // (H/V/diagonal), fillCircle, strokeCircle.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = grow radius · down = shrink radius.
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

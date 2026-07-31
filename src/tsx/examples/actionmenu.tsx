@@ -6,7 +6,7 @@
 // titled "Message" (bold white), with three actions; the active one wears the
 // teal activeFill. It is a hand-built composition (Container + Column of Labels,
 // explicit dims — gotcha 16), NOT a Canvas, so there is nothing to invalidate.
-// Buttons (QEMU touch crashes the firmware — README gotcha 2):
+// Buttons (QEMU touch crashes the firmware — handbook gotcha 2):
 //   up = previous action (wraps) · down = next action (wraps).
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

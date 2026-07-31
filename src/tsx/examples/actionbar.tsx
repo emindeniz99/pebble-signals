@@ -2,7 +2,7 @@
 // counter. The up hint is a `() => string` thunk mirroring the count, proving a
 // reactive slot follows a signal (idiom 5b); select/down are static hints.
 // up-press increments the counter (which re-renders both the counter Label and
-// the ActionBar's up hint). Buttons (QEMU touch crashes the firmware — README
+// the ActionBar's up hint). Buttons (QEMU touch crashes the firmware — handbook
 // gotcha 2): up = +1 · down = -1.
 import { render } from "runtime/jsx-runtime";
 import { useState } from "runtime/signals";

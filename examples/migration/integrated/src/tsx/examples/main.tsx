@@ -9,7 +9,7 @@
 // holding exactly ONE screen at a time (verified device pattern — see
 // src/tsx/examples/navdrill.tsx and navreactive.tsx in the signal-piu repo).
 // A naive "prebuild all screens" port is the ONE thing that does NOT work
-// here (see `multiscreen` in the main README — it OOMs the 32KB arena at
+// here (see `multiscreen` in docs/handbook.md — it OOMs the 32KB arena at
 // boot); Navigator is the correct migration target for "push a screen on a
 // button, pop it on back".
 //
