@@ -27,6 +27,12 @@ const err = (msg: string): void => {
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PKG = packageRoot(SCRIPT_DIR);
 const TEMPLATE_DIR = join(PKG, "templates", "app");
+// The RUNNING package's version, stamped into the scaffold's pebble-signals
+// dependency. A hardcoded template pin rotted once already: the shipped 0.1.0
+// scaffold said "^1.0.0" (the internal-milestone number), so every fresh
+// scaffold's npm install died with "no matching version" — caught dogfooding
+// the first store face. Stamping from package.json cannot drift.
+const PKG_VERSION: string = JSON.parse(readFileSync(join(PKG, "package.json"), "utf8")).version;
 
 const { values: cli, positionals } = parseArgs({
 	args: process.argv.slice(2),
@@ -111,7 +117,8 @@ function copyTemplate(srcDir: string, destDir: string): void {
 		const content = readFileSync(srcPath, "utf8")
 			.replaceAll("__PKG_NAME__", packageName)
 			.replaceAll("__APP_NAME__", destPath.endsWith(".json") ? displayJson : displayName)
-			.replaceAll("__UUID__", uuid);
+			.replaceAll("__UUID__", uuid)
+			.replaceAll("__PKG_VERSION__", PKG_VERSION);
 		writeFileSync(destPath, content);
 	}
 }

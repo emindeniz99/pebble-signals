@@ -11,6 +11,15 @@ Releases publish to npm via the `release.yml` trusted-publishing workflow
 
 ## [Unreleased]
 
+### Fixed
+- **The scaffold's `pebble-signals` dependency pin was a nonexistent version**
+  — `create-pebble-signals` stamped `"^1.0.0"` (the internal-milestone number
+  from before the npm version line reset to 0.1.0), so every fresh scaffold's
+  `npm install` died with "No matching version found for pebble-signals@^1.0.0".
+  Caught dogfooding the first store face (`faces/slothvec`) against the
+  published 0.1.0. The template now carries a `__PKG_VERSION__` placeholder
+  and the CLI stamps its own running version, which cannot drift.
+
 ## [0.1.0] - 2026-08-06
 
 First npm release. Everything below this heading — the whole pre-release
