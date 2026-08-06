@@ -6,10 +6,16 @@ older entries below keep that name). Format:
 each release carries an **Upgrading** subsection — the scaffold files a project
 OWNS (wscript, src/c, tsconfigs, manifest — see docs/packaging.md "Upgrades")
 are never auto-touched, so any change they need is listed there explicitly.
-No registry releases yet; entries accumulate under Unreleased until the first
-`npm publish`.
+Releases publish to npm via the `release.yml` trusted-publishing workflow
+(cut a GitHub Release from a `vX.Y.Z` tag that matches `package.json`).
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-08-06
+
+First npm release. Everything below this heading — the whole pre-release
+history, including the internal "1.0.0" milestone of 2026-07-16 — shipped
+in it.
 
 ### Changed
 - **Package renamed `signal-piu` → `pebble-signals`** ahead of the first npm
@@ -1123,7 +1129,8 @@ No registry releases yet; entries accumulate under Unreleased until the first
   tsc-injected JSX import in a lazy module whose source never names a
   runtime module.
 
-## [1.0.0] - 2026-07-16
+## [1.0.0] - 2026-07-16 (internal milestone — never published; the version
+line was reset to 0.1.0 for the first npm release)
 
 First cut. Everything below accumulated as Unreleased during the build-out;
 device receipts for each claim live in `screenshots/` and the docs.
