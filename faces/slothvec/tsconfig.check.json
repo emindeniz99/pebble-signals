@@ -1,0 +1,33 @@
+{
+	// STRICT typecheck of the consumer's app code against the INSTALLED package
+	// (node_modules/pebble-signals — the tarball, not this repo's source tree).
+	// Two import styles are both covered:
+	//   * src/app.tsx      — `pebble-signals/*` exports-map imports (editor/library
+	//     style; per-file `@jsxImportSource pebble-signals` pragma).
+	//   * src/tsx/main.tsx — `runtime/*` device-specifier imports (what actually
+	//     ships; resolved here via `paths` into the installed package's sources)
+	//     plus real Piu host JSX (<Label>), typed by the package's vendored
+	//     Moddable typings + its globals.d.ts JSX contract (both ship in the
+	//     tarball), wired in through `files` below.
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
+		"jsxImportSource": "runtime",
+		"strict": true,
+		"noEmit": true,
+		"types": [],
+		"lib": ["es2022"],
+		"skipLibCheck": true,
+		"paths": { "runtime/*": ["./node_modules/pebble-signals/src/embeddedjs/runtime/*"] }
+	},
+	"include": ["src"],
+	"files": [
+		"node_modules/pebble-signals/src/tsx/globals.d.ts",
+		// one barrel activates the WHOLE Moddable/Pebble typing surface (Piu,
+		// sensors, dictation, storage, image/font decode) — see
+		// pebble-signals's tools/sync-moddable-typings.sh
+		"node_modules/pebble-signals/types/moddable/all.d.ts"
+	]
+}

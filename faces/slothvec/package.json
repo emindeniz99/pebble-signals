@@ -1,0 +1,40 @@
+{
+	"name": "sloth",
+	"private": true,
+	"author": "MakeAwesomeHappen",
+	"version": "1.0.0",
+	"keywords": [
+		"pebble-app"
+	],
+	"pebble": {
+		"displayName": "Sloth",
+		"uuid": "e0340520-1df5-4a05-b4b1-be72709f2aee",
+		"projectType": "moddable",
+		"sdkVersion": "3",
+		"enableMultiJS": true,
+		"targetPlatforms": [
+			"gabbro",
+			"emery"
+		],
+		"watchapp": {
+			"watchface": true
+		},
+		"messageKeys": [
+			"dummy"
+		],
+		"resources": {
+			"media": []
+		}
+	},
+	"scripts": {
+		"build": "node node_modules/pebble-signals/dist/build.mjs --app main"
+	},
+	"dependencies": {
+		"@moddable/pebbleproxy": "^0.1.8"
+	},
+	"devDependencies": {
+		"pebble-signals": "^0.1.0",
+		"esbuild": "^0.28.1",
+		"typescript": "^6.0.3"
+	}
+}
