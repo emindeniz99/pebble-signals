@@ -128,3 +128,22 @@ The JS heap ("arena") is firmware-fixed at 32KB and every design decision
 bends around it. Trade CPU for RAM freely — recompute, don't cache; bytes,
 not objects; indices, not references. See README "gotchas" and
 `docs/xs-heap-playbook.md` for the current trick inventory.
+
+## Rule 5 — Commits and merging (carried from the monorepo at graduation)
+
+Conventional Commits with a **mandatory area scope** — the full convention
+with examples lives in [CONTRIBUTING.md](./CONTRIBUTING.md) "Commit
+conventions". The parts that get bounced when skipped:
+
+- `<type>(<scope>): <subject>` — scope names the AREA (`runtime`, `flow`,
+  `build`, `lower`, `docs`, `handbook`, `site`, `examples`, `templates`,
+  `tests`, `ci`, `repo`), never bare `feat: …` and never the package name
+  (post-graduation `pebble-signals` as a scope carries zero information).
+- Imperative mood, lowercase, no trailing period, header ≤ 72 chars; body
+  explains the WHY (constraint, measurement, rejected alternative) — never a
+  restatement of the diff. One commit = one reason.
+- AI-assisted commits add a `Co-Authored-By:` trailer.
+- **Merging is always a real merge commit** — never squash, never
+  rebase-merge. Per-commit history is the record of how the work was built;
+  squashing on `main` destroys it irreversibly. The only exception is the
+  repo owner explicitly asking for a squash on that specific PR.

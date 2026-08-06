@@ -239,6 +239,10 @@ maintainer, put your entry in the PR description and say so.
   gates, attach the receipts; if you could not, say which ones you skipped and
   why.
 - **New behavior comes with a test that would fail without it.**
+- **PRs merge with a real merge commit — never squash, never rebase-merge.**
+  Per-commit history is the record of how the work was built; squashing on
+  `main` destroys it irreversibly. (Only the maintainer explicitly asking for
+  a squash on a specific PR overrides this.)
 - Expect review latency measured in days, not hours. One maintainer.
 
 ## Reporting issues
