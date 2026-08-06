@@ -33,8 +33,8 @@ no work inside this repo can advance). New work starts a new list.
 - [ ] **First live run of `release.yml`.** The OIDC trusted-publishing
       pipeline (npm trust configured 2026-08-06, provenance automatic,
       tag-must-match-package.json gate) has never cut a real release —
-      0.1.0 was a manual bootstrap publish. The next natural version bump is
-      the end-to-end test.
+      0.1.0-0.1.2 were manual publishes (bootstrap, then a GitHub Actions
+      outage). The next natural version bump is the end-to-end test.
 - [ ] **Hardware receipts.** The README's own headline caveat: every number
       and screenshot is QEMU-measured; there are no on-watch receipts yet.
       Needs a Pebble Time 2 (emery) / Pebble Round 2 (gabbro) in hand. First

@@ -11,6 +11,14 @@ Releases publish to npm via the `release.yml` trusted-publishing workflow
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-06
+
+Store-audit release: everything the Sloth appstore submission taught us,
+shipped to the registry. Published manually again (GitHub Actions outage
+persisted); the `release.yml` pipeline's first live run is still owed.
+Nothing for existing projects to do — rebuilt `.pbw`s lose the source map
+automatically, and the scaffold fixes affect new scaffolds only.
+
 ### Fixed
 - **The scaffold no longer stamps `"MakeAwesomeHappen"` or a `dummy`
   messageKey.** Both were SDK-era template placeholders that would have gone
