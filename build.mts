@@ -1442,6 +1442,26 @@ try {
 	throw e; // pebble itself failed and already printed why (stdio: inherit)
 }
 
+// ---- strip the pkjs source map from the .pbw -------------------------------
+// The SDK's webpack embeds sourcesContent INCLUDING its own shim's ABSOLUTE
+// path (/Users/<name>/Library/.../Pebble SDK/...), so every .pbw ships the
+// build machine's username — and the appstore archives uploads to archive.org
+// permanently (found auditing the slothvec store upload, 2026-08-06). The
+// watch never reads the map; deleting it is pure win. `zip -d` errors if the
+// entry is absent, so probe the listing first.
+for (const f of readdirSync("build")) {
+	if (!f.endsWith(".pbw")) continue;
+	const pbw = join("build", f);
+	const listing = execFileSync("zip", ["-sf", pbw]).toString();
+	const maps = listing
+		.split("\n")
+		.map((l) => l.trim())
+		.filter((l) => l.endsWith(".js.map"));
+	if (maps.length === 0) continue;
+	execFileSync("zip", ["-d", pbw, ...maps], { stdio: "ignore" });
+	err(`build: stripped ${maps.join(", ")} from ${pbw} (source maps embed the build machine's paths)`);
+}
+
 // ---- symbol budget report (the boot-floor currency) ------------------------
 // Every archive symbol interns at boot; new-to-host ones cost a slot each
 // (playbook "The boot floor"). Print the count so a symbol regression is

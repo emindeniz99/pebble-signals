@@ -11,6 +11,15 @@ Releases publish to npm via the `release.yml` trusted-publishing workflow
 
 ## [Unreleased]
 
+### Fixed
+- **`.pbw` no longer ships the pkjs source map.** The SDK's webpack embeds
+  `sourcesContent` including its own shim's ABSOLUTE path
+  (`/Users/<name>/Library/.../Pebble SDK/...`), so every built `.pbw` carried
+  the build machine's username — and the Pebble appstore archives uploads to
+  archive.org permanently. Found auditing the slothvec store upload. The
+  build now strips `*.js.map` from the `.pbw` after `pebble build` (the watch
+  never reads it; ~32KB smaller too) and says so in the build output.
+
 ## [0.1.1] - 2026-08-06
 
 Scaffold repair release: 0.1.0's `create-pebble-signals` could neither
