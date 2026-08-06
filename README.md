@@ -15,7 +15,7 @@ VDOM — running ON the watch inside its 32 KB JavaScript heap.**
 > appstore, built from [`faces/slothvec`](faces/slothvec) with this library:
 > registry scaffold → `npm run build` → store `.pbw`.
 
-> **Status: pre-1.0 (`0.1.0`), single maintainer.** Every number and screenshot
+> **Status: pre-1.0 (`0.1.1`), single maintainer.** Every number and screenshot
 > below is measured or captured on the SDK 4.17 **QEMU emulators** — gabbro
 > (Pebble Round 2, round 260×260) and emery (Pebble Time 2, rect 200×228).
 > There are no hardware receipts yet, and we would rather say so than imply
@@ -115,13 +115,12 @@ npx -p pebble-signals create-pebble-signals my-watch
 cd my-watch && npm install && npm run build
 ```
 
-> **Honest caveat:** 0.1.0 publishes to npm alongside this repo's launch. If
-> the commands above 404, the publish has not landed yet — the equivalent from
-> a checkout is `node tools/create-app.mts my-watch` for the scaffold plus
-> `npm pack` here for the tarball to install by path, and
-> `pnpm run test:consumer` gates that pack → install → typecheck path on every
-> commit. Full exports map, upgrade rules and a worked consumer project:
-> [packaging & consuming](docs/packaging.md).
+> The package is [live on npm](https://www.npmjs.com/package/pebble-signals)
+> (0.1.1 — use it, not 0.1.0, whose scaffold shipped broken). The
+> registry-scaffold → install → build → `.pbw` path is exercised end-to-end
+> (the appstore Sloth is its receipt), and `pnpm run test:consumer` gates the
+> pack → install → typecheck path on every commit. Full exports map, upgrade
+> rules and a worked consumer project: [packaging & consuming](docs/packaging.md).
 
 You also need the Pebble tool v5 + SDK 4.17 with the QEMU emulators and Node ≥ 24
 — setup steps in [getting started](docs/getting-started.md).
