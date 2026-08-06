@@ -30,9 +30,14 @@ const TEMPLATE_DIR = join(PKG, "templates", "app");
 
 const { values: cli, positionals } = parseArgs({
 	args: process.argv.slice(2),
-	options: { name: { type: "string" } },
+	options: { name: { type: "string" }, help: { type: "boolean" } },
 	allowPositionals: true,
 });
+
+if (cli.help) {
+	process.stdout.write("usage: create-pebble-signals <dir> [--name <appName>]\n");
+	process.exit(0);
+}
 
 const targetArg = positionals[0];
 if (!targetArg) {
@@ -118,7 +123,11 @@ if (packageName !== displayName)
 	console.log(`  (npm package name normalized to "${packageName}"; displayName kept verbatim)\n`);
 console.log("Next steps:");
 console.log(`  cd ${targetArg}`);
-console.log("  npm install pebble-signals typescript esbuild @moddable/pebbleproxy");
+// One package: typescript + esbuild are peerDependencies (npm 7+ installs them
+// at the TESTED versions) and @moddable/pebbleproxy is a regular dependency.
+// Listing them explicitly made `npm install typescript` grab a MAJOR the build
+// tools aren't verified against (TS 7 broke the lowering tool's API use).
+console.log("  npm install pebble-signals");
 // `npm run build` — NOT `pnpm run build`: the advertised entry point is
 // `npx create-pebble-signals`, and printing a pnpm command on a machine that only
 // has npm failed with "pnpm: command not found" one step after a successful

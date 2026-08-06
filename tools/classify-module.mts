@@ -17,7 +17,13 @@
 //
 // Usage (CLI): node tools/classify-module.mts <file.tsx|ts>   -> prints verdict
 import { readFileSync } from "node:fs";
-import ts from "typescript";
+import type * as TsNS from "typescript";
+import { loadPeer } from "./load-peer.mts";
+
+// typescript is a peerDependency — dynamic + guarded so a peers-skipping
+// install fails loud with the fix named instead of an ESM linker stack
+// (see tools/load-peer.mts).
+const ts = await loadPeer<typeof import("typescript")>("typescript");
 
 export interface Verdict {
 	pure: boolean;
@@ -35,9 +41,9 @@ export function classify(src: string): Verdict {
 	const reasons: string[] = [];
 
 	// does an expression, evaluated now, cause a runtime side effect?
-	const hasSideEffect = (node: ts.Node): boolean => {
+	const hasSideEffect = (node: TsNS.Node): boolean => {
 		let found = false;
-		const scan = (n: ts.Node): void => {
+		const scan = (n: TsNS.Node): void => {
 			if (found) return;
 			// a call or construction at module-eval time is a side effect — a
 			// TAGGED template (`makeStyle\`…\``) is a call in disguise, its tag
@@ -71,7 +77,7 @@ export function classify(src: string): Verdict {
 		return found;
 	};
 
-	const check = (stmt: ts.Statement): void => {
+	const check = (stmt: TsNS.Statement): void => {
 		// a CLASS declaration is pure — EXCEPT its static initializers/blocks,
 		// which run at module evaluation exactly like top-level code: a
 		// `static skin = new Skin(...)` would promote host construction into a

@@ -20,7 +20,8 @@ by `create-pebble-signals`.
 ## Build & run
 
 ```sh
-npm install pebble-signals typescript esbuild @moddable/pebbleproxy
+npm install pebble-signals   # typescript + esbuild arrive as peerDependencies,
+                             # @moddable/pebbleproxy as a regular dependency
 npm run build            # = node node_modules/pebble-signals/dist/build.mjs --app main
 pebble install --emulator gabbro
 ```

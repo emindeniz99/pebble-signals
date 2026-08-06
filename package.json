@@ -55,6 +55,10 @@
  "dependencies": {
   "@moddable/pebbleproxy": "^0.1.8"
  },
+ "peerDependencies": {
+  "esbuild": "^0.28.1",
+  "typescript": "^6.0"
+ },
  "packageManager": "pnpm@11.10.0",
  "engines": {
   "node": ">=24",

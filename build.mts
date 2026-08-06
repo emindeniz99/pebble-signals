@@ -3,8 +3,11 @@
 // src/embeddedjs/runtime-min (the manifest ships THAT copy — the mod archive
 // has a hard ~15.9KB startup ceiling, handbook gotcha 15, and minifying
 // module-scope identifiers buys back ~370B of it), then run the Pebble build.
-// No npm RUNTIME dependencies; tsc + esbuild come from devDeps. esbuild is a
-// hard requirement (static import — a missing install fails loud at load);
+// No npm RUNTIME dependencies; tsc + esbuild are peerDependencies the consumer's
+// package manager installs alongside pebble-signals (npm 7+/pnpm 8+ auto-install
+// peers). esbuild is a hard requirement — loaded via the guarded dynamic import
+// below so an install that skipped the peers fails loud WITH the fix named,
+// instead of dying in the ESM linker with a bare ERR_MODULE_NOT_FOUND;
 // the tryEsbuild fallback below only covers esbuild ERRORING on a file, in
 // which case that file ships unminified (correctness identical).
 //
@@ -67,12 +70,17 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import * as esbuild from "esbuild";
 import { classify } from "./tools/classify-module.mts";
 import { isHostSpecifier, relativeClosure } from "./tools/treeshake.mts";
 import { packageRoot } from "./tools/pkg-root.mts";
 import { renameRuntimeExports } from "./tools/symbol-rename.mts";
 import { maskStrings, stripComments } from "./tools/gen-manifest.mts";
+import { loadPeer } from "./tools/load-peer.mts";
+
+// esbuild is a peerDependency — see tools/load-peer.mts for why it must be
+// loaded dynamically (a static import dies in the ESM linker, unguardably,
+// when a consumer skipped the peers).
+const esbuild = await loadPeer<typeof import("esbuild")>("esbuild");
 
 // PACKAGE root (where pebble-signals lives — the repo itself, or
 // node_modules/pebble-signals inside a consumer project) vs PROJECT root (the app
@@ -146,7 +154,7 @@ const TSC = [join(PKG, "node_modules", ".bin", "tsc"), join(PROJ, "node_modules"
 const run = (cmd: string, args: string[]) => execFileSync(cmd, args, { stdio: "inherit" });
 // esbuild via its JS API, with a fallback: return false instead of throwing so a
 // missing/erroring esbuild can degrade to a verbatim copy (build.sh's `|| cp`).
-const tryEsbuild = (opts: esbuild.BuildOptions): boolean => {
+const tryEsbuild = (opts: import("esbuild").BuildOptions): boolean => {
 	try {
 		esbuild.buildSync({ logLevel: "error", ...opts });
 		return true;

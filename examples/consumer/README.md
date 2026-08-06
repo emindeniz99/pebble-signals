@@ -29,7 +29,7 @@ For the full device path (needs the Pebble SDK + emulator):
 
 ```sh
 cd examples/consumer
-npm install --no-save <path-to>/pebble-signals-1.0.0.tgz typescript esbuild @moddable/pebbleproxy
+npm install --no-save <path-to>/pebble-signals-1.0.0.tgz
 npm run build            # = node node_modules/pebble-signals/dist/build.mjs --app main
 pebble install --emulator gabbro
 ```

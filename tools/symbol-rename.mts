@@ -21,7 +21,12 @@
 // identifier, is ruled out per build: a candidate is skipped if its name
 // appears as a token anywhere in the shipped bundle.
 import { readFileSync, writeFileSync } from "node:fs";
-import ts from "typescript";
+import { loadPeer } from "./load-peer.mts";
+
+// typescript is a peerDependency — dynamic + guarded so a peers-skipping
+// install fails loud with the fix named instead of an ESM linker stack
+// (see tools/load-peer.mts).
+const ts = await loadPeer<typeof import("typescript")>("typescript");
 
 // Host-interned names (verified in the gabbro/emery 4.17 host key table via
 // tools/host-symbols.py) that no UI app references — obscure Pico/Commodetto

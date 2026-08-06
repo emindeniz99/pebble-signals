@@ -111,8 +111,13 @@ the QEMU emulator). The flow:
    installed, `node node_modules/pebble-signals/dist/tools/create-app.mjs
    my-watch`. In-repo, `node tools/create-app.mts my-watch` runs the same
    scaffold from source.
-2. `npm install pebble-signals typescript esbuild` (tarball or registry once
-   published; tsc + esbuild are the build's tools, brought by the consumer).
+2. `npm install pebble-signals` (tarball or registry once published). tsc +
+   esbuild are the build's tools, declared as `peerDependencies` at the tested
+   ranges (`typescript@^6.0`, `esbuild@^0.28.1`) — npm 7+/pnpm 8+ install them
+   automatically. On a `--legacy-peer-deps` setup add them explicitly AT those
+   ranges (a bare `npm install typescript` grabs TS 7, which the lowering tool
+   is not verified against). A missing esbuild fails the build loud, naming
+   this step.
 3. Author `src/tsx/examples/<app>.tsx` with DEVICE specifiers
    (`import { render } from "runtime/jsx-runtime"` — the mod manifest maps
    `runtime/*` on the watch). Editor/typecheck resolves the same names into

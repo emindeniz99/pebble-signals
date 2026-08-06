@@ -20,6 +20,23 @@ No registry releases yet; entries accumulate under Unreleased until the first
   the `node_modules/pebble-signals/...` tsconfig paths and the skill folder
   (`skills/pebble-signals-watchface/`) follow. Dated decision-log docs keep
   the old name in historical narration, annotated at first mention.
+- **`esbuild` + `typescript` declared as `peerDependencies`** at the tested
+  ranges (`^0.28.1` / `^6.0`). They were always required by the consumer build
+  flow — the scaffold's "Next steps" and docs/packaging.md step 2 said to
+  install them by hand — but the manifest never declared it, so npm couldn't
+  auto-install them and a peers-skipping install died in the ESM linker.
+  `build.mjs`'s graph now loads BOTH peers via a guarded dynamic import
+  (`tools/load-peer.mts` — esbuild in the orchestrator, typescript in
+  classify-module/symbol-rename): a missing install fails loud naming the
+  fix, verified end-to-end on a `--legacy-peer-deps` install of the real
+  tarball. The ranges are carets, not floors,
+  because it's measured, not caution: TypeScript 7.0.2 breaks the packaged
+  lowering tool (`ts.ScriptTarget` is gone from its default-import surface) —
+  caught by `test:consumer` the moment peers made the consumer resolve its
+  OWN typescript instead of walking up into the repo's. TS-7 compat is a
+  future pass. The scaffold's "Next steps" now says plain
+  `npm install pebble-signals` (peers arrive automatically at tested
+  versions). `create-pebble-signals` also accepts `--help`.
 
 ### Added
 - **Polish sprint (7 parallel implementations + review pass, 2026-07-31).**
