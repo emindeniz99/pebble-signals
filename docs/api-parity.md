@@ -1,13 +1,13 @@
-# API parity — React / Preact / Solid vs signal-piu
+# API parity — React / Preact / Solid vs pebble-signals
 
-signal-piu is **Solid-flavored, not React-flavored**: components run ONCE (no
+pebble-signals is **Solid-flavored, not React-flavored**: components run ONCE (no
 re-render), you read state by CALLING a getter (`count()`), and reactive values
 are passed as thunks (`() => …`). So "hook parity" means *behavioral* parity
 with Solid's primitives, not identical signatures to React's.
 
 ## What we have
 
-| Primitive | signal-piu | Closest in… | Notes |
+| Primitive | pebble-signals | Closest in… | Notes |
 |---|---|---|---|
 | reactive value | `signal(v)` → `{value}` · packed `S.sig` | Solid `createSignal`, Preact `signal` | `.value` get/set; lowered to integer id at build |
 | derived value | `computed(fn)` / `useMemo(fn)` | Solid `createMemo`, React `useMemo` | allocates one internal effect (see below) |

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / useState
+[pebble-signals](../../README.md) / [signals](../README.md) / useState
 
 # Function: useState()
 
 > **useState**\<`T`\>(`init`): \[() => `T`, (`v`) => `void`\]
 
-Defined in: signals.ts:895
+Defined in: [signals.ts:895](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L895)
 
 React-style state, Solid semantics: returns `[getter, setter]` where the
 getter is a CALL — `count()`, not `count`. The setter takes a value or a

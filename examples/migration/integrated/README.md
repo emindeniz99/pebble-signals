@@ -4,13 +4,13 @@ The **after** half of the migration story in
 [`docs/migration.md`](../../../docs/migration.md) — the exact same app as
 [`../original/`](../original/) (a stock Pebble C project: counter screen +
 SELECT-pushed detail screen, BACK pops it), rebuilt on
-[signal-piu](https://www.npmjs.com/package/signal-piu). Same `uuid` and
+[pebble-signals](https://www.npmjs.com/package/pebble-signals). Same `uuid` and
 `displayName` as `../original/package.json` — this is a migration, not a new
 app.
 
 ## What changed vs. `../original/`
 
-| | original (stock C) | integrated (signal-piu) |
+| | original (stock C) | integrated (pebble-signals) |
 |---|---|---|
 | `pebble.projectType` | (unset → native) | `"moddable"` |
 | `pebble.enableMultiJS` | unset | `true` |
@@ -28,15 +28,15 @@ app.
 | `wscript`, `src/c/mdbl.c` | Pebble build glue + XS machine bootstrap |
 | `src/embeddedjs/manifest.base.json` | mod manifest (maps `runtime/*`) |
 | `tsconfig.json` | DEVICE transpile (src/tsx → src/embeddedjs/app, noCheck) |
-| `tsconfig.check.json` | STRICT typecheck against the installed `signal-piu` package |
+| `tsconfig.check.json` | STRICT typecheck against the installed `pebble-signals` package |
 | `src/tsx/examples/main.tsx` | the ported app — counter + detail screen via `<Navigator>` |
 | `src/pkjs/index.js` | phone-side fetch proxy glue |
 
 ## Build & run
 
 ```sh
-npm install --no-save <path-to>/signal-piu-1.0.0.tgz typescript@6 esbuild@0.28 @moddable/pebbleproxy
-node node_modules/signal-piu/dist/build.mjs --app main --no-check-c
+npm install --no-save <path-to>/pebble-signals-1.0.0.tgz typescript@6 esbuild@0.28 @moddable/pebbleproxy
+node node_modules/pebble-signals/dist/build.mjs --app main --no-check-c
 pebble install --emulator gabbro
 ```
 

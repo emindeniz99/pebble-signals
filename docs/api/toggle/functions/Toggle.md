@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [toggle](../README.md) / Toggle
+[pebble-signals](../../README.md) / [toggle](../README.md) / Toggle
 
 # Function: Toggle()
 
 > **Toggle**(`props`): `Content`
 
-Defined in: toggle.ts:59
+Defined in: [toggle.ts:59](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/toggle.ts#L59)
 
 Toggle — a reactive on/off pill with a sliding knob, on ONE Piu Port.
 

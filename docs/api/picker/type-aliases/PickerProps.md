@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [picker](../README.md) / PickerProps
+[pebble-signals](../../README.md) / [picker](../README.md) / PickerProps
 
 # Type Alias: PickerProps
 
 > **PickerProps** = `object`
 
-Defined in: picker.ts:69
+Defined in: [picker.ts:69](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/picker.ts#L69)
 
 Props for [Picker](../functions/Picker.md).
 
@@ -18,7 +18,7 @@ Props for [Picker](../functions/Picker.md).
 
 > `optional` **activeColor?**: `Color`
 
-Defined in: picker.ts:81
+Defined in: [picker.ts:81](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/picker.ts#L81)
 
 Current (centered) text color. Defaults to `"white"`.
 
@@ -28,7 +28,7 @@ Current (centered) text color. Defaults to `"white"`.
 
 > `optional` **color?**: `Color`
 
-Defined in: picker.ts:79
+Defined in: [picker.ts:79](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/picker.ts#L79)
 
 Faded neighbor (prev/next) text color. Defaults to `"#808080"`.
 
@@ -38,7 +38,7 @@ Faded neighbor (prev/next) text color. Defaults to `"#808080"`.
 
 > `optional` **font?**: `string`
 
-Defined in: picker.ts:83
+Defined in: [picker.ts:83](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/picker.ts#L83)
 
 Current row font — a valid Pebble system font key. Defaults to `"24px Gothic"`.
 
@@ -48,7 +48,7 @@ Current row font — a valid Pebble system font key. Defaults to `"24px Gothic"`
 
 > `optional` **height?**: `number`
 
-Defined in: picker.ts:77
+Defined in: [picker.ts:77](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/picker.ts#L77)
 
 Picker height in px (the 3 rows split it evenly). Defaults to 96.
 
@@ -58,7 +58,7 @@ Picker height in px (the 3 rows split it evenly). Defaults to 96.
 
 > **options**: `string`[]
 
-Defined in: picker.ts:71
+Defined in: [picker.ts:71](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/picker.ts#L71)
 
 The option strings, in list order. The Picker shows a sliding 3-row window onto them.
 
@@ -68,7 +68,7 @@ The option strings, in list order. The Picker shows a sliding 3-row window onto 
 
 > **selected**: `number` \| (() => `number`)
 
-Defined in: picker.ts:73
+Defined in: [picker.ts:73](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/picker.ts#L73)
 
 The centered (current) option's index — an INTEGER. A thunk (`() => i`) makes it reactive; a bare number is static. Clamped to `[0, options.length-1]`.
 
@@ -78,7 +78,7 @@ The centered (current) option's index — an INTEGER. A thunk (`() => i`) makes 
 
 > `optional` **sideFont?**: `string`
 
-Defined in: picker.ts:85
+Defined in: [picker.ts:85](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/picker.ts#L85)
 
 Neighbor rows font — a valid Pebble system font key. Defaults to `"18px Gothic"`.
 
@@ -88,7 +88,7 @@ Neighbor rows font — a valid Pebble system font key. Defaults to `"18px Gothic
 
 > `optional` **width?**: `number`
 
-Defined in: picker.ts:75
+Defined in: [picker.ts:75](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/picker.ts#L75)
 
 Picker width in px. Defaults to the screen width (a width-less Column measures 0 — gotcha 16).
 
@@ -98,6 +98,6 @@ Picker width in px. Defaults to the screen width (a width-less Column measures 0
 
 > `optional` **wrap?**: `boolean`
 
-Defined in: picker.ts:87
+Defined in: [picker.ts:87](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/picker.ts#L87)
 
 Carousel wrap: `true` makes the list circular (last↔first neighbors); `false` leaves out-of-range neighbors blank. Defaults to `false`.

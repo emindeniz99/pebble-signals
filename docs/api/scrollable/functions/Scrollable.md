@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [scrollable](../README.md) / Scrollable
+[pebble-signals](../../README.md) / [scrollable](../README.md) / Scrollable
 
 # Function: Scrollable()
 
 > **Scrollable**(`props`): `Content`
 
-Defined in: scrollable.ts:163
+Defined in: [scrollable.ts:163](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/scrollable.ts#L163)
 
 Scrollable — a free-form scrolling viewport for ARBITRARY content: RN's
 <ScrollView> on a watch. DISPLAY-ONLY — the app owns the scroll position and

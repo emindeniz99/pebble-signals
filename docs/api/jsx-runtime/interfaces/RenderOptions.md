@@ -1,12 +1,12 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [jsx-runtime](../README.md) / RenderOptions
+[pebble-signals](../../README.md) / [jsx-runtime](../README.md) / RenderOptions
 
 # Interface: RenderOptions
 
-Defined in: jsx-runtime.ts:435
+Defined in: [jsx-runtime.ts:435](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L435)
 
 Options for [render](../functions/render.md).
 
@@ -16,7 +16,7 @@ Options for [render](../functions/render.md).
 
 > `optional` **boundary?**: `boolean`
 
-Defined in: jsx-runtime.ts:445
+Defined in: [jsx-runtime.ts:445](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L445)
 
 Top-level error boundary (default ON). `true`/omitted: an escaped
 reactive or build error disposes the whole tree and paints a crash

@@ -1,5 +1,9 @@
 # Design journey — why signal-piu is the way it is
 
+> **Naming note:** signal-piu was renamed **pebble-signals** (2026-08-06,
+> ahead of the first npm publish). This dated decision log keeps the original
+> name in its narration.
+
 > This is also the **comparison-to-alternatives** page: the options table
 > below covers React/VDOM ports, compile-time reactivity (react-pebble) and
 > hand-written Piu; the measured react-pebble head-to-head lives in the
@@ -28,7 +32,7 @@ scene graph) via **Alloy** — with a React-ish authoring experience — inside
 | **React + react-reconciler** | Custom host renderer under real React | React + reconciler + fiber is 100s of KB and assumes a GC-generous heap. DOA at 32KB. |
 | **Preact** | 3KB React-like with a VDOM | Smaller, but still a **VDOM**: keeps a virtual tree in RAM and diffs it every update. On 32KB the second tree IS the budget. Also assumes browser globals. |
 | **Any VDOM** | Diff a virtual tree → patch | Two costs we can't pay: the retained virtual tree (RAM) and the per-update diff (transient allocation exactly when the arena is fullest). |
-| **react-pebble** (the sibling project) | Resolve reactivity at **compile time** (Node perturbation-diff), emit static Piu | Brilliant for watchfaces — **zero JS on the watch**, immune to the 32KB arena. But it can only emit *precompiled variants*; it cannot build a tree whose shape depends on runtime data (a list of N rows from a store). That's exactly what we needed. |
+| **[react-pebble](https://github.com/eddiemoore/react-pebble)** (third-party) | Resolve reactivity at **compile time** (Node perturbation-diff), emit static Piu | Brilliant for watchfaces — **zero JS on the watch**, immune to the 32KB arena. But it can only emit *precompiled variants*; it cannot build a tree whose shape depends on runtime data (a list of N rows from a store). That's exactly what we needed. |
 | **MobX** | Proxy-based observables | `Proxy` traps + the observable graph are heap-heavy; XS supports Proxy but it's the wrong tool at 32KB. |
 | **SolidJS directly** | Fine-grained signals, no VDOM, compile-time JSX | The *model* is exactly right (see below) — but Solid's compiler (`babel-plugin-jsx-dom-expressions`) targets the **DOM** and assumes browser primitives. We couldn't reuse it; we had to build our own JSX runtime + Piu bindings + a lowering pass. |
 | **Signals / fine-grained reactivity (the Solid MODEL, our own impl)** | Components run ONCE; reactive reads subscribe; updates flow to individual property writes; NO VDOM | **CHOSEN.** No virtual tree (RAM), no diff (transient allocation). An update is one effect run + one Piu property write. Runtime-dynamic structure via `Show`/`For`/`Navigator`. Fits 32KB. |

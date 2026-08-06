@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [jsx-runtime](../README.md) / ErrorBoundary
+[pebble-signals](../../README.md) / [jsx-runtime](../README.md) / ErrorBoundary
 
 # Function: ErrorBoundary()
 
 > **ErrorBoundary**(`props`): `Container`
 
-Defined in: jsx-runtime.ts:542
+Defined in: [jsx-runtime.ts:542](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L542)
 
 ErrorBoundary({ children, fallback }) — Solid's per-subtree boundary, on a
 watch. `children` is a thunk (like Show); `fallback(err, reset)` renders

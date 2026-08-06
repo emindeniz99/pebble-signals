@@ -1,12 +1,12 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [fetch](../README.md) / FetchResponse
+[pebble-signals](../../README.md) / [fetch](../README.md) / FetchResponse
 
 # Interface: FetchResponse
 
-Defined in: fetch.ts:79
+Defined in: [fetch.ts:79](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/fetch.ts#L79)
 
 The subset of the host `fetch` [Response](https://developer.repebble.com)
 that a [useFetch](../functions/useFetch.md) `parse` callback reads — a faithful view of the shipped
@@ -22,7 +22,7 @@ to `any` here; this is a TYPE only and erases at emit.
 
 > `readonly` **ok**: `boolean`
 
-Defined in: fetch.ts:87
+Defined in: [fetch.ts:87](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/fetch.ts#L87)
 
 True for a 2xx status.
 
@@ -32,7 +32,7 @@ True for a 2xx status.
 
 > `readonly` **status**: `number`
 
-Defined in: fetch.ts:89
+Defined in: [fetch.ts:89](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/fetch.ts#L89)
 
 HTTP status code (e.g. 200, 404).
 
@@ -42,7 +42,7 @@ HTTP status code (e.g. 200, 404).
 
 > `readonly` **statusText**: `string`
 
-Defined in: fetch.ts:91
+Defined in: [fetch.ts:91](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/fetch.ts#L91)
 
 HTTP status text (e.g. "OK").
 
@@ -52,7 +52,7 @@ HTTP status text (e.g. "OK").
 
 > **arrayBuffer**(): `Promise`\<`ArrayBuffer`\>
 
-Defined in: fetch.ts:85
+Defined in: [fetch.ts:85](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/fetch.ts#L85)
 
 Read the body as raw bytes.
 
@@ -66,7 +66,7 @@ Read the body as raw bytes.
 
 > **json**(): `Promise`\<`unknown`\>
 
-Defined in: fetch.ts:81
+Defined in: [fetch.ts:81](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/fetch.ts#L81)
 
 Parse the body as JSON — the DEFAULT [useFetch](../functions/useFetch.md) parser.
 
@@ -80,7 +80,7 @@ Parse the body as JSON — the DEFAULT [useFetch](../functions/useFetch.md) pars
 
 > **text**(): `Promise`\<`string`\>
 
-Defined in: fetch.ts:83
+Defined in: [fetch.ts:83](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/fetch.ts#L83)
 
 Read the body as a UTF-8 string.
 

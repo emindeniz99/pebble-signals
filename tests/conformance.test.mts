@@ -1,6 +1,6 @@
 // Reactivity conformance suite — PROVE the semantics.
 //
-// signal-piu is Solid-flavored (fine-grained, components-run-once). This suite
+// pebble-signals is Solid-flavored (fine-grained, components-run-once). This suite
 // runs OUR runtime through the canonical fine-grained-reactivity laws and, for
 // each, records how Solid / Preact-signals / React behave so the parity claim
 // is CHECKED, not asserted in prose. Where we DIVERGE (notably glitch-freedom),

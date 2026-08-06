@@ -1,12 +1,12 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [jsx-runtime](../README.md) / ErrorBoundaryProps
+[pebble-signals](../../README.md) / [jsx-runtime](../README.md) / ErrorBoundaryProps
 
 # Interface: ErrorBoundaryProps
 
-Defined in: jsx-runtime.ts:503
+Defined in: [jsx-runtime.ts:503](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L503)
 
 Props for [ErrorBoundary](../functions/ErrorBoundary.md). Box coordinates size the host (like Show).
 
@@ -16,7 +16,7 @@ Props for [ErrorBoundary](../functions/ErrorBoundary.md). Box coordinates size t
 
 > `optional` **bottom?**: `number`
 
-Defined in: jsx-runtime.ts:509
+Defined in: [jsx-runtime.ts:509](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L509)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: jsx-runtime.ts:509
 
 > **children**: () => [`JSXNode`](../type-aliases/JSXNode.md)
 
-Defined in: jsx-runtime.ts:513
+Defined in: [jsx-runtime.ts:513](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L513)
 
 the subtree to protect — a thunk returning nodes (like Show's children).
 
@@ -38,7 +38,7 @@ the subtree to protect — a thunk returning nodes (like Show's children).
 
 > **fallback**: (`err`, `reset`) => [`JSXNode`](../type-aliases/JSXNode.md)
 
-Defined in: jsx-runtime.ts:515
+Defined in: [jsx-runtime.ts:515](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L515)
 
 shown when the subtree throws; `reset` re-runs `children` under a fresh root.
 
@@ -62,7 +62,7 @@ shown when the subtree throws; `reset` re-runs `children` under a fresh root.
 
 > `optional` **height?**: `number`
 
-Defined in: jsx-runtime.ts:505
+Defined in: [jsx-runtime.ts:505](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L505)
 
 ***
 
@@ -70,7 +70,7 @@ Defined in: jsx-runtime.ts:505
 
 > `optional` **left?**: `number`
 
-Defined in: jsx-runtime.ts:506
+Defined in: [jsx-runtime.ts:506](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L506)
 
 ***
 
@@ -78,7 +78,7 @@ Defined in: jsx-runtime.ts:506
 
 > `optional` **right?**: `number`
 
-Defined in: jsx-runtime.ts:507
+Defined in: [jsx-runtime.ts:507](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L507)
 
 ***
 
@@ -86,7 +86,7 @@ Defined in: jsx-runtime.ts:507
 
 > `optional` **skin?**: `Skin` \| `SkinDictionary`
 
-Defined in: jsx-runtime.ts:510
+Defined in: [jsx-runtime.ts:510](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L510)
 
 ***
 
@@ -94,7 +94,7 @@ Defined in: jsx-runtime.ts:510
 
 > `optional` **style?**: `Style` \| `StyleDictionary`
 
-Defined in: jsx-runtime.ts:511
+Defined in: [jsx-runtime.ts:511](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L511)
 
 ***
 
@@ -102,7 +102,7 @@ Defined in: jsx-runtime.ts:511
 
 > `optional` **top?**: `number`
 
-Defined in: jsx-runtime.ts:508
+Defined in: [jsx-runtime.ts:508](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L508)
 
 ***
 
@@ -110,4 +110,4 @@ Defined in: jsx-runtime.ts:508
 
 > `optional` **width?**: `number`
 
-Defined in: jsx-runtime.ts:504
+Defined in: [jsx-runtime.ts:504](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L504)

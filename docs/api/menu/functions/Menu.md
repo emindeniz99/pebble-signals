@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [menu](../README.md) / Menu
+[pebble-signals](../../README.md) / [menu](../README.md) / Menu
 
 # Function: Menu()
 
 > **Menu**(`props`): `Content`
 
-Defined in: menu.ts:113
+Defined in: [menu.ts:113](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/menu.ts#L113)
 
 Menu — a reactive vertical scrolling, selectable list, display-only.
 

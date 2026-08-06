@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [jsx-runtime](../README.md) / jsxs
+[pebble-signals](../../README.md) / [jsx-runtime](../README.md) / jsxs
 
 # Variable: jsxs
 
 > `const` **jsxs**: (`type`, `props`, `key?`) => [`JSXNode`](../type-aliases/JSXNode.md) = `jsx`
 
-Defined in: jsx-runtime.ts:99
+Defined in: [jsx-runtime.ts:99](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L99)
 
 JSX factory for elements with static children (same behavior as [jsx](../functions/jsx.md)).
 

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [scrollable](../README.md) / ContentIndicator
+[pebble-signals](../../README.md) / [scrollable](../README.md) / ContentIndicator
 
 # Function: ContentIndicator()
 
 > **ContentIndicator**(`props`): `Content`
 
-Defined in: scrollable.ts:109
+Defined in: [scrollable.ts:109](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/scrollable.ts#L109)
 
 ContentIndicator — a one-line Label showing ONE chevron ("^" for up,
 "v" for down) while `show()` is true, else blank: Pebble's ContentIndicator,

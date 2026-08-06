@@ -1,8 +1,8 @@
-**signal-piu**
+**pebble-signals**
 
 ***
 
-# signal-piu
+# pebble-signals
 
 ## Modules
 

@@ -12,8 +12,8 @@
 // latter is a legitimate over-budget build, not a bug.
 //
 // Requires the Pebble SDK (invokes build.mts → `pebble build`), so it is a
-// device-adjacent smoke, not part of the SDK-free `ppnpm run verify`. Run:
-//   ppnpm run smoke:flags-off
+// device-adjacent smoke, not part of the SDK-free `pnpm run verify`. Run:
+//   pnpm run smoke:flags-off
 import { execFileSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";

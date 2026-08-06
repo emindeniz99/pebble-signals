@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [sectionlist](../README.md) / SectionList
+[pebble-signals](../../README.md) / [sectionlist](../README.md) / SectionList
 
 # Function: SectionList()
 
 > **SectionList**\<`H`, `R`\>(`props`): `Content`
 
-Defined in: sectionlist.ts:134
+Defined in: [sectionlist.ts:134](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/sectionlist.ts#L134)
 
 SectionList — a grouped list of section HEADERS + item ROWS over a recycled
 window: React Native's <SectionList> on a watch.

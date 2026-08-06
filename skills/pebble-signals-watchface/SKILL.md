@@ -1,11 +1,11 @@
 ---
-name: signal-piu-watchface
-description: Build, run and verify Pebble watchfaces/watchapps with signal-piu — Solid-style signals + JSX (no VDOM) on the Moddable XS/Piu "Alloy" stack. Use when the user asks to create or modify a Pebble watchface/app in a project that uses signal-piu, or asks to add signal-piu to a Pebble project. Covers the memory budgets, valid fonts, the read-syntax rules, the emulator verify loop, and the component catalog.
+name: pebble-signals-watchface
+description: Build, run and verify Pebble watchfaces/watchapps with pebble-signals — Solid-style signals + JSX (no VDOM) on the Moddable XS/Piu "Alloy" stack. Use when the user asks to create or modify a Pebble watchface/app in a project that uses pebble-signals, or asks to add pebble-signals to a Pebble project. Covers the memory budgets, valid fonts, the read-syntax rules, the emulator verify loop, and the component catalog.
 ---
 
-# Building Pebble apps with signal-piu
+# Building Pebble apps with pebble-signals
 
-signal-piu is a fine-grained reactive UI library for Pebble watches
+pebble-signals is a fine-grained reactive UI library for Pebble watches
 (gabbro = round 260×260, emery = rect 200×228) on the official Alloy stack
 (Moddable XS JS engine + Piu UI). Components run ONCE — there is no
 re-render, no VDOM: a reactive prop is a thunk (`string={() => count()}`)
@@ -28,7 +28,7 @@ lists NEVER materialize per-row nodes (see Lists below).
 ## Quickstart
 
 ```bash
-# inside a signal-piu checkout / consumer project
+# inside a pebble-signals checkout / consumer project
 APP=<name> node build.mts        # builds src/tsx/examples/<name>.tsx (or --app)
 tools/reset-emulator.sh gabbro   # hard-reset the emulator (do this per app)
 pebble install --emulator gabbro # FOREGROUND — piped/backgrounded installs lie

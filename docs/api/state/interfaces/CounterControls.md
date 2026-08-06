@@ -1,12 +1,12 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [state](../README.md) / CounterControls
+[pebble-signals](../../README.md) / [state](../README.md) / CounterControls
 
 # Interface: CounterControls
 
-Defined in: state.ts:87
+Defined in: [state.ts:87](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/state.ts#L87)
 
 The controls object — the second element of [useCounter](../functions/useCounter.md)'s tuple.
 
@@ -16,7 +16,7 @@ The controls object — the second element of [useCounter](../functions/useCount
 
 > **dec**: () => `void`
 
-Defined in: state.ts:91
+Defined in: [state.ts:91](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/state.ts#L91)
 
 Subtract `step`, clamped to `[min, max]`.
 
@@ -30,7 +30,7 @@ Subtract `step`, clamped to `[min, max]`.
 
 > **inc**: () => `void`
 
-Defined in: state.ts:89
+Defined in: [state.ts:89](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/state.ts#L89)
 
 Add `step`, clamped to `[min, max]`.
 
@@ -44,7 +44,7 @@ Add `step`, clamped to `[min, max]`.
 
 > **reset**: () => `void`
 
-Defined in: state.ts:93
+Defined in: [state.ts:93](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/state.ts#L93)
 
 Restore `clamp(initial)`.
 
@@ -58,7 +58,7 @@ Restore `clamp(initial)`.
 
 > **set**: (`n`) => `void`
 
-Defined in: state.ts:95
+Defined in: [state.ts:95](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/state.ts#L95)
 
 Set to `clamp(n)`.
 

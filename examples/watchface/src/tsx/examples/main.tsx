@@ -1,4 +1,4 @@
-// A REAL signal-piu WATCHFACE — scaffolded by `create-signal-piu`, built from
+// A REAL pebble-signals WATCHFACE — scaffolded by `create-pebble-signals`, built from
 // the installed npm package, `watchapp.watchface: true` in package.json (the
 // only difference from a watchapp: it lives in the watchface rotation, has no
 // launcher entry, and the system owns the buttons — BACK does not exit it).
@@ -31,7 +31,7 @@ render(
 			<Column>
 				<Label style={big} string={() => time()} />
 				<Label style={small} string={() => date()} />
-				<Label style={small} string="signal-piu" />
+				<Label style={small} string="pebble-signals" />
 			</Column>
 		</Container>
 	),

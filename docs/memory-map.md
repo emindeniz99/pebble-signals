@@ -3,7 +3,7 @@
 The companion to [`xs-heap-playbook.md`](xs-heap-playbook.md): the playbook
 is the *shrinking manual* for the 32KB XS arena; this file is the *map* —
 which memory spaces exist on a Moddable Pebble, what each is good for, which
-signal-piu feature uses which, and where a given kind of data SHOULD live.
+pebble-signals feature uses which, and where a given kind of data SHOULD live.
 All sizes are measured on gabbro/SDK 4.17 (see the playbook's partition
 table for the receipts) unless marked firmware/est.
 
@@ -56,7 +56,7 @@ PHONE ────────────────────────�
 | **PKJS localStorage** | cap unmeasured | Phone-side string KV | Overflow shelf for strings (memory ladder step 3) | Round-trip latency; needs the phone |
 | **Phone (PKJS)** | effectively unlimited | fetch/XHR/localStorage/geolocation in the phone sandbox | Everything heavy: network, parsing big JSON, caching | Only reachable via AppMessage; async |
 
-## Which signal-piu feature uses which space
+## Which pebble-signals feature uses which space
 
 | Feature | Slot heap | Chunk heap | Mod archive | Resources | Native heap | Persist/phone |
 |---|---|---|---|---|---|---|

@@ -1,12 +1,12 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [lifecycle](../README.md) / Wakeup
+[pebble-signals](../../README.md) / [lifecycle](../README.md) / Wakeup
 
 # Interface: Wakeup
 
-Defined in: lifecycle.ts:134
+Defined in: [lifecycle.ts:134](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/lifecycle.ts#L134)
 
 What [useWakeup](../functions/useWakeup.md) returns: the wakeup scheduler plus a reactive `last`.
 
@@ -16,7 +16,7 @@ What [useWakeup](../functions/useWakeup.md) returns: the wakeup scheduler plus a
 
 > **cancel**: (`id?`) => `void`
 
-Defined in: lifecycle.ts:146
+Defined in: [lifecycle.ts:146](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/lifecycle.ts#L146)
 
 Cancel ONE wakeup by id, or — called with NO argument — cancel ALL of them.
 
@@ -36,7 +36,7 @@ Cancel ONE wakeup by id, or — called with NO argument — cancel ALL of them.
 
 > **last**: () => [`WakeupInfo`](WakeupInfo.md) \| `undefined`
 
-Defined in: lifecycle.ts:152
+Defined in: [lifecycle.ts:152](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/lifecycle.ts#L152)
 
 The most recently FIRED wakeup as `{ id, cookie }`, or `undefined`. Seeded
 from `watch.wake` (the wakeup that launched the app, if any) and updated on
@@ -52,7 +52,7 @@ every "wakeup" event. REACTIVE — read inside a thunk / effect to repaint.
 
 > **query**: (`id`) => `unknown`
 
-Defined in: lifecycle.ts:144
+Defined in: [lifecycle.ts:144](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/lifecycle.ts#L144)
 
 Query a scheduled wakeup by id — the host `{ time, scheduled }` shape.
 
@@ -72,7 +72,7 @@ Query a scheduled wakeup by id — the host `{ time, scheduled }` shape.
 
 > **schedule**: (`time`, `cookie?`, `notifyIfMissed?`) => `number`
 
-Defined in: lifecycle.ts:142
+Defined in: [lifecycle.ts:142](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/lifecycle.ts#L142)
 
 Schedule a wakeup at `time` (JS epoch MS; the host converts to unix
 seconds). `cookie` (int32, default 0) is echoed back on the event;

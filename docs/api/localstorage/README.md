@@ -1,8 +1,8 @@
-[**signal-piu**](../README.md)
+[**pebble-signals**](../README.md)
 
 ***
 
-[signal-piu](../README.md) / localstorage
+[pebble-signals](../README.md) / localstorage
 
 # localstorage
 

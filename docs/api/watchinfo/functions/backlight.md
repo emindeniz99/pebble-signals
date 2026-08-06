@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [watchinfo](../README.md) / backlight
+[pebble-signals](../../README.md) / [watchinfo](../README.md) / backlight
 
 # Function: backlight()
 
 > **backlight**(`on?`): `void`
 
-Defined in: watchinfo.ts:177
+Defined in: [watchinfo.ts:177](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L177)
 
 Pulse or force the backlight — `watch.light` (`xs_global_light`,
 device-present per the hostprobe receipt 2026-07-29).

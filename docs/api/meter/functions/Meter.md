@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [meter](../README.md) / Meter
+[pebble-signals](../../README.md) / [meter](../README.md) / Meter
 
 # Function: Meter()
 
 > **Meter**(`props`): `Content`
 
-Defined in: meter.ts:54
+Defined in: [meter.ts:54](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/meter.ts#L54)
 
 Meter — a reactive segmented linear meter (battery / signal bars), on ONE
 Piu Port.

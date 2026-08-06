@@ -8,10 +8,10 @@ scaffold worked offline. The only edit on top of the generated skeleton is the
 app logic itself: `src/c/original.c` was expanded from the generated
 single-screen click-handler stub into a small, realistic 2-screen app (a
 counter screen + a SELECT-pushed detail screen, BACK pops back) — see
-`docs/migration.md` in the signal-piu package root for why: this is the
+`docs/migration.md` in the pebble-signals package root for why: this is the
 **before** half of the migration story, and
 [`examples/migration/integrated/`](../integrated/) is the **same app** ported
-to [signal-piu](https://www.npmjs.com/package/signal-piu).
+to [pebble-signals](https://www.npmjs.com/package/pebble-signals).
 
 ## Building & running
 

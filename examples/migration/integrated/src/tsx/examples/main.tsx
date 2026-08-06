@@ -1,13 +1,13 @@
 // examples/migration/integrated — the SAME app as
-// examples/migration/original/src/c/original.c, ported to signal-piu per
+// examples/migration/original/src/c/original.c, ported to pebble-signals per
 // docs/migration.md. The original was two native Windows: a counter screen
 // (UP/DOWN adjust a count, SELECT pushes a detail window) and a detail
 // window (shows the count, BACK pops it — WindowStack's default).
 //
 // The port keeps that exact shape but trades window_stack_push/pop for
-// signal-piu's <Navigator> (runtime/flow): push/pop screens with the arena
+// pebble-signals's <Navigator> (runtime/flow): push/pop screens with the arena
 // holding exactly ONE screen at a time (verified device pattern — see
-// src/tsx/examples/navdrill.tsx and navreactive.tsx in the signal-piu repo).
+// src/tsx/examples/navdrill.tsx and navreactive.tsx in the pebble-signals repo).
 // A naive "prebuild all screens" port is the ONE thing that does NOT work
 // here (see `multiscreen` in docs/handbook.md — it OOMs the 32KB arena at
 // boot); Navigator is the correct migration target for "push a screen on a

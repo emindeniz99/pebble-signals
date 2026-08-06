@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [textflow](../README.md) / wrapCircle
+[pebble-signals](../../README.md) / [textflow](../README.md) / wrapCircle
 
 # Function: wrapCircle()
 
 > **wrapCircle**(`text`, `radius`, `lineHeight`, `maxLines`, `pxPerChar`, `fill`): `string`[]
 
-Defined in: textflow.ts:185
+Defined in: [textflow.ts:185](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L185)
 
 Word-wrap `text` to FILL a circle of `radius` (centered vertically): each line
 is packed to the chord width at its own height, so the top and bottom lines

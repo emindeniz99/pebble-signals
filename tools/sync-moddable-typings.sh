@@ -44,7 +44,7 @@ echo "$VERSION" > "$DEST/.version"
 
 # Barrel: a single file that /// -references every vendored .d.ts, so a
 # CONSUMER's tsconfig can activate the WHOLE typing surface with ONE `files`
-# entry (`node_modules/signal-piu/types/moddable/all.d.ts`). TypeScript
+# entry (`node_modules/pebble-signals/types/moddable/all.d.ts`). TypeScript
 # excludes node_modules from `include` globs, so consumers can't glob these —
 # the barrel is how they get sensors/dictation/storage/etc. without listing 45
 # paths. Our own tsconfig.check.json globs them directly (not in node_modules).

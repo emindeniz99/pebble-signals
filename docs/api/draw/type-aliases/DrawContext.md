@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [draw](../README.md) / DrawContext
+[pebble-signals](../../README.md) / [draw](../README.md) / DrawContext
 
 # Type Alias: DrawContext
 
 > **DrawContext** = `object`
 
-Defined in: draw.ts:49
+Defined in: [draw.ts:49](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/draw.ts#L49)
 
 The immediate-mode drawing surface handed to a [CanvasProps.paint](CanvasProps.md#paint)
 callback. Every method rasterizes into `fillColor` spans on the owning Port.
@@ -21,7 +21,7 @@ colors: a name (`"red"`), `#rgb`/`#rrggbb[aa]`, or a `0xRRGGBBAA` number.
 
 > **arc**(`cx`, `cy`, `r`, `startDeg`, `endDeg`, `thickness`, `color`): `void`
 
-Defined in: draw.ts:70
+Defined in: [draw.ts:70](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/draw.ts#L70)
 
 Stroke a ring SEGMENT — the band between radius (`r` − `thickness`) and `r`,
 centered at (`cx`,`cy`), swept from `startDeg` to `endDeg`. Angles are in
@@ -73,7 +73,7 @@ each row's contiguous kept pixels coalesce into ONE `fillColor` span.
 
 > **fillCircle**(`cx`, `cy`, `r`, `color`): `void`
 
-Defined in: draw.ts:53
+Defined in: [draw.ts:53](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/draw.ts#L53)
 
 Fill a solid disc of radius `r` centered at (`cx`,`cy`). r ≤ 0 draws nothing.
 
@@ -105,7 +105,7 @@ Fill a solid disc of radius `r` centered at (`cx`,`cy`). r ≤ 0 draws nothing.
 
 > **fillRect**(`x`, `y`, `w`, `h`, `color`): `void`
 
-Defined in: draw.ts:51
+Defined in: [draw.ts:51](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/draw.ts#L51)
 
 Fill an axis-aligned rectangle. Negative width/height are clamped to 0.
 
@@ -141,7 +141,7 @@ Fill an axis-aligned rectangle. Negative width/height are clamped to 0.
 
 > **fillRoundRect**(`x`, `y`, `w`, `h`, `r`, `color`): `void`
 
-Defined in: draw.ts:92
+Defined in: [draw.ts:92](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/draw.ts#L92)
 
 Fill a rectangle with radius-`r` rounded corners. `r` clamps to
 `min(r, w>>1, h>>1)`; `r` ≤ 0 falls back to a single fillRect. The middle
@@ -184,7 +184,7 @@ the corner circle profile (the fillCircle isqrt scanline) — no gaps.
 
 > **line**(`x0`, `y0`, `x1`, `y1`, `thickness`, `color`): `void`
 
-Defined in: draw.ts:85
+Defined in: [draw.ts:85](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/draw.ts#L85)
 
 Draw a straight line from (`x0`,`y0`) to (`x1`,`y1`), `thickness` px wide
 (`thickness` ≤ 0 clamps to 1). Axis-aligned lines are ONE crisp span
@@ -227,7 +227,7 @@ axis, stamping a `t`×`t` block per step.
 
 > **strokeCircle**(`cx`, `cy`, `r`, `color`, `thickness?`): `void`
 
-Defined in: draw.ts:58
+Defined in: [draw.ts:58](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/draw.ts#L58)
 
 Stroke a circle outline of radius `r`, `thickness` pixels wide (default 1),
 grown INWARD from `r`. Rasterized as the difference of two discs.
@@ -264,7 +264,7 @@ grown INWARD from `r`. Rasterized as the difference of two discs.
 
 > **strokeRect**(`x`, `y`, `w`, `h`, `thickness`, `color`): `void`
 
-Defined in: draw.ts:97
+Defined in: [draw.ts:97](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/draw.ts#L97)
 
 Stroke a rectangle outline as its 4 edges, each `thickness` px wide
 (`thickness` ≤ 0 clamps to 1). Corners are double-painted (overlap is fine).
@@ -305,7 +305,7 @@ Stroke a rectangle outline as its 4 edges, each `thickness` px wide
 
 > **text**(`str`, `style`, `color`, `x`, `y`): `void`
 
-Defined in: draw.ts:99
+Defined in: [draw.ts:99](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/draw.ts#L99)
 
 Draw a text string at (`x`,`y`) in `style`/`color` (passthrough to drawString).
 

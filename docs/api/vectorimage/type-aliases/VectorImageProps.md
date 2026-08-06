@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [vectorimage](../README.md) / VectorImageProps
+[pebble-signals](../../README.md) / [vectorimage](../README.md) / VectorImageProps
 
 # Type Alias: VectorImageProps
 
 > **VectorImageProps** = `object`
 
-Defined in: vectorimage.ts:59
+Defined in: [vectorimage.ts:59](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vectorimage.ts#L59)
 
 Props for [VectorImage](../functions/VectorImage.md).
 
@@ -18,7 +18,7 @@ Props for [VectorImage](../functions/VectorImage.md).
 
 > `optional` **center?**: \[`number`, `number`\]
 
-Defined in: vectorimage.ts:90
+Defined in: [vectorimage.ts:90](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vectorimage.ts#L90)
 
 Transform center `[cx,cy]` in viewbox units — the pivot for scale/rotate AND
 the point subtracted per rule (b). Defaults to `[0,0]` (REQUIRED there, or
@@ -31,7 +31,7 @@ construction-time on this port).
 
 > **height**: `number`
 
-Defined in: vectorimage.ts:69
+Defined in: [vectorimage.ts:69](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vectorimage.ts#L69)
 
 Display-box height in px — the SCALED size (see [width](#width)).
 
@@ -41,7 +41,7 @@ Display-box height in px — the SCALED size (see [width](#width)).
 
 > `optional` **rotate?**: `number` \| (() => `number`)
 
-Defined in: vectorimage.ts:83
+Defined in: [vectorimage.ts:83](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vectorimage.ts#L83)
 
 Rotation in RADIANS about the center. A bare number is CONSTANT; a THUNK is
 REACTIVE. OMITTED = no rotation applied at all (identity). rotate() is
@@ -53,7 +53,7 @@ ABSOLUTE (rule d), so a `sin()` thunk swings rather than spins.
 
 > `optional` **scale?**: `number` \| (() => `number`)
 
-Defined in: vectorimage.ts:77
+Defined in: [vectorimage.ts:77](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vectorimage.ts#L77)
 
 Uniform scale. A bare number is CONSTANT (applied once at mount); a THUNK
 (`() => n`) is REACTIVE (re-applied when a signal it reads changes).
@@ -67,7 +67,7 @@ radii — rule c).
 
 > **src**: `string`
 
-Defined in: vectorimage.ts:65
+Defined in: [vectorimage.ts:65](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vectorimage.ts#L65)
 
 The PDC resource name — INCLUDE the `.pdc` suffix (`"slothvec.pdc"`). The
 build derives the resource from a bare `"name.pdc"` string literal in the
@@ -79,7 +79,7 @@ app source, so passing the literal ships the asset automatically.
 
 > `optional` **translate?**: \[`number`, `number`\]
 
-Defined in: vectorimage.ts:96
+Defined in: [vectorimage.ts:96](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vectorimage.ts#L96)
 
 Screen translation `[tx,ty]` in viewbox units. Defaults to the `center`
 point (centering + translating by the pivot keeps scaled art in place —
@@ -91,6 +91,6 @@ slothvec pivots at 30,7). STATIC.
 
 > **width**: `number`
 
-Defined in: vectorimage.ts:67
+Defined in: [vectorimage.ts:67](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vectorimage.ts#L67)
 
 Display-box width in px — the SCALED size (a 60px viewbox at 2x = 120).

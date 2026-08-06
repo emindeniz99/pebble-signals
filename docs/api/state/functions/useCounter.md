@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [state](../README.md) / useCounter
+[pebble-signals](../../README.md) / [state](../README.md) / useCounter
 
 # Function: useCounter()
 
 > **useCounter**(`initial?`, `opts?`): \[() => `number`, [`CounterControls`](../interfaces/CounterControls.md)\]
 
-Defined in: state.ts:113
+Defined in: [state.ts:113](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/state.ts#L113)
 
 useCounter(initial?, opts?) — a bounded number with inc/dec/reset/set.
 

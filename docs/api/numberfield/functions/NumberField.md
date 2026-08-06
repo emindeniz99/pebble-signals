@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [numberfield](../README.md) / NumberField
+[pebble-signals](../../README.md) / [numberfield](../README.md) / NumberField
 
 # Function: NumberField()
 
 > **NumberField**(`props`): `Content`
 
-Defined in: numberfield.ts:102
+Defined in: [numberfield.ts:102](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L102)
 
 NumberField — a big centered number with `+`/`-` stepper affordance hints
 (a Pebble NumberWindow analog), on ONE Column of Labels.

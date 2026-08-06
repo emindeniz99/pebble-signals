@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / provide
+[pebble-signals](../../README.md) / [signals](../README.md) / provide
 
 # Function: provide()
 
 > **provide**\<`T`, `R`\>(`ctx`, `value`, `build`): `R`
 
-Defined in: signals.ts:990
+Defined in: [signals.ts:990](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L990)
 
 ## Type Parameters
 

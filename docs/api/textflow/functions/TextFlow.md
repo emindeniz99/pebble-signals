@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [textflow](../README.md) / TextFlow
+[pebble-signals](../../README.md) / [textflow](../README.md) / TextFlow
 
 # Function: TextFlow()
 
 > **TextFlow**(`props`): `Content`
 
-Defined in: textflow.ts:259
+Defined in: [textflow.ts:259](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L259)
 
 TextFlow — a wrapped multi-line paragraph: a Column of Label lines.
 

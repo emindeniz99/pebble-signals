@@ -98,7 +98,7 @@ const SMOKES: Smoke[] = [
 const MIN_HEARTBEATS = 3; // capture spans SETTLE_S post-install; instruments ticks ~1/s
 const MIN_PIXELS = 100; // non-background pixels that count as "painted"
 const ROOT = join(import.meta.dirname, "..");
-const DUMP_DIR = "/tmp/signal-piu-drive"; // where drive.py writes .ppm dumps
+const DUMP_DIR = "/tmp/pebble-signals-drive"; // where drive.py writes .ppm dumps
 // Post-install settle: how long the heartbeat capture stays open before the
 // screendump fires. MEASURED (CLAUDE.md Rule 3): on a FRESHLY RESET emulator
 // the firmware itself cold-boots ~30 s BEFORE the installed app loads, so the
@@ -117,7 +117,7 @@ const MATRIX_MD = "smoke-matrix.md";
 // --dry-run writes its record/table HERE, not into docs/: a dry run touches no
 // device, and a row no device produced must never become the newest row of the
 // committed matrix (that would make the staleness column lie).
-const DRY_RECORD_DIR = "/tmp/signal-piu-smoke-matrix";
+const DRY_RECORD_DIR = "/tmp/pebble-signals-smoke-matrix";
 /** A receipt older than this many days is flagged stale in the table. */
 export const STALE_DAYS = 30;
 

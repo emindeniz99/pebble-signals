@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [battery](../README.md) / useBattery
+[pebble-signals](../../README.md) / [battery](../README.md) / useBattery
 
 # Function: useBattery()
 
 > **useBattery**(): () => [`BatterySample`](../interfaces/BatterySample.md)
 
-Defined in: battery.ts:161
+Defined in: [battery.ts:161](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/battery.ts#L161)
 
 Reactive battery state — a getter for the latest `{ percent, charging, plugged }`;
 reading it inside a Label binding / effect subscribes, so the UI repaints on

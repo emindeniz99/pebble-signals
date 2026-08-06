@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [jsx-runtime](../README.md) / render
+[pebble-signals](../../README.md) / [jsx-runtime](../README.md) / render
 
 # Function: render()
 
 > **render**(`build`, `dict?`, `opts?`): `Application`
 
-Defined in: jsx-runtime.ts:451
+Defined in: [jsx-runtime.ts:451](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L451)
 
 Mount a JSX tree as the Piu Application. `build` runs under a root owner.
 

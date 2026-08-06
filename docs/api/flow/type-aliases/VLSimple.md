@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [flow](../README.md) / VLSimple
+[pebble-signals](../../README.md) / [flow](../README.md) / VLSimple
 
 # Type Alias: VLSimple\<T\>
 
 > **VLSimple**\<`T`\> = `VLBase`\<`T`\> & `object`
 
-Defined in: flow.ts:119
+Defined in: [flow.ts:119](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L119)
 
 [VirtualList](../functions/VirtualList.md) simple mode: one recycled Label per slot, text via
 `format`. Mutually exclusive with `renderRow` (compile error if both).

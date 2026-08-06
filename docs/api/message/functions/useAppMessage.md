@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [message](../README.md) / useAppMessage
+[pebble-signals](../../README.md) / [message](../README.md) / useAppMessage
 
 # Function: useAppMessage()
 
 > **useAppMessage**(`keys`, `handler`): [`AppMessenger`](../interfaces/AppMessenger.md)
 
-Defined in: message.ts:182
+Defined in: [message.ts:182](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/message.ts#L182)
 
 useAppMessage(keys, handler) — the CALLBACK form of [useMessage](useMessage.md): every
 inbound message is passed to `handler` (a `Map` of key NAME -> value) instead

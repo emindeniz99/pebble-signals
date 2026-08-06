@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [tabs](../README.md) / Tabs
+[pebble-signals](../../README.md) / [tabs](../README.md) / Tabs
 
 # Function: Tabs()
 
 > **Tabs**(`props`): `Content`
 
-Defined in: tabs.ts:82
+Defined in: [tabs.ts:82](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/tabs.ts#L82)
 
 Tabs — a reactive horizontal tab bar: a Row of captions, the active one lit.
 

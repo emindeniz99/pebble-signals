@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [clockface](../README.md) / ClockFaceProps
+[pebble-signals](../../README.md) / [clockface](../README.md) / ClockFaceProps
 
 # Type Alias: ClockFaceProps
 
 > **ClockFaceProps** = `object`
 
-Defined in: clockface.ts:35
+Defined in: [clockface.ts:35](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clockface.ts#L35)
 
 Props for [ClockFace](../functions/ClockFace.md).
 
@@ -18,7 +18,7 @@ Props for [ClockFace](../functions/ClockFace.md).
 
 > `optional` **face?**: `Color`
 
-Defined in: clockface.ts:45
+Defined in: [clockface.ts:45](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clockface.ts#L45)
 
 Dial background color. Defaults to `"black"`.
 
@@ -28,7 +28,7 @@ Dial background color. Defaults to `"black"`.
 
 > `optional` **hand?**: `Color`
 
-Defined in: clockface.ts:47
+Defined in: [clockface.ts:47](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clockface.ts#L47)
 
 Hour + minute hand color. Defaults to `"white"`.
 
@@ -38,7 +38,7 @@ Hour + minute hand color. Defaults to `"white"`.
 
 > **hours**: `number` \| (() => `number`)
 
-Defined in: clockface.ts:37
+Defined in: [clockface.ts:37](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clockface.ts#L37)
 
 Hour (0–23; `%12` is applied). A thunk (`() => h`) makes the face reactive; a bare number is static.
 
@@ -48,7 +48,7 @@ Hour (0–23; `%12` is applied). A thunk (`() => h`) makes the face reactive; a 
 
 > **minutes**: `number` \| (() => `number`)
 
-Defined in: clockface.ts:39
+Defined in: [clockface.ts:39](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clockface.ts#L39)
 
 Minute (0–59). A thunk makes the face reactive; a bare number is static.
 
@@ -58,7 +58,7 @@ Minute (0–59). A thunk makes the face reactive; a bare number is static.
 
 > `optional` **second?**: `Color`
 
-Defined in: clockface.ts:49
+Defined in: [clockface.ts:49](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clockface.ts#L49)
 
 Second hand color. Defaults to `"#e01818"`.
 
@@ -68,7 +68,7 @@ Second hand color. Defaults to `"#e01818"`.
 
 > `optional` **seconds?**: `number` \| (() => `number`)
 
-Defined in: clockface.ts:41
+Defined in: [clockface.ts:41](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clockface.ts#L41)
 
 Optional second (0–59). When present, a thin second hand is drawn. A thunk is reactive.
 
@@ -78,7 +78,7 @@ Optional second (0–59). When present, a thin second hand is drawn. A thunk is 
 
 > `optional` **size?**: `number`
 
-Defined in: clockface.ts:43
+Defined in: [clockface.ts:43](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clockface.ts#L43)
 
 Face diameter in px. Defaults to 144.
 
@@ -88,6 +88,6 @@ Face diameter in px. Defaults to 144.
 
 > `optional` **ticks?**: `Color`
 
-Defined in: clockface.ts:51
+Defined in: [clockface.ts:51](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clockface.ts#L51)
 
 Hour-tick color. Defaults to `"#606060"`.

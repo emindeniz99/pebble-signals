@@ -1,4 +1,4 @@
-# Migrating a stock C project to signal-piu
+# Migrating a stock C project to pebble-signals
 
 For someone who found Pebble on the internet, ran `pebble new-project`, wrote
 a screen or two of native C (`Window` + `TextLayer` + click handlers), and now
@@ -13,8 +13,8 @@ calls.
   Tool v5.0.39, SDK v4.17 — the CLI scaffold worked as-is, no hand-recreation
   needed). `pebble build` → `build/original.pbw`.
 - [`examples/migration/integrated/`](../examples/migration/integrated/) — the
-  **same app**, same `uuid`, same `displayName`, ported to signal-piu
-  following the steps below. `node node_modules/signal-piu/dist/build.mjs
+  **same app**, same `uuid`, same `displayName`, ported to pebble-signals
+  following the steps below. `node node_modules/pebble-signals/dist/build.mjs
   --app main --no-check-c` → `build/integrated.pbw`;
   `tsc -p tsconfig.check.json` exits 0.
 
@@ -68,7 +68,7 @@ them.
 ### 2. Replace `src/c/` with the mdbl bootstrap (+ your own C, if any)
 
 Copy `templates/app/src/c/mdbl.c` and `templates/app/src/c/.clang-format`
-into your `src/c/`. This is the ONLY native file signal-piu needs — it creates
+into your `src/c/`. This is the ONLY native file pebble-signals needs — it creates
 the XS machine that runs your JSX-authored UI:
 
 ```c
@@ -113,7 +113,7 @@ build's unmapped-import tripwire. Start from the package file, not a subset.
 Copy `templates/app/tsconfig.json` (device transpile: `src/tsx` →
 `src/embeddedjs/app`, `noCheck`) and `templates/app/tsconfig.check.json`
 (strict typecheck against the installed package, resolves `runtime/*` via
-`paths` into `node_modules/signal-piu`). Both are copy-paste; the only thing
+`paths` into `node_modules/pebble-signals`). Both are copy-paste; the only thing
 that would change them is a nonstandard `src/tsx` layout.
 
 ### 5. Add `src/pkjs/index.js` (phone-side glue)
@@ -186,14 +186,14 @@ render(() => (
 Note `<Navigator>` is wrapped in a `<Column>`, never a direct child of the
 focused `<Container>` — a dynamically-built direct child crashes the piu
 port's focus resolution at mount (measured; see `src/tsx/examples/navdrill.tsx`
-in the signal-piu repo for the same pattern with commentary).
+in the pebble-signals repo for the same pattern with commentary).
 
 ### 7. Install the package and build tools
 
 ```sh
-npm pack --pack-destination .                       # from the signal-piu repo root
+npm pack --pack-destination .                       # from the pebble-signals repo root
 cd your-app/
-npm install --no-save <path-to>/signal-piu-1.0.0.tgz typescript@6 esbuild@0.28 @moddable/pebbleproxy
+npm install --no-save <path-to>/pebble-signals-1.0.0.tgz typescript@6 esbuild@0.28 @moddable/pebbleproxy
 ```
 
 `typescript`/`esbuild` are YOUR devDependencies (the package brings the
@@ -214,7 +214,7 @@ If it errors, run its postinstall manually: `node node_modules/esbuild/install.j
 ### 8. Build and verify
 
 ```sh
-node node_modules/signal-piu/dist/build.mjs --app main --no-check-c
+node node_modules/pebble-signals/dist/build.mjs --app main --no-check-c
 ./node_modules/.bin/tsc -p tsconfig.check.json
 ```
 
@@ -257,7 +257,7 @@ starting points differ enough to call out:
 ### From Rocky.js (the old JS watchface API)
 
 Same overall shape as the C path — Rocky's `rocky.on('draw', …)` canvas
-callbacks have no equivalent here (signal-piu is retained UI, not immediate-
+callbacks have no equivalent here (pebble-signals is retained UI, not immediate-
 mode drawing): re-express each draw callback as JSX with reactive bindings
 (`<Label string={() => time()} />` instead of redrawing text per frame).
 Rocky's `postMessage` phone channel maps to our pkjs/AppMessage setup. The
@@ -305,9 +305,9 @@ signals fit on the watch.
 ### From a hand-written Moddable/Piu project (projectType already "moddable")
 
 The EASY one — you're already on the same engine and UI framework. Keep your
-manifest and project shell; `npm install` signal-piu + tools; adopt the build
+manifest and project shell; `npm install` pebble-signals + tools; adopt the build
 (`dist/build.mjs`) or keep yours and add our runtime modules to your manifest.
-Crucially, **signal-piu nodes ARE Piu nodes** — `<Label>` returns the same
+Crucially, **pebble-signals nodes ARE Piu nodes** — `<Label>` returns the same
 `Label` instance `new Label(...)` gives you — so you can migrate one screen
 at a time: hand-Piu screens and JSX screens coexist in the same app, and your
 existing Behaviors/Skins/Styles are used as-is by JSX props.

@@ -2,7 +2,9 @@
 
 Web research snapshot (two independent sweeps: user demand from the relaunched
 appstore/community, developer demand from the SDK ecosystem), mapped to
-signal-piu. Sources are linked inline; heart counts are apps.repebble.com
+signal-piu (renamed **pebble-signals**, 2026-08-06 — this dated note keeps the
+original name in its narration). Sources are linked inline; heart counts are
+apps.repebble.com
 lifetime figures at research time. This is a strategy note, not a measured
 device doc — treat numbers as directional.
 
@@ -96,7 +98,7 @@ COMMERCIAL — distribution, not code.**
 | # | Gap | Severity/Effort | Call |
 |---|---|---|---|
 | 1 | Not on npm — documented quickstart is a 404 | blocking / S | Publish — owner set the version to **0.1.0** (2026-07-31); read-syntax decision below is made, so nothing blocks it |
-| 2 | No discoverable home (subdir of a scratch monorepo) | blocking / S | Own repo or topics+releases+issues; get listed on rebble community tools |
+| 2 | No discoverable home (subdir of a scratch monorepo) | blocking / S | ✅ DONE (2026-08-06) — standalone repo <https://github.com/emindeniz99/pebble-signals>; rebble community-tools listing still open |
 | 3 | Zero adoption evidence | blocking / M | Ship 2-3 signal-piu watchfaces to the store |
 | 4 | No agent-skill distribution | important / S | Package the gotchas/lints/font-tables as a skill — our docs ARE the asset |
 | 5 | No live network round-trip receipt (gotcha 18b) | important / M | Make fetch-over-message the named, receipted API; useFetch STAYS (owner: delete nothing) — relabeled device-gated, not removed |

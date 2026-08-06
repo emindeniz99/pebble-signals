@@ -1,22 +1,20 @@
-# Staged — GitHub only reads this from a repository-root .github/ISSUE_TEMPLATE/.
-# While signal-piu lives in the playground monorepo the root config.yml is the
-# live one; see README.md in this directory for the move. Every URL below is
-# monorepo-shaped (blob/main/projects/signal-piu/…) and must be re-pointed when
-# the project gets its own repo.
+# Live from this repository's root .github/ISSUE_TEMPLATE/ — GitHub reads
+# this config on the "New issue" page. See README.md in this directory for
+# what each template asks and why.
 blank_issues_enabled: false
 contact_links:
   - name: Read CONTRIBUTING first
-    url: https://github.com/emindeniz99/playground/blob/main/projects/signal-piu/CONTRIBUTING.md
+    url: https://github.com/emindeniz99/pebble-signals/blob/main/CONTRIBUTING.md
     about: Setup, the verify chain, the 100% coverage bar, and what counts as a receipt.
   - name: Troubleshooting — is it a bug, or a known failure shape?
-    url: https://github.com/emindeniz99/playground/blob/main/projects/signal-piu/docs/debugging.md
+    url: https://github.com/emindeniz99/pebble-signals/blob/main/docs/debugging.md
     about: fxAbort at boot, dies on interaction, a binding that shows nothing, an emulator that hangs. Triage by symptom before filing.
   - name: The handbook — 24 numbered gotchas and the measured ledger
-    url: https://github.com/emindeniz99/playground/blob/main/projects/signal-piu/docs/handbook.md
+    url: https://github.com/emindeniz99/pebble-signals/blob/main/docs/handbook.md
     about: Blank labels from an invalid font string, static position props, the arena/symbol/stack budgets. Most "bugs" are gotcha 16, 20 or 22.
   - name: Ask a question
-    url: https://github.com/emindeniz99/playground/discussions
+    url: https://github.com/emindeniz99/pebble-signals/discussions
     about: Usage help and design questions. Pre-1.0, single maintainer — answers come in days, not hours.
   - name: Security advisory (private)
-    url: https://github.com/emindeniz99/playground/security/advisories/new
+    url: https://github.com/emindeniz99/pebble-signals/security/advisories/new
     about: For anything where public disclosure would put users at risk before a fix lands.

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [card](../README.md) / Card
+[pebble-signals](../../README.md) / [card](../README.md) / Card
 
 # Function: Card()
 
 > **Card**(`props`): `Content`
 
-Defined in: card.ts:81
+Defined in: [card.ts:81](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/card.ts#L81)
 
 Card — a titled content box: a bold title bar over a body holding children.
 

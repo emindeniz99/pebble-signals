@@ -2,7 +2,7 @@
 
 > Status: DRAFT, ready to post. Everything below was measured on the SDK
 > 4.17 gabbro/emery QEMU emulators while building
-> [signal-piu](../README.md), a runtime-reactive UI library for Alloy.
+> [pebble-signals](../README.md), a runtime-reactive UI library for Alloy.
 > Each finding has an on-device repro; none are estimates.
 
 ## Summary

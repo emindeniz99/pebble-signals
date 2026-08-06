@@ -1,4 +1,4 @@
-// `signal-piu dev` — the one-command emulator loop: build → install (with the
+// `pebble-signals dev` — the one-command emulator loop: build → install (with the
 // Rule-3 recovery baked in) → stream logs. Everything this repo learned the
 // hard way about the emulator is encoded here so nobody re-learns it:
 //   * never run `pebble logs` DURING an install (the channel races and the

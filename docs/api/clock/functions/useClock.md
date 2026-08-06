@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [clock](../README.md) / useClock
+[pebble-signals](../../README.md) / [clock](../README.md) / useClock
 
 # Function: useClock()
 
 > **useClock**(`granularity?`): () => `Date`
 
-Defined in: clock.ts:96
+Defined in: [clock.ts:96](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clock.ts#L96)
 
 A reactive current-time getter — the RN `useClock` analog.
 

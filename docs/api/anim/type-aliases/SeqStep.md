@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [anim](../README.md) / SeqStep
+[pebble-signals](../../README.md) / [anim](../README.md) / SeqStep
 
 # Type Alias: SeqStep
 
 > **SeqStep** = \{ `ease?`: (`t`) => `number`; `home?`: `true`; `ms?`: `number`; `to`: `number`; \} \| \{ `hold`: `number`; \}
 
-Defined in: anim.ts:130
+Defined in: [anim.ts:130](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/anim.ts#L130)
 
 A single [useSequence](../functions/useSequence.md) keyframe: either a MOVE (`to`, over `ms` with an
 optional `ease` curve) or a HOLD (stay put for `hold` ms). The sequence walks

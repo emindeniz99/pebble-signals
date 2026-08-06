@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [accel](../README.md) / useAccel
+[pebble-signals](../../README.md) / [accel](../README.md) / useAccel
 
 # Function: useAccel()
 
 > **useAccel**(`opts?`): () => [`AccelSample`](../interfaces/AccelSample.md)
 
-Defined in: accel.ts:175
+Defined in: [accel.ts:175](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/accel.ts#L175)
 
 Reactive accelerometer — the RN `Accelerometer` analog. Returns a getter for
 the latest reading; reading it inside a Label binding / effect subscribes, so

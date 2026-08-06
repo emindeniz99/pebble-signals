@@ -1,4 +1,4 @@
-# signal-piu
+# pebble-signals
 
 **Fine-grained reactive UI for Pebble watches — Solid-style signals + JSX, no
 VDOM — running ON the watch inside its 32 KB JavaScript heap.**
@@ -93,20 +93,21 @@ More, on both watch shapes: [examples gallery](docs/examples.md) ·
 ## Install
 
 ```sh
-npm install signal-piu
+npm install pebble-signals
 ```
 
-Scaffold a new project (the `create-signal-piu` CLI ships in the package):
+Scaffold a new project (the `create-pebble-signals` CLI ships in the package):
 
 ```sh
-npx -p signal-piu create-signal-piu my-watch
+npx -p pebble-signals create-pebble-signals my-watch
 cd my-watch && npm install && npm run build
 ```
 
-> **Honest caveat:** the registry publish is pending, so today the distribution
-> unit is a tarball — `npm pack` in this repo, then install that file by path.
-> `node tools/create-app.mts my-watch` is the same scaffold run from a checkout,
-> and `pnpm run test:consumer` gates the pack → install → typecheck path on every
+> **Honest caveat:** 0.1.0 publishes to npm alongside this repo's launch. If
+> the commands above 404, the publish has not landed yet — the equivalent from
+> a checkout is `node tools/create-app.mts my-watch` for the scaffold plus
+> `npm pack` here for the tarball to install by path, and
+> `pnpm run test:consumer` gates that pack → install → typecheck path on every
 > commit. Full exports map, upgrade rules and a worked consumer project:
 > [packaging & consuming](docs/packaging.md).
 
@@ -116,8 +117,8 @@ You also need the Pebble tool v5 + SDK 4.17 with the QEMU emulators and Node ≥
 ### Or work in this repo
 
 ```sh
-git clone https://github.com/emindeniz99/playground
-cd playground/projects/signal-piu
+git clone https://github.com/emindeniz99/pebble-signals
+cd pebble-signals
 pnpm install
 pnpm run dev -- --app watchface   # build + install + live logs, one command
 pnpm run verify                   # SDK-free gates: typecheck + tests @100% coverage
@@ -167,10 +168,10 @@ first try. That knowledge is packaged as a skill in
 
 ```bash
 mkdir -p .claude/skills
-cp -r node_modules/signal-piu/skills/signal-piu-watchface .claude/skills/
+cp -r node_modules/pebble-signals/skills/pebble-signals-watchface .claude/skills/
 ```
 
-Then ask your agent for a Pebble watchface with signal-piu.
+Then ask your agent for a Pebble watchface with pebble-signals.
 
 ## Where to go next
 
@@ -186,6 +187,11 @@ Then ask your agent for a Pebble watchface with signal-piu.
 | file an issue or send a patch | [Contributing](CONTRIBUTING.md) — setup, the receipts discipline, the 100 % coverage bar |
 | everything else | [All docs](docs/README.md) · [Changelog](CHANGELOG.md) |
 
-MIT licensed — see [`LICENSE`](LICENSE).
+## License
+
+MIT — see [`LICENSE`](LICENSE). The Moddable SDK typings vendored under
+[`types/moddable/`](types/moddable/) are compile-time-only declarations with
+their own provenance and terms, documented in
+[`types/moddable/NOTICE.md`](types/moddable/NOTICE.md).
 
 [react-pebble]: https://github.com/eddiemoore/react-pebble

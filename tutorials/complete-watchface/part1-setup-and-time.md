@@ -13,7 +13,7 @@ APP=watchface node build.mts        # build for gabbro + emery
 pebble install --emulator gabbro    # boot it
 ```
 
-(Consuming signal-piu as an npm package instead of working in-repo is covered
+(Consuming pebble-signals as an npm package instead of working in-repo is covered
 by `docs/packaging.md` — the tutorial stays in-repo for tight loops.)
 
 ## The face

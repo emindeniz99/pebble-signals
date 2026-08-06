@@ -1,12 +1,12 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / Signal
+[pebble-signals](../../README.md) / [signals](../README.md) / Signal
 
 # Interface: Signal\<T\>
 
-Defined in: signals.ts:241
+Defined in: [signals.ts:241](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L241)
 
 The object-API signal cell returned by [signal](../functions/signal.md): read/write through
 `.value` (reads inside an effect/binding subscribe; same-value writes are
@@ -25,7 +25,7 @@ dropped). Exported as a TYPE ONLY — construct with `signal(v)`, never
 
 > **i**: `number`
 
-Defined in: signals.ts:243
+Defined in: [signals.ts:243](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L243)
 
 ***
 
@@ -33,7 +33,7 @@ Defined in: signals.ts:243
 
 > **v**: `T`
 
-Defined in: signals.ts:242
+Defined in: [signals.ts:242](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L242)
 
 ## Accessors
 
@@ -43,7 +43,7 @@ Defined in: signals.ts:242
 
 > **get** **value**(): `T`
 
-Defined in: signals.ts:248
+Defined in: [signals.ts:248](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L248)
 
 ##### Returns
 
@@ -53,7 +53,7 @@ Defined in: signals.ts:248
 
 > **set** **value**(`value`): `void`
 
-Defined in: signals.ts:260
+Defined in: [signals.ts:260](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L260)
 
 ##### Parameters
 

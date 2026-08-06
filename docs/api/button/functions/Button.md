@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [button](../README.md) / Button
+[pebble-signals](../../README.md) / [button](../README.md) / Button
 
 # Function: Button()
 
 > **Button**(`props`): `Content`
 
-Defined in: button.ts:103
+Defined in: [button.ts:103](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/button.ts#L103)
 
 Button — a focusable, pressable Container with a centered label and a skin that
 swaps on press.

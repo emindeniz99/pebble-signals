@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [anim](../README.md) / useSpring
+[pebble-signals](../../README.md) / [anim](../README.md) / useSpring
 
 # Function: useSpring()
 
 > **useSpring**(`target`, `opts?`): () => `number` & `object`
 
-Defined in: anim.ts:284
+Defined in: [anim.ts:284](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/anim.ts#L284)
 
 useSpring(target, opts?) — physics-based motion toward `target`: the RN
 Reanimated `withSpring` analog and the one motion model [useTween](useTween.md) (fixed

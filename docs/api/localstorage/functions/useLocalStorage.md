@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [localstorage](../README.md) / useLocalStorage
+[pebble-signals](../../README.md) / [localstorage](../README.md) / useLocalStorage
 
 # Function: useLocalStorage()
 
 > **useLocalStorage**(`key`, `initial`): \[() => `string`, (`v`) => `void`\]
 
-Defined in: localstorage.ts:46
+Defined in: [localstorage.ts:46](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/localstorage.ts#L46)
 
 A `useState`-shaped tuple over a string persisted in `localStorage`.
 

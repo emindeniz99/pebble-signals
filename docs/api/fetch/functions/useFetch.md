@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [fetch](../README.md) / useFetch
+[pebble-signals](../../README.md) / [fetch](../README.md) / useFetch
 
 # Function: useFetch()
 
 > **useFetch**\<`T`\>(`url`, `opts?`): [`Resource`](../../signals/interfaces/Resource.md)\<`T`\>
 
-Defined in: fetch.ts:126
+Defined in: [fetch.ts:126](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/fetch.ts#L126)
 
 Reactive HTTP fetch — composes [createResource](../../signals/functions/createResource.md) over the host `fetch`
 global. Runs a request NOW and exposes it as a reactive [Resource](../../signals/interfaces/Resource.md)

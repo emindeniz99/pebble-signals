@@ -1,7 +1,7 @@
 # Catalog expansion plan — full react-pebble gap analysis
 
 A per-item decision on **everything react-pebble advertises** (from its README
-inventory + our published-0.1.1 source audit): what signal-piu WILL implement,
+inventory + our published-0.1.1 source audit): what pebble-signals WILL implement,
 what it WON'T, where each lands, and how. The goal is react-pebble's breadth
 WITHOUT losing the runtime-reactive model and WITHOUT charging any app for a
 feature it doesn't import.
@@ -285,4 +285,4 @@ receipt + zero-cost A/B + example in the smoke catalog + docs/api regen)
   device verification, the zero-cost A/B, and gate-keeping.
 
 Prior art + model tradeoff: `docs/design-journey.md`. Measured comparison:
-`projects/react-pebble-bench/`.
+<https://github.com/emindeniz99/pebble-reactivity-bench>.

@@ -1,5 +1,5 @@
 // The consumer app that actually SHIPS to the watch — built entirely from the
-// installed signal-piu package (`npm run build` → node_modules/signal-piu/
+// installed pebble-signals package (`npm run build` → node_modules/pebble-signals/
 // dist/build.mjs → .pbw). Imports use the DEVICE specifiers (`runtime/*`,
 // mapped by the mod manifest on the watch); editor/typecheck resolves the same
 // names into the installed package via tsconfig.check.json `paths`.

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [progressbar](../README.md) / ProgressBarProps
+[pebble-signals](../../README.md) / [progressbar](../README.md) / ProgressBarProps
 
 # Type Alias: ProgressBarProps
 
 > **ProgressBarProps** = `object`
 
-Defined in: progressbar.ts:28
+Defined in: [progressbar.ts:28](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/progressbar.ts#L28)
 
 Props for [ProgressBar](../functions/ProgressBar.md).
 
@@ -18,7 +18,7 @@ Props for [ProgressBar](../functions/ProgressBar.md).
 
 > `optional` **fill?**: `Color`
 
-Defined in: progressbar.ts:36
+Defined in: [progressbar.ts:36](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/progressbar.ts#L36)
 
 Filled-portion color. Defaults to `"#1560bd"`.
 
@@ -28,7 +28,7 @@ Filled-portion color. Defaults to `"#1560bd"`.
 
 > `optional` **height?**: `number`
 
-Defined in: progressbar.ts:34
+Defined in: [progressbar.ts:34](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/progressbar.ts#L34)
 
 Bar height in px. Defaults to 10.
 
@@ -38,7 +38,7 @@ Bar height in px. Defaults to 10.
 
 > `optional` **radius?**: `number`
 
-Defined in: progressbar.ts:40
+Defined in: [progressbar.ts:40](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/progressbar.ts#L40)
 
 Corner radius in px. Defaults to `height / 2` (a pill).
 
@@ -48,7 +48,7 @@ Corner radius in px. Defaults to `height / 2` (a pill).
 
 > `optional` **track?**: `Color`
 
-Defined in: progressbar.ts:38
+Defined in: [progressbar.ts:38](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/progressbar.ts#L38)
 
 Track (background) color. Defaults to `"#404040"`.
 
@@ -58,7 +58,7 @@ Track (background) color. Defaults to `"#404040"`.
 
 > **value**: `number` \| (() => `number`)
 
-Defined in: progressbar.ts:30
+Defined in: [progressbar.ts:30](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/progressbar.ts#L30)
 
 Progress in `0..1` (clamped). A thunk (`() => v`) makes the bar reactive; a bare number is static.
 
@@ -68,6 +68,6 @@ Progress in `0..1` (clamped). A thunk (`() => v`) makes the bar reactive; a bare
 
 > `optional` **width?**: `number`
 
-Defined in: progressbar.ts:32
+Defined in: [progressbar.ts:32](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/progressbar.ts#L32)
 
 Bar width in px. Defaults to 100.

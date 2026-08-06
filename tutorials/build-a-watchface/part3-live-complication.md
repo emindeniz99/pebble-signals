@@ -47,7 +47,7 @@ The finished file is [`src/watchface.tsx`](src/watchface.tsx).
 
 ## The three read syntaxes (don't trip on this)
 
-signal-piu has three source kinds and — for now — three read syntaxes:
+pebble-signals has three source kinds and — for now — three read syntaxes:
 
 | you wrote | how you read it |
 |---|---|
@@ -57,7 +57,7 @@ signal-piu has three source kinds and — for now — three read syntaxes:
 
 `computed` and `signal` return a `{ value }` object; `useState` returns a
 `[getter, setter]` pair. If you accidentally *call* a computed (`greeting()`),
-it throws at runtime — and signal-piu's error guard swallows subscriber
+it throws at runtime — and pebble-signals's error guard swallows subscriber
 exceptions so the machine survives, which means the symptom is a **blank
 Label**, not a crash. If a binding renders nothing, check you used `.value`.
 (Unifying these three into one syntax is a tracked ergonomics task.)
@@ -84,7 +84,7 @@ frame and the function body runs at most once.)
 This tutorial declares its signals at **module scope** — next to the skins,
 above `render()`. If you come from React that looks like a global-variable
 sin: there, state must live inside the component so each instance gets its
-own copy across re-renders. signal-piu has **no re-render**, so a component
+own copy across re-renders. pebble-signals has **no re-render**, so a component
 function runs exactly once — and state is created once *wherever you declare
 it*. Both placements cost the same RAM and both are idiomatic:
 

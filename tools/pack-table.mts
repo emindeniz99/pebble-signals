@@ -27,7 +27,7 @@ if (import.meta.main) {
 	const texts = JSON.parse(readFileSync(jsonPath, "utf8")) as string[];
 	const blob = packTable(texts);
 	// cwd, NOT packageRoot: from a scaffolded app this tool runs as
-	// node_modules/signal-piu/dist/tools/pack-table.mjs, and packageRoot
+	// node_modules/pebble-signals/dist/tools/pack-table.mjs, and packageRoot
 	// resolved to the INSTALLED package — the blob landed under node_modules
 	// while the manifest's `../../assets/<name>` entry reads the project's
 	// assets/ (missing/stale resource on device; codex P2). The project root

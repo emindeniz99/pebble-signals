@@ -36,7 +36,7 @@ not a function` are all different bugs with different causes. -->
 |---|---|
 | Emulator / watch | <!-- gabbro (round 260×260) / emery (rect 200×228) / both / physical --> |
 | Pebble SDK | <!-- `pebble sdk list` → expect 4.17 (active) --> |
-| signal-piu version | <!-- 0.1.0, or the commit SHA if you are working in the repo --> |
+| pebble-signals version | <!-- 0.1.0, or the commit SHA if you are working in the repo --> |
 | Node / pnpm | <!-- `node --version` (≥ 24) · `pnpm --version` (≥ 11) --> |
 | Host OS | |
 

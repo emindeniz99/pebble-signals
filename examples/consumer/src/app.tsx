@@ -1,6 +1,6 @@
-/* @jsxImportSource signal-piu */
+/* @jsxImportSource pebble-signals */
 // Dogfooding example (C11 packaging, docs/packaging.md): this file typechecks
-// against signal-piu as an INSTALLED library — the package installed here is
+// against pebble-signals as an INSTALLED library — the package installed here is
 // the tarball `npm pack` produces from the repo root, not the in-repo source
 // tree (see tools/consumer-smoke.mts, which packs + installs + typechecks
 // this exact file on every `npm run test:consumer`).
@@ -10,13 +10,13 @@
 // manifest.base.json, src/c/mdbl.c, wscript glue) and the vendored Piu host
 // typings (types/moddable/) wired into its own tsconfig — that's the "app
 // template" half of packaging, explicitly out of v1's scope (see
-// docs/packaging.md, "Not in v1": the create-signal-piu scaffold CLI is
+// docs/packaging.md, "Not in v1": the create-pebble-signals scaffold CLI is
 // roadmapped to fill this gap). So nothing here touches a real Piu host
 // element (Label/Container/...) — children return JSXNode (Content | string |
 // number | … since the Node/Content type split), so plain STRINGS stand in
 // for what would be real JSX host elements in a device build.
-import { useState, computed, createResource } from "signal-piu/signals";
-import { Show, VirtualList, type DataSource } from "signal-piu/flow";
+import { useState, computed, createResource } from "pebble-signals/signals";
+import { Show, VirtualList, type DataSource } from "pebble-signals/flow";
 
 // ---- counter ----------------------------------------------------------------
 const [count, setCount] = useState(0);

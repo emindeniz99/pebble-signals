@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [timers](../README.md) / useTimeout
+[pebble-signals](../../README.md) / [timers](../README.md) / useTimeout
 
 # Function: useTimeout()
 
 > **useTimeout**(`callback`, `delay`): () => `void`
 
-Defined in: timers.ts:114
+Defined in: [timers.ts:114](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/timers.ts#L114)
 
 useTimeout(callback, delay) — run `callback` ONCE, `delay` ms from now, then
 self-clear. Returns a manual `cancel()`.

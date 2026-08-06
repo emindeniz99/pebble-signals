@@ -30,7 +30,7 @@ Pebble.addEventListener("showConfiguration", () => {
 	// A real deployment opens its hosted (or Clay-generated) settings page.
 	// The URL is a placeholder on the emulator: the headless driver catches
 	// the openURL broadcast and answers directly, no browser involved.
-	Pebble.openURL("https://example.invalid/signal-piu-config.html");
+	Pebble.openURL("https://example.invalid/pebble-signals-config.html");
 });
 Pebble.addEventListener("webviewclosed", (e) => {
 	if (!e.response) return; // cancelled — keep current settings

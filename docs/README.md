@@ -1,4 +1,4 @@
-# signal-piu documentation
+# pebble-signals documentation
 
 Fine-grained reactive UI — Solid-style signals + JSX, no VDOM — for Pebble
 watches on Moddable XS/Piu. Every claim in these docs carries an on-device
@@ -10,7 +10,7 @@ receipt (screenshot or measurement); that discipline is [Rule 2](../CLAUDE.md).
 |---|---|
 | get something on the emulator in minutes | [Getting started](getting-started.md) |
 | learn the library step by step | [Tutorial: build a watchface](../tutorials/build-a-watchface/README.md) (3 parts) → [The complete watchface](../tutorials/complete-watchface/README.md) (6 parts) |
-| use signal-piu in **my own project** (npm) | [Packaging & consuming](packaging.md) |
+| use pebble-signals in **my own project** (npm) | [Packaging & consuming](packaging.md) |
 | understand the model (signals, run-once components) | [Core concepts](concepts.md) |
 | see what it can do | [Examples gallery](examples.md) · flagship: `pulse` |
 | fix something that broke | [Debugging & troubleshooting](debugging.md) |

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [card](../README.md) / CardProps
+[pebble-signals](../../README.md) / [card](../README.md) / CardProps
 
 # Type Alias: CardProps
 
 > **CardProps** = `object`
 
-Defined in: card.ts:52
+Defined in: [card.ts:52](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/card.ts#L52)
 
 Props for [Card](../functions/Card.md).
 
@@ -18,7 +18,7 @@ Props for [Card](../functions/Card.md).
 
 > `optional` **bodyColor?**: `Color`
 
-Defined in: card.ts:66
+Defined in: [card.ts:66](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/card.ts#L66)
 
 Body background fill. Omit for a transparent body (inherits the card fill).
 
@@ -28,7 +28,7 @@ Body background fill. Omit for a transparent body (inherits the card fill).
 
 > `optional` **children?**: [`JSXNode`](../../jsx-runtime/type-aliases/JSXNode.md)
 
-Defined in: card.ts:56
+Defined in: [card.ts:56](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/card.ts#L56)
 
 Body content mounted below the title bar. May be omitted (an empty body).
 
@@ -38,7 +38,7 @@ Body content mounted below the title bar. May be omitted (an empty body).
 
 > `optional` **fill?**: `Color`
 
-Defined in: card.ts:62
+Defined in: [card.ts:62](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/card.ts#L62)
 
 Card background fill. Defaults to a dark gray (`"#202020"`).
 
@@ -48,7 +48,7 @@ Card background fill. Defaults to a dark gray (`"#202020"`).
 
 > `optional` **height?**: `number`
 
-Defined in: card.ts:60
+Defined in: [card.ts:60](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/card.ts#L60)
 
 Card height in px. Omit to size to content.
 
@@ -58,7 +58,7 @@ Card height in px. Omit to size to content.
 
 > `optional` **title?**: `string` \| (() => `string`)
 
-Defined in: card.ts:54
+Defined in: [card.ts:54](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/card.ts#L54)
 
 Title bar text. A thunk (`() => s`) makes the bar reactive; a bare string is static. Omit for a blank bar.
 
@@ -68,7 +68,7 @@ Title bar text. A thunk (`() => s`) makes the bar reactive; a bare string is sta
 
 > `optional` **titleColor?**: `Color`
 
-Defined in: card.ts:64
+Defined in: [card.ts:64](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/card.ts#L64)
 
 Title text color. Defaults to `"white"`.
 
@@ -78,6 +78,6 @@ Title text color. Defaults to `"white"`.
 
 > `optional` **width?**: `number`
 
-Defined in: card.ts:58
+Defined in: [card.ts:58](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/card.ts#L58)
 
 Card width in px. Defaults to the screen width (a width-less container measures 0 — gotcha 16).

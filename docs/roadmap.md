@@ -72,7 +72,7 @@ no work inside this repo can advance). New work starts a new list.
   image (none public; releases ship real-hardware firmware, pebble-tool caps
   at SDK 4.17). Unblocks: such an image appearing, or the owner providing
   one. Full story: "firmware bigger-machine experiment".
-- cloudpebble `signal-piu` project type — the PR lives in
+- cloudpebble `pebble-signals` project type — the PR lives in
   coredevices/cloudpebble (outside this session's repo access). Plan fully
   scoped in the CloudPebble section. Unblocks: the owner opening the
   upstream issue/PR.
@@ -138,7 +138,8 @@ no work inside this repo can advance). New work starts a new list.
       `new Container({...})` tree instead of `jsx()` calls + host effects;
       (3) measure the arena delta on a mostly-static watchface (expect to approach
       react-pebble's floor for the static parts). Prior art + the tradeoff table:
-      `docs/design-journey.md`; the bench numbers: `projects/react-pebble-bench/`.
+      `docs/design-journey.md`; the bench numbers:
+      <https://github.com/emindeniz99/pebble-reactivity-bench>.
 
 **Next batch (owner order):**
 - [x] load-time ms instrumentation ✅ (2026-07, `loadms` example): SELECT
@@ -282,7 +283,7 @@ no work inside this repo can advance). New work starts a new list.
       Pebble-shaped-console test added (297 tests, 100% cov, XS green).
       **Remaining receipt (2-min job, fresh session):** install the
       throwing demo on a fresh emulator and grep the now-well-formed
-      `[signal-piu] uncaught in reactive update (effect #N)` line — this
+      `[pebble-signals] uncaught in reactive update (effect #N)` line — this
       session's emulator stopped booting after ~15 boot-cycles (resource
       exhaustion), so the final screenshot is queued.
       ALSO FOUND: **creation-time (first-run) exceptions bypass the notify()
@@ -532,7 +533,7 @@ Priority order the owner set; each is expanded in its own section below.
 - ~~**REAL footgun it exposed: silent swallow**~~ ✅ FIXED (2026-07, d4beddb).
   A throw inside a binding/effect with no `__spError` handler used to be
   rethrown-and-swallowed → silent blank Label, nothing in the logs. Now
-  `notify()` logs it via `console.error` ("[signal-piu] uncaught in reactive
+  `notify()` logs it via `console.error` ("[pebble-signals] uncaught in reactive
   update: …") — visible in `pebble logs`, ZERO boot-slot cost (console/error
   are host-interned), machine still survives, still overridable via
   `globalThis.__spError`. Now dumps the FULL error (type, message, stack,
@@ -567,7 +568,7 @@ Priority order the owner set; each is expanded in its own section below.
   prop-less root callable exactly the way the shim mounts it) and
   `AppDict` (the Application dictionary sibling export). Editor snippets:
   `sprafce` (root entry) + `sprc` (typed component) in
-  `.vscode/signal-piu.code-snippets`. Measured: zero cost — the types
+  `.vscode/pebble-signals.code-snippets`. Measured: zero cost — the types
   erase and rootapp ships 124 symbols, identical to hand-rendered counter.
   Device-verified through the smoke runner; `rootapp` is now a catalog
   entry. Chose the sibling-export convention over a `defineApp({...})`
@@ -585,11 +586,11 @@ Priority order the owner set; each is expanded in its own section below.
   `tutorials/build-a-watchface/` stays (a focused 3-part intro). Add a longer
   original series covering the full arc the official Alloy tutorial covers, in
   OUR words / OUR code (we do NOT copy or re-word their copyrighted text — we
-  write original signal-piu content on the same topics): project setup,
+  write original pebble-signals content on the same topics): project setup,
   drawing time/text, **custom fonts** (`.ttf` → resource → `Style`), images,
   **config pages** (see Clay below), persistence via `device.keyValue`, and
   publishing. Each part device-verified. This is the "port their tutorial
-  outline to signal-piu, originally written" the owner asked for.
+  outline to pebble-signals, originally written" the owner asked for.
 - **Clay config pages — does it work with us?** RESEARCHED 2026-07 (sources
   read end-to-end; implementation next). The full mechanic is available and
   headless-drivable:
@@ -678,14 +679,14 @@ Priority order the owner set; each is expanded in its own section below.
   `ReactElement`, Solid a big renderable union; our principled type is the
   `JSXNode` we already define (Content | primitive | array | nullish). Swapping
   it gives real typechecking of JSX expressions but can ripple through
-  inference — do it behind the typecheck gate, one pass, verify `ppnpm run
+  inference — do it behind the typecheck gate, one pass, verify `pnpm run
   typecheck` stays green. Low risk, nice-to-have.
 - **Vendor `modules.d.ts`** (Moddable's `Modules.importNow`/`has`/`host`/
   `archive`) into `types/moddable/` via `sync-moddable-typings.sh`, so the
   mod API is typed from the real source instead of our hand-declared global.
-- **`tutorials/` folder — "Build a watchface in signal-piu".** Mirror the
+- **`tutorials/` folder — "Build a watchface in pebble-signals".** Mirror the
   shape of coredevices/alloy-watchface-tutorial (working example source +
-  step-by-step MD guides), but original signal-piu content. Structure:
+  step-by-step MD guides), but original pebble-signals content. Structure:
   `tutorials/build-a-watchface/{README.md, part1…3.md, src/watchface.tsx}`.
   Part 1 a reactive ticking clock, Part 2 date + layout/styles, Part 3 a
   live complication (fine-grained update — only the changed Label repaints).
@@ -1095,7 +1096,7 @@ notifications, device info.
   Pebble apps in the browser" does NOT require QEMU-in-browser. Three tiers to
   explore, cheapest first:
   1. **PR a project type into cloudpebble** — its build servers learn our
-     toolchain (node + the signal-piu npm package); editor + emulator streaming
+     toolchain (node + the pebble-signals npm package); editor + emulator streaming
      come for free. Best effort/benefit if upstream is receptive.
   2. **Browser-only preview** — typecheck/lower run fine in a browser (plain
      TS); our vm-sandbox Piu stubs could back a canvas "layout preview" for
@@ -1117,9 +1118,9 @@ notifications, device info.
     `PROJECT_TYPES` — five today (native, simplyjs, pebblejs, package,
     rocky), each with per-type flags (rocky already models "SDK3+, CommonJS,
     entry index.js" — the closest precedent for us). THE PLAN for a
-    `signal-piu` type: (1) add the PROJECT_TYPES entry + per-type flags
+    `pebble-signals` type: (1) add the PROJECT_TYPES entry + per-type flags
     (SDK4.17+ only, TSX sources, entry src/tsx/examples-style layout);
-    (2) one celery build branch: `npm install signal-piu` + run its dist
+    (2) one celery build branch: `npm install pebble-signals` + run its dist
     build tools over the assembled sources, then the existing waf/pbw
     extraction — our build already drives `pebble build` (waf) underneath;
     (3) build image needs the moddable-enabled SDK (4.17+) — the main
@@ -1170,7 +1171,7 @@ hand-built imperative Piu label (timer assigns `.string`) live in the same
 Application and update independently — screenshots show both lines counting
 in lockstep. Pattern: `render()` returns the Piu Application; `app.add(...)`
 mounts classic content next to the JSX tree. Original ask below.
-migration.md CLAIMS one-screen-at-a-time migration works because signal-piu
+migration.md CLAIMS one-screen-at-a-time migration works because pebble-signals
 nodes ARE Piu nodes. Prove it with an example: one app where a hand-built
 `new Column/Label` subtree and a JSX subtree live under the same Application,
 sharing a Skin/Style — the migration story's load-bearing demo.

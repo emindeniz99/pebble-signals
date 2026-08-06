@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [lifecycle](../README.md) / useAppFocus
+[pebble-signals](../../README.md) / [lifecycle](../README.md) / useAppFocus
 
 # Function: useAppFocus()
 
 > **useAppFocus**(`phase?`): () => `boolean`
 
-Defined in: lifecycle.ts:210
+Defined in: [lifecycle.ts:210](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/lifecycle.ts#L210)
 
 useAppFocus() — reactive app-focus state (true while the app owns the screen).
 

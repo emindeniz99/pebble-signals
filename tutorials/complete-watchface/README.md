@@ -4,7 +4,7 @@ The second, longer tutorial series. The
 [3-part intro](../build-a-watchface/README.md) teaches the reactive core
 (signals, bindings, computed); this series covers everything AROUND it that a
 real, shippable watchface needs — the same arc the official Alloy tutorial
-walks, written originally for signal-piu. Every mechanic here is
+walks, written originally for pebble-signals. Every mechanic here is
 **device-verified**: each part points at a shipped example in
 `src/tsx/examples/` and a screenshot receipt in `screenshots/`.
 

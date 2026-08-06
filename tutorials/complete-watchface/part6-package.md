@@ -8,7 +8,7 @@ it a thing you can put on watches.
 Every `node build.mts` run already ends with the installable bundle:
 
 ```
-build/signal-piu.pbw
+build/pebble-signals.pbw
 ```
 
 It contains BOTH platform builds (gabbro 260×260 round, emery 200×228 rect)

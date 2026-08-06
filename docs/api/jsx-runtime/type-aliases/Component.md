@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [jsx-runtime](../README.md) / Component
+[pebble-signals](../../README.md) / [jsx-runtime](../README.md) / Component
 
 # Type Alias: Component\<P\>
 
 > **Component**\<`P`\> = (`props`) => [`JSXNode`](JSXNode.md)
 
-Defined in: jsx-runtime.ts:36
+Defined in: [jsx-runtime.ts:36](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/jsx-runtime.ts#L36)
 
 A component: a plain function that runs ONCE at mount (no re-render model)
 and returns its subtree. Type props with the generic — `Component<{ n:

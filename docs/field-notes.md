@@ -1,6 +1,6 @@
 # Field notes — how we found it
 
-A lab notebook for the signal-piu memory work: **where** we looked, **what**
+A lab notebook for the pebble-signals memory work: **where** we looked, **what**
 we read in the firmware/SDK source, **which tools** we built, and — just as
 important — **the wrong turns**. If you are reading this later trying to
 understand *why* a decision was made, or you are on the same XS-mod frontier
@@ -189,7 +189,7 @@ Two things worth internalizing:
 1. **DX-neutral by construction.** The symbol diet renames `jsx`→`RGB332`
    only on the *shipped `.js` boundary* — the export/import specifier — never
    your source, never the `.d.ts`, never the local variable. You keep writing
-   `import { useState } from "signal-piu"`. The rename is monotonic and
+   `import { useState } from "pebble-signals"`. The rename is monotonic and
    collision-checked, so at worst it is a no-op; it can never break your code.
 2. **Each optimization is individually reversible — but they are collectively
    load-bearing for RAM.** Flip ONE flag off and you get a correct build that
@@ -223,7 +223,7 @@ mistakes taught more than the wins.
   §4. Each flag off *individually* still fits, but ALL off at once exhausts
   the arena (`counter` → `fxAbort memory full`). Found by actually building
   the all-off path (owner asked "do we test flags-off?"). Lesson: `prune` +
-  `lower` are load-bearing, not cosmetic. Guarded now by `ppnpm run
+  `lower` are load-bearing, not cosmetic. Guarded now by `pnpm run
   smoke:flags-off`.
 - **"importNow isn't in @moddable/typings."** Wrong. `Modules.importNow` is
   standard Moddable (modules.d.ts, mods.md); Pebble only wraps it as a bare
@@ -775,7 +775,7 @@ while our 4.17 error was `moddable.c:79`. Different, older source.
 
 The reframe: the 32KB arena wall, the 384-slot JS stack (Round 7), and the
 boot-symbol floor are **stale-4.17-emulator limits, not fundamental**. On a
-current-firmware build a signal-piu app could just request a bigger machine
+current-firmware build a pebble-signals app could just request a bigger machine
 (e.g. `.stack=12288` → navreactive's depth problem gone; `.slot=` bigger →
 saturated apps' boot floor gone). §1 of the upstream issue is rewritten from
 "honor the sizes" (already done upstream) to "ship a current-firmware

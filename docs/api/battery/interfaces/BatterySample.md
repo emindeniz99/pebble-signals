@@ -1,12 +1,12 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [battery](../README.md) / BatterySample
+[pebble-signals](../../README.md) / [battery](../README.md) / BatterySample
 
 # Interface: BatterySample
 
-Defined in: battery.ts:85
+Defined in: [battery.ts:85](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/battery.ts#L85)
 
 One battery reading — what [useBattery](../functions/useBattery.md)'s getter returns. `percent` is
 0..100 (Rule 7 — the host's integer charge_percent, not a 0..1 fraction).
@@ -17,7 +17,7 @@ One battery reading — what [useBattery](../functions/useBattery.md)'s getter r
 
 > **charging**: `boolean`
 
-Defined in: battery.ts:89
+Defined in: [battery.ts:89](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/battery.ts#L89)
 
 True while the battery is actively charging.
 
@@ -27,7 +27,7 @@ True while the battery is actively charging.
 
 > **percent**: `number`
 
-Defined in: battery.ts:87
+Defined in: [battery.ts:87](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/battery.ts#L87)
 
 Charge level, 0..100 (integer percent — the host's charge_percent).
 
@@ -37,6 +37,6 @@ Charge level, 0..100 (integer percent — the host's charge_percent).
 
 > **plugged**: `boolean`
 
-Defined in: battery.ts:91
+Defined in: [battery.ts:91](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/battery.ts#L91)
 
 True while external power is connected (can be true with `charging` false when full).

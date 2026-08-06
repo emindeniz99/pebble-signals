@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [progressbar](../README.md) / ProgressBar
+[pebble-signals](../../README.md) / [progressbar](../README.md) / ProgressBar
 
 # Function: ProgressBar()
 
 > **ProgressBar**(`props`): `Content`
 
-Defined in: progressbar.ts:54
+Defined in: [progressbar.ts:54](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/progressbar.ts#L54)
 
 ProgressBar — a reactive horizontal progress bar on ONE Piu Port.
 

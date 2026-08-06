@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [tabs](../README.md) / TabsProps
+[pebble-signals](../../README.md) / [tabs](../README.md) / TabsProps
 
 # Type Alias: TabsProps
 
 > **TabsProps** = `object`
 
-Defined in: tabs.ts:53
+Defined in: [tabs.ts:53](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/tabs.ts#L53)
 
 Props for [Tabs](../functions/Tabs.md).
 
@@ -18,7 +18,7 @@ Props for [Tabs](../functions/Tabs.md).
 
 > **active**: `number` \| (() => `number`)
 
-Defined in: tabs.ts:57
+Defined in: [tabs.ts:57](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/tabs.ts#L57)
 
 The active tab index. A thunk (`() => i`) makes the bar reactive; a bare number is static. Clamped to `[0, labels.length-1]`.
 
@@ -28,7 +28,7 @@ The active tab index. A thunk (`() => i`) makes the bar reactive; a bare number 
 
 > `optional` **activeColor?**: `Color`
 
-Defined in: tabs.ts:65
+Defined in: [tabs.ts:65](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/tabs.ts#L65)
 
 Active tab text color. Defaults to `"white"`.
 
@@ -38,7 +38,7 @@ Active tab text color. Defaults to `"white"`.
 
 > `optional` **activeFill?**: `Color`
 
-Defined in: tabs.ts:67
+Defined in: [tabs.ts:67](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/tabs.ts#L67)
 
 Active tab background fill. Omitted = no background (the active tab is set apart by `activeColor` alone).
 
@@ -48,7 +48,7 @@ Active tab background fill. Omitted = no background (the active tab is set apart
 
 > `optional` **color?**: `Color`
 
-Defined in: tabs.ts:63
+Defined in: [tabs.ts:63](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/tabs.ts#L63)
 
 Inactive tab text color. Defaults to `"#808080"`.
 
@@ -58,7 +58,7 @@ Inactive tab text color. Defaults to `"#808080"`.
 
 > `optional` **height?**: `number`
 
-Defined in: tabs.ts:61
+Defined in: [tabs.ts:61](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/tabs.ts#L61)
 
 Bar height in px. Defaults to 24.
 
@@ -68,7 +68,7 @@ Bar height in px. Defaults to 24.
 
 > **labels**: `string`[]
 
-Defined in: tabs.ts:55
+Defined in: [tabs.ts:55](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/tabs.ts#L55)
 
 The tab captions, left to right. One equal-width cell per label.
 
@@ -78,6 +78,6 @@ The tab captions, left to right. One equal-width cell per label.
 
 > `optional` **width?**: `number`
 
-Defined in: tabs.ts:59
+Defined in: [tabs.ts:59](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/tabs.ts#L59)
 
 Bar width in px. Defaults to the screen width (a width-less Row measures 0 — gotcha 16).

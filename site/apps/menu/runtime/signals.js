@@ -272,7 +272,7 @@ export function report(err, ctx) {
     }
     else
         fmt = String(err);
-    const msg = "[signal-piu] " + ctx + ":\n" + fmt;
+    const msg = "[pebble-signals] " + ctx + ":\n" + fmt;
     const c = globalThis.console;
     const f = c && (c.error || c.log);
     // Pass BOTH a fully-formatted string (nothing lost on consoles that

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [actionbar](../README.md) / ActionBar
+[pebble-signals](../../README.md) / [actionbar](../README.md) / ActionBar
 
 # Function: ActionBar()
 
 > **ActionBar**(`props`): `Content`
 
-Defined in: actionbar.ts:79
+Defined in: [actionbar.ts:79](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/actionbar.ts#L79)
 
 ActionBar — Pebble's right-edge button-hint strip, on ONE Piu Container.
 

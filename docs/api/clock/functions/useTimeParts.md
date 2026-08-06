@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [clock](../README.md) / useTimeParts
+[pebble-signals](../../README.md) / [clock](../README.md) / useTimeParts
 
 # Function: useTimeParts()
 
 > **useTimeParts**(`granularity?`): [`TimeParts`](../interfaces/TimeParts.md)
 
-Defined in: clock.ts:151
+Defined in: [clock.ts:151](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clock.ts#L151)
 
 Split the current time into per-field reactive getters, derived from one
 [useClock](useClock.md) Date.
@@ -18,7 +18,7 @@ Split the current time into per-field reactive getters, derived from one
 
 Each field is a PLAIN PROJECTION getter over the shared clock Date
 (`() => now().getHours()`), NOT a `computed()` memo. Rationale (project Rule 4
-— recompute, don't cache; and conformance Law 23 — signal-piu's `computed`
+— recompute, don't cache; and conformance Law 23 — pebble-signals's `computed`
 does NOT equality-dedupe its notifications): a clock is ONE Date signal that
 changes every tick, so a memo per field would still re-notify every tick (no
 repaint saved) while costing three forward effects — a plain getter is

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [anim](../README.md) / withRepeat
+[pebble-signals](../../README.md) / [anim](../README.md) / withRepeat
 
 # Function: withRepeat()
 
 > **withRepeat**(`steps`, `count`, `yoyo?`): [`SeqStep`](../type-aliases/SeqStep.md)[]
 
-Defined in: anim.ts:364
+Defined in: [anim.ts:364](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/anim.ts#L364)
 
 withRepeat(steps, count, yoyo?) — repeat a step list `count` times (RN Reanimated
 `withRepeat`). With `yoyo`, every other pass plays REVERSED so the motion bounces

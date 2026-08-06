@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / computed
+[pebble-signals](../../README.md) / [signals](../README.md) / computed
 
 # Function: computed()
 
 > **computed**\<`T`\>(`fn`): [`ReadonlySignal`](../interfaces/ReadonlySignal.md)\<`T`\>
 
-Defined in: signals.ts:734
+Defined in: [signals.ts:734](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L734)
 
 Memoized derived signal, LAZY and glitch-free: `fn` re-runs on read when a
 dependency changed, and its value is cached across reads. Costs one internal

@@ -1,4 +1,4 @@
-// Locate the signal-piu package root from a script's own directory by walking
+// Locate the pebble-signals package root from a script's own directory by walking
 // up to the nearest package.json. Needed because the same scripts run from TWO
 // layouts: the repo (tools/x.mts, one level below the root) and the packed
 // tarball's compiled dist (dist/tools/x.mjs, two levels below) — a hard-coded

@@ -112,7 +112,7 @@ writeFileSync(
 	`<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>signal-piu — zero-install preview gallery</title>
+<title>pebble-signals — zero-install preview gallery</title>
 <style>
  :root { color-scheme: dark; }
  body { margin: 0; background: #14141f; color: #e7e7f0; line-height: 1.5;
@@ -140,7 +140,7 @@ writeFileSync(
  footer code { color: #cfcfe4; }
 </style>
 <header>
- <h1>signal-piu</h1>
+ <h1>pebble-signals</h1>
  <p class="tag">Fine-grained reactive UI — Solid-style signals + JSX, no VDOM — for Pebble
  watches on Moddable XS/Piu. Every watch below is a REAL example running the SHIPPED runtime
  in your browser: no SDK, no emulator, no install.</p>
@@ -164,7 +164,7 @@ ${APPS.map(card).join("\n")}
  <code>weather</code> face are not in this gallery. QEMU stays the truth:
  <code>pnpm run dev -- --app pulse</code>.</p>
  <p>Regenerate this site with <code>node tools/build-site.mts</code> from
- <code>projects/signal-piu</code>.</p>
+ the repo root.</p>
 </footer>
 <script>
  const frames = document.querySelectorAll("iframe[data-app]");

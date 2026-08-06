@@ -1,6 +1,6 @@
 # App lifecycle — from power-on to kill
 
-Where every piece lives and when it runs, for a signal-piu app on Pebble
+Where every piece lives and when it runs, for a pebble-signals app on Pebble
 (Moddable XS + Alloy/Piu, SDK 4.17). Two memories matter throughout:
 **flash** (256KB resource area + the mod archive — cheap, persistent, ROM)
 and the **32KB JS heap** (the "arena" — the scarce one).
@@ -22,7 +22,7 @@ and the **32KB JS heap** (the "arena" — the scarce one).
    - `main` is NOT preloaded — it ships as bytecode in the archive.
    - the C shim `src/c/mdbl.c` compiles into the firmware app; `assets/*` and
      any `*.pdc` become entries in the 256KB resource area.
-   Output: `signal-piu.pbw` (the mod archive `mc.xsa` + resources + C app).
+   Output: `pebble-signals.pbw` (the mod archive `mc.xsa` + resources + C app).
 
 ## Install / boot (on the watch)
 6. `pebble install` writes the `.pbw` to flash.

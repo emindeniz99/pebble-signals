@@ -1,4 +1,4 @@
-# signal-piu
+# pebble-signals
 
 > _Moved from the repo front page 2026-07-31; the numbered gotchas and measured ledger live here._
 
@@ -25,7 +25,7 @@ face) · [Tutorials](#tutorials) · [Use it in your project](#use-it-in-your-own
 
 This is (as far as we know) the first **runtime**-reactive UI running on this
 hardware. The existing React-like option, [react-pebble], resolves all
-reactivity at compile time in Node and emits static Piu code; signal-piu keeps
+reactivity at compile time in Node and emits static Piu code; pebble-signals keeps
 a live reactive graph on the watch itself, so runtime-dynamic UIs (lists that
 change shape, data-driven trees) work without a compile step.
 
@@ -43,8 +43,8 @@ Prerequisites (pebble tool v5 + SDK 4.17 with the QEMU emulators, Node ≥ 24,
 pnpm): install steps in [Getting started](getting-started.md).
 
 ```sh
-git clone https://github.com/emindeniz99/playground
-cd playground/projects/signal-piu
+git clone https://github.com/emindeniz99/pebble-signals
+cd pebble-signals
 pnpm install
 pnpm run dev -- --app watchface     # build + install + live logs, one command
 ```
@@ -73,7 +73,7 @@ touch bug, gotcha 2) — 40+ records with a flat arena.
 ### Use it in your own project (npm)
 
 ```sh
-npx -p signal-piu create-signal-piu my-watch
+npx -p pebble-signals create-pebble-signals my-watch
 cd my-watch && npm install && npm run build
 ```
 
@@ -84,16 +84,16 @@ install into `examples/consumer` → typecheck):
 
 ```sh
 node tools/create-app.mts my-watch   # same scaffold, run from this repo
-npm pack                             # → signal-piu-1.0.0.tgz, the install unit
+npm pack                             # → pebble-signals-1.0.0.tgz, the install unit
 ```
 
-The scaffold's own `"signal-piu": "^1.0.0"` dependency resolves from the
+The scaffold's own `"pebble-signals": "^1.0.0"` dependency resolves from the
 registry too, so until the publish, install that tarball into the new project
 BY PATH rather than running a bare `npm install` in it.
 
-(`npm run build` is scaffolded as `node node_modules/signal-piu/dist/build.mjs`
+(`npm run build` is scaffolded as `node node_modules/pebble-signals/dist/build.mjs`
 — the compiled build lives under `dist/`; a bare
-`node node_modules/signal-piu/build.mjs` path does not exist in the package.)
+`node node_modules/pebble-signals/build.mjs` path does not exist in the package.)
 
 The package ships the runtime sources, the whole compile pipeline and typed
 host globals — [packaging & consuming](packaging.md) has the exports
@@ -220,7 +220,7 @@ top-level `function` is banned, gotcha 13, so `const C = () =>` there). See
 Instead of hand-writing `render(() => <App/>, { skin, style })`, an app can
 `export default` a root component and the build generates the render() shim
 (device-verified, `examples/rootapp.tsx`; the `sprafce` editor snippet in
-`.vscode/signal-piu.code-snippets` scaffolds it):
+`.vscode/pebble-signals.code-snippets` scaffolds it):
 
 ```tsx
 import type { AppDict, Component } from "runtime/jsx-runtime";
@@ -674,7 +674,7 @@ resources → the phone). It includes the MEASURED packed-core experiment
 
 [`docs/memory-map.md`](memory-map.md) is the companion map: every
 memory space on the watch+phone (arena, mod archive, resources, native
-heap, worker pool, persist KV, PKJS), which signal-piu feature uses which,
+heap, worker pool, persist KV, PKJS), which pebble-signals feature uses which,
 and a decision table for where a given kind of data belongs.
 
 [`docs/field-notes.md`](field-notes.md) is the lab notebook — *how*
@@ -707,10 +707,10 @@ is the JS-value-stack post-mortem (the third fixed budget: 384 slots).
 3. **Piu-Pebble port: swapping a bare `Label` as a container host's direct
    child crashes the firmware** — rebuilt-fresh on the first swap, or
    re-bound prebuilt on the second. **Container-wrapped subtrees swap and
-   re-bind indefinitely.** signal-piu's `Show` wraps both sides
+   re-bind indefinitely.** pebble-signals's `Show` wraps both sides
    automatically, so app code never sees this.
 4. **Setting `visible` on bound content crashes the port** (first write).
-   signal-piu's `Show keepAlive` therefore swaps by add/remove-by-reference
+   pebble-signals's `Show keepAlive` therefore swaps by add/remove-by-reference
    instead of visibility.
 5. `pebble install` intermittently stops auto-launching the app — looks
    exactly like an instant crash. Check the launcher menu before debugging.
@@ -835,7 +835,7 @@ is the JS-value-stack post-mortem (the third fixed budget: 384 slots).
    `__moddable_createMachine` re-carve the arena as
    `chunk = (static − stack×16)/2 = 13312B` + a FIXED 832-slot heap
    (13312B) and call `modMachineAllowKernelHeap(0)` — read straight out
-   of the 4.17 firmware disassembly. signal-piu needs ~17.5KB of slots,
+   of the 4.17 firmware disassembly. pebble-signals needs ~17.5KB of slots,
    so the mod dies silently at load. Also: the FFI binding table caps at
    32 functions (`cmp #31` in `newHostFunction`), and every FFI function
    name becomes a fresh runtime symbol via `XS->id()`. FFI is therefore
@@ -929,7 +929,7 @@ is the JS-value-stack post-mortem (the third fixed budget: 384 slots).
 
 ## vs react-pebble
 
-|                       | react-pebble                          | signal-piu                                |
+|                       | react-pebble                          | pebble-signals                                |
 |-----------------------|---------------------------------------|-------------------------------------------|
 | Reactivity resolved   | compile time (Node, perturbation diff) | **runtime** (signals on the watch)        |
 | Runtime-dynamic trees | limited to precompiled variants        | native: `Show`, keyed `For`               |
@@ -939,17 +939,18 @@ is the JS-value-stack post-mortem (the third fixed budget: 384 slots).
 | Best for              | static-layout watchfaces               | data-driven apps within a small footprint |
 
 Honest summary: compile-time resolution buys react-pebble immunity from the
-32KB arena; runtime signals buy signal-piu live dynamic structure. On today's
+32KB arena; runtime signals buy pebble-signals live dynamic structure. On today's
 firmware (fixed arena) both are legitimate points on the trade-off curve.
 
-MEASURED head-to-head (see `../react-pebble-bench`, same emulator and
-tooling): react-pebble watchface 3,206B archive / 41% arena floor;
+MEASURED head-to-head (see
+[pebble-reactivity-bench](https://github.com/emindeniz99/pebble-reactivity-bench),
+same emulator and tooling): react-pebble watchface 3,206B archive / 41% arena floor;
 counter 1,885B / 46% floor with 144B transient per 8 presses — genuinely
 lighter, as expected with no runtime aboard. But its combined
 clock+counter+toggle multiview was SILENTLY reduced to one screen by the
 perturbation compiler and the generated app reboots the firmware at
 launch. Neither framework ships a working multi-screen app on this
-firmware: react-pebble loses the screens at compile time, signal-piu
+firmware: react-pebble loses the screens at compile time, pebble-signals
 hits boot-time arena OOM.
 
 ## Milestones & screenshots

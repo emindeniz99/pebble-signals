@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [image](../README.md) / Image
+[pebble-signals](../../README.md) / [image](../README.md) / Image
 
 # Function: Image()
 
 > **Image**(`props`): `Content`
 
-Defined in: image.ts:90
+Defined in: [image.ts:90](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/image.ts#L90)
 
 Image — a single bitmap on one Piu Content: the React Native `<Image>` analog.
 

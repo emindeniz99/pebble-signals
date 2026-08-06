@@ -1,6 +1,6 @@
 #include <pebble.h>
 
-// Minimal Moddable bootstrap for a signal-piu app: create the XS machine with
+// Minimal Moddable bootstrap for a pebble-signals app: create the XS machine with
 // the measured 4.17 sizes (all three must be nonzero or the record is
 // rejected). Instrumentation flag streams slot/chunk/stack into `pebble logs`.
 int main(void) {

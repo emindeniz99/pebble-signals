@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [timers](../README.md) / useInterval
+[pebble-signals](../../README.md) / [timers](../README.md) / useInterval
 
 # Function: useInterval()
 
 > **useInterval**(`callback`, `delay`): () => `void`
 
-Defined in: timers.ts:68
+Defined in: [timers.ts:68](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/timers.ts#L68)
 
 useInterval(callback, delay) — run `callback` every `delay` ms on the
 device's single interval timer. Returns a manual `cancel()`.

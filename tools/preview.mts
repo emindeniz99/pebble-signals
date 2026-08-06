@@ -77,7 +77,7 @@ writeFileSync(
 	join(out, "index.html"),
 	`<!DOCTYPE html>
 <meta charset="utf-8">
-<title>signal-piu preview — ${APP}</title>
+<title>pebble-signals preview — ${APP}</title>
 <style>
   body { margin: 0; min-height: 100vh; display: grid; place-items: center;
          background: #1a1a2e; font-family: system-ui, sans-serif; }

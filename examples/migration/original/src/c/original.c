@@ -1,12 +1,12 @@
 #include <pebble.h>
 
 // Stock 2-screen Pebble C watchapp — the "found it on the internet, wrote a
-// classic counter + detail view" starting point for the signal-piu migration
+// classic counter + detail view" starting point for the pebble-signals migration
 // story (see docs/migration.md). Two screens, two windows, the classic
 // Pebble window-stack navigation pattern: SELECT on the counter pushes a
 // detail window, BACK pops it (default WindowStack behavior — no handler
 // needed). This is exactly what examples/migration/integrated/ ports to
-// signal-piu's <Navigator> push/pop.
+// pebble-signals's <Navigator> push/pop.
 
 // ---- screen 1: counter -----------------------------------------------------
 static Window *s_window;

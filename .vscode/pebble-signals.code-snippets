@@ -1,8 +1,8 @@
 {
-	"signal-piu root app (typesafe entry)": {
+	"pebble-signals root app (typesafe entry)": {
 		"scope": "typescriptreact",
 		"prefix": "sprafce",
-		"description": "signal-piu root component entry — the build generates render()",
+		"description": "pebble-signals root component entry — the build generates render()",
 		"body": [
 			"import type { AppDict, Component } from \"runtime/jsx-runtime\";",
 			"",
@@ -21,10 +21,10 @@
 			"export default ${1:App};"
 		]
 	},
-	"signal-piu typed component": {
+	"pebble-signals typed component": {
 		"scope": "typescriptreact",
 		"prefix": "sprc",
-		"description": "signal-piu component with typed props (runs once, no re-render)",
+		"description": "pebble-signals component with typed props (runs once, no re-render)",
 		"body": [
 			"type ${1:Name}Props = { ${2:label: string} };",
 			"const ${1:Name}: Component<${1:Name}Props> = (props) => (",

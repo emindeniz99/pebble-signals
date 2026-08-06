@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [message](../README.md) / useMessage
+[pebble-signals](../../README.md) / [message](../README.md) / useMessage
 
 # Function: useMessage()
 
 > **useMessage**(`keys`): [`Messenger`](../interfaces/Messenger.md)
 
-Defined in: message.ts:155
+Defined in: [message.ts:155](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/message.ts#L155)
 
 useMessage(keys) — open a reactive AppMessage channel on the given key NAMES.
 

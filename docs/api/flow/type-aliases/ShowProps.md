@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [flow](../README.md) / ShowProps
+[pebble-signals](../../README.md) / [flow](../README.md) / ShowProps
 
 # Type Alias: ShowProps
 
 > **ShowProps** = [`BoxProps`](BoxProps.md) & `object`
 
-Defined in: flow.ts:64
+Defined in: [flow.ts:64](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L64)
 
 Props for [Show](../functions/Show.md).
 

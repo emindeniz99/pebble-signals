@@ -1,8 +1,8 @@
-[**signal-piu**](../README.md)
+[**pebble-signals**](../README.md)
 
 ***
 
-[signal-piu](../README.md) / dialog
+[pebble-signals](../README.md) / dialog
 
 # dialog
 

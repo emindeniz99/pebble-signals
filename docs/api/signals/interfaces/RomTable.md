@@ -1,12 +1,12 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / RomTable
+[pebble-signals](../../README.md) / [signals](../README.md) / RomTable
 
 # Interface: RomTable
 
-Defined in: signals.ts:1362
+Defined in: [signals.ts:1362](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L1362)
 
 What [romTable](../functions/romTable.md) returns — a read-only view over a packed table.
 
@@ -16,7 +16,7 @@ What [romTable](../functions/romTable.md) returns — a read-only view over a pa
 
 > **count**: `number`
 
-Defined in: signals.ts:1364
+Defined in: [signals.ts:1364](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L1364)
 
 Number of entries in the table.
 
@@ -26,7 +26,7 @@ Number of entries in the table.
 
 > **get**(`i`): `string`
 
-Defined in: signals.ts:1366
+Defined in: [signals.ts:1366](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L1366)
 
 Decode entry `i` (wraps modulo [count](#count)); "" on an empty table.
 

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / onMount
+[pebble-signals](../../README.md) / [signals](../README.md) / onMount
 
 # Function: onMount()
 
 > **onMount**(`fn`): `void`
 
-Defined in: signals.ts:972
+Defined in: [signals.ts:972](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L972)
 
 onMount(fn): run fn ONCE, untracked. In this run-once model a component body
 already executes a single time as it builds, so this is just "do it once,

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [numberfield](../README.md) / NumberFieldProps
+[pebble-signals](../../README.md) / [numberfield](../README.md) / NumberFieldProps
 
 # Type Alias: NumberFieldProps
 
 > **NumberFieldProps** = `object`
 
-Defined in: numberfield.ts:62
+Defined in: [numberfield.ts:62](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L62)
 
 Props for [NumberField](../functions/NumberField.md).
 
@@ -18,7 +18,7 @@ Props for [NumberField](../functions/NumberField.md).
 
 > `optional` **affordance?**: `boolean`
 
-Defined in: numberfield.ts:80
+Defined in: [numberfield.ts:80](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L80)
 
 Show the `+`/`-` affordance hints above/below the number. Defaults to `true`.
 
@@ -28,7 +28,7 @@ Show the `+`/`-` affordance hints above/below the number. Defaults to `true`.
 
 > `optional` **affordanceColor?**: `Color`
 
-Defined in: numberfield.ts:82
+Defined in: [numberfield.ts:82](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L82)
 
 Affordance hint color. Defaults to `"#808080"`.
 
@@ -38,7 +38,7 @@ Affordance hint color. Defaults to `"#808080"`.
 
 > `optional` **affordanceFont?**: `string`
 
-Defined in: numberfield.ts:84
+Defined in: [numberfield.ts:84](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L84)
 
 Affordance hint font. Defaults to `"24px Gothic"` (a valid Pebble key — Rule 4).
 
@@ -48,7 +48,7 @@ Affordance hint font. Defaults to `"24px Gothic"` (a valid Pebble key — Rule 4
 
 > `optional` **color?**: `Color`
 
-Defined in: numberfield.ts:78
+Defined in: [numberfield.ts:78](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L78)
 
 Value text color. Defaults to `"white"`.
 
@@ -58,7 +58,7 @@ Value text color. Defaults to `"white"`.
 
 > `optional` **font?**: `string`
 
-Defined in: numberfield.ts:76
+Defined in: [numberfield.ts:76](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L76)
 
 Value font. Defaults to `"bold 42px Bitham"` (a valid Pebble key — Rule 4).
 
@@ -68,7 +68,7 @@ Value font. Defaults to `"bold 42px Bitham"` (a valid Pebble key — Rule 4).
 
 > `optional` **height?**: `number`
 
-Defined in: numberfield.ts:68
+Defined in: [numberfield.ts:68](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L68)
 
 Field height in px. Defaults to 120. Split 1/4 : 1/2 : 1/4 across the +/value/- rows.
 
@@ -78,7 +78,7 @@ Field height in px. Defaults to 120. Split 1/4 : 1/2 : 1/4 across the +/value/- 
 
 > `optional` **max?**: `number`
 
-Defined in: numberfield.ts:72
+Defined in: [numberfield.ts:72](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L72)
 
 Upper display bound — the shown value never rises above it. Omit for no ceiling.
 
@@ -88,7 +88,7 @@ Upper display bound — the shown value never rises above it. Omit for no ceilin
 
 > `optional` **min?**: `number`
 
-Defined in: numberfield.ts:70
+Defined in: [numberfield.ts:70](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L70)
 
 Lower display bound — the shown value never drops below it. Omit for no floor.
 
@@ -98,7 +98,7 @@ Lower display bound — the shown value never drops below it. Omit for no floor.
 
 > `optional` **unit?**: `string`
 
-Defined in: numberfield.ts:74
+Defined in: [numberfield.ts:74](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L74)
 
 Suffix appended after the number (e.g. `"%"`). Omit for none.
 
@@ -108,7 +108,7 @@ Suffix appended after the number (e.g. `"%"`). Omit for none.
 
 > **value**: `number` \| (() => `number`)
 
-Defined in: numberfield.ts:64
+Defined in: [numberfield.ts:64](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L64)
 
 The number to display. A thunk (`() => n`) makes it reactive; a bare number is static. Clamped into `[min,max]` for display when those are given.
 
@@ -118,6 +118,6 @@ The number to display. A thunk (`() => n`) makes it reactive; a bare number is s
 
 > `optional` **width?**: `number`
 
-Defined in: numberfield.ts:66
+Defined in: [numberfield.ts:66](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/numberfield.ts#L66)
 
 Field width in px. Defaults to the screen width (a width-less Column measures 0 — gotcha 16).

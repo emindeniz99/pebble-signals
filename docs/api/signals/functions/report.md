@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / report
+[pebble-signals](../../README.md) / [signals](../README.md) / report
 
 # Function: report()
 
 > **report**(`err`, `ctx`): `void`
 
-Defined in: signals.ts:332
+Defined in: [signals.ts:332](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L332)
 
 Report a caught reactive error — the shared "loud failure" channel. The
 escalation ladder (2026-07 redesign — owner decision: telling the wearer

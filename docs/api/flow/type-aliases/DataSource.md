@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [flow](../README.md) / DataSource
+[pebble-signals](../../README.md) / [flow](../README.md) / DataSource
 
 # Type Alias: DataSource\<T\>
 
 > **DataSource**\<`T`\> = `object`
 
-Defined in: flow.ts:103
+Defined in: [flow.ts:103](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L103)
 
 Anything with `count()` and `get(i)` — an array wrapper, the byte store, a lazy fetcher.
 
@@ -24,7 +24,7 @@ Anything with `count()` and `get(i)` — an array wrapper, the byte store, a laz
 
 > **count**(): `number`
 
-Defined in: flow.ts:104
+Defined in: [flow.ts:104](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L104)
 
 #### Returns
 
@@ -36,7 +36,7 @@ Defined in: flow.ts:104
 
 > **get**(`i`): `T`
 
-Defined in: flow.ts:105
+Defined in: [flow.ts:105](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L105)
 
 #### Parameters
 

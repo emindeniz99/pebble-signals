@@ -1,12 +1,12 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [watchinfo](../README.md) / WatchInfo
+[pebble-signals](../../README.md) / [watchinfo](../README.md) / WatchInfo
 
 # Interface: WatchInfo
 
-Defined in: watchinfo.ts:66
+Defined in: [watchinfo.ts:66](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L66)
 
 One-shot device + screen facts returned by [watchInfo](../functions/watchInfo.md) — the bare
 `watch` global's getters merged with the [DisplayBounds](DisplayBounds.md) screen subset
@@ -22,7 +22,7 @@ into ONE flat object. Every field is constant for the life of the boot.
 
 > **color**: `boolean`
 
-Defined in: watchinfo.ts:58
+Defined in: [watchinfo.ts:58](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L58)
 
 True on a COLOR panel, false on a black/white one.
 
@@ -36,7 +36,7 @@ True on a COLOR panel, false on a black/white one.
 
 > **firmware**: `object`
 
-Defined in: watchinfo.ts:70
+Defined in: [watchinfo.ts:70](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L70)
 
 Running firmware version, flattened once from `watch.firmwareVersion`.
 
@@ -64,7 +64,7 @@ Patch version component.
 
 > **height**: `number`
 
-Defined in: watchinfo.ts:54
+Defined in: [watchinfo.ts:54](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L54)
 
 Display height in px (e.g. 260 on gabbro, 228 on emery).
 
@@ -78,7 +78,7 @@ Display height in px (e.g. 260 on gabbro, 228 on emery).
 
 > **hour12**: `boolean`
 
-Defined in: watchinfo.ts:79
+Defined in: [watchinfo.ts:79](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L79)
 
 True when the wearer's system clock is 12-hour style (`!24h`).
 
@@ -88,7 +88,7 @@ True when the wearer's system clock is 12-hour style (`!24h`).
 
 > **language**: `string`
 
-Defined in: watchinfo.ts:81
+Defined in: [watchinfo.ts:81](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L81)
 
 Wearer's system locale from `device.info.language` (e.g. "en_US"; "" when absent).
 
@@ -98,7 +98,7 @@ Wearer's system locale from `device.info.language` (e.g. "en_US"; "" when absent
 
 > **model**: `number`
 
-Defined in: watchinfo.ts:68
+Defined in: [watchinfo.ts:68](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L68)
 
 Hardware model id — the host WatchInfoModel enum as an integer.
 
@@ -108,7 +108,7 @@ Hardware model id — the host WatchInfoModel enum as an integer.
 
 > **round**: `boolean`
 
-Defined in: watchinfo.ts:56
+Defined in: [watchinfo.ts:56](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L56)
 
 True on a CIRCULAR panel (gabbro) — inset content off the clipped corners.
 
@@ -122,7 +122,7 @@ True on a CIRCULAR panel (gabbro) — inset content off the clipped corners.
 
 > **serialNumber**: `string`
 
-Defined in: watchinfo.ts:87
+Defined in: [watchinfo.ts:87](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L87)
 
 Hardware serial from `device.info.serialNumber` — "" when absent.
 QEMU reports it `undefined` (hostprobe receipt 2026-07-29), so expect a
@@ -134,7 +134,7 @@ real value only on hardware.
 
 > **width**: `number`
 
-Defined in: watchinfo.ts:52
+Defined in: [watchinfo.ts:52](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L52)
 
 Display width in px (e.g. 260 on gabbro, 200 on emery).
 

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [actionmenu](../README.md) / ActionMenu
+[pebble-signals](../../README.md) / [actionmenu](../README.md) / ActionMenu
 
 # Function: ActionMenu()
 
 > **ActionMenu**(`props`): `Content`
 
-Defined in: actionmenu.ts:126
+Defined in: [actionmenu.ts:126](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/actionmenu.ts#L126)
 
 ActionMenu — a reactive modal action sheet, display-only.
 

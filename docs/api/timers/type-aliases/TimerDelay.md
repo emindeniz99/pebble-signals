@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [timers](../README.md) / TimerDelay
+[pebble-signals](../../README.md) / [timers](../README.md) / TimerDelay
 
 # Type Alias: TimerDelay
 
 > **TimerDelay** = `number` \| (() => `number` \| `null`) \| `null`
 
-Defined in: timers.ts:50
+Defined in: [timers.ts:50](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/timers.ts#L50)
 
 A timer delay handed to [useInterval](../functions/useInterval.md) / [useTimeout](../functions/useTimeout.md):
  - a bare `number` — static ms, applied once at construction;

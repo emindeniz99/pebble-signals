@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [state](../README.md) / useToggle
+[pebble-signals](../../README.md) / [state](../README.md) / useToggle
 
 # Function: useToggle()
 
 > **useToggle**(`initial?`): \[() => `boolean`, () => `void`, (`v`) => `void`\]
 
-Defined in: state.ts:66
+Defined in: [state.ts:66](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/state.ts#L66)
 
 useToggle(initial?) — a boolean signal with a flip and a set.
 

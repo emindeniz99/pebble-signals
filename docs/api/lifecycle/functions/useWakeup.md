@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [lifecycle](../README.md) / useWakeup
+[pebble-signals](../../README.md) / [lifecycle](../README.md) / useWakeup
 
 # Function: useWakeup()
 
 > **useWakeup**(): [`Wakeup`](../interfaces/Wakeup.md)
 
-Defined in: lifecycle.ts:253
+Defined in: [lifecycle.ts:253](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/lifecycle.ts#L253)
 
 useWakeup() — the wakeup scheduler plus a reactive `last`-fired event.
 

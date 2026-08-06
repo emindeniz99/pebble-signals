@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [statusbar](../README.md) / StatusBar
+[pebble-signals](../../README.md) / [statusbar](../README.md) / StatusBar
 
 # Function: StatusBar()
 
 > **StatusBar**(`props`): `Content`
 
-Defined in: statusbar.ts:87
+Defined in: [statusbar.ts:87](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/statusbar.ts#L87)
 
 StatusBar — a top strip with a left title and a right time, on ONE Container.
 

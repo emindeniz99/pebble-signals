@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [kvstore](../README.md) / useKVStorage
+[pebble-signals](../../README.md) / [kvstore](../README.md) / useKVStorage
 
 # Function: useKVStorage()
 
 > **useKVStorage**\<`T`\>(`key`, `initial`): \[() => `T`, (`v`) => `void`\]
 
-Defined in: kvstore.ts:62
+Defined in: [kvstore.ts:62](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/kvstore.ts#L62)
 
 A `useState`-shaped tuple over a STRUCTURED value persisted in `localStorage`
 as JSON — the structured sibling of useLocalStorage.

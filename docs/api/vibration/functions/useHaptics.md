@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [vibration](../README.md) / useHaptics
+[pebble-signals](../../README.md) / [vibration](../README.md) / useHaptics
 
 # Function: useHaptics()
 
 > **useHaptics**(): [`Haptics`](../interfaces/Haptics.md)
 
-Defined in: vibration.ts:93
+Defined in: [vibration.ts:93](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vibration.ts#L93)
 
 useHaptics() — fire the vibration motor: the RN `Vibration` / react-pebble
 `useVibration` analog. Returns a small command object; call its methods from an

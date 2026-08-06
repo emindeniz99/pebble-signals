@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / useContext
+[pebble-signals](../../README.md) / [signals](../README.md) / useContext
 
 # Function: useContext()
 
 > **useContext**\<`T`\>(`ctx`): `T`
 
-Defined in: signals.ts:987
+Defined in: [signals.ts:987](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L987)
 
 ## Type Parameters
 

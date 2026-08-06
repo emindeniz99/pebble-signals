@@ -1,4 +1,4 @@
-# signal-piu — component catalog
+# pebble-signals — component catalog
 
 Every catalog component, its one-liner, a usage snippet, and a device
 screenshot on **both** watch shapes — gabbro (round, 260×260) and emery

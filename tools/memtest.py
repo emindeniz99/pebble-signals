@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""On-device memory audit for signal-piu.
+"""On-device memory audit for pebble-signals.
 
 Opens ONE direct QemuTransport connection (kill pypkjs first — the qemu
 port is single-client), enables app-log shipping, RELAUNCHES the app so
@@ -90,7 +90,7 @@ def click(name, hold=0.12, settle=0.6):
 # menu and timeline are light. Lets the relaunch be state-aware instead of
 # a blind button sequence (a `back` on the launcher opens the timeline!).
 MONITOR = info["qemu"]["monitor"]
-PPM = "/tmp/signal-piu-memtest.ppm"
+PPM = "/tmp/pebble-signals-memtest.ppm"
 
 def screen_is_app():
     try:

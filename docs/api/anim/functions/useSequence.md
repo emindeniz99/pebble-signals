@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [anim](../README.md) / useSequence
+[pebble-signals](../../README.md) / [anim](../README.md) / useSequence
 
 # Function: useSequence()
 
 > **useSequence**(`steps`, `opts?`): () => `number` & `object`
 
-Defined in: anim.ts:200
+Defined in: [anim.ts:200](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/anim.ts#L200)
 
 useSequence(steps, opts?) — chain keyframes into one motion on the device's
 single interval timer: the RN Reanimated `withSequence` analog with Solid

@@ -45,7 +45,6 @@ test("gen-manifest: backtick no-substitution literals ship; substitutions never 
 	assert.deepEqual(m.resources, { "*": ["../../assets/icon"] });
 	assert.deepEqual(m.data, { "*": ["../../assets/sloth.pdc", "../../assets/words"] });
 	// a substitution template must not ship a phantom `${name}` resource
-	// biome-ignore lint/suspicious/noTemplateCurlyInString: the literal ${} text is the fixture
 	const sub = deriveResources("new Texture(`${name}.png`);", { ...BASE });
 	assert.equal(sub.resources, undefined);
 });
@@ -1194,7 +1193,6 @@ test("gen-manifest: literal new Resource() data files ship (codex round 13)", ()
 	const p = deriveResources('new Resource("sloth.pdc");', { ...BASE });
 	assert.deepEqual(p.data, { "*": ["../../assets/sloth.pdc"] });
 	// substitution templates are computed — never ship a phantom
-	// biome-ignore lint/suspicious/noTemplateCurlyInString: the literal ${} text is the fixture
 	const sub = deriveResources("new Resource(`${name}.dat`);", { ...BASE });
 	assert.equal(sub.data, undefined);
 });

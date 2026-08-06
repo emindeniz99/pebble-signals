@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [accel](../README.md) / TapDirection
+[pebble-signals](../../README.md) / [accel](../README.md) / TapDirection
 
 # Type Alias: TapDirection
 
 > **TapDirection** = `"x+"` \| `"x-"` \| `"y+"` \| `"y-"` \| `"z+"` \| `"z-"`
 
-Defined in: accel.ts:86
+Defined in: [accel.ts:86](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/accel.ts#L86)
 
 A single-tap direction reported by [useTap](../functions/useTap.md) — AXIS-FIRST `[axis][sign]`
 exactly as the host builds it (pebble-accelerometer.c doTap()). NOTE this is

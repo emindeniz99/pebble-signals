@@ -106,5 +106,5 @@ against DOM stubs — instant feedback, approximate layout; QEMU stays the
 truth.
 
 **Can I migrate an existing Piu/Alloy app gradually?**
-Yes — signal-piu nodes ARE Piu nodes; hand-built content mounts next to JSX
+Yes — pebble-signals nodes ARE Piu nodes; hand-built content mounts next to JSX
 (`coexist` example, device-verified). [Migration guide](migration.md).

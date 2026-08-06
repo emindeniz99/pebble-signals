@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [dots](../README.md) / DotIndicatorProps
+[pebble-signals](../../README.md) / [dots](../README.md) / DotIndicatorProps
 
 # Type Alias: DotIndicatorProps
 
 > **DotIndicatorProps** = `object`
 
-Defined in: dots.ts:21
+Defined in: [dots.ts:21](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/dots.ts#L21)
 
 Props for [DotIndicator](../functions/DotIndicator.md).
 
@@ -18,7 +18,7 @@ Props for [DotIndicator](../functions/DotIndicator.md).
 
 > **active**: `number` \| (() => `number`)
 
-Defined in: dots.ts:25
+Defined in: [dots.ts:25](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/dots.ts#L25)
 
 The highlighted index. A thunk (`() => i`) makes it reactive; a bare number is static. Clamped to `[0, count-1]`.
 
@@ -28,7 +28,7 @@ The highlighted index. A thunk (`() => i`) makes it reactive; a bare number is s
 
 > **count**: `number`
 
-Defined in: dots.ts:23
+Defined in: [dots.ts:23](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/dots.ts#L23)
 
 How many dots to draw (a page/step count). Values ≤ 0 draw nothing.
 
@@ -38,7 +38,7 @@ How many dots to draw (a page/step count). Values ≤ 0 draw nothing.
 
 > `optional` **height?**: `number`
 
-Defined in: dots.ts:29
+Defined in: [dots.ts:29](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/dots.ts#L29)
 
 Row height in px. Defaults to 12.
 
@@ -48,7 +48,7 @@ Row height in px. Defaults to 12.
 
 > `optional` **off?**: `Color`
 
-Defined in: dots.ts:33
+Defined in: [dots.ts:33](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/dots.ts#L33)
 
 Inactive-dot color. Defaults to `"#606060"`.
 
@@ -58,7 +58,7 @@ Inactive-dot color. Defaults to `"#606060"`.
 
 > `optional` **on?**: `Color`
 
-Defined in: dots.ts:31
+Defined in: [dots.ts:31](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/dots.ts#L31)
 
 Active-dot color. Defaults to `"white"`.
 
@@ -68,7 +68,7 @@ Active-dot color. Defaults to `"white"`.
 
 > `optional` **radius?**: `number`
 
-Defined in: dots.ts:35
+Defined in: [dots.ts:35](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/dots.ts#L35)
 
 Inactive-dot radius in px; the active dot is `radius+1`. Defaults to 3.
 
@@ -78,6 +78,6 @@ Inactive-dot radius in px; the active dot is `radius+1`. Defaults to 3.
 
 > `optional` **width?**: `number`
 
-Defined in: dots.ts:27
+Defined in: [dots.ts:27](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/dots.ts#L27)
 
 Row width in px. Defaults to 96.

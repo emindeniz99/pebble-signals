@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [state](../README.md) / useDebounce
+[pebble-signals](../../README.md) / [state](../README.md) / useDebounce
 
 # Function: useDebounce()
 
 > **useDebounce**\<`T`\>(`source`, `delayMs`): () => `T`
 
-Defined in: state.ts:161
+Defined in: [state.ts:161](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/state.ts#L161)
 
 useDebounce(source, delayMs) — a getter that trails `source` but settles only
 after it has been stable for `delayMs`.

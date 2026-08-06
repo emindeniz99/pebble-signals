@@ -13,7 +13,7 @@ this is ours.
 ## Regenerate
 
 ```bash
-cd projects/signal-piu
+# from the repo root
 pnpm run build:runtime      # only if runtime-build/ is stale or missing
 node tools/build-site.mts   # rewrites site/index.html + site/apps/*
 node --test --experimental-vm-modules tests/site.test.mts
@@ -32,7 +32,7 @@ markers (a stale or emptied `app.js` serves a 200 and a blank watch).
 ## Preview it locally
 
 ```bash
-python3 -m http.server -d site 8080   # from projects/signal-piu
+python3 -m http.server -d site 8080   # from the repo root
 ```
 
 Then open <http://localhost:8080/>. **Opening `index.html` over `file://` does
@@ -46,22 +46,22 @@ you get empty watches. Serve it.
 Folder: `/ (root)` → Save.** The gallery is then at:
 
 ```
-https://<owner>.github.io/<repo>/projects/signal-piu/site/
+https://<owner>.github.io/<repo>/site/
 ```
 
 One correction worth knowing before you go looking for it: GitHub's
 branch-deploy folder picker offers **only `/ (root)` and `/docs`** — an
-arbitrary subdirectory such as `/projects/signal-piu/site` is *not* a
+arbitrary subdirectory such as `/site` is *not* a
 selectable folder. Serving this directory therefore means one of:
 
 - **Root deploy (above)** — the whole branch is published and this directory
   is reachable at its repo path. Nothing to maintain, one extra path segment
-  in the URL. This is the recommended option for a monorepo.
+  in the URL. This is the recommended option.
 - **A `gh-pages` branch whose root IS this directory** — if you want the bare
   `https://<owner>.github.io/<repo>/` URL:
 
   ```bash
-  git subtree push --prefix projects/signal-piu/site origin gh-pages
+  git subtree push --prefix site origin gh-pages
   ```
 
   then point Pages at branch `gh-pages`, folder `/ (root)`. Re-run the subtree

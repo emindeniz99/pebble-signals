@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [flow](../README.md) / MoveProps
+[pebble-signals](../../README.md) / [flow](../README.md) / MoveProps
 
 # Type Alias: MoveProps
 
 > **MoveProps** = [`BoxProps`](BoxProps.md) & `object`
 
-Defined in: flow.ts:162
+Defined in: [flow.ts:162](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L162)
 
 ## Type Declaration
 

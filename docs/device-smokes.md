@@ -90,7 +90,7 @@ logs` capture attached around a foreground install (~8s of heartbeats — the
 proven Rule-3 recipe; a fresh direct-qemu client's log-shipping enable is NOT
 reliably honored, measured) → assert alive (≥3 heartbeats, no fxAbort) → kill
 pypkjs → `tools/drive.py` (cataloged buttons + qemu-monitor screendump) →
-assert painted → PNG receipt (default `/tmp/signal-piu-smoke/`). A dead
+assert painted → PNG receipt (default `/tmp/pebble-signals-smoke/`). A dead
 transport (0 heartbeats) triggers one `tools/reset-emulator.sh` + retry
 (Rule 3). Exit 1 on any failure.
 
@@ -126,7 +126,7 @@ node tools/device-smoke.mts --matrix                          # re-render the ta
 node tools/device-smoke.mts --dry-run --apps counter          # record/render path, NO device
 ```
 
-`--dry-run` writes its json/md to `/tmp/signal-piu-smoke-matrix/` on purpose: a
+`--dry-run` writes its json/md to `/tmp/pebble-signals-smoke-matrix/` on purpose: a
 row no device produced must never become the newest row of the committed matrix.
 It exists so `tests/smokematrix.test.mts` can prove the merge and the table
 render on a box with no emulator at all.

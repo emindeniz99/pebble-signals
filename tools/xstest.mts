@@ -8,7 +8,8 @@
 //   2. ~/.jsvu/engines/xs/xs        — jsvu install (the documented path)
 //   3. `xst` / `xs` on PATH         — source build or manual install
 //
-// Install (see docs/xst-setup.md):  npx jsvu --engines=xs --os=linux64
+// Install (see docs/xst-setup.md):  npx jsvu --engines=xs --os=<platform>
+// where <platform> is mac64arm/mac64 on macOS and linux64 on Linux.
 //
 // Usage: pnpm run test:xs   (builds the runtime first, then runs this)
 import { execFileSync } from "node:child_process";
@@ -38,8 +39,10 @@ if (!xs) {
 	// Explicit invocation of the XS gate with no engine present is an error, not
 	// a silent skip (rule 12) — the caller asked for XS fidelity and isn't
 	// getting it.
+	const os =
+		process.platform === "darwin" ? (process.arch === "arm64" ? "mac64arm" : "mac64") : "linux64";
 	console.error("test:xs: no XS engine found. Install it (one-liner):");
-	console.error("  npx jsvu --engines=xs --os=linux64");
+	console.error(`  npx jsvu --engines=xs --os=${os}`);
 	console.error("then re-run, or point XS_BIN at an xst binary. See docs/xst-setup.md.");
 	process.exit(1);
 }

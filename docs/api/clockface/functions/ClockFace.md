@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [clockface](../README.md) / ClockFace
+[pebble-signals](../../README.md) / [clockface](../README.md) / ClockFace
 
 # Function: ClockFace()
 
 > **ClockFace**(`props`): `Content`
 
-Defined in: clockface.ts:67
+Defined in: [clockface.ts:67](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/clockface.ts#L67)
 
 ClockFace — a reactive analog clock (hour/minute[/second] hands + hour ticks)
 on ONE Piu Port.

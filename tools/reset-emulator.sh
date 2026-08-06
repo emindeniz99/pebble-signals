@@ -31,7 +31,7 @@ else
 	rm -rf "$SDK/$PLAT"
 fi
 rm -f /tmp/pb-emulator.json
-rm -rf /tmp/signal-piu-drive /tmp/signal-piu-memtest.ppm
+rm -rf /tmp/pebble-signals-drive /tmp/pebble-signals-memtest.ppm
 
 echo "reset-emulator: killed all emulators, wiped state for '$PLAT'."
 echo "  next: pebble install --emulator ${PLAT%all}  (retry once if the first"

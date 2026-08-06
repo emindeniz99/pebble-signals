@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [badge](../README.md) / Badge
+[pebble-signals](../../README.md) / [badge](../README.md) / Badge
 
 # Function: Badge()
 
 > **Badge**(`props`): `Content`
 
-Defined in: badge.ts:70
+Defined in: [badge.ts:70](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/badge.ts#L70)
 
 Badge — a reactive filled disc with a centered number, on ONE Piu Port.
 

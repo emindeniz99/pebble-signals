@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// create-signal-piu: scaffold a ready-to-build consumer watch app from
-// templates/app/ in one command (docs/packaging.md, "create-signal-piu
+// create-pebble-signals: scaffold a ready-to-build consumer watch app from
+// templates/app/ in one command (docs/packaging.md, "create-pebble-signals
 // scaffold CLI") — replaces "copy examples/consumer by hand".
 //
 // Usage: node tools/create-app.mts <dir> [--name <appName>]
@@ -36,7 +36,7 @@ const { values: cli, positionals } = parseArgs({
 
 const targetArg = positionals[0];
 if (!targetArg) {
-	err("usage: create-signal-piu <dir> [--name <appName>]");
+	err("usage: create-pebble-signals <dir> [--name <appName>]");
 	process.exit(1);
 }
 const targetDir = resolve(process.cwd(), targetArg);
@@ -45,11 +45,11 @@ const targetDir = resolve(process.cwd(), targetArg);
 // merging into existing files would be surprising and hard to undo.
 if (existsSync(targetDir)) {
 	if (!statSync(targetDir).isDirectory()) {
-		err(`create-signal-piu: ${targetDir} exists and is not a directory`);
+		err(`create-pebble-signals: ${targetDir} exists and is not a directory`);
 		process.exit(1);
 	}
 	if (readdirSync(targetDir).length > 0) {
-		err(`create-signal-piu: refusing to scaffold into non-empty directory: ${targetDir}`);
+		err(`create-pebble-signals: refusing to scaffold into non-empty directory: ${targetDir}`);
 		process.exit(1);
 	}
 }
@@ -72,7 +72,7 @@ const packageName = displayName
 	.replace(/-+$/, "")
 	.slice(0, 214);
 if (!packageName) {
-	err(`create-signal-piu: --name "${displayName}" has no characters npm allows in a package`);
+	err(`create-pebble-signals: --name "${displayName}" has no characters npm allows in a package`);
 	err('            name. Pass a --name with letters or digits (e.g. --name "my-watch").');
 	process.exit(1);
 }
@@ -113,14 +113,14 @@ function copyTemplate(srcDir: string, destDir: string): void {
 
 copyTemplate(TEMPLATE_DIR, targetDir);
 
-console.log(`create-signal-piu: scaffolded ${displayName} in ${targetDir}\n`);
+console.log(`create-pebble-signals: scaffolded ${displayName} in ${targetDir}\n`);
 if (packageName !== displayName)
 	console.log(`  (npm package name normalized to "${packageName}"; displayName kept verbatim)\n`);
 console.log("Next steps:");
 console.log(`  cd ${targetArg}`);
-console.log("  npm install signal-piu typescript esbuild @moddable/pebbleproxy");
+console.log("  npm install pebble-signals typescript esbuild @moddable/pebbleproxy");
 // `npm run build` — NOT `pnpm run build`: the advertised entry point is
-// `npx create-signal-piu`, and printing a pnpm command on a machine that only
+// `npx create-pebble-signals`, and printing a pnpm command on a machine that only
 // has npm failed with "pnpm: command not found" one step after a successful
 // install. The generated README and the root quickstart both use npm, and the
 // script is identical either way (codex P2).

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [sectionlist](../README.md) / SectionListProps
+[pebble-signals](../../README.md) / [sectionlist](../README.md) / SectionListProps
 
 # Type Alias: SectionListProps\<H, R\>
 
 > **SectionListProps**\<`H`, `R`\> = `object`
 
-Defined in: sectionlist.ts:85
+Defined in: [sectionlist.ts:85](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/sectionlist.ts#L85)
 
 Props for [SectionList](../functions/SectionList.md).
 
@@ -28,7 +28,7 @@ Props for [SectionList](../functions/SectionList.md).
 
 > `optional` **height?**: `number`
 
-Defined in: sectionlist.ts:111
+Defined in: [sectionlist.ts:111](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/sectionlist.ts#L111)
 
 List height in px — split evenly into `rows` row heights. Defaults to `rows * 34`.
 
@@ -38,7 +38,7 @@ List height in px — split evenly into `rows` row heights. Defaults to `rows * 
 
 > **renderHeader**: (`header`) => `string`
 
-Defined in: sectionlist.ts:95
+Defined in: [sectionlist.ts:95](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/sectionlist.ts#L95)
 
 Header datum -> caption string (SectionList styles it BOLD; headers never highlight).
 
@@ -58,7 +58,7 @@ Header datum -> caption string (SectionList styles it BOLD; headers never highli
 
 > **renderRow**: (`row`) => `string`
 
-Defined in: sectionlist.ts:97
+Defined in: [sectionlist.ts:97](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/sectionlist.ts#L97)
 
 Item datum -> caption string (SectionList styles it normal, or highlighted when selected).
 
@@ -78,7 +78,7 @@ Item datum -> caption string (SectionList styles it normal, or highlighted when 
 
 > `optional` **rows?**: `number`
 
-Defined in: sectionlist.ts:107
+Defined in: [sectionlist.ts:107](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/sectionlist.ts#L107)
 
 Visible slot count (recycled Labels — each is live Piu nodes on the 32KB heap; keep small). Defaults to 4.
 
@@ -88,7 +88,7 @@ Visible slot count (recycled Labels — each is live Piu nodes on the 32KB heap;
 
 > **sections**: () => [`Section`](Section.md)\<`H`, `R`\>[]
 
-Defined in: sectionlist.ts:93
+Defined in: [sectionlist.ts:93](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/sectionlist.ts#L93)
 
 The sections — a THUNK returning `[{ header, rows }, …]`, read ONCE at
 construction (like grid.ts's `items`): Piu lays the list out at construction
@@ -106,7 +106,7 @@ compute the sections inline.
 
 > `optional` **selected?**: `number` \| (() => `number`)
 
-Defined in: sectionlist.ts:105
+Defined in: [sectionlist.ts:105](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/sectionlist.ts#L105)
 
 The selected ITEM index — 0-based over ROWS only (headers are never counted
 or selectable), so "selection skips headers" holds by construction. A THUNK
@@ -120,6 +120,6 @@ view on change (idiom 5b); a bare number applies once (static). Clamped to
 
 > `optional` **width?**: `number`
 
-Defined in: sectionlist.ts:109
+Defined in: [sectionlist.ts:109](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/sectionlist.ts#L109)
 
 List width in px. Defaults to the screen width (a width-less list measures 0 — gotcha 16).

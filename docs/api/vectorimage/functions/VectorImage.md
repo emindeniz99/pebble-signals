@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [vectorimage](../README.md) / VectorImage
+[pebble-signals](../../README.md) / [vectorimage](../README.md) / VectorImage
 
 # Function: VectorImage()
 
 > **VectorImage**(`props`): `Content`
 
-Defined in: vectorimage.ts:120
+Defined in: [vectorimage.ts:120](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vectorimage.ts#L120)
 
 VectorImage — a resolution-independent PDC vector image with post-mount
 transforms, on ONE host `SVGImage` node (zero pixel RAM).

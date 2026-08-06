@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [lifecycle](../README.md) / FocusPhase
+[pebble-signals](../../README.md) / [lifecycle](../README.md) / FocusPhase
 
 # Type Alias: FocusPhase
 
 > **FocusPhase** = `"did"` \| `"will"`
 
-Defined in: lifecycle.ts:185
+Defined in: [lifecycle.ts:185](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/lifecycle.ts#L185)
 
 Which focus PHASE [useAppFocus](../functions/useAppFocus.md) tracks. Both host events carry the SAME
 boolean and share ONE app_focus_service subscription (global.js events[6]/[7]

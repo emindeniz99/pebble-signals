@@ -356,7 +356,7 @@ export function report(err: unknown, ctx: string): void {
 		const st = e.stack;
 		fmt = st ? (st.indexOf(head) === 0 ? st : head + "\n" + st) : head;
 	} else fmt = String(err);
-	const msg = "[signal-piu] " + ctx + ":\n" + fmt;
+	const msg = "[pebble-signals] " + ctx + ":\n" + fmt;
 	const c = (globalThis as { console?: { error?: LogFn; log?: LogFn } }).console;
 	const f = c && (c.error || c.log);
 	// Pass BOTH a fully-formatted string (nothing lost on consoles that

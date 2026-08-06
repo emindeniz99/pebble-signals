@@ -1,12 +1,12 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [vibration](../README.md) / Haptics
+[pebble-signals](../../README.md) / [vibration](../README.md) / Haptics
 
 # Interface: Haptics
 
-Defined in: vibration.ts:47
+Defined in: [vibration.ts:47](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vibration.ts#L47)
 
 The command surface [useHaptics](../functions/useHaptics.md) returns — fire-and-forget motor pulses.
 
@@ -16,7 +16,7 @@ The command surface [useHaptics](../functions/useHaptics.md) returns — fire-an
 
 > **cancel**(): `void`
 
-Defined in: vibration.ts:60
+Defined in: [vibration.ts:60](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vibration.ts#L60)
 
 Cancel any in-flight vibration (also fired automatically on owner dispose).
 
@@ -30,7 +30,7 @@ Cancel any in-flight vibration (also fired automatically on owner dispose).
 
 > **double**(): `void`
 
-Defined in: vibration.ts:53
+Defined in: [vibration.ts:53](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vibration.ts#L53)
 
 Two quick buzzes (Vibes.doublePulse) — a distinct secondary signal.
 
@@ -44,7 +44,7 @@ Two quick buzzes (Vibes.doublePulse) — a distinct secondary signal.
 
 > **long**(): `void`
 
-Defined in: vibration.ts:51
+Defined in: [vibration.ts:51](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vibration.ts#L51)
 
 A long buzz (Vibes.longPulse) — an alert / attention pulse.
 
@@ -58,7 +58,7 @@ A long buzz (Vibes.longPulse) — an alert / attention pulse.
 
 > **pattern**(`segments`): `void`
 
-Defined in: vibration.ts:58
+Defined in: [vibration.ts:58](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vibration.ts#L58)
 
 A custom pattern of ALTERNATING on/off millisecond segments — `[100,50,100]`
 is buzz 100 / pause 50 / buzz 100 (the RN vibration-pattern convention).
@@ -79,7 +79,7 @@ is buzz 100 / pause 50 / buzz 100 (the RN vibration-pattern convention).
 
 > **short**(): `void`
 
-Defined in: vibration.ts:49
+Defined in: [vibration.ts:49](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/vibration.ts#L49)
 
 A short buzz (Vibes.shortPulse) — the default confirmation tap.
 

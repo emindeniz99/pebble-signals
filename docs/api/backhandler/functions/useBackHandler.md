@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [backhandler](../README.md) / useBackHandler
+[pebble-signals](../../README.md) / [backhandler](../README.md) / useBackHandler
 
 # Function: useBackHandler()
 
 > **useBackHandler**(`handler`): [`BackHandlerBag`](../interfaces/BackHandlerBag.md)
 
-Defined in: backhandler.ts:58
+Defined in: [backhandler.ts:58](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/backhandler.ts#L58)
 
 useBackHandler(handler) — intercept the Back button: the RN `BackHandler`
 analog. Returns a bag to SPREAD on a FOCUSED node; `handler` runs on each Back

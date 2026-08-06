@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [flow](../README.md) / VLRich
+[pebble-signals](../../README.md) / [flow](../README.md) / VLRich
 
 # Type Alias: VLRich\<T\>
 
 > **VLRich**\<`T`\> = `VLBase`\<`T`\> & `object`
 
-Defined in: flow.ts:152
+Defined in: [flow.ts:152](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L152)
 
 [VirtualList](../functions/VirtualList.md) rich mode: a recycled SUBTREE per slot via `renderRow`
 (built once, never destroyed). Mutually exclusive with `format`. Each

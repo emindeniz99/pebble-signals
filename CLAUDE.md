@@ -1,7 +1,6 @@
-# Claude Rules — signal-piu
+# Claude Rules — pebble-signals
 
-Project-specific rules for AI assistants working in `projects/signal-piu/`.
-Root `CLAUDE.md` still applies.
+Rules for AI assistants working in this repository.
 
 ## Rule 1 — Read the official docs FIRST, then verify against source
 

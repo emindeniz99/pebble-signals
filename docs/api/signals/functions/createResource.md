@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / createResource
+[pebble-signals](../../README.md) / [signals](../README.md) / createResource
 
 # Function: createResource()
 
 > **createResource**\<`T`\>(`fetcher`): [`Resource`](../interfaces/Resource.md)\<`T`\>
 
-Defined in: signals.ts:1028
+Defined in: [signals.ts:1028](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L1028)
 
 Async data: run `fetcher` now, expose `{loading, error, data, refetch}` as
 reactive thunks. Out-of-order completions are dropped (only the newest call

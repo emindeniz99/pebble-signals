@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [sparkline](../README.md) / Sparkline
+[pebble-signals](../../README.md) / [sparkline](../README.md) / Sparkline
 
 # Function: Sparkline()
 
 > **Sparkline**(`props`): `Content`
 
-Defined in: sparkline.ts:52
+Defined in: [sparkline.ts:52](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/sparkline.ts#L52)
 
 Sparkline — a reactive mini line chart on ONE Piu Port.
 

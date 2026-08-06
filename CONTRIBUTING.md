@@ -1,4 +1,4 @@
-# Contributing to signal-piu
+# Contributing to pebble-signals
 
 > **Status: pre-1.0 (`0.1.0`), QEMU-verified, single maintainer.** Everything
 > here is measured on the SDK 4.17 **QEMU emulators** — gabbro (Pebble Round 2,
@@ -15,19 +15,19 @@ PR meets before it is reviewed. The library-level "why" lives in the
 
 ## Where this lives
 
-signal-piu is one project inside the `emindeniz99/playground` monorepo, at
-`projects/signal-piu/`. It is a **standalone pnpm workspace** — you install and
-run everything from this directory, not the repo root. Issues and PRs go to the
-monorepo tracker: <https://github.com/emindeniz99/playground/issues>. Templates
-that ask for the right receipts are staged in
-[`.github-templates/ISSUE_TEMPLATE/`](.github-templates/ISSUE_TEMPLATE/README.md)
-— read that dir's README for why they are not live yet.
+pebble-signals lives at
+<https://github.com/emindeniz99/pebble-signals>, a **standalone pnpm
+workspace** — you install and run everything from the repo root. Issues and
+PRs go to <https://github.com/emindeniz99/pebble-signals/issues>. The issue
+templates in
+[`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/README.md)
+ask for the right receipts — read that dir's README for what each field is for.
 
 ## Dev setup
 
 ```sh
-git clone https://github.com/emindeniz99/playground
-cd playground/projects/signal-piu
+git clone https://github.com/emindeniz99/pebble-signals
+cd pebble-signals
 pnpm install
 pnpm run verify                   # SDK-free gates — the ones your PR must pass
 ```
@@ -100,7 +100,7 @@ are kept visible on purpose. Silently editing a number to match a new result
 destroys the only thing that makes the rest of them trustworthy.
 
 Same rule in the negative direction: if you skipped a gate, say so in the PR.
-"Tests pass" is wrong if any were skipped (Rule 12). A PR that says
+"Tests pass" is wrong if any were skipped — fail loud. A PR that says
 "typecheck + coverage green, no device run — I have no SDK" is a good PR. One
 that implies a device run that did not happen is the one thing that wastes
 everyone's time twice.
@@ -114,7 +114,7 @@ pnpm run coverage
 Node's own test runner, thresholds `--test-coverage-lines=100
 --test-coverage-branches=100 --test-coverage-functions=100`, scoped to the
 compiled runtime (`src/embeddedjs/runtime-build/**`). It is not a stretch goal;
-it is the merge bar for runtime code, and it is at 100 % today (2,153 tests,
+it is the merge bar for runtime code, and it is at 100 % today (2,172 tests,
 `all files 100.00 | 100.00 | 100.00`). If your branch drops it, the per-file
 table in the failure output says where — but the uncovered line is usually a
 real branch you did not think about, so write the test rather than reaching for
@@ -194,24 +194,24 @@ references.
 
 ## Commit conventions
 
-Conventional Commits, **scope mandatory** — the monorepo rules in the root
-[`CLAUDE.md`](../../CLAUDE.md) and [`CONVENTIONS.md`](../../CONVENTIONS.md)
-apply here verbatim. For this project the scope is **`signal-piu`**, optionally
-with a sub-area:
+[Conventional Commits](https://www.conventionalcommits.org), **scope
+mandatory**: `<type>(<scope>): <subject>`, where `<type>` is one of `feat`,
+`fix`, `docs`, `refactor`, `perf`, `test`, `chore`, `build`, `ci` or `revert`.
+The scope names the area the commit touches:
 
 ```
-feat(signal-piu): add useBattery hook as an opt-in runtime module
-fix(signal-piu): defer Navigator's initial swap onto onDisplaying
-docs(signal-piu): correct the arena ceiling after the D4 re-measure
-chore(repo): …                 # root-level files, not this project
+feat(runtime): add useBattery hook as an opt-in runtime module
+fix(flow): defer Navigator's initial swap onto onDisplaying
+docs(handbook): correct the arena ceiling after the D4 re-measure
+chore(repo): …                 # repo-level glue (CI, configs, this file)
 ```
 
 The hard parts, restated because they are the ones that get bounced:
 
 - **Never `feat: …` without a scope.** Imperative mood, lowercase first letter,
   no trailing period, header ≤ 72 chars.
-- **One commit per project.** A diff that touches `projects/signal-piu/` and
-  another project gets split into two commits — never one.
+- **One commit = one reason.** A diff that mixes two unrelated topics gets
+  split into two commits — never one.
 - Write a body when the *why* is not in the diff: the constraint, the
   measurement, the obvious approach you rejected and what it cost.
 - Breaking changes get `!` after the scope **and** a `BREAKING CHANGE:` footer
@@ -231,7 +231,7 @@ maintainer, put your entry in the PR description and say so.
 - **Small and scoped.** Every changed line should trace to the thing you set
   out to do. Do not reformat, rename, or "improve" adjacent code on the way
   past — matching the existing style beats improving it, even when you are
-  right (root `CLAUDE.md` Rule 3 / Rule 11).
+  right.
 - **Nothing gets deleted.** Renaming, deprecating and relabelling are fine;
   removing a public name is a maintainer decision, not a PR one. If you find
   dead code, say so in the PR — leave it in place.
@@ -243,21 +243,21 @@ maintainer, put your entry in the PR description and say so.
 
 ## Reporting issues
 
-Use the staged templates in
-[`.github-templates/ISSUE_TEMPLATE/`](.github-templates/ISSUE_TEMPLATE/README.md)
-as a checklist and file at
-<https://github.com/emindeniz99/playground/issues>. A device bug is
+Use the templates in
+[`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/README.md)
+and file at
+<https://github.com/emindeniz99/pebble-signals/issues>. A device bug is
 unactionable without: **which platform** (gabbro / emery, SDK version), the
 **four budgets context** (the `instruments:` line, `mc.xsa` size, symbol count,
 stack peak — whichever you have), and a **screenshot receipt**. The crash
 screen is a legitimate receipt: the default `render()` error boundary paints
 escaped errors on the watch itself, and `pebble screenshot` captures it.
 
-Security-sensitive reports go through the monorepo's
-[`SECURITY.md`](../../SECURITY.md) instead of the public tracker.
+Security-sensitive reports go through
+[`SECURITY.md`](SECURITY.md) instead of the public tracker.
 
 ## Code of Conduct
 
-Participation is subject to the monorepo
-[Code of Conduct](../../CODE_OF_CONDUCT.md). Be kind, be patient, assume good
+Participation is subject to the
+[Code of Conduct](CODE_OF_CONDUCT.md). Be kind, be patient, assume good
 faith — and bring receipts.

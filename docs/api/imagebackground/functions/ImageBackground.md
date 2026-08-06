@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [imagebackground](../README.md) / ImageBackground
+[pebble-signals](../../README.md) / [imagebackground](../README.md) / ImageBackground
 
 # Function: ImageBackground()
 
 > **ImageBackground**(`props`): `Container`
 
-Defined in: imagebackground.ts:77
+Defined in: [imagebackground.ts:77](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/imagebackground.ts#L77)
 
 ImageBackground — children layered over a bitmap: the React Native
 `<ImageBackground>` analog.

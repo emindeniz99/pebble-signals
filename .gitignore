@@ -1,4 +1,5 @@
 .lock-waf_*
+node_modules/
 build/
 src/embeddedjs/app/
 src/embeddedjs/runtime-min/

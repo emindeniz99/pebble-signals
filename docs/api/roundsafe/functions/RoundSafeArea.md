@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [roundsafe](../README.md) / RoundSafeArea
+[pebble-signals](../../README.md) / [roundsafe](../README.md) / RoundSafeArea
 
 # Function: RoundSafeArea()
 
 > **RoundSafeArea**(`props`): `Content`
 
-Defined in: roundsafe.ts:65
+Defined in: [roundsafe.ts:65](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/roundsafe.ts#L65)
 
 RoundSafeArea — inset children to the round-screen safe area.
 

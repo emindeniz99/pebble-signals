@@ -6,7 +6,7 @@
 // no VDOM diff, flat heap in steady state. Build: pnpm run dev -- --app
 // watchface (flip package.json watchapp.watchface=true for a real face).
 //
-// NOTE the read syntax — signal-piu has THREE, by source kind:
+// NOTE the read syntax — pebble-signals has THREE, by source kind:
 //   useState -> call:   hh()            (getter is a function)
 //   signal   -> .value: mySig.value
 //   computed -> .value: greeting.value  (a ReadonlySignal, NOT callable)

@@ -1,6 +1,6 @@
-# Packaging — consuming signal-piu as a library (C11)
+# Packaging — consuming pebble-signals as a library (C11)
 
-signal-piu is developed inside an app template (this repo is itself a buildable
+pebble-signals is developed inside an app template (this repo is itself a buildable
 Pebble app), but it packs as a real npm library: `npm pack` produces a tarball
 a separate project can install and get the **typed runtime + the build tools**.
 
@@ -20,7 +20,7 @@ a separate project can install and get the **typed runtime + the build tools**.
 - **Tool subpaths resolve to `dist/` (compiled `.mjs`), not the `.mts`
   source.** Node refuses to type-strip under `node_modules`, so a source
   mapping was a subpath consumers could resolve but never run (codex P2).
-  Import tools as `signal-piu/tools/<name>.mjs`; the sources still ship in
+  Import tools as `pebble-signals/tools/<name>.mjs`; the sources still ship in
   the tarball for reading.
 
 - **Types are generated, not hand-written** (`prepack` → `pnpm run build:types` →
@@ -33,7 +33,7 @@ a separate project can install and get the **typed runtime + the build tools**.
   source; the DEVICE build path is the tools (below), not a prebuilt bundle.
 - **Support surface: bundler/tsc-only — bare Node cannot import the runtime.**
   Because `default` resolves to `.ts` under `node_modules`, a plain
-  `node -e 'import("signal-piu/signals")'` fails (Node refuses to type-strip
+  `node -e 'import("pebble-signals/signals")'` fails (Node refuses to type-strip
   inside `node_modules` by design). That path is out of scope: the supported
   consumers are a bundler/tsc toolchain (typechecking, editors, tests via the
   repo's vm harness pattern) and the device build. If a real consumer ever
@@ -42,7 +42,7 @@ a separate project can install and get the **typed runtime + the build tools**.
   artifact to keep in sync, no consumer needs it; consumer-smoke covers the
   supported path).
 - Verified end-to-end: a fresh project that `npm install`s the tarball
-  typechecks `import { signal } from "signal-piu/signals"` with full generics,
+  typechecks `import { signal } from "pebble-signals/signals"` with full generics,
   and `// @ts-expect-error` on a computed write still bites (the consumer smoke
   in this repo's history).
 
@@ -64,7 +64,7 @@ size budget that minify cannot do for us.)
 ## The lowering tool is a consumer feature — and it's OPTIONAL
 
 `tools/lower/cli.mts` ships compiled in the tarball
-(`signal-piu/tools/lower/cli.mjs` via the `./tools/*` → `dist/tools/*`
+(`pebble-signals/tools/lower/cli.mjs` via the `./tools/*` → `dist/tools/*`
 export) and runs on
 the CONSUMER's app code — that is its whole purpose: rewriting *their*
 `useState`/`signal`/`computed` call sites to the packed `S` API and
@@ -88,7 +88,7 @@ So: correctness never depends on lower; the 32KB budget usually does.
   they point at `.ts` sources consumed by the consumer's own tooling.
 - **Node refuses to type-strip `.mts` under node_modules**
   (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`, a deliberate Node policy) —
-  a consumer literally cannot run `node_modules/signal-piu/build.mts`. That is
+  a consumer literally cannot run `node_modules/pebble-signals/build.mts`. That is
   WHY the tarball ships a compiled `dist/` (prepack → `tsconfig.dist.json`,
   with `rewriteRelativeImportExtensions` turning the `.mts` import specifiers
   into `.mjs`): consumers run `dist/build.mjs`; in-repo dev keeps running the
@@ -103,15 +103,15 @@ project that installs the tarball and builds a running watch app from it
 (screenshots/consumer-e2e-t0.png → -t5.png show the reactive tick advancing on
 the QEMU emulator). The flow:
 
-1. Scaffold a Pebble Moddable app — run the `create-signal-piu` CLI, which
+1. Scaffold a Pebble Moddable app — run the `create-pebble-signals` CLI, which
    generates `examples/consumer/`'s shape (the `pebble` field in
    package.json, `wscript`, `src/c/mdbl.c`, `src/embeddedjs/manifest.base.json`,
    a device `tsconfig.json`, `src/pkjs/`) into a fresh directory:
-   `npx -p signal-piu create-signal-piu my-watch`, or, once the package is
-   installed, `node node_modules/signal-piu/dist/tools/create-app.mjs
+   `npx -p pebble-signals create-pebble-signals my-watch`, or, once the package is
+   installed, `node node_modules/pebble-signals/dist/tools/create-app.mjs
    my-watch`. In-repo, `node tools/create-app.mts my-watch` runs the same
    scaffold from source.
-2. `npm install signal-piu typescript esbuild` (tarball or registry once
+2. `npm install pebble-signals typescript esbuild` (tarball or registry once
    published; tsc + esbuild are the build's tools, brought by the consumer).
 3. Author `src/tsx/examples/<app>.tsx` with DEVICE specifiers
    (`import { render } from "runtime/jsx-runtime"` — the mod manifest maps
@@ -119,7 +119,7 @@ the QEMU emulator). The flow:
    the installed package via `paths` (see `examples/consumer/
    tsconfig.check.json`), including real Piu host JSX typed by the vendored
    Moddable typings that ship in the tarball.
-4. Build: `node node_modules/signal-piu/dist/build.mjs --app <app>` — the
+4. Build: `node node_modules/pebble-signals/dist/build.mjs --app <app>` — the
    COMPILED orchestrator detects the consumer project by its `pebble` field,
    takes app sources/manifest/scaffold from the PROJECT and the runtime/tools
    from the PACKAGE, and drives `pebble build` to a `.pbw`.
@@ -190,11 +190,11 @@ byte-identical bitmap.
   allowlist, and the consumer smoke gates the exact artifact a registry
   install would deliver. When the owner wants it public, the entire remaining
   work is: `npm login`, `npm publish` — nothing in the artifact itself needs
-  to change (the name `signal-piu` was still unclaimed on
+  to change (the name `pebble-signals` was still unclaimed on
   registry.npmjs.org, checked 2026-07-29). Until then
-  `create-signal-piu` + the tarball behave identically to a registry install
-  — with one honest caveat: the README/getting-started `npx -p signal-piu`
-  quickstart and the scaffold template's `"signal-piu": "^1.0.0"` dependency
+  `create-pebble-signals` + the tarball behave identically to a registry install
+  — with one honest caveat: the README/getting-started `npx -p pebble-signals`
+  quickstart and the scaffold template's `"pebble-signals": "^1.0.0"` dependency
   BOTH resolve from the registry, so that documented path only starts working
   at the first publish.
   **There is no `private: true` guard** (an earlier draft of this file claimed
@@ -206,7 +206,7 @@ byte-identical bitmap.
 
 ## Upgrades: what a scaffolded project gets automatically — and what it owns
 
-When a consumer bumps signal-piu (`npm install signal-piu@next` /
+When a consumer bumps pebble-signals (`npm install pebble-signals@next` /
 newer tarball), two very different things happen:
 
 **Upgrades automatically** (lives in `node_modules`, used at build time):
@@ -215,12 +215,12 @@ compile pipeline (`dist/build.mjs`, lowering, pruning, treeshake,
 fontcheck, manifest gen), the generated types, the vendored Piu typings.
 A rebuild after the bump IS the upgrade.
 
-**Frozen copies the project OWNS** (scaffolded once by `create-signal-piu`,
+**Frozen copies the project OWNS** (scaffolded once by `create-pebble-signals`,
 never touched by an upgrade): `wscript`, `src/c/*` (mdbl.c and any native
 code they add), `manifest.base.json`, the two tsconfigs, `src/pkjs/`,
 package.json. This is the standard scaffold trade-off (create-react-app,
 create-vite — same deal): those files are the consumer's freedom surface,
-so we never overwrite them. If a future signal-piu needs a scaffold-file
+so we never overwrite them. If a future pebble-signals needs a scaffold-file
 change, that's a documented migration note in the release, not magic.
 
 **The freedom guarantee**: the consumer is never boxed in. wscript is
@@ -228,7 +228,7 @@ theirs (custom build steps), `src/c` compiles ALL their .c files (their
 native code beside mdbl.c — sensors, workers, FFI), `worker_src/` works
 (see examples/worker), resources/media/fonts are theirs, and every build
 gate has an escape flag (--no-lower, --no-prune, --no-squash,
---no-check-c, --skip-fontcheck). signal-piu is helpers on top of a normal Pebble
+--no-check-c, --skip-fontcheck). pebble-signals is helpers on top of a normal Pebble
 project, not a cage around one.
 
 ## Maintenance rules

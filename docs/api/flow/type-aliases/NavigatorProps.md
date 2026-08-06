@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [flow](../README.md) / NavigatorProps
+[pebble-signals](../../README.md) / [flow](../README.md) / NavigatorProps
 
 # Type Alias: NavigatorProps
 
 > **NavigatorProps** = [`BoxProps`](BoxProps.md) & `object`
 
-Defined in: flow.ts:191
+Defined in: [flow.ts:191](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L191)
 
 Props for [Navigator](../functions/Navigator.md).
 

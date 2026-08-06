@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / S
+[pebble-signals](../../README.md) / [signals](../README.md) / S
 
 # Variable: S
 
 > `const` **S**: `object`
 
-Defined in: signals.ts:503
+Defined in: [signals.ts:503](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L503)
 
 Packed lowering target — integer-id signals with zero per-signal objects.
 `build.mts` rewrites `useState`/`signal`/`computed` to this at compile time;

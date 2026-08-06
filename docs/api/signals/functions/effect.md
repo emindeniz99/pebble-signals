@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / effect
+[pebble-signals](../../README.md) / [signals](../README.md) / effect
 
 # Function: effect()
 
 > **effect**(`fn`): `number`
 
-Defined in: signals.ts:618
+Defined in: [signals.ts:618](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L618)
 
 Run `fn` now and re-run it whenever a signal it READ changes. Dependencies
 are re-tracked every run (conditional deps work). Returns an integer effect

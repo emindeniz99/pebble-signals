@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [flow](../README.md) / ForProps
+[pebble-signals](../../README.md) / [flow](../README.md) / ForProps
 
 # Type Alias: ForProps\<T\>
 
 > **ForProps**\<`T`\> = [`BoxProps`](BoxProps.md) & `object`
 
-Defined in: flow.ts:81
+Defined in: [flow.ts:81](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L81)
 
 Props for [For](../functions/For.md).
 

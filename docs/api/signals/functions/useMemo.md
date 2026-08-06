@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / useMemo
+[pebble-signals](../../README.md) / [signals](../README.md) / useMemo
 
 # Function: useMemo()
 
 > **useMemo**\<`T`\>(`fn`): [`ReadonlySignal`](../interfaces/ReadonlySignal.md)\<`T`\>
 
-Defined in: signals.ts:941
+Defined in: [signals.ts:941](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L941)
 
 Memoized derived value — [computed](computed.md) under the React-flavored name:
 `const total = useMemo(() => a() + b()); total.value`. Read via `.value`,

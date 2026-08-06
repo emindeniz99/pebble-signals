@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [flow](../README.md) / Navigator
+[pebble-signals](../../README.md) / [flow](../README.md) / Navigator
 
 # Function: Navigator()
 
 > **Navigator**(`props`): `Container`
 
-Defined in: flow.ts:571
+Defined in: [flow.ts:571](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L571)
 
 Navigator({ root }) — a screen STACK for infinitely-deep navigation on the
 32KB heap. Only the TOP screen is ever BUILT: pushing a child disposes the

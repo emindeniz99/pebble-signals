@@ -1,5 +1,5 @@
 {
-	"name": "signal-piu-consumer-example",
+	"name": "pebble-signals-consumer-example",
 	"private": true,
 	"author": "MakeAwesomeHappen",
 	"version": "1.0.0",
@@ -29,6 +29,6 @@
 		}
 	},
 	"scripts": {
-		"build": "node node_modules/signal-piu/dist/build.mjs --app main"
+		"build": "node node_modules/pebble-signals/dist/build.mjs --app main"
 	}
 }

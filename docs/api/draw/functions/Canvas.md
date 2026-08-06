@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [draw](../README.md) / Canvas
+[pebble-signals](../../README.md) / [draw](../README.md) / Canvas
 
 # Function: Canvas()
 
 > **Canvas**(`props`): `Content`
 
-Defined in: draw.ts:139
+Defined in: [draw.ts:139](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/draw.ts#L139)
 
 Canvas — a reactive immediate-mode drawing surface on ONE Piu Port.
 

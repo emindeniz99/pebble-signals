@@ -16,6 +16,6 @@
 		"resources": { "media": [] }
 	},
 	"scripts": {
-		"build": "node node_modules/signal-piu/dist/build.mjs --app main"
+		"build": "node node_modules/pebble-signals/dist/build.mjs --app main"
 	}
 }

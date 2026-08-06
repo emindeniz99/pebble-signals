@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [easing](../README.md) / backOut
+[pebble-signals](../../README.md) / [easing](../README.md) / backOut
 
 # Function: backOut()
 
 > **backOut**(`t`): `number`
 
-Defined in: easing.ts:87
+Defined in: [easing.ts:87](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/easing.ts#L87)
 
 Back ease-out — overshoots past 1 then settles (spring-like finish).
 

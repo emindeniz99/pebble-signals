@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [dialog](../README.md) / Dialog
+[pebble-signals](../../README.md) / [dialog](../README.md) / Dialog
 
 # Function: Dialog()
 
 > **Dialog**(`props`): `Content`
 
-Defined in: dialog.ts:183
+Defined in: [dialog.ts:183](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/dialog.ts#L183)
 
 Dialog — a centered modal card: a bold title over a wrapping message and an
 optional dismiss hint, on ONE fill-skinned Container.

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [textflow](../README.md) / TextFlowProps
+[pebble-signals](../../README.md) / [textflow](../README.md) / TextFlowProps
 
 # Type Alias: TextFlowProps
 
 > **TextFlowProps** = `object`
 
-Defined in: textflow.ts:211
+Defined in: [textflow.ts:211](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L211)
 
 Props for [TextFlow](../functions/TextFlow.md).
 
@@ -18,7 +18,7 @@ Props for [TextFlow](../functions/TextFlow.md).
 
 > `optional` **align?**: `"left"` \| `"center"`
 
-Defined in: textflow.ts:232
+Defined in: [textflow.ts:232](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L232)
 
 Horizontal alignment. `"left"` (default, the reliable one) or `"center"`. Forced to `"center"` when `shape="circle"`.
 
@@ -28,7 +28,7 @@ Horizontal alignment. `"left"` (default, the reliable one) or `"center"`. Forced
 
 > `optional` **charsPerLine?**: `number`
 
-Defined in: textflow.ts:224
+Defined in: [textflow.ts:224](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L224)
 
 Per-line character budget for the wrap. Defaults to `max(1, floor(width / 9))`.
 
@@ -38,7 +38,7 @@ Per-line character budget for the wrap. Defaults to `max(1, floor(width / 9))`.
 
 > `optional` **color?**: `Color`
 
-Defined in: textflow.ts:228
+Defined in: [textflow.ts:228](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L228)
 
 Text color. Defaults to `"white"`.
 
@@ -48,7 +48,7 @@ Text color. Defaults to `"white"`.
 
 > `optional` **fill?**: `number`
 
-Defined in: textflow.ts:243
+Defined in: [textflow.ts:243](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L243)
 
 Circle-fill fraction (0..1) — how much of each chord to use, leaving a bezel margin. Defaults to 0.92. Only used when `shape="circle"`.
 
@@ -58,7 +58,7 @@ Circle-fill fraction (0..1) — how much of each chord to use, leaving a bezel m
 
 > `optional` **font?**: `string`
 
-Defined in: textflow.ts:226
+Defined in: [textflow.ts:226](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L226)
 
 Text font — a valid Pebble system font key. Defaults to `"18px Gothic"`.
 
@@ -68,7 +68,7 @@ Text font — a valid Pebble system font key. Defaults to `"18px Gothic"`.
 
 > `optional` **height?**: `number`
 
-Defined in: textflow.ts:222
+Defined in: [textflow.ts:222](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L222)
 
 Block height in px. A REACTIVE `text` thunk always gets a fixed
 construction-time height (this value, else `maxLines * lineHeight`) —
@@ -81,7 +81,7 @@ resize a mounted box. A bare string still shrinks to its own wrap.
 
 > `optional` **lineHeight?**: `number`
 
-Defined in: textflow.ts:230
+Defined in: [textflow.ts:230](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L230)
 
 Per-line height in px (each Label's height + the Column's row pitch). Defaults to 22.
 
@@ -91,7 +91,7 @@ Per-line height in px (each Label's height + the Column's row pitch). Defaults t
 
 > `optional` **maxLines?**: `number`
 
-Defined in: textflow.ts:234
+Defined in: [textflow.ts:234](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L234)
 
 Max wrapped lines; extra lines are dropped. Defaults to 8.
 
@@ -101,7 +101,7 @@ Max wrapped lines; extra lines are dropped. Defaults to 8.
 
 > `optional` **shape?**: `"block"` \| `"circle"`
 
-Defined in: textflow.ts:241
+Defined in: [textflow.ts:241](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L241)
 
 Wrap silhouette. `"block"` (default) wraps to a fixed rectangle. `"circle"`
 wraps each line to the circle's chord at its height, so the text FILLS the
@@ -114,7 +114,7 @@ screens, always center-aligned. See [wrapCircle](../functions/wrapCircle.md).
 
 > **text**: `string` \| (() => `string`)
 
-Defined in: textflow.ts:213
+Defined in: [textflow.ts:213](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L213)
 
 The paragraph text. A thunk (`() => s`) re-wraps + rebuilds on change; a bare string wraps once (static).
 
@@ -124,6 +124,6 @@ The paragraph text. A thunk (`() => s`) re-wraps + rebuilds on change; a bare st
 
 > `optional` **width?**: `number`
 
-Defined in: textflow.ts:215
+Defined in: [textflow.ts:215](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L215)
 
 Block width in px. Defaults to the screen width (a width-less Column measures 0 — gotcha 16).

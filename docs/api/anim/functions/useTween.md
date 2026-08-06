@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [anim](../README.md) / useTween
+[pebble-signals](../../README.md) / [anim](../README.md) / useTween
 
 # Function: useTween()
 
 > **useTween**(`target`, `opts?`): () => `number`
 
-Defined in: anim.ts:91
+Defined in: [anim.ts:91](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/anim.ts#L91)
 
 useTween(target, opts?) — smoothly eases a value toward `target` over `duration`
 ms on each change: the RN Reanimated `withTiming` analog with Solid ownership.

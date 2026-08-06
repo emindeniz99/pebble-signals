@@ -1,8 +1,8 @@
-[**signal-piu**](../README.md)
+[**pebble-signals**](../README.md)
 
 ***
 
-[signal-piu](../README.md) / clockface
+[pebble-signals](../README.md) / clockface
 
 # clockface
 

@@ -1,4 +1,4 @@
-# signal-piu is its own SINGLE-PACKAGE pnpm workspace — deliberately not a
+# pebble-signals is its own SINGLE-PACKAGE pnpm workspace — deliberately not a
 # member of the repo-root workspace (whose membership is curated to the
 # FlatBuffers family; markets/Python is excluded the same way). This file's
 # presence stops pnpm's upward workspace traversal, and since pnpm 11 it is

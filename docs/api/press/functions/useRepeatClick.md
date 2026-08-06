@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [press](../README.md) / useRepeatClick
+[pebble-signals](../../README.md) / [press](../README.md) / useRepeatClick
 
 # Function: useRepeatClick()
 
 > **useRepeatClick**(`button`, `onFire`, `opts?`): [`PressHandlers`](../type-aliases/PressHandlers.md)
 
-Defined in: press.ts:157
+Defined in: [press.ts:157](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/press.ts#L157)
 
 useRepeatClick(button, onFire, opts?) — HOLD-TO-SCROLL. Press fires `onFire` once
 immediately, then AUTO-REPEATS while the button is held, the gap SHRINKING each

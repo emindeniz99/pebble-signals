@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [watchinfo](../README.md) / useDisplayBounds
+[pebble-signals](../../README.md) / [watchinfo](../README.md) / useDisplayBounds
 
 # Function: useDisplayBounds()
 
 > **useDisplayBounds**(): [`DisplayBounds`](../interfaces/DisplayBounds.md)
 
-Defined in: watchinfo.ts:104
+Defined in: [watchinfo.ts:104](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L104)
 
 Read the display geometry — the RN `useWindowDimensions` analog.
 

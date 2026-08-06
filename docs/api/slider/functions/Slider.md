@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [slider](../README.md) / Slider
+[pebble-signals](../../README.md) / [slider](../README.md) / Slider
 
 # Function: Slider()
 
 > **Slider**(`props`): `Content`
 
-Defined in: slider.ts:57
+Defined in: [slider.ts:57](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/slider.ts#L57)
 
 Slider — a reactive horizontal track with a thumb marking a value, on ONE
 Piu Port.

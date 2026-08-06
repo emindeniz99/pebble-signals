@@ -27,8 +27,8 @@ Moddable `xst` binary — see [xst-setup.md](xst-setup.md).
 ## 2. In-repo path (this repository)
 
 ```bash
-git clone https://github.com/emindeniz99/playground
-cd playground/projects/signal-piu
+git clone https://github.com/emindeniz99/pebble-signals
+cd pebble-signals
 pnpm install                              # standalone pnpm workspace
 pnpm run dev -- --app watchface           # build + install + live logs, one command
 ```
@@ -54,13 +54,14 @@ Sanity gates that need no SDK at all: `pnpm run verify` (typecheck + tests at
 ## 3. Your-own-project path (npm)
 
 ```bash
-npx -p signal-piu create-signal-piu my-watch
+npx -p pebble-signals create-pebble-signals my-watch
 cd my-watch && npm install && npm run build
 ```
 
-**Pending the first publish** — the package is not on the registry yet, so
-today the equivalent is `node tools/create-app.mts my-watch` for the scaffold
-plus `npm pack` here for the tarball to install into it.
+**0.1.0 publishes to npm alongside this repo's launch** — if the commands
+above 404, the publish has not landed yet, and the equivalent is
+`node tools/create-app.mts my-watch` for the scaffold plus `npm pack` here
+for the tarball to install into it.
 
 Full details — exports map, upgrade rules, what the scaffold owns vs what the
 package owns — in [packaging.md](packaging.md); a worked consumer project

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [picker](../README.md) / Picker
+[pebble-signals](../../README.md) / [picker](../README.md) / Picker
 
 # Function: Picker()
 
 > **Picker**(`props`): `Content`
 
-Defined in: picker.ts:104
+Defined in: [picker.ts:104](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/picker.ts#L104)
 
 Picker — a reactive value carousel: the current option centered and bold, its
 neighbors faded above and below (a 3-row window), on a Column of Labels.

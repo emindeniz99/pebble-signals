@@ -1,8 +1,8 @@
-[**signal-piu**](../README.md)
+[**pebble-signals**](../README.md)
 
 ***
 
-[signal-piu](../README.md) / jsx-runtime
+[pebble-signals](../README.md) / jsx-runtime
 
 # jsx-runtime
 

@@ -1,12 +1,12 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / ReadonlySignal
+[pebble-signals](../../README.md) / [signals](../README.md) / ReadonlySignal
 
 # Interface: ReadonlySignal\<T\>
 
-Defined in: signals.ts:278
+Defined in: [signals.ts:278](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L278)
 
 A derived, read-only reactive value — what [computed](../functions/computed.md) returns. Reading
 `.value` inside an effect subscribes; writing it is a type error (a computed
@@ -24,4 +24,4 @@ is recomputed from its dependencies, never assigned).
 
 > `readonly` **value**: `T`
 
-Defined in: signals.ts:279
+Defined in: [signals.ts:279](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L279)

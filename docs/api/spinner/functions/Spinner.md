@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [spinner](../README.md) / Spinner
+[pebble-signals](../../README.md) / [spinner](../README.md) / Spinner
 
 # Function: Spinner()
 
 > **Spinner**(`props`): `Content`
 
-Defined in: spinner.ts:85
+Defined in: [spinner.ts:85](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/spinner.ts#L85)
 
 Spinner — an animated indeterminate loading indicator on ONE Piu Port.
 

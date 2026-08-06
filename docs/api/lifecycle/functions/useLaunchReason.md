@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [lifecycle](../README.md) / useLaunchReason
+[pebble-signals](../../README.md) / [lifecycle](../README.md) / useLaunchReason
 
 # Function: useLaunchReason()
 
 > **useLaunchReason**(): [`LaunchInfo`](../interfaces/LaunchInfo.md)
 
-Defined in: lifecycle.ts:169
+Defined in: [lifecycle.ts:169](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/lifecycle.ts#L169)
 
 useLaunchReason() — a ONE-SHOT read of why the app launched (`watch.launch`).
 

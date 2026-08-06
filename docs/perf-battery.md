@@ -1,6 +1,6 @@
 # Performance & battery — what the runtime costs, measured
 
-How signal-piu behaves under sustained updates, what that means for battery
+How pebble-signals behaves under sustained updates, what that means for battery
 on a Pebble, and the app-side rules that matter. Numbers follow Rule 2: each
 is from a QEMU instruments capture in this repo (command + capture noted), or
 explicitly marked analytical. QEMU cannot measure current draw or real CPU

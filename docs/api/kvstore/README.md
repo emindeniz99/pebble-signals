@@ -1,8 +1,8 @@
-[**signal-piu**](../README.md)
+[**pebble-signals**](../README.md)
 
 ***
 
-[signal-piu](../README.md) / kvstore
+[pebble-signals](../README.md) / kvstore
 
 # kvstore
 

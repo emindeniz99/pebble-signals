@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [flow](../README.md) / animate
+[pebble-signals](../../README.md) / [flow](../README.md) / animate
 
 # Function: animate()
 
 > **animate**(`from`, `to`, `ms`, `easing?`): [`Tween`](../interfaces/Tween.md)
 
-Defined in: flow.ts:828
+Defined in: [flow.ts:828](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L828)
 
 animate(from, to, ms, easing?) — a Reanimated-style tween. Returns a getter
 thunk backed by a signal; the shared ~30fps ticker eases the value from -> to

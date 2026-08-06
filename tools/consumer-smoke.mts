@@ -1,5 +1,5 @@
 // Consumer smoke test (C11 packaging gate, docs/packaging.md) — proves
-// signal-piu works as an INSTALLED library, not just via in-repo imports.
+// pebble-signals works as an INSTALLED library, not just via in-repo imports.
 // Every step fails LOUD (nonzero exit, clear message) instead of limping on:
 // NOTE: this smoke uses NPM on purpose even though the repo itself is
 // pnpm-managed — it simulates an EXTERNAL npm consumer installing the
@@ -8,11 +8,11 @@
 //   b. `npm install --no-save` it into examples/consumer, like an external
 //      consumer would
 //   c. typecheck examples/consumer/src/app.tsx against the installed package
-//   d. run the PACKAGED lowering tool (signal-piu/tools/lower/cli.mts) from
+//   d. run the PACKAGED lowering tool (pebble-signals/tools/lower/cli.mts) from
 //      node_modules against a throwaway useState snippet and assert it
 //      rewrote the packed-signal calls
 //
-// Usage: ppnpm run test:consumer   (from the signal-piu repo root)
+// Usage: pnpm run test:consumer   (from the pebble-signals repo root)
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -30,7 +30,7 @@ function fail(step: string, detail: unknown): never {
 
 // ---- a. npm pack the real tarball ------------------------------------------
 console.log("test:consumer: npm pack...");
-const packDir = mkdtempSync(join(tmpdir(), "signal-piu-pack-"));
+const packDir = mkdtempSync(join(tmpdir(), "pebble-signals-pack-"));
 let tarball: string;
 try {
 	const out = execFileSync("npm", ["pack", "--pack-destination", packDir], {
@@ -76,14 +76,14 @@ try {
 // .mjs compiled by prepack (tsconfig.dist.json) — running it here IS the real
 // consumer path, plain `node`, no loader hooks.
 console.log("test:consumer: packaged lowering tool (dist, from node_modules)...");
-const scratchDir = mkdtempSync(join(tmpdir(), "signal-piu-lower-"));
+const scratchDir = mkdtempSync(join(tmpdir(), "pebble-signals-lower-"));
 const scratchFile = join(scratchDir, "lower-smoke.js");
 try {
 	writeFileSync(
 		scratchFile,
 		'import { useState } from "runtime/signals";\nconst [c, setC] = useState(0);\nsetC(c() + 1);\n',
 	);
-	const cli = join(EXAMPLE, "node_modules", "signal-piu", "dist", "tools", "lower", "cli.mjs");
+	const cli = join(EXAMPLE, "node_modules", "pebble-signals", "dist", "tools", "lower", "cli.mjs");
 	execFileSync("node", [cli, scratchFile], { stdio: "inherit" });
 	const lowered = readFileSync(scratchFile, "utf8");
 	if (!lowered.includes("__sp.get(c)") || !lowered.includes("__sp.set(c,"))

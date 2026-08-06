@@ -48,8 +48,8 @@ as React's `useState`, but the resemblance stops there: there is no component
 re-render. The signal is a tiny node in a reactive graph.
 
 **`string={() => hhmm()}` is a binding.** The reactive part is the *call*
-`hhmm()`; wrapping it in a thunk gives signal-piu a function it can re-run.
-signal-piu runs it once to get the initial text AND records that this
+`hhmm()`; wrapping it in a thunk gives pebble-signals a function it can re-run.
+pebble-signals runs it once to get the initial text AND records that this
 `<Label>` depends on `hhmm`. When `setHhmm` later changes the value, only this
 Label's text is recomputed and repainted — nothing else on screen is touched.
 
@@ -58,7 +58,7 @@ Label's text is recomputed and repainted — nothing else on screen is touched.
 a host prop into `string={() => hhmm()}` for you at compile time. So both forms
 are reactive and equivalent — write whichever reads better. The one thing that
 is NOT reactive is passing the signal *without calling it* (`string={hhmm}`, no
-parens): that's just a function value, and signal-piu can't tell it apart from
+parens): that's just a function value, and pebble-signals can't tell it apart from
 a plain callback, so it won't subscribe. **Rule of thumb: the `()` call is the
 reactivity; the arrow is optional.**
 
@@ -67,7 +67,7 @@ diff a virtual tree. Here the subscription is direct: signal → this one Label.
 On a 32 KB watch that difference is not a nicety, it's what makes it possible.
 
 **`Container`, `Label`, `Skin`, `Style` are host globals** — real Piu objects
-the firmware provides. signal-piu's JSX creates them for you; you can also
+the firmware provides. pebble-signals's JSX creates them for you; you can also
 `new Label(...)` by hand and mix the two (see the `coexist` example).
 
 ## Try it

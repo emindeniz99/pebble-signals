@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [config](../README.md) / useConfig
+[pebble-signals](../../README.md) / [config](../README.md) / useConfig
 
 # Function: useConfig()
 
 > **useConfig**\<`T`\>(`initial`): () => `T`
 
-Defined in: config.ts:132
+Defined in: [config.ts:132](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/config.ts#L132)
 
 useConfig(initial) — a reactive, persisted Clay-settings store.
 

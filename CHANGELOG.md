@@ -1,6 +1,8 @@
 # Changelog
 
-All notable changes to signal-piu. Format: [Keep a Changelog](https://keepachangelog.com);
+All notable changes to pebble-signals (named signal-piu until 2026-08-06 —
+older entries below keep that name). Format:
+[Keep a Changelog](https://keepachangelog.com);
 each release carries an **Upgrading** subsection — the scaffold files a project
 OWNS (wscript, src/c, tsconfigs, manifest — see docs/packaging.md "Upgrades")
 are never auto-touched, so any change they need is listed there explicitly.
@@ -8,6 +10,16 @@ No registry releases yet; entries accumulate under Unreleased until the first
 `npm publish`.
 
 ## [Unreleased]
+
+### Changed
+- **Package renamed `signal-piu` → `pebble-signals`** ahead of the first npm
+  publish (nothing was ever published under the old name, so the rename is
+  free). Why: Pebble-ecosystem discoverability — the platform-prefix
+  convention (`pebble-*`) is what people search for. The scaffold CLI is now
+  `create-pebble-signals`; import specifiers (`pebble-signals/signals`, …),
+  the `node_modules/pebble-signals/...` tsconfig paths and the skill folder
+  (`skills/pebble-signals-watchface/`) follow. Dated decision-log docs keep
+  the old name in historical narration, annotated at first mention.
 
 ### Added
 - **Polish sprint (7 parallel implementations + review pass, 2026-07-31).**

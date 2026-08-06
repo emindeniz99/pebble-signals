@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [watchinfo](../README.md) / watchInfo
+[pebble-signals](../../README.md) / [watchinfo](../README.md) / watchInfo
 
 # Function: watchInfo()
 
 > **watchInfo**(): [`WatchInfo`](../interfaces/WatchInfo.md)
 
-Defined in: watchinfo.ts:131
+Defined in: [watchinfo.ts:131](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/watchinfo.ts#L131)
 
 Read one-shot device + screen facts — the RN `Platform` analog.
 

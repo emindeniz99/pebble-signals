@@ -74,10 +74,10 @@ import { packageRoot } from "./tools/pkg-root.mts";
 import { renameRuntimeExports } from "./tools/symbol-rename.mts";
 import { maskStrings, stripComments } from "./tools/gen-manifest.mts";
 
-// PACKAGE root (where signal-piu lives — the repo itself, or
-// node_modules/signal-piu inside a consumer project) vs PROJECT root (the app
+// PACKAGE root (where pebble-signals lives — the repo itself, or
+// node_modules/pebble-signals inside a consumer project) vs PROJECT root (the app
 // being built). In-repo they are the SAME directory and behavior is unchanged.
-// A CONSUMER project runs `node node_modules/signal-piu/build.mts` from its own
+// A CONSUMER project runs `node node_modules/pebble-signals/build.mts` from its own
 // root: the project is detected by a package.json carrying a `pebble` field,
 // app sources / manifest / scaffold come from the PROJECT, while the runtime
 // sources, tsconfig.runtime-build and the compile tools come from the PACKAGE.
@@ -106,7 +106,7 @@ const PROJ = (() => {
 })();
 process.chdir(PROJ);
 const consumer = PROJ !== PKG;
-if (consumer) console.log(`build: consumer project ${PROJ}\nbuild: signal-piu package ${PKG}`);
+if (consumer) console.log(`build: consumer project ${PROJ}\nbuild: pebble-signals package ${PKG}`);
 
 const cli = parseArgs({
 	options: {
@@ -1419,7 +1419,16 @@ if (flag(cli.symdiet, "SYMDIET", "1", true) && treeshake) {
 	}
 }
 
-run("pebble", ["build"]);
+try {
+	run("pebble", ["build"]);
+} catch (e) {
+	if ((e as NodeJS.ErrnoException).code === "ENOENT") {
+		// `pebble` not on PATH — a clean one-liner beats a raw ENOENT stack.
+		err("build: Pebble SDK not found (no `pebble` on PATH) — see docs/getting-started.md");
+		process.exit(1);
+	}
+	throw e; // pebble itself failed and already printed why (stdio: inherit)
+}
 
 // ---- symbol budget report (the boot-floor currency) ------------------------
 // Every archive symbol interns at boot; new-to-host ones cost a slot each

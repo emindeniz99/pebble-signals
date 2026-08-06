@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [grid](../README.md) / Grid
+[pebble-signals](../../README.md) / [grid](../README.md) / Grid
 
 # Function: Grid()
 
 > **Grid**\<`T`\>(`props`): `Content`
 
-Defined in: grid.ts:58
+Defined in: [grid.ts:58](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/grid.ts#L58)
 
 Grid — lay items out in `columns`-wide rows: the RN `FlatList numColumns`
 analog (app launchers, icon pickers, keypads).

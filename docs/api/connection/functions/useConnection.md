@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [connection](../README.md) / useConnection
+[pebble-signals](../../README.md) / [connection](../README.md) / useConnection
 
 # Function: useConnection()
 
 > **useConnection**(): () => [`ConnectionState`](../interfaces/ConnectionState.md)
 
-Defined in: connection.ts:105
+Defined in: [connection.ts:105](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/connection.ts#L105)
 
 Reactive bluetooth / phone-link state — the RN `NetInfo` analog. Returns a
 getter for the latest `{ app, pebblekit }`; reading it inside a Label binding /

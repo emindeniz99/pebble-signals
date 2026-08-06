@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic emulator driver for signal-piu development.
+"""Deterministic emulator driver for pebble-signals development.
 
 Opens ONE direct QemuTransport connection to the running qemu-pebble and
 uses it to press buttons, capture app logs, and screendump via the qemu
@@ -49,8 +49,8 @@ BUTTONS = {"back": 1, "up": 2, "select": 4, "down": 8}
 import socket as _socket
 _moninfo = info["qemu"]["monitor"]
 def dump(name):
-    os.makedirs("/tmp/signal-piu-drive", exist_ok=True)
-    path = f"/tmp/signal-piu-drive/{name}.ppm"
+    os.makedirs("/tmp/pebble-signals-drive", exist_ok=True)
+    path = f"/tmp/pebble-signals-drive/{name}.ppm"
     try:
         os.remove(path)                 # never leave a stale dump behind
     except OSError:
@@ -59,7 +59,7 @@ def dump(name):
     m.connect(("localhost", _moninfo)); time.sleep(0.15)
     try: m.recv(4096)
     except Exception: pass
-    m.send(f"screendump /tmp/signal-piu-drive/{name}.ppm\n".encode())
+    m.send(f"screendump /tmp/pebble-signals-drive/{name}.ppm\n".encode())
     time.sleep(0.6)
     try: m.recv(8192)
     except Exception: pass

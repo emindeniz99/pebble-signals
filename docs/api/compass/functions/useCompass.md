@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [compass](../README.md) / useCompass
+[pebble-signals](../../README.md) / [compass](../README.md) / useCompass
 
 # Function: useCompass()
 
 > **useCompass**(`opts?`): () => `number`
 
-Defined in: compass.ts:151
+Defined in: [compass.ts:151](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/compass.ts#L151)
 
 Reactive magnetometer heading — the RN `Magnetometer` analog. Returns a getter
 for the latest heading; reading it inside a Label binding / effect subscribes,

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [scrollable](../README.md) / ScrollableProps
+[pebble-signals](../../README.md) / [scrollable](../README.md) / ScrollableProps
 
 # Type Alias: ScrollableProps
 
 > **ScrollableProps** = `object`
 
-Defined in: scrollable.ts:127
+Defined in: [scrollable.ts:127](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/scrollable.ts#L127)
 
 Props for [Scrollable](../functions/Scrollable.md).
 
@@ -18,7 +18,7 @@ Props for [Scrollable](../functions/Scrollable.md).
 
 > `optional` **children?**: [`JSXNode`](../../jsx-runtime/type-aliases/JSXNode.md)
 
-Defined in: scrollable.ts:139
+Defined in: [scrollable.ts:139](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/scrollable.ts#L139)
 
 The content to scroll — any nodes; stacked in an inner Column and clipped to the viewport.
 
@@ -28,7 +28,7 @@ The content to scroll — any nodes; stacked in an inner Column and clipped to t
 
 > **height**: `number`
 
-Defined in: scrollable.ts:129
+Defined in: [scrollable.ts:129](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/scrollable.ts#L129)
 
 Height of the clip window the content scrolls within, in px (a size-less container measures 0 — gotcha 16). With `indicator`, two `GUTTER`-tall chevron bands are added OUTSIDE it, so the widget renders `height + 2·GUTTER` tall.
 
@@ -38,7 +38,7 @@ Height of the clip window the content scrolls within, in px (a size-less contain
 
 > `optional` **indicator?**: `boolean`
 
-Defined in: scrollable.ts:135
+Defined in: [scrollable.ts:135](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/scrollable.ts#L135)
 
 Reserve up/down chevron gutters (a Pebble ContentIndicator) reflecting the travel remaining. Default off.
 
@@ -48,7 +48,7 @@ Reserve up/down chevron gutters (a Pebble ContentIndicator) reflecting the trave
 
 > `optional` **max?**: `number`
 
-Defined in: scrollable.ts:137
+Defined in: [scrollable.ts:137](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/scrollable.ts#L137)
 
 Max scroll in px (content height − `height`) for the down chevron. A plain number is correct from the first frame; omit and the widget falls back to the inner Column's MEASURED height (accurate once measured — the initial frame may miss the down chevron).
 
@@ -58,7 +58,7 @@ Max scroll in px (content height − `height`) for the down chevron. A plain num
 
 > **offset**: () => `number`
 
-Defined in: scrollable.ts:133
+Defined in: [scrollable.ts:133](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/scrollable.ts#L133)
 
 Scroll position in px (content shifted UP) — a THUNK; read a signal inside so scrolling is live. Rounded to whole px.
 
@@ -72,6 +72,6 @@ Scroll position in px (content shifted UP) — a THUNK; read a signal inside so 
 
 > `optional` **width?**: `number`
 
-Defined in: scrollable.ts:131
+Defined in: [scrollable.ts:131](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/scrollable.ts#L131)
 
 Viewport width in px. Defaults to the screen width.

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [gauge](../README.md) / Gauge
+[pebble-signals](../../README.md) / [gauge](../README.md) / Gauge
 
 # Function: Gauge()
 
 > **Gauge**(`props`): `Content`
 
-Defined in: gauge.ts:82
+Defined in: [gauge.ts:82](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/gauge.ts#L82)
 
 Gauge — a reactive circular gauge/dial on ONE Piu Port.
 

@@ -1,9 +1,9 @@
 {
 	// STRICT typecheck of the consumer's app code against the INSTALLED package
-	// (node_modules/signal-piu — the tarball, not this repo's source tree).
+	// (node_modules/pebble-signals — the tarball, not this repo's source tree).
 	// Two import styles are both covered:
-	//   * src/app.tsx      — `signal-piu/*` exports-map imports (editor/library
-	//     style; per-file `@jsxImportSource signal-piu` pragma).
+	//   * src/app.tsx      — `pebble-signals/*` exports-map imports (editor/library
+	//     style; per-file `@jsxImportSource pebble-signals` pragma).
 	//   * src/tsx/main.tsx — `runtime/*` device-specifier imports (what actually
 	//     ships; resolved here via `paths` into the installed package's sources)
 	//     plus real Piu host JSX (<Label>), typed by the package's vendored
@@ -20,12 +20,12 @@
 		"types": [],
 		"lib": ["es2022"],
 		"skipLibCheck": true,
-		"paths": { "runtime/*": ["./node_modules/signal-piu/src/embeddedjs/runtime/*"] }
+		"paths": { "runtime/*": ["./node_modules/pebble-signals/src/embeddedjs/runtime/*"] }
 	},
 	"include": ["src"],
 	"files": [
-		"node_modules/signal-piu/src/tsx/globals.d.ts",
+		"node_modules/pebble-signals/src/tsx/globals.d.ts",
 		// one barrel = the WHOLE Moddable/Pebble typing surface
-		"node_modules/signal-piu/types/moddable/all.d.ts"
+		"node_modules/pebble-signals/types/moddable/all.d.ts"
 	]
 }

@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [anim](../README.md) / withDelay
+[pebble-signals](../../README.md) / [anim](../README.md) / withDelay
 
 # Function: withDelay()
 
 > **withDelay**(`ms`, `steps`): [`SeqStep`](../type-aliases/SeqStep.md)[]
 
-Defined in: anim.ts:354
+Defined in: [anim.ts:354](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/anim.ts#L354)
 
 withDelay(ms, steps) — prepend a `{ hold: ms }` pause before a step list, so a
 [useSequence](useSequence.md) starts after a delay (RN Reanimated `withDelay`). Pure — no

@@ -1,5 +1,5 @@
 {
- "name": "signal-piu",
+ "name": "pebble-signals",
  "author": "MakeAwesomeHappen",
  "version": "0.1.0",
  "description": "Fine-grained reactive UI (Solid-style signals + JSX, no VDOM) for Pebble watches on Moddable XS/Piu",
@@ -8,12 +8,11 @@
  ],
  "repository": {
   "type": "git",
-  "url": "git+https://github.com/emindeniz99/playground.git",
-  "directory": "projects/signal-piu"
+  "url": "git+https://github.com/emindeniz99/pebble-signals.git"
  },
- "homepage": "https://github.com/emindeniz99/playground/tree/main/projects/signal-piu#readme",
+ "homepage": "https://github.com/emindeniz99/pebble-signals#readme",
  "bugs": {
-  "url": "https://github.com/emindeniz99/playground/issues"
+  "url": "https://github.com/emindeniz99/pebble-signals/issues"
  },
  "exports": {
   "./signals": {
@@ -72,7 +71,7 @@
   "typescript": "^6.0.3"
  },
  "pebble": {
-  "displayName": "signal-piu",
+  "displayName": "pebble-signals",
   "uuid": "8cfdaad8-76b2-462f-b5a1-72fbac90ab23",
   "projectType": "moddable",
   "sdkVersion": "3",
@@ -118,7 +117,7 @@
   "verify:full": "pnpm run verify && pnpm run test:xs"
  },
  "bin": {
-  "create-signal-piu": "dist/tools/create-app.mjs"
+  "create-pebble-signals": "dist/tools/create-app.mjs"
  },
  "license": "MIT"
 }

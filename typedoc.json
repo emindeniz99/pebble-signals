@@ -58,6 +58,9 @@
   ],
   "entryPointStrategy": "expand",
   "tsconfig": "tsconfig.check.json",
+  "disableGit": true,
+  "basePath": "src/embeddedjs/runtime",
+  "sourceLinkTemplate": "https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/{path}#L{line}",
   "plugin": [
     "typedoc-plugin-markdown"
   ],

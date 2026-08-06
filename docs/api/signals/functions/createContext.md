@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [signals](../README.md) / createContext
+[pebble-signals](../../README.md) / [signals](../README.md) / createContext
 
 # Function: createContext()
 
 > **createContext**\<`T`\>(`defaultValue`): `object`
 
-Defined in: signals.ts:984
+Defined in: [signals.ts:984](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/signals.ts#L984)
 
 Context — pass a value down the (synchronous, run-once) build without
 threading props. createContext(default) -> ctx; provide(ctx, value, build)

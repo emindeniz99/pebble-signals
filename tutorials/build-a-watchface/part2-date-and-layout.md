@@ -1,7 +1,7 @@
 # Part 2 — date & layout
 
 Goal: turn the single line from Part 1 into a real face — time, seconds, and a
-date line — stacked and styled. You'll learn how signal-piu lays out (once, at
+date line — stacked and styled. You'll learn how pebble-signals lays out (once, at
 construction, fill-based) and see that each `<Label>` subscribes to *only* the
 signal it reads.
 
@@ -44,7 +44,7 @@ render(() => (
 ## What just happened
 
 **`<Column>` stacks its children vertically** and centers them. It's a Piu
-`Column`; signal-piu just lets you write it as JSX. There's also `<Row>`,
+`Column`; pebble-signals just lets you write it as JSX. There's also `<Row>`,
 `<Container>` (free positioning), and `<Scroller>`.
 
 **Layout is fill-based and runs once.** The `<Container>` uses

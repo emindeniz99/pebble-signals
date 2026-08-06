@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [dots](../README.md) / DotIndicator
+[pebble-signals](../../README.md) / [dots](../README.md) / DotIndicator
 
 # Function: DotIndicator()
 
 > **DotIndicator**(`props`): `Content`
 
-Defined in: dots.ts:48
+Defined in: [dots.ts:48](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/dots.ts#L48)
 
 DotIndicator — a reactive row of dots with one highlighted, on ONE Piu Port.
 

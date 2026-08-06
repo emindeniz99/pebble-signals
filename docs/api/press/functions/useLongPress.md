@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [press](../README.md) / useLongPress
+[pebble-signals](../../README.md) / [press](../README.md) / useLongPress
 
 # Function: useLongPress()
 
 > **useLongPress**(`button`, `ms`, `onFire`): [`PressHandlers`](../type-aliases/PressHandlers.md)
 
-Defined in: press.ts:92
+Defined in: [press.ts:92](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/press.ts#L92)
 
 useLongPress(button, ms, onFire) — HOLD-TO-CONFIRM. Press and hold `button` for
 `ms`; `onFire` runs only if the button is STILL held when `ms` elapses. Releasing

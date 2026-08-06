@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [anim](../README.md) / yoyo
+[pebble-signals](../../README.md) / [anim](../README.md) / yoyo
 
 # Function: yoyo()
 
 > **yoyo**(`steps`): [`SeqStep`](../type-aliases/SeqStep.md)[]
 
-Defined in: anim.ts:404
+Defined in: [anim.ts:404](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/anim.ts#L404)
 
 yoyo(steps) — play a step list forward then reversed, so the motion returns to
 where it began (a single out-and-back). Sugar for `withRepeat(steps, 2, true)`.

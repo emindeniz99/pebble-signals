@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [press](../README.md) / useMultiClick
+[pebble-signals](../../README.md) / [press](../README.md) / useMultiClick
 
 # Function: useMultiClick()
 
 > **useMultiClick**(`button`, `handlers`, `opts?`): [`PressHandlers`](../type-aliases/PressHandlers.md)
 
-Defined in: press.ts:244
+Defined in: [press.ts:244](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/press.ts#L244)
 
 useMultiClick(button, handlers, opts?) — DOUBLE / TRIPLE CLICK. Counts how many
 times `button` is clicked within a rolling `window` ms of quiet, then dispatches

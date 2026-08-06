@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [textflow](../README.md) / wrapText
+[pebble-signals](../../README.md) / [textflow](../README.md) / wrapText
 
 # Function: wrapText()
 
 > **wrapText**(`text`, `charsPerLine`, `maxLines`): `string`[]
 
-Defined in: textflow.ts:91
+Defined in: [textflow.ts:91](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/textflow.ts#L91)
 
 Greedily word-wrap `text` into at most `maxLines` lines, each at most
 `charsPerLine` characters long (counting the single spaces that join words).

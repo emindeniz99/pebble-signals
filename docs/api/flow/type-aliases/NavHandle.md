@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [flow](../README.md) / NavHandle
+[pebble-signals](../../README.md) / [flow](../README.md) / NavHandle
 
 # Type Alias: NavHandle
 
 > **NavHandle** = `object`
 
-Defined in: flow.ts:172
+Defined in: [flow.ts:172](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L172)
 
 The handle every [Navigator](../functions/Navigator.md) screen builder receives.
 
@@ -18,7 +18,7 @@ The handle every [Navigator](../functions/Navigator.md) screen builder receives.
 
 > **canPop**(): `boolean`
 
-Defined in: flow.ts:188
+Defined in: [flow.ts:188](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L188)
 
 Reactive: is there a parent to pop to.
 
@@ -32,7 +32,7 @@ Reactive: is there a parent to pop to.
 
 > **depth**(): `number`
 
-Defined in: flow.ts:186
+Defined in: [flow.ts:186](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L186)
 
 Reactive current depth (1 = root).
 
@@ -46,7 +46,7 @@ Reactive current depth (1 = root).
 
 > **pop**(): `void`
 
-Defined in: flow.ts:184
+Defined in: [flow.ts:184](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L184)
 
 Pop to the parent (no-op at the root) — the parent REBUILDS from its builder.
 
@@ -60,7 +60,7 @@ Pop to the parent (no-op at the root) — the parent REBUILDS from its builder.
 
 > **push**(`build`, `data?`): `void`
 
-Defined in: flow.ts:182
+Defined in: [flow.ts:182](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/flow.ts#L182)
 
 Push a child screen — the CURRENT screen is disposed (one screen lives at
 a time). `data` is the route-param slot-diet: a builder is RETAINED on the

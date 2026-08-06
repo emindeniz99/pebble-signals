@@ -1,14 +1,14 @@
-[**signal-piu**](../../README.md)
+[**pebble-signals**](../../README.md)
 
 ***
 
-[signal-piu](../../README.md) / [accel](../README.md) / useTap
+[pebble-signals](../../README.md) / [accel](../README.md) / useTap
 
 # Function: useTap()
 
 > **useTap**(): () => [`TapDirection`](../type-aliases/TapDirection.md) \| `undefined`
 
-Defined in: accel.ts:199
+Defined in: [accel.ts:199](https://github.com/emindeniz99/pebble-signals/blob/main/src/embeddedjs/runtime/accel.ts#L199)
 
 Reactive single-tap direction — a signal of the LAST tap the wearer produced
 (a flick of the wrist / a tap on the case). Returns a getter that is
