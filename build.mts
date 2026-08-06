@@ -633,6 +633,10 @@ const rootShim = (() => {
 const manifestBase = existsSync("src/embeddedjs/manifest.base.json")
 	? "src/embeddedjs/manifest.base.json" // the project's own
 	: join(PKG, "src/embeddedjs/manifest.base.json"); // package default
+// A fresh scaffold has no src/embeddedjs/ yet (everything in it is generated),
+// and copyFileSync ENOENTs on a missing DEST dir while blaming the source
+// path — caught dogfooding the first store face (faces/slothvec).
+mkdirSync("src/embeddedjs", { recursive: true });
 copyFileSync(manifestBase, "src/embeddedjs/manifest.json");
 run(
 	process.execPath,

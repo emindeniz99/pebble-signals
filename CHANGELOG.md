@@ -19,6 +19,18 @@ Releases publish to npm via the `release.yml` trusted-publishing workflow
   Caught dogfooding the first store face (`faces/slothvec`) against the
   published 0.1.0. The template now carries a `__PKG_VERSION__` placeholder
   and the CLI stamps its own running version, which cannot drift.
+- **A fresh scaffold could not `pebble build`, two ways** (same dogfooding
+  session): (a) the template put `pebble-signals` in `dependencies`, and the
+  SDK's waf treats any dependency whose package.json carries a `pebble` field
+  as a Pebble C package — it demanded a `dist.zip` and failed the build; the
+  scaffold now puts `pebble-signals` in `devDependencies` (the runtime ships
+  inside the mod archive, so nothing is lost) with `@moddable/pebbleproxy`
+  staying a real dependency. (b) `build.mjs` copied the manifest into
+  `src/embeddedjs/` without creating it — a fresh scaffold has no such dir
+  (everything in it is generated) and `copyFileSync` ENOENTs blaming the
+  SOURCE path; the build now mkdirs it first. With both fixed, a registry
+  scaffold builds a `.pbw` end-to-end (receipt: `faces/slothvec`, 145 boot
+  symbols, 20.7KB gabbro archive, live on both emulators).
 
 ## [0.1.0] - 2026-08-06
 
