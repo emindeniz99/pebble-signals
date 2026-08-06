@@ -7,19 +7,34 @@
 #
 # pnpm/action-setup is given NO version input on purpose: it reads
 # `"packageManager": "pnpm@11.10.0"` from the repo-root package.json.
+#
+# Hardening (see https://securitylabs.datadoghq.com/articles/case-for-github-actions-security/):
+# plain `pull_request` only (never pull_request_target — fork PRs run with no
+# secrets and a read-only token), GITHUB_TOKEN restricted explicitly, no
+# untrusted event fields (titles/branches/comments) interpolated into run
+# steps, and every action pinned to a full commit SHA so a retagged release
+# can't swap code under us (the tag rides in the comment for humans and
+# Dependabot).
 name: ci
 
 on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm

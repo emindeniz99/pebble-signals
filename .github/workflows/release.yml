@@ -1,0 +1,59 @@
+# Release — npm publish via TRUSTED PUBLISHING (GitHub OIDC), no npm token
+# anywhere. Trigger is a published GitHub Release (deliberate, manual — the
+# CHANGELOG is hand-maintained, so cutting a release is a human act here):
+#   1. bump "version" in package.json + move CHANGELOG Unreleased under the
+#      new heading, commit, push
+#   2. git tag vX.Y.Z && git push --tags
+#   3. create the GitHub Release from that tag → this workflow publishes
+#
+# npm side (one-time): npmjs.com → pebble-signals → Settings → Trusted
+# publisher → GitHub Actions → owner emindeniz99, repo pebble-signals,
+# workflow file `release.yml`. The FILENAME is what npm matches — never
+# rename this file (react-watchos graduation field lesson 5). With OIDC,
+# npm generates provenance automatically.
+#
+# Hardening: same rules as ci.yml — SHA-pinned actions, least-privilege
+# token (id-token: write only in the publish job, granted by OIDC), no
+# pull_request/pull_request_target trigger at all, and the only untrusted-ish
+# input (the tag name) is compared, in an env var, against package.json
+# before anything publishes.
+name: release
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing (OIDC) + provenance
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Tag must match package.json version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          PKG="$(node -p 'require("./package.json").version')"
+          if [ "${TAG#v}" != "$PKG" ]; then
+            echo "release tag $TAG != package.json version $PKG — bump/tag mismatch" >&2
+            exit 1
+          fi
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run verify
+      # prepack (build:types + build:dist) runs inside npm publish; pnpm is on
+      # PATH from action-setup above.
+      - run: npm publish
