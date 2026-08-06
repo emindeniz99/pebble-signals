@@ -20,6 +20,28 @@ strictly ordered except the "next batch".
 (with device receipts) or moved to "Waiting on the outside world" (things
 no work inside this repo can advance). New work starts a new list.
 
+**Open (2026-08-06, post-graduation — the repo is public, npm 0.1.0 is live):**
+- [ ] **TypeScript 7 compat for the lowering tool.** typescript@7.0.2 breaks
+      the packaged tool — `ts.ScriptTarget` is gone from its default-import
+      surface, so `dist/tools/lower/runtime-meta.mjs` dies with a TypeError.
+      Caught by `test:consumer` the moment peerDependencies made the consumer
+      resolve its OWN typescript instead of walking up into the repo's;
+      peers are capped at `typescript@^6.0` (the tested range) until this
+      lands (CHANGELOG 0.1.0 records it). Unblock: port the
+      lower/classify/symbol-rename TS-API usage to the TS 7 surface (or
+      dual-support both), then widen the peer range with a measured floor.
+- [ ] **First live run of `release.yml`.** The OIDC trusted-publishing
+      pipeline (npm trust configured 2026-08-06, provenance automatic,
+      tag-must-match-package.json gate) has never cut a real release —
+      0.1.0 was a manual bootstrap publish. The next natural version bump is
+      the end-to-end test.
+- [ ] **Hardware receipts.** The README's own headline caveat: every number
+      and screenshot is QEMU-measured; there are no on-watch receipts yet.
+      Needs a Pebble Time 2 (emery) / Pebble Round 2 (gabbro) in hand. First
+      pass: boot + the catalog smoke on-wrist; then the device-only rows
+      unlock too (dictation transcription, real battery/accel/compass
+      behavior, watch-face-picker integration).
+
 **New (2026-07, round 2 status):**
 - [x] docs audit API-REFERENCE lens ✅ (2026-07, third run — 19/19 agents):
       7 confirmed findings, all fixed: docs/api regenerated (Move/Component/
