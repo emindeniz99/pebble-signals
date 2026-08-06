@@ -3,9 +3,10 @@
 // templates/app/ in one command (docs/packaging.md, "create-pebble-signals
 // scaffold CLI") — replaces "copy examples/consumer by hand".
 //
-// Usage: node tools/create-app.mts <dir> [--name <appName>]
+// Usage: node tools/create-app.mts <dir> [--name <appName>] [--author <name>]
 //   <dir>            target directory (created if missing; must be empty)
 //   --name <appName> app name + pebble.displayName (default: basename(<dir>))
+//   --author <name>  appinfo companyName (default: git config user.name)
 //
 // Runs from TWO layouts, like build.mts: the repo (tools/create-app.mts,
 // templates/ beside its parent) and the packed tarball's compiled dist
@@ -13,6 +14,7 @@
 // package root is found by walking UP (packageRoot), never a hard-coded
 // "../..". Node refuses to type-strip .mts under node_modules, which is why
 // this ships compiled as dist/tools/create-app.mjs (see docs/packaging.md).
+import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
@@ -36,18 +38,34 @@ const PKG_VERSION: string = JSON.parse(readFileSync(join(PKG, "package.json"), "
 
 const { values: cli, positionals } = parseArgs({
 	args: process.argv.slice(2),
-	options: { name: { type: "string" }, help: { type: "boolean" } },
+	options: { name: { type: "string" }, author: { type: "string" }, help: { type: "boolean" } },
 	allowPositionals: true,
 });
 
 if (cli.help) {
-	process.stdout.write("usage: create-pebble-signals <dir> [--name <appName>]\n");
+	process.stdout.write("usage: create-pebble-signals <dir> [--name <appName>] [--author <name>]\n");
 	process.exit(0);
 }
 
+// The author lands in appinfo.json as the PUBLIC companyName on the appstore
+// (and archive.org keeps store uploads forever). The SDK's classic
+// "MakeAwesomeHappen" placeholder shipped in a real store audit before it was
+// caught — so: --author wins, `git config user.name` is the sane default, and
+// the placeholder fallback is called out loudly in the Next steps.
+const author =
+	cli.author ??
+	(() => {
+		try {
+			return execFileSync("git", ["config", "user.name"]).toString().trim();
+		} catch {
+			return "";
+		}
+	})() ??
+	"";
+
 const targetArg = positionals[0];
 if (!targetArg) {
-	err("usage: create-pebble-signals <dir> [--name <appName>]");
+	err("usage: create-pebble-signals <dir> [--name <appName>] [--author <name>]");
 	process.exit(1);
 }
 const targetDir = resolve(process.cwd(), targetArg);
@@ -103,6 +121,9 @@ const RENAME: Record<string, string> = {
 	gitignore: ".gitignore",
 };
 
+const authorName = author || "Your Name";
+const authorJson = JSON.stringify(authorName).slice(1, -1);
+
 function copyTemplate(srcDir: string, destDir: string): void {
 	mkdirSync(destDir, { recursive: true });
 	for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
@@ -118,7 +139,8 @@ function copyTemplate(srcDir: string, destDir: string): void {
 			.replaceAll("__PKG_NAME__", packageName)
 			.replaceAll("__APP_NAME__", destPath.endsWith(".json") ? displayJson : displayName)
 			.replaceAll("__UUID__", uuid)
-			.replaceAll("__PKG_VERSION__", PKG_VERSION);
+			.replaceAll("__PKG_VERSION__", PKG_VERSION)
+			.replaceAll("__AUTHOR__", destPath.endsWith(".json") ? authorJson : authorName);
 		writeFileSync(destPath, content);
 	}
 }
@@ -128,6 +150,11 @@ copyTemplate(TEMPLATE_DIR, targetDir);
 console.log(`create-pebble-signals: scaffolded ${displayName} in ${targetDir}\n`);
 if (packageName !== displayName)
 	console.log(`  (npm package name normalized to "${packageName}"; displayName kept verbatim)\n`);
+if (!author)
+	console.log(
+		'NOTE: no --author and no `git config user.name` — package.json says "Your Name".\n' +
+			"      Set it before a store upload: it becomes the PUBLIC companyName.\n",
+	);
 console.log("Next steps:");
 console.log(`  cd ${targetArg}`);
 // One package: typescript + esbuild are peerDependencies (npm 7+ installs them

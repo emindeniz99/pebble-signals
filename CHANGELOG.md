@@ -12,6 +12,13 @@ Releases publish to npm via the `release.yml` trusted-publishing workflow
 ## [Unreleased]
 
 ### Fixed
+- **The scaffold no longer stamps `"MakeAwesomeHappen"` or a `dummy`
+  messageKey.** Both were SDK-era template placeholders that would have gone
+  to the appstore verbatim (companyName is PUBLIC on the store page and in
+  archive.org's permanent mirror; the dummy appKey was never needed — a
+  keyless build verifies and runs on both emulators). `create-pebble-signals`
+  now takes `--author`, defaults to `git config user.name`, and warns loudly
+  when it has to fall back to a placeholder.
 - **`.pbw` no longer ships the pkjs source map.** The SDK's webpack embeds
   `sourcesContent` including its own shim's ABSOLUTE path
   (`/Users/<name>/Library/.../Pebble SDK/...`), so every built `.pbw` carried
