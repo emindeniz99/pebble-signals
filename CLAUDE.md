@@ -116,6 +116,12 @@ for the numeric line: …,[7] chunk used,[8] chunk avail,[9] slot used,[10]
 slot avail,[11] stack peak,[12] stack total (6144),[13] GC runs,[14] keys.
 Slot+chunk avail together track the 26624 B arena budget (32768 − 6144).
 
+**ALWAYS pass `--no-open` to `pebble screenshot`.** Without it every capture
+auto-opens in the host's image viewer and steals the owner's window focus —
+a 14-frame burst threw 14 Preview windows onto the owner's desktop
+(2026-08-06). Agents cannot close them afterwards either (macOS blocks
+Apple events to Preview), so the only fix is not opening them at all.
+
 **ALWAYS verify a captured PNG by READING it** (not just a size check): the
 empty-home frame, a stale previous-app frame, and a `render() threw` crash
 screen all pass `size > 800 B`. A crash-screen capture is a genuine receipt of
