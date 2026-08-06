@@ -11,6 +11,20 @@ Releases publish to npm via the `release.yml` trusted-publishing workflow
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-06
+
+Scaffold repair release: 0.1.0's `create-pebble-signals` could neither
+install nor build. Published manually (GitHub Actions outage on release
+day); the `release.yml` trusted-publishing pipeline's first live run
+moves to the next release.
+
+### Upgrading
+A project scaffolded with 0.1.0 needs two hand edits in `package.json`
+(fresh 0.1.1 scaffolds need nothing): move `"pebble-signals"` from
+`dependencies` to `devDependencies` and re-pin it `"^0.1.1"` (the 0.1.0
+scaffold wrote a nonexistent `"^1.0.0"`); `"@moddable/pebbleproxy"` stays
+in `dependencies`.
+
 ### Fixed
 - **The scaffold's `pebble-signals` dependency pin was a nonexistent version**
   — `create-pebble-signals` stamped `"^1.0.0"` (the internal-milestone number
