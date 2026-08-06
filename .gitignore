@@ -32,3 +32,10 @@ package-lock.json
 # "files" cannot be excluded by .gitignore/.npmignore, so the pack side needs
 # its own "!tools/__pycache__" entry — MEASURED with `npm pack --dry-run`.)
 __pycache__/
+
+# Universal junk/secret safety net — carried from the monorepo root ignore
+# at graduation (field lesson 4): the root .gitignore that used to catch
+# these is gone now that this IS the root.
+.env
+.env.*
+.DS_Store
