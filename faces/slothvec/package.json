@@ -1,7 +1,7 @@
 {
 	"name": "sloth",
 	"private": true,
-	"author": "MakeAwesomeHappen",
+	"author": "Emin Deniz",
 	"version": "1.0.0",
 	"keywords": [
 		"pebble-app"
@@ -19,9 +19,6 @@
 		"watchapp": {
 			"watchface": true
 		},
-		"messageKeys": [
-			"dummy"
-		],
 		"resources": {
 			"media": []
 		}
