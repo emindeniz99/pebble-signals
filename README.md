@@ -6,9 +6,14 @@
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 ![Pebble SDK 4.17 (Alloy)](https://img.shields.io/badge/Pebble-SDK%204.17%20(Alloy)-black)
 ![Moddable XS · Piu](https://img.shields.io/badge/Moddable-XS%20%C2%B7%20Piu-4a5568)
+[![Sloth on the Pebble appstore](https://img.shields.io/badge/Pebble%20appstore-Sloth%20🦥-5b4df0)](https://apps.repebble.com/b67c26d2118f4ffeb654ebdd)
 
 **Fine-grained reactive UI for Pebble watches — Solid-style signals + JSX, no
 VDOM — running ON the watch inside its 32 KB JavaScript heap.**
+
+> 🦥 **Shipped with it:** [Sloth](https://apps.repebble.com/b67c26d2118f4ffeb654ebdd) — a watchface on the Pebble
+> appstore, built from [`faces/slothvec`](faces/slothvec) with this library:
+> registry scaffold → `npm run build` → store `.pbw`.
 
 > **Status: pre-1.0 (`0.1.0`), single maintainer.** Every number and screenshot
 > below is measured or captured on the SDK 4.17 **QEMU emulators** — gabbro

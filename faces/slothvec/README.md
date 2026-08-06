@@ -1,4 +1,9 @@
-# Sloth
+# Sloth 🦥
+
+**[Live on the Pebble appstore](https://apps.repebble.com/b67c26d2118f4ffeb654ebdd)** — v1.0.0, for Pebble Time 2
+(emery) and Pebble Round 2 (gabbro).
+
+<img src="screenshots/sloth-gabbro.gif" width="130" alt="Sloth blinking and swinging on gabbro"> <img src="screenshots/sloth-emery.gif" width="100" alt="Sloth on emery">
 
 A Pebble watch app built on
 [pebble-signals](https://github.com/emindeniz99/pebble-signals#readme) —
