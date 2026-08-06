@@ -1,5 +1,12 @@
 # pebble-signals
 
+[![npm](https://img.shields.io/npm/v/pebble-signals)](https://www.npmjs.com/package/pebble-signals)
+[![ci](https://github.com/emindeniz99/pebble-signals/actions/workflows/ci.yml/badge.svg)](https://github.com/emindeniz99/pebble-signals/actions/workflows/ci.yml)
+[![Socket](https://socket.dev/api/badge/npm/package/pebble-signals)](https://socket.dev/npm/package/pebble-signals)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+![Pebble SDK 4.17 (Alloy)](https://img.shields.io/badge/Pebble-SDK%204.17%20(Alloy)-black)
+![Moddable XS · Piu](https://img.shields.io/badge/Moddable-XS%20%C2%B7%20Piu-4a5568)
+
 **Fine-grained reactive UI for Pebble watches — Solid-style signals + JSX, no
 VDOM — running ON the watch inside its 32 KB JavaScript heap.**
 
