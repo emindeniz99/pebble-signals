@@ -28,6 +28,10 @@
 //                                         Those stop defeating the scan, so
 //                                         pruning stays ON and every OTHER
 //                                         unresolvable import still self-disables
+//   --generate-only     GENERATE_ONLY=1   stop after writing src/embeddedjs —
+//                                         no `pebble build`, no .pbw. For
+//                                         hosted builders (CloudPebble) and CI
+//                                         that drive waf/mcrun themselves
 //   --skip-fontcheck    SKIP_FONTCHECK=1  skip the Pebble-font validation
 //   --bundle <mode>     BUNDLE=<mode>     "preload" points at multilazy
 //   --no-check-c        CHECK_C=0         skip the clang-format gate
@@ -123,6 +127,7 @@ const cli = parseArgs({
 		treeshake: { type: "boolean" },
 		"treeshake-force": { type: "boolean" },
 		"treeshake-allow": { type: "string" },
+		"generate-only": { type: "boolean" },
 		"skip-fontcheck": { type: "boolean" },
 		bundle: { type: "string" },
 		"check-c": { type: "boolean" },
@@ -142,16 +147,33 @@ const env = (k: string, d: string) => process.env[k] ?? d;
 const flag = (cliVal: boolean | undefined, envKey: string, on: string, dflt: boolean): boolean =>
 	cliVal ?? (process.env[envKey] !== undefined ? process.env[envKey] === on : dflt);
 // tsc binary: the package's devDep in-repo; a consumer brings its own
-// typescript (devDep) — resolve theirs, else fall back to PATH.
-const TSC = [join(PKG, "node_modules", ".bin", "tsc"), join(PROJ, "node_modules", ".bin", "tsc")]
-	.concat("tsc")
-	.find((p) => p === "tsc" || existsSync(p))!;
+// typescript (devDep). Prefer the `.bin` shims, but resolve the typescript
+// PACKAGE as the real fallback — a `.bin` directory is not guaranteed to
+// exist (npm's --no-bin-links, used by hosted builders like CloudPebble's,
+// creates none), and falling through to a bare `tsc` on PATH then picks up
+// whatever ancient global compiler the image happens to ship. Measured: a
+// CloudPebble build image carries a global typescript@3.9.10, which fails on
+// modern syntax with a wall of TS1005/TS6046 that names none of this.
+const TSC = ((): string[] => {
+	for (const root of [PKG, PROJ]) {
+		const shim = join(root, "node_modules", ".bin", "tsc");
+		if (existsSync(shim)) return [shim];
+	}
+	for (const root of [PKG, PROJ]) {
+		const cli = join(root, "node_modules", "typescript", "bin", "tsc");
+		if (existsSync(cli)) return [process.execPath, cli];
+	}
+	return ["tsc"];
+})();
 
 // Run a command, inheriting stdio, and abort the build on nonzero exit. Used for
 // tsc / pebble / node tools (no clean in-process API). esbuild, by contrast, is
 // driven through its programmatic API below — no subprocess per module, typed
 // options, structured errors (the CLI is just a thin wrapper over build()).
 const run = (cmd: string, args: string[]) => execFileSync(cmd, args, { stdio: "inherit" });
+// TSC is [command, ...leading args] so a resolved package CLI can be run as
+// `node <path>/bin/tsc` where no .bin shim exists.
+const tsc = (args: string[]) => run(TSC[0], TSC.slice(1).concat(args));
 // esbuild via its JS API, with a fallback: return false instead of throwing so a
 // missing/erroring esbuild can degrade to a verbatim copy (build.sh's `|| cp`).
 const tryEsbuild = (opts: import("esbuild").BuildOptions): boolean => {
@@ -729,18 +751,17 @@ rmSync("src/embeddedjs/runtime-types", { recursive: true, force: true });
 // still in .js are used as-is. The minify input for each module is
 // runtime-build/X.js if converted, else runtime/X.js.
 if (readdirSync(join(PKG, "src/embeddedjs/runtime")).some((f) => f.endsWith(".ts")))
-	run(
-		TSC,
+	tsc(
 		["-p", join(PKG, "tsconfig.runtime-build.json")].concat(
 			// consumer: emit into the PROJECT tree (the manifest's ./runtime-min
 			// sibling), not into node_modules
 			consumer ? ["--outDir", join(PROJ, "src/embeddedjs/runtime-build")] : [],
 		),
 	);
-run(TSC, ["-p", "tsconfig.json"]);
+tsc(["-p", "tsconfig.json"]);
 // PKJS (phone-side) glue: index.ts -> index.js for `pebble build` to bundle
 // into the mobile app (separate engine/config — see tsconfig.pkjs.json).
-if (existsSync("tsconfig.pkjs.json")) run(TSC, ["-p", "tsconfig.pkjs.json"]);
+if (existsSync("tsconfig.pkjs.json")) tsc(["-p", "tsconfig.pkjs.json"]);
 
 // ---- PRELOAD_PURE v1: route PURE app submodules to ROM (the smart split) --
 // App code normally bundles into main.js, which loads INTO the 32KB arena —
@@ -1431,6 +1452,15 @@ if (flag(cli.symdiet, "SYMDIET", "1", true) && treeshake) {
 	}
 }
 
+// A hosted builder (CloudPebble) and most CI already own the waf/mcrun half:
+// they assemble the project, call this generator for src/embeddedjs, then run
+// their own `pebble build`. Doing it twice wastes the whole second pass — and
+// on a CPU-limited builder that alone can blow the budget.
+if (flag(cli["generate-only"], "GENERATE_ONLY", "1", false)) {
+	console.log("build: --generate-only — src/embeddedjs is written; skipping `pebble build`");
+	process.exit(0);
+}
+
 try {
 	run("pebble", ["build"]);
 } catch (e) {
@@ -1449,10 +1479,23 @@ try {
 // permanently (found auditing the slothvec store upload, 2026-08-06). The
 // watch never reads the map; deleting it is pure win. `zip -d` errors if the
 // entry is absent, so probe the listing first.
+// `zip` is not everywhere — measured: CloudPebble's build image ships neither
+// zip nor unzip. Warn loudly and keep the .pbw rather than failing a build over
+// a privacy nicety the author can still apply locally before uploading.
 for (const f of readdirSync("build")) {
 	if (!f.endsWith(".pbw")) continue;
 	const pbw = join("build", f);
-	const listing = execFileSync("zip", ["-sf", pbw]).toString();
+	let listing: string;
+	try {
+		listing = execFileSync("zip", ["-sf", pbw]).toString();
+	} catch (e) {
+		if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+		err(`build: WARNING — 'zip' not found, so ${pbw} keeps its pkjs source map.`);
+		err("       Source maps embed the build machine's absolute paths (username included)");
+		err("       and the appstore mirrors uploads permanently — install zip, or rebuild");
+		err("       where it exists, before publishing this .pbw.");
+		break;
+	}
 	const maps = listing
 		.split("\n")
 		.map((l) => l.trim())

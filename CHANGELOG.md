@@ -11,6 +11,23 @@ Releases publish to npm via the `release.yml` trusted-publishing workflow
 
 ## [Unreleased]
 
+### Added
+- **`--generate-only` / `GENERATE_ONLY=1`** stops the build after
+  `src/embeddedjs` is written, skipping `pebble build`. For hosted builders
+  and CI that assemble the project and drive waf/mcrun themselves — doing
+  that half twice is pure waste.
+
+### Fixed
+- **`tsc` is resolved from the typescript PACKAGE, not `$PATH`.** A `.bin`
+  directory is not guaranteed to exist — npm's `--no-bin-links` (which
+  hosted builders use) creates none — and the bare-`tsc` fallback then picks
+  up whatever global compiler the image ships. Measured on a CloudPebble
+  build image: a global `typescript@3.9.10` took over and failed with a wall
+  of TS1005/TS6046 naming none of the actual cause.
+- **A missing `zip` no longer kills the build.** The pkjs source-map strip
+  now warns (loudly, with what to do about it) and keeps the `.pbw` instead
+  of crashing. Measured: CloudPebble's build image has neither zip nor unzip.
+
 ## [0.1.3] - 2026-08-07
 
 The release that finally cuts itself: the first version published by the
