@@ -1149,12 +1149,40 @@ notifications, device info.
     (3) build image needs the moddable-enabled SDK (4.17+) — the main
     packaging cost; (4) editor: TSX highlighting only (ycmd completion is
     C-only — out of scope); emulator streaming comes free (their QEMU
-    controller runs the same qemu-pebble). Risks: Python 2.7 / Django
-    1.6 codebase (their README flags it), SDK version in the build image.
-    NEXT CONCRETE STEP (external, needs owner): open an upstream issue
-    proposing the type with this plan, then the PR — work in
-    coredevices/cloudpebble, not this repo (and outside this session's
-    repo scope).
+    controller runs the same qemu-pebble).
+
+    **RESCOPED 2026-08-07 — first-hand, from running their stack locally**
+    (a fork was checked out and a full `docker compose` stack booted while
+    contributing an unrelated import fix upstream; every claim below was
+    read in the sources or observed on that stack, and it moves tier 1 from
+    "packaging project" to "modest extension"):
+    - **The `alloy` project type already exists** — `PROJECT_TYPES` is SIX
+      entries now, and the sixth is `('alloy', 'JavaScript SDK (beta)')`:
+      the Moddable-based JS SDK, i.e. OUR substrate. Its file layout in
+      `ide/models/files.py` is `pkjs → src/pkjs`, **`embeddedjs →
+      src/embeddedjs`**, `app → src/c, src` — the pebble-signals layout,
+      already modelled upstream, with its own `generate_wscript_file_alloy`.
+      Observed end to end: importing `faces/slothvec` into that stack lands
+      as `project_type: alloy` with `index.js` + `mdbl.c`. So step (1) is
+      mostly "extend alloy", not "add a type", and step (3) (moddable SDK in
+      the build image) is ALREADY DONE — the image pins SDK 4.17.
+    - **The stack is modern**: `python:3.11-slim-trixie`, Django 4.2.11,
+      celery 5.3.6. The old "Python 2.7 / Django 1.6" risk is dead; treat
+      the README's warning as stale.
+    - **Builds do run npm** — `ide/tasks/build.py` runs
+      `npm install --ignore-scripts --no-bin-links` then `npm dedupe` under
+      the same rlimits (120s CPU / 30MB RSS / 20MB output). `--ignore-scripts`
+      is FINE for us: the published tarball ships prebuilt `dist/` (prepack
+      runs at publish), so nothing of ours needs an install hook.
+    - **The one real blocker is Node's version**: the build image installs
+      Node 20.11.0 (`NODE_VERSION` arg), and pebble-signals needs **≥24**
+      (its tooling is real TS run by native type-stripping — on Node 22 the
+      whole test suite fails to parse). So the concrete upstream ask is a
+      build-image Node bump, which is a one-line arg change but a real
+      review question for them.
+    NEXT CONCRETE STEP (external, needs owner): propose it upstream — after
+    the in-flight import PR lands, so the contribution has a track record.
+    Work happens in coredevices/cloudpebble, not this repo.
   - **Tier 3 evaluated → DEFERRED** per its own rule ("adopt only if
     someone else has done the heavy lifting"): no complete
     QEMU-pebble-in-WASM exists to adopt; tier 2 covers the instant-feedback
