@@ -11,6 +11,17 @@ Releases publish to npm via the `release.yml` trusted-publishing workflow
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-07
+
+### Fixed
+- **The 0.2.0 `tsc` fix was incomplete.** It probed for typescript only
+  INSIDE this package's and the project's own `node_modules`, but npm hoists
+  a peer dependency next to the package rather than under it — so a hosted
+  install still fell through to a global compiler. Resolution now goes
+  through Node's own resolver, which walks the whole `node_modules` chain.
+  Caught by building a real project on CloudPebble's worker, where the
+  fallback was a global `typescript@3.9.10`.
+
 ## [0.2.0] - 2026-08-07
 
 Everything here came out of running a real project through a HOSTED builder

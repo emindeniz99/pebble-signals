@@ -61,6 +61,7 @@
 //                                         ERROR, not a silent no-op (see the
 //                                         flag-combination gate below)
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import {
 	copyFileSync,
 	existsSync,
@@ -72,7 +73,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { classify } from "./tools/classify-module.mts";
 import { isHostSpecifier, relativeClosure } from "./tools/treeshake.mts";
@@ -159,9 +160,17 @@ const TSC = ((): string[] => {
 		const shim = join(root, "node_modules", ".bin", "tsc");
 		if (existsSync(shim)) return [shim];
 	}
-	for (const root of [PKG, PROJ]) {
-		const cli = join(root, "node_modules", "typescript", "bin", "tsc");
-		if (existsSync(cli)) return [process.execPath, cli];
+	// No shim: ask NODE where typescript is. Its resolver walks the whole
+	// node_modules chain, so a hoisted install (npm's default — typescript
+	// lands next to this package, not inside it) is found where a hand-rolled
+	// path probe would miss it and fall through to a global compiler.
+	for (const from of [import.meta.url, pathToFileURL(join(PROJ, "package.json")).href]) {
+		try {
+			const cli = join(dirname(createRequire(from).resolve("typescript/package.json")), "bin", "tsc");
+			if (existsSync(cli)) return [process.execPath, cli];
+		} catch {
+			// not resolvable from here — try the next origin
+		}
 	}
 	return ["tsc"];
 })();
