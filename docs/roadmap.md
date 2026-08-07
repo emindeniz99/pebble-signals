@@ -1207,9 +1207,28 @@ notifications, device info.
 
     NEXT CONCRETE STEP (external, needs owner): open the two PRs after the
     in-flight import PR lands, so the contribution has a track record. Lay
-    out the design space in the issue (generic build-script support vs the
-    pinned-toolchain narrow form vs browser-side compilation) but implement
-    only the narrow form.
+    out the design space in the issue but implement only the narrow form:
+    - **(A) generic build-script support** — CloudPebble runs whatever
+      `npm run build` a project declares. Most general, but it hands every
+      user arbitrary code execution on the build worker, which is the line
+      their `npm install --ignore-scripts` deliberately does not cross.
+      Frame it as the generalisation they can choose later.
+    - **(B) pinned toolchain, fixed command** — WHAT WE BUILT. The image
+      installs a version this repo chose and runs one fixed command; the
+      project supplies sources, never the code that runs. Same trust model
+      as waf, mcrun and gcc.
+    - **(C) compile in the browser** — no server change at all: the project
+      stored in CloudPebble would be a plain alloy project (src/embeddedjs),
+      which builds there today. **This got considerably cheaper while we
+      worked**: their IDE already runs the real TypeScript compiler in a web
+      worker for completions, so the type-stripping half is present in the
+      browser. What is missing is our lowering pass and esbuild — esbuild
+      ships a wasm build, and the lowering tool is plain TS-API code that
+      should run anywhere the compiler does. Costs: the generated
+      src/embeddedjs would be stored as project files (generated code in the
+      editor, which is ugly), and the work is entirely ours. Keep it as the
+      fallback if upstream declines (B), and as the long-term answer if
+      hosted build CPU ever becomes the constraint.
   - **Tier 3 evaluated → DEFERRED** per its own rule ("adopt only if
     someone else has done the heavy lifting"): no complete
     QEMU-pebble-in-WASM exists to adopt; tier 2 covers the instant-feedback
