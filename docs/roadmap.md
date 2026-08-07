@@ -1180,9 +1180,36 @@ notifications, device info.
       whole test suite fails to parse). So the concrete upstream ask is a
       build-image Node bump, which is a one-line arg change but a real
       review question for them.
-    NEXT CONCRETE STEP (external, needs owner): propose it upstream — after
-    the in-flight import PR lands, so the contribution has a track record.
-    Work happens in coredevices/cloudpebble, not this repo.
+    **PROTOTYPED AND GREEN 2026-08-07.** Built on the fork, verified on the
+    full docker stack from a clean image with no manual steps: importing the
+    slothvec watchface and pressing Build produces a working `.pbw` for
+    emery + gabbro (304 B app). Two stacked branches on
+    emindeniz99/cloudpebble, ready to open as PRs:
+    - `node-24-build-image` — the image pins Node 20.11.0 (EOL); our tooling
+      needs >= 24. Stands alone, defensible without mentioning us.
+    - `alloy-typescript-support` (stacked on it) — a `tsx` source target and
+      an `assets` one (src/embeddedjs is our compiler's OUTPUT, so the
+      hand-authored resources its manifest points at cannot live there the
+      way they do in upstream's hand-written examples); a generated
+      `tsconfig.json` written beside the generated wscript; and a compile
+      step running the IMAGE-PINNED toolchain with a FIXED command. That
+      last point is the security answer: a project supplies sources, never
+      the code that runs — the same trust model as waf/mcrun/gcc, which is
+      why upstream's `npm install` carries `--ignore-scripts`.
+    - `PEBBLE_SIGNALS_BUILD_ARGS` defaults to `--no-prune`: measured there,
+      pruning takes the build 22s -> 170s and the resource pack 33.5KB ->
+      24.8KB. Hosted = iterate-and-see, so time wins by default.
+
+    Four bugs found by that prototype were OURS and are fixed in 0.2.0/0.2.1:
+    tsc resolved via Node's resolver (npm hoists the peer, so path probes
+    missed and a global typescript@3.9.10 won), a missing `zip` downgraded to
+    a warning, `--generate-only`, and the assets-directory finding above.
+
+    NEXT CONCRETE STEP (external, needs owner): open the two PRs after the
+    in-flight import PR lands, so the contribution has a track record. Lay
+    out the design space in the issue (generic build-script support vs the
+    pinned-toolchain narrow form vs browser-side compilation) but implement
+    only the narrow form.
   - **Tier 3 evaluated → DEFERRED** per its own rule ("adopt only if
     someone else has done the heavy lifting"): no complete
     QEMU-pebble-in-WASM exists to adopt; tier 2 covers the instant-feedback
