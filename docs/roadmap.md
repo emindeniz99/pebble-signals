@@ -30,11 +30,12 @@ no work inside this repo can advance). New work starts a new list.
       lands (CHANGELOG 0.1.0 records it). Unblock: port the
       lower/classify/symbol-rename TS-API usage to the TS 7 surface (or
       dual-support both), then widen the peer range with a measured floor.
-- [ ] **First live run of `release.yml`.** The OIDC trusted-publishing
-      pipeline (npm trust configured 2026-08-06, provenance automatic,
-      tag-must-match-package.json gate) has never cut a real release —
-      0.1.0-0.1.2 were manual publishes (bootstrap, then a GitHub Actions
-      outage). The next natural version bump is the end-to-end test.
+- [x] **First live run of `release.yml`** ✅ (2026-08-07, v0.1.3): the OIDC
+      trusted-publishing pipeline cut its first real release — tag-matches-
+      package.json gate, `pnpm run verify`, then `npm publish` with
+      provenance generated automatically, no npm token anywhere. 0.1.0-0.1.2
+      had been manual publishes (bootstrap, then a GitHub Actions outage).
+      Receipts in the 0.1.3 CHANGELOG entry.
 - [ ] **Hardware receipts.** The README's own headline caveat: every number
       and screenshot is QEMU-measured; there are no on-watch receipts yet.
       Needs a Pebble Time 2 (emery) / Pebble Round 2 (gabbro) in hand. First

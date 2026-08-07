@@ -11,6 +11,22 @@ Releases publish to npm via the `release.yml` trusted-publishing workflow
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-07
+
+The release that finally cuts itself: the first version published by the
+`release.yml` trusted-publishing pipeline (GitHub OIDC, provenance
+automatic, no npm token anywhere) instead of by hand. 0.1.0-0.1.2 were all
+manual publishes — bootstrap first, then a GitHub Actions outage — so the
+pipeline the repo documents had never actually run. Nothing for existing
+projects to do; no runtime, tool or scaffold behaviour changed.
+
+### Changed
+- **AI-attribution convention is now written down** in `CLAUDE.md` (Rule 5)
+  and `CONTRIBUTING.md`: the `Co-Authored-By:` trailer names the model that
+  actually did the work, on every surface (commits, PR bodies, substantive
+  PR comments), and never a fixed string or an emoji footer. Agents read
+  `CLAUDE.md` first, so the convention has to live there to be followed.
+
 ## [0.1.2] - 2026-08-06
 
 Store-audit release: everything the Sloth appstore submission taught us,
