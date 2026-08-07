@@ -11,6 +11,13 @@ Releases publish to npm via the `release.yml` trusted-publishing workflow
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-07
+
+Everything here came out of running a real project through a HOSTED builder
+(CloudPebble's celery worker) with its exact flags, instead of only on a
+developer laptop. Nothing changes for a local build; two of the three items
+are the difference between "works on my machine" and "works anywhere".
+
 ### Added
 - **`--generate-only` / `GENERATE_ONLY=1`** stops the build after
   `src/embeddedjs` is written, skipping `pebble build`. For hosted builders
