@@ -148,7 +148,11 @@ conventions". The parts that get bounced when skipped:
 - Imperative mood, lowercase, no trailing period, header ≤ 72 chars; body
   explains the WHY (constraint, measurement, rejected alternative) — never a
   restatement of the diff. One commit = one reason.
-- AI-assisted commits add a `Co-Authored-By:` trailer.
+- AI-assisted work is disclosed with a `Co-Authored-By:` trailer naming the
+  MODEL that actually did it (`Co-Authored-By: Claude Opus 5
+  <noreply@anthropic.com>`) — never a fixed string, and the same trailer on
+  every surface: commits, PR bodies, and substantive PR/issue comments. No
+  emoji "generated with" footers.
 - **Merging is always a real merge commit** — never squash, never
   rebase-merge. Per-commit history is the record of how the work was built;
   squashing on `main` destroys it irreversibly. The only exception is the

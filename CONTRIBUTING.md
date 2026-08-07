@@ -216,7 +216,10 @@ The hard parts, restated because they are the ones that get bounced:
   measurement, the obvious approach you rejected and what it cost.
 - Breaking changes get `!` after the scope **and** a `BREAKING CHANGE:` footer
   with the migration.
-- Add a `Co-Authored-By:` trailer for the AI assistant if one helped.
+- Disclose AI assistance with a `Co-Authored-By:` trailer naming the model
+  that actually did the work (`Co-Authored-By: Claude Opus 5
+  <noreply@anthropic.com>`), on commits, PR bodies and substantive PR
+  comments alike. A human reviews everything before it is pushed.
 
 [`CHANGELOG.md`](CHANGELOG.md) is hand-maintained here (Keep a Changelog, and
 no release automation runs on this project yet): user-visible changes get a
