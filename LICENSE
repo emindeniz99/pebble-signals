@@ -12,10 +12,6 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
-Bundled fonts are NOT covered by this license: the Liberation Serif files
-under src/tsx/examples/*/fonts/ are licensed under the SIL Open Font
-License 1.1 — see the LiberationSerif-LICENSE.txt shipped beside each copy.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE

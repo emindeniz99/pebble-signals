@@ -200,9 +200,10 @@ Then ask your agent for a Pebble watchface with pebble-signals.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE). The Moddable SDK typings vendored under
-[`types/moddable/`](types/moddable/) are compile-time-only declarations with
-their own provenance and terms, documented in
-[`types/moddable/NOTICE.md`](types/moddable/NOTICE.md).
+MIT — see [`LICENSE`](LICENSE). Third-party components that ship alongside
+it keep their own terms, indexed in [`NOTICE`](NOTICE): the bundled Liberation
+Serif fonts are under the SIL Open Font License 1.1, and the Moddable SDK
+typings vendored under [`types/moddable/`](types/moddable/) are compile-time-only
+declarations documented in [`types/moddable/NOTICE.md`](types/moddable/NOTICE.md).
 
 [react-pebble]: https://github.com/eddiemoore/react-pebble

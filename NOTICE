@@ -1,0 +1,16 @@
+pebble-signals — third-party notices
+====================================
+
+The MIT licence in LICENSE covers this project's own code. The components
+below ship alongside it and carry their own terms.
+
+Liberation Serif fonts
+----------------------
+The font files under src/tsx/examples/*/fonts/ are licensed under the SIL
+Open Font License 1.1, not MIT. Each copy ships with its own
+LiberationSerif-LICENSE.txt beside it; that file is the authoritative text.
+
+Moddable SDK typings
+--------------------
+The compile-time-only declarations vendored under types/moddable/ have their
+own provenance and terms; see types/moddable/NOTICE.md.
