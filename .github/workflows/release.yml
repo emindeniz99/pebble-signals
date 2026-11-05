@@ -44,6 +44,7 @@ jobs:
         with:
           node-version: 24
           # No cache in the job that publishes: a poisoned restore would ship.
+          package-manager-cache: false
           registry-url: https://registry.npmjs.org
       - name: Tag must match package.json version
         env:
